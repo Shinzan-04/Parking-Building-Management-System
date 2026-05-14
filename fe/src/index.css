@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    @apply bg-[#101A31] text-white font-sans antialiased overflow-x-hidden;
+  }
+
+  #root { @apply min-h-screen; }
+
+  ul, ol { list-style: none; padding: 0; margin: 0; }
+
+  a { text-decoration: none; color: inherit; }
+}
+
+@layer utilities {
+  .gradient-text {
+    @apply bg-gradient-to-r from-[#00C2FF] to-[#3BFFA4] bg-clip-text text-transparent;
+  }
+
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl;
+  }
+
+  .blob {
+    @apply absolute rounded-full blur-3xl pointer-events-none;
+  }
+}
