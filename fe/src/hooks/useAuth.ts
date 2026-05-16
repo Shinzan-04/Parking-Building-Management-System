@@ -1,5 +1,14 @@
 import { useState, useCallback } from 'react';
-import { loginApi, googleLoginApi, type AuthResponse, type LoginRequest } from '../services/authService';
+import {
+  loginApi,
+  registerApi,
+  googleLoginApi,
+  type AuthResponse,
+  type BaseAuthResponse,
+  type LoginRequest,
+  type RegisterRequest,
+  type RegisterResponse,
+} from '../services/authService';
 
 const TOKEN_KEY = 'sp_token';
 const USER_KEY  = 'sp_user';
@@ -20,7 +29,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const saveSession = useCallback((response: AuthResponse) => {
+  const saveSession = useCallback((response: BaseAuthResponse) => {
     localStorage.setItem(TOKEN_KEY, response.token);
     localStorage.setItem(USER_KEY, JSON.stringify(response));
     setUser(response);
@@ -37,6 +46,23 @@ export function useAuth() {
       return response;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Đăng nhập thất bại.';
+      setError(msg);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, [saveSession]);
+
+  /** Đăng ký bằng username + password + thông tin hồ sơ */
+  const register = useCallback(async (payload: RegisterRequest) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response: RegisterResponse = await registerApi(payload);
+      saveSession(response);
+      return response;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Đăng ký thất bại.';
       setError(msg);
       throw err;
     } finally {
@@ -76,6 +102,7 @@ export function useAuth() {
     loading,
     error,
     login,
+    register,
     loginWithGoogle,
     logout,
   };
