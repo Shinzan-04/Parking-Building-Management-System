@@ -216,12 +216,7 @@ export default function LandingPage() {
           <div className="blob bottom-10 left-10 w-96 h-96 bg-[#3BFFA4]/20" />
 
           <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="inline-flex items-center gap-1.5 px-4 py-2 mb-6
-                            rounded-full bg-white/10 border border-white/20
-                            backdrop-blur-sm text-sm font-medium">
-              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
-              AI-Powered Parking Management
-            </div>
+           
 
             <h1 className="text-5xl md:text-7xl font-extrabold leading-tight mb-6 tracking-tight">
               The Future of
