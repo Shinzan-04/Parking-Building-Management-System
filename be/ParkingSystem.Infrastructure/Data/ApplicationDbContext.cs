@@ -39,6 +39,20 @@ public class ApplicationDbContext : DbContext
             .WithMany(u => u.Reservations)
             .HasForeignKey(r => r.DriverId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Session → Reservation (optional FK)
+        modelBuilder.Entity<ParkingSession>()
+            .HasOne(ps => ps.Reservation)
+            .WithMany()
+            .HasForeignKey(ps => ps.ReservationId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // Reservation → VehicleType
+        modelBuilder.Entity<Reservation>()
+            .HasOne(r => r.VehicleType)
+            .WithMany()
+            .HasForeignKey(r => r.VehicleTypeId)
+            .OnDelete(DeleteBehavior.Restrict);
             
         modelBuilder.Entity<ParkingSession>()
             .Property(p => p.TotalFee)

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ParkingSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ParkingSystem.Infrastructure.Data;
 namespace ParkingSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260515094600_AddQrCodeToUser")]
+    partial class AddQrCodeToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -91,9 +94,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("CheckInMethod")
-                        .HasColumnType("integer");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -122,13 +122,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Property<Guid>("ParkingSlotId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ReservationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("SessionCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<Guid?>("StaffId")
                         .HasColumnType("uuid");
 
@@ -149,8 +142,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.HasIndex("DriverId");
 
                     b.HasIndex("ParkingSlotId");
-
-                    b.HasIndex("ReservationId");
 
                     b.HasIndex("StaffId");
 
@@ -279,10 +270,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("BookingCode")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -294,10 +281,6 @@ namespace ParkingSystem.Infrastructure.Migrations
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
-
-                    b.Property<string>("LicensePlate")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<Guid>("ParkingSlotId")
                         .HasColumnType("uuid");
@@ -311,16 +294,11 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("VehicleTypeId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("Id");
 
                     b.HasIndex("DriverId");
 
                     b.HasIndex("ParkingSlotId");
-
-                    b.HasIndex("VehicleTypeId");
 
                     b.ToTable("Reservations");
                 });
@@ -421,11 +399,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("ParkingSystem.Domain.Entities.Reservation", "Reservation")
-                        .WithMany()
-                        .HasForeignKey("ReservationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("ParkingSystem.Domain.Entities.User", "Staff")
                         .WithMany("HandledSessions")
                         .HasForeignKey("StaffId")
@@ -440,8 +413,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Navigation("Driver");
 
                     b.Navigation("ParkingSlot");
-
-                    b.Navigation("Reservation");
 
                     b.Navigation("Staff");
 
@@ -503,17 +474,9 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("ParkingSystem.Domain.Entities.VehicleType", "VehicleType")
-                        .WithMany()
-                        .HasForeignKey("VehicleTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Driver");
 
                     b.Navigation("ParkingSlot");
-
-                    b.Navigation("VehicleType");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.Building", b =>
