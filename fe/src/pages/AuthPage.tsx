@@ -7,6 +7,7 @@ import * as Yup from 'yup';
 import {
   Eye, EyeOff,
   Lock, User,
+  Mail, Phone,
   ArrowLeft, Sparkles,
 } from 'lucide-react';
 
@@ -105,6 +106,14 @@ const registerSchema = Yup.object().shape({
   username: Yup.string()
     .min(3, 'Tên đăng nhập phải có ít nhất 3 ký tự')
     .required('Vui lòng nhập tên đăng nhập'),
+  fullName: Yup.string()
+    .min(2, 'Họ và tên phải có ít nhất 2 ký tự')
+    .required('Vui lòng nhập họ và tên'),
+  email: Yup.string()
+    .email('Email không hợp lệ')
+    .nullable(),
+  phoneNumber: Yup.string()
+    .nullable(),
   password: Yup.string()
     .min(6, 'Mật khẩu phải có ít nhất 6 ký tự')
     .required('Vui lòng nhập mật khẩu'),
@@ -117,7 +126,7 @@ const registerSchema = Yup.object().shape({
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { login, loading, error: apiError, loginWithGoogle } = useAuth();
+  const { login, register, loading, error: apiError, loginWithGoogle } = useAuth();
 
   useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -182,6 +191,9 @@ export default function AuthPage() {
   const formik = useFormik({
     initialValues: {
       username: '',
+      fullName: '',
+      email: '',
+      phoneNumber: '',
       password: '',
       confirmPassword: '',
     },
@@ -195,8 +207,18 @@ export default function AuthPage() {
           // apiError đã được hook useAuth xử lý
         }
       } else {
-        // Register placeholder
-        alert('Tính năng đăng ký đang được phát triển.\nData: ' + JSON.stringify(values, null, 2));
+        try {
+          await register({
+            username: values.username,
+            password: values.password,
+            fullName: values.fullName,
+            email: values.email.trim() || null,
+            phoneNumber: values.phoneNumber.trim() || null,
+          });
+          navigate('/');
+        } catch {
+          // apiError đã được hook useAuth xử lý
+        }
       }
       setSubmitting(false);
     },
@@ -383,6 +405,57 @@ export default function AuthPage() {
                 error={formik.errors.username}
                 touched={formik.touched.username}
               />
+
+              {mode === 'register' && (
+                <FormikField
+                  id="fullName"
+                  name="fullName"
+                  label="Full name"
+                  type="text"
+                  placeholder="Nguyễn Văn A"
+                  icon={<User className="w-4 h-4" />}
+                  autoComplete="name"
+                  value={formik.values.fullName}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.errors.fullName}
+                  touched={formik.touched.fullName}
+                />
+              )}
+
+              {mode === 'register' && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FormikField
+                    id="email"
+                    name="email"
+                    label="Email"
+                    type="email"
+                    placeholder="you@example.com"
+                    icon={<Mail className="w-4 h-4" />}
+                    autoComplete="email"
+                    value={formik.values.email}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={formik.errors.email}
+                    touched={formik.touched.email}
+                  />
+
+                  <FormikField
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    label="Phone number"
+                    type="tel"
+                    placeholder="0901234567"
+                    icon={<Phone className="w-4 h-4" />}
+                    autoComplete="tel"
+                    value={formik.values.phoneNumber}
+                    onChange={formik.handleChange}
+                    onBlur={formik.handleBlur}
+                    error={formik.errors.phoneNumber}
+                    touched={formik.touched.phoneNumber}
+                  />
+                </div>
+              )}
 
               {/* Password */}
               <FormikField

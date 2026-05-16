@@ -7,15 +7,30 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface RegisterRequest {
+  username: string;
+  password: string;
+  fullName: string;
+  phoneNumber?: string | null;
+  email?: string | null;
+}
+
 export interface GoogleLoginRequest {
   idToken: string;
 }
 
-export interface AuthResponse {
+export interface BaseAuthResponse {
   userId: string;
   token: string;
   fullName: string;
   role: UserRole;
+}
+
+export interface AuthResponse extends BaseAuthResponse {}
+
+export interface RegisterResponse extends BaseAuthResponse {
+  qrCode: string;
+  qrCodeImageBase64: string;
 }
 
 export interface ApiError {
@@ -50,6 +65,11 @@ async function post<TBody, TResponse>(path: string, body: TBody): Promise<TRespo
 /** Đăng nhập bằng username + password */
 export async function loginApi(payload: LoginRequest): Promise<AuthResponse> {
   return post<LoginRequest, AuthResponse>('/api/auth/login', payload);
+}
+
+/** Đăng ký tài khoản mới */
+export async function registerApi(payload: RegisterRequest): Promise<RegisterResponse> {
+  return post<RegisterRequest, RegisterResponse>('/api/auth/register', payload);
 }
 
 /** Đăng nhập / đăng ký bằng Google ID Token */
