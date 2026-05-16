@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useEffect } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import {
@@ -116,7 +117,62 @@ const registerSchema = Yup.object().shape({
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { login, loading, error: apiError } = useAuth();
+  const { login, loading, error: apiError, loginWithGoogle } = useAuth();
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      console.warn('VITE_GOOGLE_CLIENT_ID is not set. Google Sign-In disabled.');
+      return;
+    }
+
+    function handleCredentialResponse(response: any) {
+      const idToken = response?.credential;
+      if (idToken) {
+        // Login using hook
+        loginWithGoogle(idToken)
+          .then(() => {
+            navigate('/');
+          })
+          .catch(() => {
+            // error handled in hook
+          });
+      }
+    }
+
+    // Load Google Identity Services script if not present
+    if (!(window as any).google) {
+      const id = 'google-identity';
+      if (!document.getElementById(id)) {
+        const s = document.createElement('script');
+        s.src = 'https://accounts.google.com/gsi/client';
+        s.async = true;
+        s.defer = true;
+        s.id = id;
+        s.onload = () => {
+          (window as any).google?.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleCredentialResponse,
+          });
+          // Render button into placeholder
+          const container = document.getElementById('googleSignInDiv');
+          if (container) {
+            (window as any).google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+          }
+        };
+        document.body.appendChild(s);
+      }
+    } else {
+      (window as any).google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleCredentialResponse,
+      });
+      const container = document.getElementById('googleSignInDiv');
+      if (container) {
+        (window as any).google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+      }
+    }
+  }, [loginWithGoogle, navigate]);
 
   const [mode, setMode] = useState<AuthMode>('login');
   const [showPassword, setShowPassword] = useState(false);
@@ -154,6 +210,26 @@ export default function AuthPage() {
 
   const handleSocialAuth = (provider: string) => {
     alert(`${provider} OAuth chưa được cấu hình.`);
+  };
+
+  const handleGoogleClick = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      alert('VITE_GOOGLE_CLIENT_ID chưa được cấu hình. Vui lòng thêm Client ID vào .env');
+      return;
+    }
+
+    if ((window as any).google && (window as any).google.accounts?.id) {
+      try {
+        (window as any).google.accounts.id.prompt();
+      } catch {
+        // If prompt fails, try clicking rendered button if exists
+        const btn = document.querySelector('#googleSignInDiv button') as HTMLButtonElement | null;
+        if (btn) btn.click();
+      }
+    } else {
+      alert('Google Sign-In chưa sẵn sàng. Thử refresh trang.');
+    }
   };
 
   return (
@@ -241,10 +317,10 @@ export default function AuthPage() {
             </div>
 
             {/* Social buttons */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="grid grid-cols-2 gap-3 mb-5 items-center">
               <button
                 type="button"
-                onClick={() => handleSocialAuth('Google')}
+                onClick={handleGoogleClick}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
                            bg-white/5 border border-white/10 text-sm text-white font-medium
                            hover:bg-white/10 hover:border-[#00C2FF]/50 transition-all duration-200"
@@ -268,6 +344,8 @@ export default function AuthPage() {
                 GitHub
               </button>
             </div>
+            {/* Hidden container for Google Identity to render into (kept for compatibility) */}
+            <div id="googleSignInDiv" className="hidden" />
 
             {/* Divider */}
             <div className="relative mb-5">
