@@ -1,18 +1,18 @@
 import { useState, type FormEvent, type ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import {
-  Eye,
-  EyeOff,
-  Mail,
-  Lock,
-  User,
-  ArrowLeft,
-  Sparkles,
-  CheckCircle2,
-  XCircle,
+  Eye, EyeOff,
+  Lock, User,
+  ArrowLeft, Sparkles,
 } from 'lucide-react';
 
-// Inline GitHub brand icon (not in lucide-react)
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type AuthMode = 'login' | 'register';
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
 function GitHubIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -21,75 +21,27 @@ function GitHubIcon({ className }: { className?: string }) {
   );
 }
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type AuthMode = 'login' | 'register';
-
-interface ValidationState {
-  isValid: boolean;
-  message: string;
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function calculatePasswordStrength(pwd: string): number {
-  let strength = 0;
-  if (pwd.length >= 8) strength++;
-  if (pwd.length >= 12) strength++;
-  if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) strength++;
-  if (/\d/.test(pwd)) strength++;
-  if (/[^a-zA-Z0-9]/.test(pwd)) strength++;
-  return strength;
-}
-
-function getStrengthInfo(strength: number): { label: string; colorBar: string; colorText: string } {
-  if (strength === 0) return { label: 'Very Weak',   colorBar: 'bg-red-500',       colorText: 'text-red-500' };
-  if (strength === 1) return { label: 'Weak',        colorBar: 'bg-orange-500',    colorText: 'text-orange-500' };
-  if (strength === 2) return { label: 'Fair',        colorBar: 'bg-yellow-500',    colorText: 'text-yellow-500' };
-  if (strength === 3) return { label: 'Good',        colorBar: 'bg-blue-400',      colorText: 'text-blue-400' };
-  if (strength === 4) return { label: 'Strong',      colorBar: 'bg-[#3BFFA4]',    colorText: 'text-[#3BFFA4]' };
-  return              { label: 'Very Strong',         colorBar: 'bg-[#3BFFA4]',    colorText: 'text-[#3BFFA4]' };
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-interface InputFieldProps {
+interface FieldProps {
   id: string;
-  type: string;
+  label: string;
+  type?: string;
   value: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   placeholder: string;
-  validation?: ValidationState;
-  showValue?: boolean;
-  onToggleShow?: () => void;
   icon: React.ReactNode;
-  label: string;
-  rightIcon?: React.ReactNode;
+  showToggle?: boolean;
+  showValue?: boolean;
+  onToggle?: () => void;
+  autoComplete?: string;
 }
 
-function InputField({
-  id,
-  type,
-  value,
-  onChange,
-  placeholder,
-  validation,
-  showValue,
-  onToggleShow,
-  icon,
-  label,
-  rightIcon,
-}: InputFieldProps) {
-  const borderClass =
-    value && validation
-      ? validation.isValid
-        ? 'border-[#3BFFA4] focus:border-[#3BFFA4]'
-        : 'border-red-500 focus:border-red-500'
-      : 'border-white/10 focus:border-[#00C2FF]';
-
+function Field({
+  id, label, type = 'text', value, onChange,
+  placeholder, icon, showToggle, showValue, onToggle, autoComplete,
+}: FieldProps) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-white mb-2">
+      <label htmlFor={id} className="block text-sm font-medium text-gray-300 mb-2">
         {label}
       </label>
       <div className="relative">
@@ -98,36 +50,28 @@ function InputField({
         </span>
         <input
           id={id}
-          type={showValue !== undefined ? (showValue ? 'text' : 'password') : type}
+          type={showToggle ? (showValue ? 'text' : 'password') : type}
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className={`w-full pl-10 ${onToggleShow || rightIcon ? 'pr-10' : 'pr-4'} py-3 rounded-xl
-            bg-white/5 border text-white placeholder:text-gray-500 text-sm
-            outline-none transition-all duration-200 focus:ring-2 focus:ring-[#00C2FF]/20
-            ${borderClass}`}
+          autoComplete={autoComplete}
+          required
+          className="w-full pl-10 pr-10 py-3 rounded-xl bg-white/5 border border-white/10
+                     text-white placeholder:text-gray-500 text-sm outline-none
+                     transition-all duration-200
+                     focus:border-[#00C2FF] focus:ring-2 focus:ring-[#00C2FF]/20"
         />
-        {rightIcon && !onToggleShow && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-            {rightIcon}
-          </span>
-        )}
-        {onToggleShow && (
+        {showToggle && (
           <button
             type="button"
-            onClick={onToggleShow}
+            onClick={onToggle}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-            aria-label={showValue ? 'Hide password' : 'Show password'}
+            aria-label={showValue ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
           >
-            {showValue ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            {showValue ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           </button>
         )}
       </div>
-      {value && validation?.message && (
-        <p className={`text-xs mt-1.5 ${validation.isValid ? 'text-[#3BFFA4]' : 'text-red-400'}`}>
-          {validation.message}
-        </p>
-      )}
     </div>
   );
 }
@@ -135,135 +79,97 @@ function InputField({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AuthPage() {
+  const navigate = useNavigate();
+  const { login, loading, error: apiError } = useAuth();
+
   const [mode, setMode] = useState<AuthMode>('login');
+
+  // Login fields — khớp đúng với BE: { username, password }
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Form state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-
-  // Validation
-  const [emailValidation, setEmailValidation] = useState<ValidationState>({ isValid: true, message: '' });
-  const [passwordValidation, setPasswordValidation] = useState<ValidationState>({ isValid: true, message: '' });
-
-  const validateEmail = (value: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!value) {
-      setEmailValidation({ isValid: true, message: '' });
-    } else if (!emailRegex.test(value)) {
-      setEmailValidation({ isValid: false, message: 'Invalid email format' });
-    } else {
-      setEmailValidation({ isValid: true, message: 'Valid email' });
-    }
-  };
-
-  const validatePassword = (value: string) => {
-    if (!value) {
-      setPasswordValidation({ isValid: true, message: '' });
-    } else if (value.length < 8) {
-      setPasswordValidation({ isValid: false, message: 'Password must be at least 8 characters' });
-    } else {
-      setPasswordValidation({ isValid: true, message: 'Password meets requirements' });
-    }
-  };
-
-  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setEmail(e.target.value);
-    validateEmail(e.target.value);
-  };
-
-  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setPassword(e.target.value);
-    validatePassword(e.target.value);
-  };
-
-  const passwordStrength = calculatePasswordStrength(password);
-  const strengthInfo = getStrengthInfo(passwordStrength);
-
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    console.log('Form submitted:', { mode, email, password, fullName });
-  };
-
-  const handleSocialAuth = (provider: string) => {
-    console.log('Social auth:', provider);
+  const resetForm = () => {
+    setUsername('');
+    setPassword('');
+    setShowPassword(false);
   };
 
   const switchMode = (next: AuthMode) => {
     setMode(next);
-    // Reset form when switching
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-    setFullName('');
-    setEmailValidation({ isValid: true, message: '' });
-    setPasswordValidation({ isValid: true, message: '' });
+    resetForm();
   };
 
-  const confirmMismatch = confirmPassword && confirmPassword !== password;
-  const confirmMatch    = confirmPassword && confirmPassword === password;
+  // ── Login submit ─────────────────────────────────────────────────────────────
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (mode === 'login') {
+      try {
+        await login({ username, password });
+        navigate('/');
+      } catch {
+        // apiError được set tự động bởi useAuth
+      }
+    } else {
+      // Register: BE chưa có endpoint — placeholder
+      alert('Tính năng đăng ký đang được phát triển.');
+    }
+  };
+
+  const handleSocialAuth = (provider: string) => {
+    alert(`${provider} OAuth chưa được cấu hình.`);
+  };
 
   return (
     <div className="min-h-screen bg-[#101A31] flex overflow-hidden text-white">
 
-      {/* ── Left Panel (decorative, desktop only) ───────────────────────────── */}
+      {/* ── Left Panel ─────────────────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        {/* Gradient overlays */}
         <div className="absolute inset-0 bg-gradient-to-br from-[#00C2FF]/20 via-transparent to-[#3BFFA4]/20" />
         <div className="blob top-20 left-20 w-96 h-96 bg-[#00C2FF]/25 animate-pulse" />
-        <div
-          className="blob bottom-20 right-20 w-80 h-80 bg-[#3BFFA4]/25 animate-pulse"
-          style={{ animationDelay: '1s' }}
-        />
+        <div className="blob bottom-20 right-20 w-80 h-80 bg-[#3BFFA4]/25 animate-pulse" style={{ animationDelay: '1s' }} />
 
-        <div className="relative z-10 flex flex-col items-center justify-center w-full p-12">
-          {/* Abstract visual */}
-          <div className="mb-10 w-full max-w-sm">
+        <div className="relative z-10 flex flex-col items-center justify-center w-full p-12 text-center">
+          {/* Logo visual */}
+          <div className="mb-10 w-full max-w-xs">
             <div className="relative rounded-3xl overflow-hidden glass-card p-1">
-              {/* Fake 3-D render placeholder using CSS art */}
-              <div className="h-64 rounded-2xl bg-gradient-to-br from-[#00C2FF]/30 to-[#3BFFA4]/20 flex items-center justify-center">
+              <div className="h-56 rounded-2xl bg-gradient-to-br from-[#00C2FF]/30 to-[#3BFFA4]/20 flex items-center justify-center">
                 <div className="relative">
-                  <div className="w-40 h-40 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] opacity-80 blur-xl absolute -inset-4" />
-                  <div className="relative z-10 w-32 h-32 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] flex items-center justify-center shadow-2xl shadow-[#00C2FF]/40">
-                    <Sparkles className="w-16 h-16 text-white drop-shadow-lg" />
+                  <div className="w-36 h-36 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] opacity-70 blur-xl absolute -inset-4" />
+                  <div className="relative z-10 w-28 h-28 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] flex items-center justify-center shadow-2xl shadow-[#00C2FF]/40">
+                    <Sparkles className="w-14 h-14 text-white" />
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="text-center">
-            <h1 className="text-5xl font-extrabold text-white mb-4 leading-tight">
-              Welcome to
-              <span className="block gradient-text">SmartPark</span>
-            </h1>
-            <p className="text-gray-400 text-lg max-w-md mx-auto">
-              Intelligent parking management powered by AI.
-              Join thousands of facilities worldwide.
-            </p>
+          <h1 className="text-5xl font-extrabold mb-4 leading-tight">
+            Welcome to
+            <span className="block gradient-text">SmartPark</span>
+          </h1>
+          <p className="text-gray-400 text-lg max-w-md">
+            Intelligent parking management powered by AI.
+            Join thousands of facilities worldwide.
+          </p>
 
-            {/* Stats */}
-            <div className="mt-10 flex items-center justify-center gap-10">
-              {[
-                { value: '500+',  label: 'Facilities', color: 'text-[#00C2FF]' },
-                { value: '1M+',   label: 'Users',      color: 'text-[#3BFFA4]' },
-                { value: '99.9%', label: 'Uptime',     color: 'text-[#00C2FF]' },
-              ].map((stat) => (
-                <div key={stat.label} className="text-center">
-                  <p className={`text-3xl font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-sm text-gray-400 mt-0.5">{stat.label}</p>
-                </div>
-              ))}
-            </div>
+          <div className="mt-10 flex items-center justify-center gap-10">
+            {[
+              { value: '500+',  label: 'Facilities', color: 'text-[#00C2FF]' },
+              { value: '1M+',   label: 'Users',      color: 'text-[#3BFFA4]' },
+              { value: '99.9%', label: 'Uptime',     color: 'text-[#00C2FF]' },
+            ].map((s) => (
+              <div key={s.label}>
+                <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
+                <p className="text-sm text-gray-400 mt-0.5">{s.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* ── Right Panel (form) ───────────────────────────────────────────────── */}
+      {/* ── Right Panel (Form) ──────────────────────────────────────────────── */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative">
         {/* Back button */}
         <Link
@@ -276,21 +182,20 @@ export default function AuthPage() {
         </Link>
 
         <div className="w-full max-w-md">
-
-          {/* Glassmorphic card */}
-          <div className="relative p-8 rounded-3xl backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl">
+          {/* Card */}
+          <div className="p-8 rounded-3xl backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl">
 
             {/* Logo */}
             <div className="flex items-center justify-center gap-2 mb-8">
               <div className="p-2 bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] rounded-lg shadow-lg shadow-[#00C2FF]/30">
-                <Sparkles className="w-6 h-6 text-white" />
+                <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <span className="text-2xl font-bold">SmartPark</span>
+              <span className="text-xl font-bold">SmartPark</span>
             </div>
 
             {/* Header */}
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-white mb-1">
                 {mode === 'login' ? 'Welcome Back' : 'Create Account'}
               </h2>
               <p className="text-gray-400 text-sm">
@@ -300,17 +205,16 @@ export default function AuthPage() {
               </p>
             </div>
 
-            {/* Social auth */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            {/* Social buttons */}
+            <div className="grid grid-cols-2 gap-3 mb-5">
               <button
                 type="button"
-                onClick={() => handleSocialAuth('google')}
+                onClick={() => handleSocialAuth('Google')}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
                            bg-white/5 border border-white/10 text-sm text-white font-medium
                            hover:bg-white/10 hover:border-[#00C2FF]/50 transition-all duration-200"
               >
-                {/* Google icon */}
-                <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
@@ -320,179 +224,89 @@ export default function AuthPage() {
               </button>
               <button
                 type="button"
-                onClick={() => handleSocialAuth('github')}
+                onClick={() => handleSocialAuth('GitHub')}
                 className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
                            bg-white/5 border border-white/10 text-sm text-white font-medium
                            hover:bg-white/10 hover:border-[#00C2FF]/50 transition-all duration-200"
               >
-                <GitHubIcon className="w-5 h-5" />
+                <GitHubIcon className="w-4 h-4" />
                 GitHub
               </button>
             </div>
 
             {/* Divider */}
-            <div className="relative mb-6">
+            <div className="relative mb-5">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-white/10" />
               </div>
               <div className="relative flex justify-center">
-                <span className="px-4 bg-[#101A31]/80 text-xs text-gray-500 rounded-full border border-white/10">
-                  or continue with email
-                </span>
+                <span className="px-4 bg-[#101A31]/90 text-xs text-gray-500">or continue with</span>
               </div>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-
-              {/* Full Name (register only) */}
-              <div
-                className={`overflow-hidden transition-all duration-300 ${
-                  mode === 'register' ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
-                }`}
-              >
-                <InputField
-                  id="fullName"
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="John Doe"
-                  icon={<User className="w-5 h-5" />}
-                  label="Full Name"
-                />
+            {/* API error */}
+            {apiError && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-start gap-2">
+                <span className="mt-0.5 shrink-0">⚠</span>
+                <span>{apiError}</span>
               </div>
+            )}
 
-              {/* Email */}
-              <InputField
-                id="email"
-                type="email"
-                value={email}
-                onChange={handleEmailChange}
-                placeholder="you@example.com"
-                validation={emailValidation}
-                icon={<Mail className="w-5 h-5" />}
-                label="Email Address"
-                rightIcon={
-                  email
-                    ? emailValidation.isValid
-                      ? <CheckCircle2 className="w-5 h-5 text-[#3BFFA4]" />
-                      : <XCircle className="w-5 h-5 text-red-500" />
-                    : undefined
-                }
+            {/* ── Form ─────────────────────────────────────────────────────── */}
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+
+              {/* Username — dùng cho cả login lẫn register */}
+              <Field
+                id="username"
+                label="Username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="your_username"
+                icon={<User className="w-4 h-4" />}
+                autoComplete="username"
               />
 
               {/* Password */}
-              <div>
-                <InputField
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={handlePasswordChange}
-                  placeholder="••••••••"
-                  validation={passwordValidation}
-                  showValue={showPassword}
-                  onToggleShow={() => setShowPassword((p) => !p)}
-                  icon={<Lock className="w-5 h-5" />}
-                  label="Password"
-                />
+              <Field
+                id="password"
+                label="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                icon={<Lock className="w-4 h-4" />}
+                showToggle
+                showValue={showPassword}
+                onToggle={() => setShowPassword((p) => !p)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+              />
 
-                {/* Password strength meter (register only) */}
-                <div
-                  className={`overflow-hidden transition-all duration-300 ${
-                    mode === 'register' && password ? 'max-h-16 opacity-100 mt-3' : 'max-h-0 opacity-0'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-gray-400">Password Strength</span>
-                    <span className={`text-xs font-semibold ${strengthInfo.colorText}`}>
-                      {strengthInfo.label}
-                    </span>
-                  </div>
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <div
-                        key={i}
-                        className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                          i < passwordStrength ? strengthInfo.colorBar : 'bg-white/10'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Confirm Password (register only) */}
-              <div
-                className={`overflow-hidden transition-all duration-300 ${
-                  mode === 'register' ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
-                }`}
-              >
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-white mb-2">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                      <Lock className="w-5 h-5" />
-                    </span>
-                    <input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className={`w-full pl-10 pr-10 py-3 rounded-xl bg-white/5 border text-white
-                        placeholder:text-gray-500 text-sm outline-none transition-all duration-200
-                        focus:ring-2 focus:ring-[#00C2FF]/20
-                        ${confirmMismatch ? 'border-red-500 focus:border-red-500'
-                          : confirmMatch  ? 'border-[#3BFFA4] focus:border-[#3BFFA4]'
-                          : 'border-white/10 focus:border-[#00C2FF]'}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((p) => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                      aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                    </button>
-                  </div>
-                  {confirmMismatch && (
-                    <p className="text-xs text-red-400 mt-1.5">Passwords do not match</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Remember me / Forgot password (login only) */}
+              {/* Remember me / Forgot (login only) */}
               {mode === 'login' && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between pt-1">
                   <label className="flex items-center gap-2 cursor-pointer select-none group">
                     <div
-                      className={`w-4 h-4 rounded border transition-all duration-200 flex items-center justify-center
+                      onClick={() => setRememberMe((r) => !r)}
+                      className={`w-4 h-4 rounded border flex items-center justify-center transition-all duration-200
                         ${rememberMe
                           ? 'bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] border-transparent'
                           : 'border-white/30 bg-white/5 group-hover:border-[#00C2FF]/50'}`}
-                      onClick={() => setRememberMe((r) => !r)}
                     >
                       {rememberMe && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12" aria-hidden="true">
-                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12">
+                          <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
                     </div>
                     <input
                       type="checkbox"
-                      id="remember"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
                       className="sr-only"
                     />
                     <span className="text-sm text-gray-400">Remember me</span>
                   </label>
-                  <a
-                    href="#"
-                    className="text-sm text-[#00C2FF] hover:underline hover:text-[#3BFFA4] transition-colors"
-                  >
+                  <a href="#" className="text-sm text-[#00C2FF] hover:underline hover:text-[#3BFFA4] transition-colors">
                     Forgot password?
                   </a>
                 </div>
@@ -501,18 +315,28 @@ export default function AuthPage() {
               {/* Submit */}
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl font-semibold text-sm text-white
+                disabled={loading || !username || !password}
+                className="w-full mt-2 py-3 rounded-xl font-semibold text-sm text-white
                            bg-gradient-to-r from-[#00C2FF] to-[#3BFFA4]
-                           hover:opacity-90 active:scale-95
+                           hover:opacity-90 active:scale-[0.98]
                            shadow-lg shadow-[#00C2FF]/30 hover:shadow-[#00C2FF]/50
-                           transition-all duration-200"
+                           transition-all duration-200
+                           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
-                {mode === 'login' ? 'Sign In' : 'Create Account'}
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Please wait…
+                  </span>
+                ) : mode === 'login' ? 'Sign In' : 'Create Account'}
               </button>
             </form>
 
-            {/* Toggle mode */}
-            <div className="mt-6 text-center">
+            {/* Toggle */}
+            <div className="mt-5 text-center">
               <p className="text-sm text-gray-400">
                 {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
                 <button
@@ -527,7 +351,7 @@ export default function AuthPage() {
           </div>
 
           {/* Terms */}
-          <p className="text-center text-xs text-gray-500 mt-6 leading-relaxed">
+          <p className="text-center text-xs text-gray-500 mt-5 leading-relaxed">
             By continuing, you agree to SmartPark's{' '}
             <a href="#" className="text-[#00C2FF] hover:underline">Terms of Service</a>
             {' '}and{' '}
