@@ -8,10 +8,12 @@ namespace ParkingSystem.Application.Services;
 public class UserService : IUserService
 {
     private readonly IGenericRepository<User> _repository;
+    private readonly IQrCodeService _qrCodeService;
 
-    public UserService(IGenericRepository<User> repository)
+    public UserService(IGenericRepository<User> repository, IQrCodeService qrCodeService)
     {
         _repository = repository;
+        _qrCodeService = qrCodeService;
     }
 
     public async Task<IEnumerable<UserResponse>> GetAllAsync()
@@ -28,6 +30,7 @@ public class UserService : IUserService
 
     public async Task<UserResponse> CreateAsync(CreateUserRequest request)
     {
+        var qrCode = _qrCodeService.GenerateUniqueCode(5);
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -36,7 +39,8 @@ public class UserService : IUserService
             FullName = request.FullName,
             Role = request.Role,
             PhoneNumber = request.PhoneNumber,
-            Email = request.Email
+            Email = request.Email,
+            QrCode = qrCode
         };
 
         await _repository.AddAsync(user);
@@ -75,6 +79,7 @@ public class UserService : IUserService
         Role = u.Role,
         PhoneNumber = u.PhoneNumber,
         Email = u.Email,
+        QrCode = u.QrCode,
         CreatedAt = u.CreatedAt
     };
 }
