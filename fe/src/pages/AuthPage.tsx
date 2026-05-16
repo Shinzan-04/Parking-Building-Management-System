@@ -1,6 +1,8 @@
-import { useState, type FormEvent, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useFormik } from 'formik';
+import * as Yup from 'yup';
 import {
   Eye, EyeOff,
   Lock, User,
@@ -23,22 +25,29 @@ function GitHubIcon({ className }: { className?: string }) {
 
 interface FieldProps {
   id: string;
+  name: string;
   label: string;
   type?: string;
-  value: string;
-  onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   placeholder: string;
   icon: React.ReactNode;
   showToggle?: boolean;
   showValue?: boolean;
   onToggle?: () => void;
   autoComplete?: string;
+  value: string;
+  onChange: any;
+  onBlur: any;
+  error?: string;
+  touched?: boolean;
 }
 
-function Field({
-  id, label, type = 'text', value, onChange,
-  placeholder, icon, showToggle, showValue, onToggle, autoComplete,
+function FormikField({
+  id, name, label, type = 'text', placeholder, icon,
+  showToggle, showValue, onToggle, autoComplete,
+  value, onChange, onBlur, error, touched
 }: FieldProps) {
+  const hasError = touched && Boolean(error);
+  
   return (
     <div>
       <label htmlFor={id} className="block text-sm font-medium text-gray-300 mb-2">
@@ -50,16 +59,18 @@ function Field({
         </span>
         <input
           id={id}
+          name={name}
           type={showToggle ? (showValue ? 'text' : 'password') : type}
           value={value}
           onChange={onChange}
+          onBlur={onBlur}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          required
-          className="w-full pl-10 pr-10 py-3 rounded-xl bg-white/5 border border-white/10
-                     text-white placeholder:text-gray-500 text-sm outline-none
-                     transition-all duration-200
-                     focus:border-[#00C2FF] focus:ring-2 focus:ring-[#00C2FF]/20"
+          className={`w-full pl-10 pr-10 py-3 rounded-xl bg-white/5 border text-sm outline-none transition-all duration-200
+                     ${hasError 
+                        ? 'border-red-500/50 text-red-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
+                        : 'border-white/10 text-white placeholder:text-gray-500 focus:border-[#00C2FF] focus:ring-2 focus:ring-[#00C2FF]/20'
+                     }`}
         />
         {showToggle && (
           <button
@@ -72,9 +83,34 @@ function Field({
           </button>
         )}
       </div>
+      {/* Hiển thị lỗi ngay bên dưới input */}
+      <div className={`overflow-hidden transition-all duration-300 ${hasError ? 'max-h-10 opacity-100 mt-1.5' : 'max-h-0 opacity-0'}`}>
+        <p className="text-xs text-red-400">{error}</p>
+      </div>
     </div>
   );
 }
+
+// ─── Validation Schemas ───────────────────────────────────────────────────────
+
+const loginSchema = Yup.object().shape({
+  username: Yup.string()
+    .required('Vui lòng nhập tên đăng nhập (username)'),
+  password: Yup.string()
+    .required('Vui lòng nhập mật khẩu'),
+});
+
+const registerSchema = Yup.object().shape({
+  username: Yup.string()
+    .min(3, 'Tên đăng nhập phải có ít nhất 3 ký tự')
+    .required('Vui lòng nhập tên đăng nhập'),
+  password: Yup.string()
+    .min(6, 'Mật khẩu phải có ít nhất 6 ký tự')
+    .required('Vui lòng nhập mật khẩu'),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref('password')], 'Mật khẩu xác nhận không khớp')
+    .required('Vui lòng xác nhận mật khẩu'),
+});
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -83,38 +119,37 @@ export default function AuthPage() {
   const { login, loading, error: apiError } = useAuth();
 
   const [mode, setMode] = useState<AuthMode>('login');
-
-  // Login fields — khớp đúng với BE: { username, password }
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  const resetForm = () => {
-    setUsername('');
-    setPassword('');
-    setShowPassword(false);
-  };
+  // Khởi tạo Formik
+  const formik = useFormik({
+    initialValues: {
+      username: '',
+      password: '',
+      confirmPassword: '',
+    },
+    validationSchema: mode === 'login' ? loginSchema : registerSchema,
+    onSubmit: async (values, { setSubmitting }) => {
+      if (mode === 'login') {
+        try {
+          await login({ username: values.username, password: values.password });
+          navigate('/');
+        } catch {
+          // apiError đã được hook useAuth xử lý
+        }
+      } else {
+        // Register placeholder
+        alert('Tính năng đăng ký đang được phát triển.\nData: ' + JSON.stringify(values, null, 2));
+      }
+      setSubmitting(false);
+    },
+  });
 
   const switchMode = (next: AuthMode) => {
     setMode(next);
-    resetForm();
-  };
-
-  // ── Login submit ─────────────────────────────────────────────────────────────
-  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (mode === 'login') {
-      try {
-        await login({ username, password });
-        navigate('/');
-      } catch {
-        // apiError được set tự động bởi useAuth
-      }
-    } else {
-      // Register: BE chưa có endpoint — placeholder
-      alert('Tính năng đăng ký đang được phát triển.');
-    }
+    formik.resetForm();
+    setShowPassword(false);
   };
 
   const handleSocialAuth = (provider: string) => {
@@ -252,36 +287,65 @@ export default function AuthPage() {
               </div>
             )}
 
-            {/* ── Form ─────────────────────────────────────────────────────── */}
-            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {/* ── Formik Form ──────────────────────────────────────────────── */}
+            <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
 
-              {/* Username — dùng cho cả login lẫn register */}
-              <Field
+              {/* Username */}
+              <FormikField
                 id="username"
+                name="username"
                 label="Username"
                 type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
                 placeholder="your_username"
                 icon={<User className="w-4 h-4" />}
                 autoComplete="username"
+                value={formik.values.username}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                error={formik.errors.username}
+                touched={formik.touched.username}
               />
 
               {/* Password */}
-              <Field
+              <FormikField
                 id="password"
+                name="password"
                 label="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 icon={<Lock className="w-4 h-4" />}
                 showToggle
                 showValue={showPassword}
                 onToggle={() => setShowPassword((p) => !p)}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                value={formik.values.password}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                error={formik.errors.password}
+                touched={formik.touched.password}
               />
 
-              {/* Remember me / Forgot (login only) */}
+              {/* Confirm Password (chỉ hiện ở mode register) */}
+              <div
+                className={`overflow-hidden transition-all duration-300 ${
+                  mode === 'register' ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
+                }`}
+              >
+                <FormikField
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  label="Confirm Password"
+                  placeholder="••••••••"
+                  icon={<Lock className="w-4 h-4" />}
+                  autoComplete="new-password"
+                  value={formik.values.confirmPassword}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  error={formik.errors.confirmPassword}
+                  touched={formik.touched.confirmPassword}
+                />
+              </div>
+
+              {/* Remember me / Forgot (chỉ hiện ở mode login) */}
               {mode === 'login' && (
                 <div className="flex items-center justify-between pt-1">
                   <label className="flex items-center gap-2 cursor-pointer select-none group">
@@ -312,10 +376,10 @@ export default function AuthPage() {
                 </div>
               )}
 
-              {/* Submit */}
+              {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading || !username || !password}
+                disabled={loading || formik.isSubmitting}
                 className="w-full mt-2 py-3 rounded-xl font-semibold text-sm text-white
                            bg-gradient-to-r from-[#00C2FF] to-[#3BFFA4]
                            hover:opacity-90 active:scale-[0.98]
@@ -323,7 +387,7 @@ export default function AuthPage() {
                            transition-all duration-200
                            disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
-                {loading ? (
+                {loading || formik.isSubmitting ? (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -335,7 +399,7 @@ export default function AuthPage() {
               </button>
             </form>
 
-            {/* Toggle */}
+            {/* Toggle Mode */}
             <div className="mt-5 text-center">
               <p className="text-sm text-gray-400">
                 {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}
