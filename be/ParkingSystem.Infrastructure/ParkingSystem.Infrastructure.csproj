@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ParkingSystem.Domain\ParkingSystem.Domain.csproj" />
+    <ProjectReference Include="..\ParkingSystem.Application\ParkingSystem.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -9,7 +10,9 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.19.2" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.7" />
   </ItemGroup>
 
   <PropertyGroup>

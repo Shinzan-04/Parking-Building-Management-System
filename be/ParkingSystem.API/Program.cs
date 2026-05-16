@@ -54,12 +54,37 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Register Services
-builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
+// Register Repositories
+builder.Services.AddScoped(typeof(ParkingSystem.Domain.Interfaces.IGenericRepository<>), typeof(ParkingSystem.Infrastructure.Repositories.GenericRepository<>));
 builder.Services.AddScoped<ParkingSystem.Domain.Interfaces.IUserRepository, ParkingSystem.Infrastructure.Repositories.UserRepository>();
 
-// Configure JWT Authentication
+// Register Services
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IQrCodeService, QrCodeService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IBuildingService, BuildingService>();
+builder.Services.AddScoped<IFloorService, FloorService>();
+builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
+builder.Services.AddScoped<IParkingSlotService, ParkingSlotService>();
+builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
+
+// Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
+// Sử dụng model license_plate_detector.onnx đã train riêng cho biển số xe Việt Nam
+var modelPath = Path.Combine(builder.Environment.ContentRootPath, "Models", "license_plate_detector.onnx");
+if (File.Exists(modelPath))
+{
+    builder.Services.AddSingleton<ILicensePlateOcrService>(
+        new ParkingSystem.Infrastructure.Services.LicensePlateOcrService(modelPath));
+}
+else
+{
+    // Nếu chưa có model, dùng service giả trả về thông báo
+    builder.Services.AddSingleton<ILicensePlateOcrService>(
+        new ParkingSystem.Infrastructure.Services.FallbackOcrService());
+}
+
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key is missing in configuration.");
 

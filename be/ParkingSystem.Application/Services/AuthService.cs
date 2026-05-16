@@ -12,12 +12,14 @@ public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
     private readonly ITokenService _tokenService;
+    private readonly IQrCodeService _qrCodeService;
     private readonly IConfiguration _configuration;
 
-    public AuthService(IUserRepository userRepository, ITokenService tokenService, IConfiguration configuration)
+    public AuthService(IUserRepository userRepository, ITokenService tokenService, IQrCodeService qrCodeService, IConfiguration configuration)
     {
         _userRepository = userRepository;
         _tokenService = tokenService;
+        _qrCodeService = qrCodeService;
         _configuration = configuration;
     }
 
@@ -35,6 +37,56 @@ public class AuthService : IAuthService
             Token = _tokenService.GenerateToken(user),
             FullName = user.FullName,
             Role = user.Role
+        };
+    }
+
+    public async Task<RegisterResponse> RegisterAsync(RegisterRequest request)
+    {
+        // Check if username already exists
+        var existing = await _userRepository.GetByUsernameAsync(request.Username);
+        if (existing != null)
+        {
+            throw new InvalidOperationException("Username already exists.");
+        }
+
+        // Check if email already exists
+        if (!string.IsNullOrEmpty(request.Email))
+        {
+            var emailExists = await _userRepository.GetByEmailAsync(request.Email);
+            if (emailExists != null)
+            {
+                throw new InvalidOperationException("Email already registered.");
+            }
+        }
+
+        // Generate unique 5-char QR code
+        var qrCode = _qrCodeService.GenerateUniqueCode(5);
+
+        var user = new User
+        {
+            Id = Guid.NewGuid(),
+            Username = request.Username,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
+            FullName = request.FullName,
+            Role = Role.Driver,
+            PhoneNumber = request.PhoneNumber,
+            Email = request.Email,
+            QrCode = qrCode
+        };
+
+        await _userRepository.AddAsync(user);
+
+        // Generate QR code image as Base64
+        var qrImageBase64 = _qrCodeService.GenerateQrCodeBase64(qrCode);
+
+        return new RegisterResponse
+        {
+            UserId = user.Id,
+            Token = _tokenService.GenerateToken(user),
+            FullName = user.FullName,
+            Role = user.Role,
+            QrCode = qrCode,
+            QrCodeImageBase64 = qrImageBase64
         };
     }
 
@@ -58,7 +110,8 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(payload.Email);
         if (user == null)
         {
-            // Auto register for Driver
+            // Auto register for Driver with QR code
+            var qrCode = _qrCodeService.GenerateUniqueCode(5);
             user = new User
             {
                 Id = Guid.NewGuid(),
@@ -66,7 +119,8 @@ public class AuthService : IAuthService
                 Email = payload.Email,
                 FullName = payload.Name,
                 Role = Role.Driver,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()) // random password
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
+                QrCode = qrCode
             };
             await _userRepository.AddAsync(user);
         }
