@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Scan Camera - OCR Biển Số Xe</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; text-align: center; background-color: #f5f7fa; color: #333; }
+        .video-container { margin: 20px auto; border: 4px solid #333; border-radius: 8px; overflow: hidden; display: inline-block; background: #000; position: relative;}
+        video { display: block; max-width: 100%; width: 640px; height: 480px; }
+        canvas { display: none; }
+        button { background-color: #4CAF50; color: white; padding: 12px 24px; font-size: 16px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button:hover { background-color: #45a049; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .result-panel { margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: left; }
+        .result-panel pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        .cropped-image { margin-top: 15px; text-align: center; }
+        .cropped-image img { max-width: 100%; border: 2px dashed #4CAF50; border-radius: 4px; }
+        #tokenInput { width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .loading { display: none; margin-top: 10px; color: #0066cc; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>📸 Test Scan Biển Số Bằng Camera</h1>
+    
+    <p>Lưu ý: Bạn cần điền JWT Token (có quyền Staff/Manager/Admin) vào ô dưới đây để gọi API.</p>
+    <input type="text" id="tokenInput" placeholder="Nhập JWT Token ở đây (bắt đầu bằng eyJ...)">
+
+    <div class="video-container">
+        <video id="video" autoplay playsinline></video>
+    </div>
+
+    <div>
+        <button id="captureBtn">Chụp Ảnh & Scan Biển Số</button>
+        <p class="loading" id="loadingText">⏳ Đang phân tích ảnh qua AI (YOLOv8 ONNX)...</p>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="result-panel" id="resultPanel" style="display: none;">
+        <h3>Kết Quả Trả Về Từ API:</h3>
+        <pre id="jsonResult"></pre>
+        
+        <div class="cropped-image" id="croppedContainer" style="display: none;">
+            <h4>Vùng Biển Số Đã Cắt (Cropped Plate):</h4>
+            <img id="croppedImg" src="" alt="Cropped Plate">
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureBtn = document.getElementById('captureBtn');
+        const tokenInput = document.getElementById('tokenInput');
+        const loadingText = document.getElementById('loadingText');
+        const resultPanel = document.getElementById('resultPanel');
+        const jsonResult = document.getElementById('jsonResult');
+        const croppedContainer = document.getElementById('croppedContainer');
+        const croppedImg = document.getElementById('croppedImg');
+
+        // Khởi động Camera
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment", width: 640, height: 480 } 
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                alert("Lỗi khi mở camera: " + err.message);
+                console.error(err);
+            }
+        }
+
+        startCamera();
+
+        // Xử lý sự kiện nút Chụp
+        captureBtn.addEventListener('click', async () => {
+            const token = tokenInput.value.trim();
+            if (!token) {
+                alert("Vui lòng nhập JWT Token trước khi test!");
+                return;
+            }
+
+            // Vẽ frame hiện tại lên canvas
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Lấy Base64 từ canvas (bỏ prefix data:image/jpeg;base64,)
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            const base64Image = dataUrl.split(',')[1];
+
+            // Cập nhật UI
+            captureBtn.disabled = true;
+            loadingText.style.display = 'block';
+            resultPanel.style.display = 'none';
+            croppedContainer.style.display = 'none';
+
+            try {
+                // Gọi API
+                const response = await fetch('http://localhost:5237/api/ocr/scan-plate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ imageBase64: base64Image })
+                });
+
+                const data = await response.json();
+                
+                // Hiển thị kết quả
+                resultPanel.style.display = 'block';
+                jsonResult.textContent = JSON.stringify(data, null, 2);
+
+                if (response.ok && data.isDetected && data.croppedPlateBase64) {
+                    croppedImg.src = "data:image/png;base64," + data.croppedPlateBase64;
+                    croppedContainer.style.display = 'block';
+                }
+
+            } catch (err) {
+                resultPanel.style.display = 'block';
+                jsonResult.textContent = "Lỗi kết nối tới API:\n" + err.message;
+            } finally {
+                captureBtn.disabled = false;
+                loadingText.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
