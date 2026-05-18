@@ -3,15 +3,17 @@ import { lazy, Suspense } from 'react';
 import './index.css';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
-const AuthPage     = lazy(() => import('./pages/AuthPage'));
+const AuthPage = lazy(() => import('./pages/AuthPage'));
+const GateControlPage = lazy(() => import('./pages/GateControlPage'));
 
 export default function App() {
   return (
     <BrowserRouter>
       <Suspense fallback={<div className="loading-screen" />}>
         <Routes>
-          <Route path="/"     element={<LandingPage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/gate-control" element={<GateControlPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
