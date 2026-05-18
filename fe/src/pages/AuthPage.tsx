@@ -15,6 +15,16 @@ import {
 
 type AuthMode = 'login' | 'register';
 
+type AuthRole = 'Admin' | 'Manager' | 'Staff' | 'Driver' | 0 | 1 | 2 | 3;
+
+function isStaffRole(role: AuthRole) {
+  return role === 'Staff' || role === 2;
+}
+
+function getPostLoginPath(role: AuthRole) {
+  return isStaffRole(role) ? '/gate-control' : '/';
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function GitHubIcon({ className }: { className?: string }) {
@@ -140,8 +150,8 @@ export default function AuthPage() {
       if (idToken) {
         // Login using hook
         loginWithGoogle(idToken)
-          .then(() => {
-            navigate('/');
+          .then((authResponse) => {
+            navigate(getPostLoginPath(authResponse.role as AuthRole));
           })
           .catch(() => {
             // error handled in hook
@@ -201,21 +211,21 @@ export default function AuthPage() {
     onSubmit: async (values, { setSubmitting }) => {
       if (mode === 'login') {
         try {
-          await login({ username: values.username, password: values.password });
-          navigate('/');
+          const authResponse = await login({ username: values.username, password: values.password });
+          navigate(getPostLoginPath(authResponse.role as AuthRole));
         } catch {
           // apiError đã được hook useAuth xử lý
         }
       } else {
         try {
-          await register({
+          const authResponse = await register({
             username: values.username,
             password: values.password,
             fullName: values.fullName,
             email: values.email.trim() || null,
             phoneNumber: values.phoneNumber.trim() || null,
           });
-          navigate('/');
+          navigate(getPostLoginPath(authResponse.role as AuthRole));
         } catch {
           // apiError đã được hook useAuth xử lý
         }
