@@ -5,9 +5,10 @@
 
 # dotenv files
 .env
-
+# README
+*.md
 # Application Configuration Files (sensitive data)
-appsettings.json
+*appsettings.json
 appsettings.*.json
 !appsettings.Example.json
 
