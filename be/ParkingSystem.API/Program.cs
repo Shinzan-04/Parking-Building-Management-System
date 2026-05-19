@@ -70,6 +70,11 @@ builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
+builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
+
+// Bind PayOS Options
+builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(
+    builder.Configuration.GetSection("PayOS"));
 
 // Register License Plate OCR Service (Singleton vì model ONNX + Tesseract chỉ cần load 1 lần)
 // Pipeline: YOLOv8 detect vùng biển số → Tesseract OCR đọc ký tự → Trả về text

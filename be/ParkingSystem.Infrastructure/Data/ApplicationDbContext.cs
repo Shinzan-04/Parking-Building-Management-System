@@ -77,5 +77,15 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Payment>()
             .Property(p => p.Amount)
             .HasColumnType("decimal(18,2)");
+
+        modelBuilder.Entity<Payment>()
+            .HasIndex(p => p.PayOSOrderCode)
+            .IsUnique();
+
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.ParkingSession)
+            .WithMany(ps => ps.Payments)
+            .HasForeignKey(p => p.ParkingSessionId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
