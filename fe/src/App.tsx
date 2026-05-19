@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import './index.css';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const AuthPage = lazy(() => import('./pages/AuthPage'));
@@ -15,8 +16,16 @@ export default function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
-          <Route path="/gate-control" element={<GateControlPage />} />
-          <Route path="/admin" element={<AdminLayout />}>
+          {/* Gate Control - Chỉ Staff (role 2) */}
+          <Route
+            path="/gate-control"
+            element={<ProtectedRoute element={<GateControlPage />} requiredRoles={['Staff', 2]} />}
+          />
+          {/* Admin Portal - Admin (0), Manager (1) */}
+          <Route
+            path="/admin"
+            element={<ProtectedRoute element={<AdminLayout />} requiredRoles={['Admin', 'Manager', 0, 1]} />}
+          >
             <Route index element={<AdminDashboard />} />
           </Route>
         </Routes>
