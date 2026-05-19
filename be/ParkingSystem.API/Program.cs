@@ -68,19 +68,21 @@ builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 builder.Services.AddScoped<IParkingSlotService, ParkingSlotService>();
 builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
 
-// Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
-// Sử dụng model license_plate_detector.onnx đã train riêng cho biển số xe Việt Nam
+// Register License Plate OCR Service (Singleton vì model ONNX + Tesseract chỉ cần load 1 lần)
+// Pipeline: YOLOv8 detect vùng biển số → Tesseract OCR đọc ký tự → Trả về text
 var modelPath = Path.Combine(builder.Environment.ContentRootPath, "Models", "license_plate_detector.onnx");
-if (File.Exists(modelPath))
+var tessdataPath = Path.Combine(builder.Environment.ContentRootPath, "tessdata");
+if (File.Exists(modelPath) && Directory.Exists(tessdataPath))
 {
     builder.Services.AddSingleton<ILicensePlateOcrService>(
-        new ParkingSystem.Infrastructure.Services.LicensePlateOcrService(modelPath));
+        new ParkingSystem.Infrastructure.Services.LicensePlateOcrService(modelPath, tessdataPath));
 }
 else
 {
-    // Nếu chưa có model, dùng service giả trả về thông báo
+    // Nếu chưa có model hoặc tessdata, dùng service giả trả về thông báo
     builder.Services.AddSingleton<ILicensePlateOcrService>(
         new ParkingSystem.Infrastructure.Services.FallbackOcrService());
 }

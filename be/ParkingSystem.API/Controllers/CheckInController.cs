@@ -10,10 +10,12 @@ namespace ParkingSystem.API.Controllers;
 public class CheckInController : ControllerBase
 {
     private readonly ICheckInService _checkInService;
+    private readonly ISlotAssignmentService _slotAssignmentService;
 
-    public CheckInController(ICheckInService checkInService)
+    public CheckInController(ICheckInService checkInService, ISlotAssignmentService slotAssignmentService)
     {
         _checkInService = checkInService;
+        _slotAssignmentService = slotAssignmentService;
     }
 
     /// <summary>
@@ -37,6 +39,8 @@ public class CheckInController : ControllerBase
 
     /// <summary>
     /// NHÁNH 2: Check-in trực tiếp (khách vãng lai)
+    /// Nếu SlotId = null → AI tự động gán slot tốt nhất
+    /// Nếu SlotId có giá trị → Staff chọn thủ công
     /// </summary>
     [HttpPost("walk-in")]
     [Authorize(Roles = "Staff,Manager,Admin")]
@@ -66,6 +70,33 @@ public class CheckInController : ControllerBase
             return Ok(result);
         }
         catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy danh sách gợi ý vị trí đỗ xe thông minh (AI Scoring)
+    /// Staff xem trước rồi chọn, hoặc để hệ thống tự gán khi gọi walk-in
+    /// </summary>
+    [HttpGet("recommend-slots/{vehicleTypeId}")]
+    [Authorize(Roles = "Staff,Manager,Admin")]
+    public async Task<IActionResult> GetRecommendedSlots(Guid vehicleTypeId, [FromQuery] int top = 5)
+    {
+        try
+        {
+            var recommendations = await _slotAssignmentService.GetRecommendedSlotsAsync(vehicleTypeId, top);
+
+            if (!recommendations.Any())
+                return NotFound(new { message = "Không còn slot trống cho loại xe này." });
+
+            return Ok(new
+            {
+                totalRecommendations = recommendations.Count,
+                slots = recommendations
+            });
+        }
+        catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
         }
