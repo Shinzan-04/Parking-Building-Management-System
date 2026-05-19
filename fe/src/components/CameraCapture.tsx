@@ -3,7 +3,8 @@ import { Camera, X, Loader } from 'lucide-react';
 import { scanPlate, type ScanPlateResponse } from '../services/ocrService';
 
 interface CameraCaptureProps {
-  onSuccess: (result: ScanPlateResponse) => void;
+  // onSuccess receives both the parsed OCR result and the raw image base64
+  onSuccess: (result: ScanPlateResponse, imageBase64: string) => void;
   onCancel: () => void;
   token?: string | null;
 }
@@ -61,10 +62,10 @@ export default function CameraCapture({ onSuccess, onCancel, token }: CameraCapt
       // Send to OCR service
       const result = await scanPlate(imageBase64, token);
 
-      if (result.isDetected) {
-        onSuccess(result);
+      if (result) {
+        onSuccess(result, imageBase64);
       } else {
-        setError(result.message || 'No license plate detected. Please try again.');
+        setError(result?.message || 'No license plate detected. Please try again.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to scan plate');

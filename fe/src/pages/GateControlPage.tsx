@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CameraCapture from '../components/CameraCapture';
-import type { ScanPlateResponse } from '../services/ocrService';
+import type { ScanPlateResponse, ScanAndCheckInResponse } from '../services/ocrService';
+import { scanAndCheckIn } from '../services/ocrService';
 import { useAuth } from '../hooks/useAuth';
 
 type VehicleType = 'car' | 'motorbike' | 'ev';
@@ -157,6 +158,7 @@ export default function GateControlPage() {
   const [exceptionAction, setExceptionAction] = useState<ExceptionAction | null>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [currentCameraMode, setCurrentCameraMode] = useState<'entry' | 'exit'>('entry');
+  const [vehicleTypeMap, setVehicleTypeMap] = useState<Record<string, string>>({});
 
   const { token } = useAuth();
 
@@ -165,6 +167,28 @@ export default function GateControlPage() {
 
   useEffect(() => {
     entryInputRef.current?.focus();
+  }, []);
+
+  // Load vehicle types from API to map name -> id for scan-and-checkin
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL ?? 'http://localhost:5237'}/api/VehicleTypes`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!mounted) return;
+        const map: Record<string, string> = {};
+        data.forEach((t: any) => {
+          if (t.name) map[t.name.toLowerCase()] = t.id;
+        });
+        setVehicleTypeMap(map);
+      } catch {
+        // ignore
+      }
+    };
+    load();
+    return () => { mounted = false; };
   }, []);
 
   useEffect(() => {
@@ -226,13 +250,35 @@ export default function GateControlPage() {
     setExceptionModalOpen(true);
   };
 
-  const handleCameraResult = (result: ScanPlateResponse) => {
+  const handleCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
     if (currentCameraMode === 'entry') {
-      setEntryLicensePlate(result.licensePlate);
-      showNotification(
-        'success',
-        `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
-      );
+      // If we have a mapping for vehicle type, try scan-and-checkin to get full flow
+      const vtKey = entryVehicleType;
+      const vtId = vehicleTypeMap[vtKey.toLowerCase()];
+
+      if (vtId) {
+        try {
+          const checkinRes: ScanAndCheckInResponse = await scanAndCheckIn(imageBase64, vtId, token);
+          setEntryLicensePlate(checkinRes.licensePlate);
+          showNotification(
+            'success',
+            `Detected: ${checkinRes.licensePlate} (Confidence: ${(checkinRes.confidence * 100).toFixed(1)}%)`
+          );
+        } catch (err) {
+          // fallback to basic scan result
+          setEntryLicensePlate(result.licensePlate);
+          showNotification(
+            'info',
+            `Detected (scan only): ${result.licensePlate} - ${err instanceof Error ? err.message : ''}`
+          );
+        }
+      } else {
+        setEntryLicensePlate(result.licensePlate);
+        showNotification(
+          'success',
+          `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
+        );
+      }
       entryInputRef.current?.focus();
     } else {
       setExitLicensePlate(result.licensePlate);
