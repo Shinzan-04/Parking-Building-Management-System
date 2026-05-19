@@ -1,6 +1,6 @@
 # Parking Building Management System (Backend)
 
-Hệ thống quản lý tòa nhà gửi xe, hỗ trợ quản lý cơ sở hạ tầng bãi xe, đăng ký/đăng nhập người dùng, tạo QR code vé xe và tích hợp luồng check-in sử dụng AI (YOLOv8 ONNX) để nhận diện biển số xe.
+Hệ thống quản lý tòa nhà gửi xe thông minh, hỗ trợ quản lý cơ sở hạ tầng bãi xe, đăng ký/đăng nhập người dùng, tạo QR code vé xe, tích hợp AI nhận diện biển số xe (YOLOv8 + Tesseract OCR) và thuật toán gợi ý vị trí đỗ xe thông minh.
 
 ## Kiến Trúc Dự Án (Clean Architecture)
 
@@ -8,7 +8,7 @@ Dự án được xây dựng trên nền tảng **ASP.NET Core Web API (C#)** v
 
 - **ParkingSystem.Domain**: Định nghĩa các Core Entities (`User`, `ParkingSlot`, `ParkingSession`, `Reservation`...) và Enums.
 - **ParkingSystem.Application**: Các Interfaces, DTOs, và Use Case logic (Services).
-- **ParkingSystem.Infrastructure**: Kết nối Database (`ApplicationDbContext`), triển khai các Repository và External Services (OCR, Token).
+- **ParkingSystem.Infrastructure**: Kết nối Database (`ApplicationDbContext`), triển khai các Repository và External Services (OCR, Token, AI).
 - **ParkingSystem.API**: Các Controllers exposes API endpoints, cấu hình Middleware và Dependency Injection.
 
 ## Yêu Cầu Hệ Thống
@@ -16,13 +16,50 @@ Dự án được xây dựng trên nền tảng **ASP.NET Core Web API (C#)** v
 - PostgreSQL
 - Python 3.13 (để tải và export model AI nếu cần)
 
-## Các Tính Năng Cốt Lõi (Đã Triển Khai)
-- **CRUD Cơ sở hạ tầng**: Quản lý Building, Floor, ParkingSlot, VehicleType, PricingPolicy.
-- **Xác thực (Auth)**: Đăng ký/Đăng nhập, tạo QR Code định danh, Google OAuth.
-- **Vehicle Check-in Flow**: Hỗ trợ 2 luồng:
-  - *Booking*: Đối chiếu QR Code với OCR biển số.
-  - *Walk-in*: Scan OCR, tự động gán chỗ trống, xuất QR vé.
-- **AI OCR Integration**: Tích hợp model YOLOv8 ONNX (`license_plate_detector.onnx`) xử lý nhận diện vùng biển số trực tiếp trong C# (Sử dụng `Microsoft.ML.OnnxRuntime`).
+## Các Tính Năng Cốt Lõi
+
+### ✅ CRUD Cơ sở hạ tầng
+Quản lý Building, Floor, ParkingSlot, VehicleType, PricingPolicy.
+
+### ✅ Xác thực (Auth)
+Đăng ký/Đăng nhập, tạo QR Code định danh (5 ký tự), Google OAuth, JWT Bearer Token.
+
+### ✅ Vehicle Check-in Flow (2 nhánh)
+- **Booking (Đặt trước)**: Quét QR Booking → Đối chiếu OCR biển số → Check-in.
+- **Walk-in (Khách vãng lai)**: Scan OCR biển số → AI tự động gán slot hoặc Staff chọn tay → Sinh QR vé giấy.
+- **Staff Override**: Staff xác nhận thủ công khi biển số xe thực tế lệch với biển số đăng ký.
+
+### ✅ AI License Plate Recognition (OCR hoàn chỉnh)
+Pipeline xử lý ảnh biển số xe từ camera thành text:
+
+```
+📷 Ảnh Base64 → YOLOv8 ONNX detect vùng biển số → Crop → Tiền xử lý (Grayscale, Contrast, Resize)
+→ Tesseract OCR đọc ký tự → Hậu xử lý (sửa lỗi OCR, format biển số VN) → Trả về text
+```
+
+**Công nghệ sử dụng:**
+| Thành phần | Công nghệ | Mô tả |
+|-----------|-----------|-------|
+| Plate Detection | YOLOv8n ONNX (11.7 MB) | Model train riêng cho biển số xe Việt Nam |
+| Character Recognition | Tesseract OCR 5.2 | Đọc ký tự từ ảnh crop biển số |
+| Image Processing | SixLabors.ImageSharp | Tiền xử lý ảnh (grayscale, contrast, resize) |
+| Inference Engine | Microsoft.ML.OnnxRuntime | Chạy model AI trực tiếp trong C# |
+
+**Hậu xử lý biển số VN:**
+- Whitelist ký tự: `0-9 A B C D E F G H K L M N P R S T U V X Y Z . -`
+- Sửa lỗi OCR phổ biến: O→0, I→1, S→5, Z→2
+- Kiểm tra độ dài tối thiểu biển số hợp lệ
+
+### ✅ AI Smart Slot Assignment (Gợi ý vị trí đỗ xe)
+Thuật toán scoring dựa trên 5 tiêu chí để gợi ý ô đỗ xe tốt nhất:
+
+| # | Tiêu chí | Trọng số | Ý nghĩa |
+|---|----------|----------|---------|
+| 1 | Trong ra ngoài | 30 điểm | Row thấp = trong cùng → lấp đầy từ trong ra |
+| 2 | Gần lối vào | 25 điểm | DistanceToEntry thấp → tiện đi lại |
+| 3 | Tầng thấp | 20 điểm | FloorIndex thấp → không cần lên cao |
+| 4 | Gom cụm xe | 15 điểm | Có xe cùng loại cạnh bên → giảm phân mảnh |
+| 5 | Ô đầu dãy | 10 điểm | Column thấp → dễ tìm |
 
 ---
 
@@ -47,14 +84,15 @@ Dự án được xây dựng trên nền tảng **ASP.NET Core Web API (C#)** v
 ### 3. Check-in Flow (`/api/checkin`)
 | Method | Endpoint | Quyền | Mô tả |
 |--------|----------|-------|-------|
-| POST | `/api/checkin/booking` | Staff/Manager/Admin | Check-in cho xe đã đặt chỗ trước |
-| POST | `/api/checkin/walk-in` | Staff/Manager/Admin | Check-in cho khách vãng lai (tự tìm slot & in QR) |
-| POST | `/api/checkin/staff-override`| Staff/Manager/Admin | Staff xác nhận đổi biển số (nếu OCR lệch) |
+| POST | `/api/checkin/booking` | Staff/Manager/Admin | Check-in xe đã đặt trước (QR Booking + OCR đối chiếu) |
+| POST | `/api/checkin/walk-in` | Staff/Manager/Admin | Check-in khách vãng lai (AI tự gán slot hoặc Staff chọn) |
+| POST | `/api/checkin/staff-override` | Staff/Manager/Admin | Staff xác nhận đổi xe khi biển số lệch |
+| GET | `/api/checkin/recommend-slots/{vehicleTypeId}` | Staff/Manager/Admin | Lấy danh sách gợi ý slot (AI Scoring) |
 
 ### 4. OCR & AI Camera (`/api/ocr`)
 | Method | Endpoint | Quyền | Mô tả |
 |--------|----------|-------|-------|
-| POST | `/api/ocr/scan-plate` | Staff/Manager/Admin | Scan biển số từ ảnh Base64 (YOLOv8 ONNX) |
+| POST | `/api/ocr/scan-plate` | Staff/Manager/Admin | Scan biển số: YOLO detect + Tesseract OCR → trả text |
 | POST | `/api/ocr/scan-and-checkin` | Staff/Manager/Admin | Scan biển số + gợi ý check-in Walk-in liền mạch |
 
 ### 5. Infrastructure Management (Buildings, Floors, Slots...)
@@ -67,11 +105,33 @@ Các endpoints CRUD cơ bản tuân theo chuẩn RESTful. *Yêu cầu quyền Ad
 
 ---
 
+## Cấu Trúc Thư Mục Quan Trọng
+```
+ParkingSystem.API/
+├── Controllers/           # API endpoints
+├── Models/                # ONNX model files
+│   └── license_plate_detector.onnx
+├── tessdata/              # Tesseract OCR trained data
+│   └── eng.traineddata
+├── Program.cs             # DI configuration
+└── appsettings.json       # Connection strings, JWT config
+
+ParkingSystem.Infrastructure/Services/
+├── LicensePlateOcrService.cs   # YOLO + Tesseract pipeline
+├── SlotAssignmentService.cs    # AI scoring algorithm
+├── CheckInService.cs           # Booking + Walk-in logic
+├── FallbackOcrService.cs       # Fallback khi chưa có model
+└── ...
+```
+
 ## Hướng Dẫn Chạy Dự Án
-1. Đảm bảo đã có file `appsettings.Development.json` cấu hình chuỗi kết nối Database và JWT.
-2. Đảm bảo file model `Models/license_plate_detector.onnx` tồn tại trong thư mục `ParkingSystem.API/Models`.
+1. Cấu hình `appsettings.json`: chuỗi kết nối Database, JWT, Google OAuth.
+2. Đảm bảo tồn tại file:
+   - `ParkingSystem.API/Models/license_plate_detector.onnx`
+   - `ParkingSystem.API/tessdata/eng.traineddata`
 3. Mở terminal tại thư mục `ParkingSystem.API`:
    ```bash
    dotnet run
    ```
-4. Truy cập `http://localhost:5237/swagger` để xem tài liệu và test API.
+4. Truy cập Swagger UI: `http://localhost:5237/swagger`
+5. Test OCR Camera: mở file `cameraTest.html` trên trình duyệt.

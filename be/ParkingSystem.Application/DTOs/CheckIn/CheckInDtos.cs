@@ -14,12 +14,19 @@ public class CheckInBookingRequest
 
 /// <summary>
 /// NHÁNH 2: Check-in trực tiếp (khách vãng lai)
+/// Nếu SlotId = null → Hệ thống AI tự chọn slot tốt nhất
+/// Nếu SlotId có giá trị → Staff chọn thủ công
 /// </summary>
 public class CheckInWalkInRequest
 {
     public string LicensePlate { get; set; } = string.Empty;
     public Guid VehicleTypeId { get; set; }
     public Guid? StaffId { get; set; }
+    
+    /// <summary>
+    /// Tùy chọn: Staff tự chọn slot. Nếu null → AI tự động gán slot tốt nhất.
+    /// </summary>
+    public Guid? SlotId { get; set; }
 }
 
 /// <summary>
@@ -36,6 +43,21 @@ public class CheckInResponse
     public string SlotNumber { get; set; } = string.Empty;
     public string FloorName { get; set; } = string.Empty;
     public string VehicleTypeName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// true nếu slot được AI tự động gán, false nếu Staff chọn tay
+    /// </summary>
+    public bool IsAIAssigned { get; set; }
+    
+    /// <summary>
+    /// Điểm đánh giá vị trí (chỉ có khi AI gán)
+    /// </summary>
+    public double? SlotScore { get; set; }
+    
+    /// <summary>
+    /// Lý do gợi ý vị trí này
+    /// </summary>
+    public string? SlotReason { get; set; }
     
     public DateTime EntryTime { get; set; }
     public string Message { get; set; } = string.Empty;

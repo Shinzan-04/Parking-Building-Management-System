@@ -11,11 +11,13 @@ public class CheckInService : ICheckInService
 {
     private readonly ApplicationDbContext _context;
     private readonly IQrCodeService _qrCodeService;
+    private readonly ISlotAssignmentService _slotAssignmentService;
 
-    public CheckInService(ApplicationDbContext context, IQrCodeService qrCodeService)
+    public CheckInService(ApplicationDbContext context, IQrCodeService qrCodeService, ISlotAssignmentService slotAssignmentService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
+        _slotAssignmentService = slotAssignmentService;
     }
 
     /// <summary>
@@ -81,9 +83,8 @@ public class CheckInService : ICheckInService
 
     /// <summary>
     /// NHÁNH 2: Check-in trực tiếp (Walk-in)
-    /// Bước 1: Nhận biển số từ OCR/Staff nhập tay
-    /// Bước 2: Kiểm tra slot khả dụng theo loại xe
-    /// Bước 3: Tạo Session + Sinh QR Code vé → In cho khách
+    /// - Nếu request.SlotId != null → Staff chọn thủ công
+    /// - Nếu request.SlotId == null → AI tự động chọn slot tốt nhất
     /// </summary>
     public async Task<CheckInResponse> CheckInWalkInAsync(CheckInWalkInRequest request)
     {
@@ -98,16 +99,44 @@ public class CheckInService : ICheckInService
         if (existingSession)
             throw new InvalidOperationException($"Xe biển số {request.LicensePlate} đang có phiên gửi xe hoạt động.");
 
-        // Tìm slot trống phù hợp với loại xe (ưu tiên tầng thấp nhất)
-        var availableSlot = await _context.ParkingSlots
-            .Include(s => s.Floor)
-            .Where(s => s.VehicleTypeId == request.VehicleTypeId && s.Status == SlotStatus.Available)
-            .OrderBy(s => s.Floor.FloorIndex)
-            .ThenBy(s => s.SlotNumber)
-            .FirstOrDefaultAsync();
+        ParkingSlot? assignedSlot;
+        bool isAIAssigned;
+        double? slotScore = null;
+        string? slotReason = null;
 
-        if (availableSlot == null)
-            throw new InvalidOperationException($"Bãi xe đã hết chỗ cho loại xe {vehicleType.Name}.");
+        if (request.SlotId.HasValue)
+        {
+            // ===== STAFF CHỌN THỦ CÔNG =====
+            assignedSlot = await _context.ParkingSlots
+                .Include(s => s.Floor)
+                .FirstOrDefaultAsync(s => s.Id == request.SlotId.Value
+                                       && s.VehicleTypeId == request.VehicleTypeId
+                                       && s.Status == SlotStatus.Available);
+
+            if (assignedSlot == null)
+                throw new InvalidOperationException("Ô đỗ xe không khả dụng hoặc không phù hợp với loại xe.");
+
+            isAIAssigned = false;
+        }
+        else
+        {
+            // ===== AI TỰ ĐỘNG GÁN SLOT =====
+            var bestSlot = await _slotAssignmentService.GetBestSlotAsync(request.VehicleTypeId);
+
+            if (bestSlot == null)
+                throw new InvalidOperationException($"Bãi xe đã hết chỗ cho loại xe {vehicleType.Name}.");
+
+            assignedSlot = await _context.ParkingSlots
+                .Include(s => s.Floor)
+                .FirstOrDefaultAsync(s => s.Id == bestSlot.SlotId);
+
+            if (assignedSlot == null)
+                throw new InvalidOperationException("Lỗi hệ thống: Không tìm thấy slot được gợi ý.");
+
+            isAIAssigned = true;
+            slotScore = bestSlot.Score;
+            slotReason = bestSlot.Reason;
+        }
 
         // Sinh mã QR cho phiên gửi xe (Session Code)
         var sessionCode = _qrCodeService.GenerateUniqueCode(5);
@@ -118,7 +147,7 @@ public class CheckInService : ICheckInService
             Id = Guid.NewGuid(),
             DriverId = null, // Khách vãng lai không có tài khoản
             StaffId = request.StaffId,
-            ParkingSlotId = availableSlot.Id,
+            ParkingSlotId = assignedSlot.Id,
             VehicleTypeId = request.VehicleTypeId,
             LicensePlate = request.LicensePlate,
             SessionCode = sessionCode,
@@ -128,8 +157,8 @@ public class CheckInService : ICheckInService
         };
 
         // Cập nhật trạng thái Slot → Occupied
-        availableSlot.Status = SlotStatus.Occupied;
-        availableSlot.UpdatedAt = DateTime.UtcNow;
+        assignedSlot.Status = SlotStatus.Occupied;
+        assignedSlot.UpdatedAt = DateTime.UtcNow;
 
         _context.ParkingSessions.Add(session);
         await _context.SaveChangesAsync();
@@ -144,11 +173,16 @@ public class CheckInService : ICheckInService
             SessionQrCodeBase64 = qrImageBase64,
             LicensePlate = request.LicensePlate,
             CheckInMethod = CheckInMethod.WalkIn,
-            SlotNumber = availableSlot.SlotNumber,
-            FloorName = availableSlot.Floor?.Name ?? "",
+            SlotNumber = assignedSlot.SlotNumber,
+            FloorName = assignedSlot.Floor?.Name ?? "",
             VehicleTypeName = vehicleType.Name,
+            IsAIAssigned = isAIAssigned,
+            SlotScore = slotScore,
+            SlotReason = slotReason,
             EntryTime = session.EntryTime,
-            Message = $"Check-in thành công. Vui lòng đỗ xe tại ô {availableSlot.SlotNumber}, tầng {availableSlot.Floor?.Name}."
+            Message = isAIAssigned
+                ? $"Check-in thành công (AI gợi ý). Vui lòng đỗ xe tại ô {assignedSlot.SlotNumber}, tầng {assignedSlot.Floor?.Name}."
+                : $"Check-in thành công (Staff chọn). Vui lòng đỗ xe tại ô {assignedSlot.SlotNumber}, tầng {assignedSlot.Floor?.Name}."
         };
     }
 

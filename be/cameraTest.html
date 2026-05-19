@@ -5,45 +5,73 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test Scan Camera - OCR Biển Số Xe</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; text-align: center; background-color: #f5f7fa; color: #333; }
-        .video-container { margin: 20px auto; border: 4px solid #333; border-radius: 8px; overflow: hidden; display: inline-block; background: #000; position: relative;}
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 900px; margin: 0 auto; padding: 20px; text-align: center; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); color: #e0e0e0; min-height: 100vh; }
+        h1 { color: #fff; margin-bottom: 5px; }
+        p.sub { color: #aaa; font-size: 14px; margin-bottom: 20px; }
+        .video-container { margin: 20px auto; border: 3px solid #6c63ff; border-radius: 12px; overflow: hidden; display: inline-block; background: #000; box-shadow: 0 0 30px rgba(108,99,255,0.3); }
         video { display: block; max-width: 100%; width: 640px; height: 480px; }
         canvas { display: none; }
-        button { background-color: #4CAF50; color: white; padding: 12px 24px; font-size: 16px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        button:hover { background-color: #45a049; }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
-        .result-panel { margin-top: 20px; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: left; }
-        .result-panel pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
-        .cropped-image { margin-top: 15px; text-align: center; }
-        .cropped-image img { max-width: 100%; border: 2px dashed #4CAF50; border-radius: 4px; }
-        #tokenInput { width: 100%; padding: 10px; margin-bottom: 20px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
-        .loading { display: none; margin-top: 10px; color: #0066cc; font-weight: bold; }
+        .btn-group { margin-top: 15px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        button { padding: 12px 28px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; transition: all 0.3s; font-weight: 600; }
+        .btn-capture { background: linear-gradient(135deg, #6c63ff, #3f51b5); color: white; box-shadow: 0 4px 15px rgba(108,99,255,0.4); }
+        .btn-capture:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(108,99,255,0.5); }
+        .btn-upload { background: linear-gradient(135deg, #00b4d8, #0077b6); color: white; box-shadow: 0 4px 15px rgba(0,180,216,0.3); }
+        .btn-upload:hover { transform: translateY(-2px); }
+        button:disabled { background: #555; cursor: not-allowed; transform: none; box-shadow: none; }
+        #tokenInput { width: 100%; padding: 12px 16px; margin-bottom: 15px; border: 2px solid #444; border-radius: 8px; background: #1e1e2e; color: #fff; font-size: 14px; }
+        #tokenInput:focus { border-color: #6c63ff; outline: none; }
+        #fileInput { display: none; }
+        .loading { display: none; margin-top: 12px; color: #ffd700; font-weight: bold; font-size: 16px; }
+
+        .plate-result { margin-top: 25px; padding: 25px; background: linear-gradient(135deg, #1a1a2e, #16213e); border: 2px solid #6c63ff; border-radius: 12px; text-align: center; display: none; }
+        .plate-text { font-size: 48px; font-weight: 900; letter-spacing: 6px; color: #00ff88; text-shadow: 0 0 20px rgba(0,255,136,0.5); font-family: 'Courier New', monospace; padding: 15px 30px; background: #0a0a15; border-radius: 8px; border: 2px solid #00ff88; display: inline-block; margin: 10px 0; }
+        .plate-text.empty { color: #ff6b6b; border-color: #ff6b6b; text-shadow: 0 0 20px rgba(255,107,107,0.5); font-size: 18px; letter-spacing: 1px; }
+        .confidence-bar { margin-top: 10px; height: 6px; background: #333; border-radius: 3px; overflow: hidden; }
+        .confidence-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+        .result-panel { margin-top: 20px; padding: 20px; background: #1e1e2e; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); text-align: left; display: none; }
+        .result-panel h3 { color: #6c63ff; }
+        .result-panel pre { background: #0a0a15; padding: 15px; border-radius: 8px; overflow-x: auto; color: #8be9fd; font-size: 13px; border: 1px solid #333; }
+        .cropped-image { margin-top: 15px; text-align: center; display: none; }
+        .cropped-image h4 { color: #00b4d8; }
+        .cropped-image img { max-width: 100%; max-height: 200px; border: 2px dashed #00ff88; border-radius: 8px; }
     </style>
 </head>
 <body>
 
     <h1>📸 Test Scan Biển Số Bằng Camera</h1>
+    <p class="sub">YOLO detect biển số → Tesseract OCR đọc ký tự → Trả về text</p>
     
-    <p>Lưu ý: Bạn cần điền JWT Token (có quyền Staff/Manager/Admin) vào ô dưới đây để gọi API.</p>
-    <input type="text" id="tokenInput" placeholder="Nhập JWT Token ở đây (bắt đầu bằng eyJ...)">
+    <input type="text" id="tokenInput" placeholder="🔑 Nhập JWT Token (Staff/Manager/Admin)">
 
     <div class="video-container">
         <video id="video" autoplay playsinline></video>
     </div>
 
-    <div>
-        <button id="captureBtn">Chụp Ảnh & Scan Biển Số</button>
-        <p class="loading" id="loadingText">⏳ Đang phân tích ảnh qua AI (YOLOv8 ONNX)...</p>
+    <div class="btn-group">
+        <button class="btn-capture" id="captureBtn">📷 Chụp & Scan</button>
+        <button class="btn-upload" id="uploadBtn">📁 Upload Ảnh</button>
+        <input type="file" id="fileInput" accept="image/*">
     </div>
+    <p class="loading" id="loadingText">⏳ Đang xử lý: YOLO detect → OCR đọc ký tự...</p>
 
     <canvas id="canvas"></canvas>
 
-    <div class="result-panel" id="resultPanel" style="display: none;">
-        <h3>Kết Quả Trả Về Từ API:</h3>
+    <!-- Kết quả biển số lớn -->
+    <div class="plate-result" id="plateResult">
+        <h3>🚗 Biển Số Nhận Diện:</h3>
+        <div class="plate-text" id="plateText"></div>
+        <div class="confidence-bar"><div class="confidence-fill" id="confidenceFill"></div></div>
+        <p id="plateMessage" style="color: #aaa; margin-top: 10px; font-size: 14px;"></p>
+    </div>
+
+    <!-- Ảnh crop + JSON chi tiết -->
+    <div class="result-panel" id="resultPanel">
+        <h3>📋 Chi tiết kết quả:</h3>
         <pre id="jsonResult"></pre>
-        
-        <div class="cropped-image" id="croppedContainer" style="display: none;">
-            <h4>Vùng Biển Số Đã Cắt (Cropped Plate):</h4>
+        <div class="cropped-image" id="croppedContainer">
+            <h4>Vùng Biển Số (YOLO Crop):</h4>
             <img id="croppedImg" src="" alt="Cropped Plate">
         </div>
     </div>
@@ -52,8 +80,14 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
         const captureBtn = document.getElementById('captureBtn');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('fileInput');
         const tokenInput = document.getElementById('tokenInput');
         const loadingText = document.getElementById('loadingText');
+        const plateResult = document.getElementById('plateResult');
+        const plateText = document.getElementById('plateText');
+        const confidenceFill = document.getElementById('confidenceFill');
+        const plateMessage = document.getElementById('plateMessage');
         const resultPanel = document.getElementById('resultPanel');
         const jsonResult = document.getElementById('jsonResult');
         const croppedContainer = document.getElementById('croppedContainer');
@@ -67,39 +101,27 @@
                 });
                 video.srcObject = stream;
             } catch (err) {
-                alert("Lỗi khi mở camera: " + err.message);
-                console.error(err);
+                console.warn("Không thể mở camera:", err.message);
             }
         }
-
         startCamera();
 
-        // Xử lý sự kiện nút Chụp
-        captureBtn.addEventListener('click', async () => {
+        // Hàm gửi ảnh lên API
+        async function scanPlate(base64Image) {
             const token = tokenInput.value.trim();
             if (!token) {
-                alert("Vui lòng nhập JWT Token trước khi test!");
+                alert("Vui lòng nhập JWT Token trước!");
                 return;
             }
 
-            // Vẽ frame hiện tại lên canvas
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // Lấy Base64 từ canvas (bỏ prefix data:image/jpeg;base64,)
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-            const base64Image = dataUrl.split(',')[1];
-
-            // Cập nhật UI
             captureBtn.disabled = true;
+            uploadBtn.disabled = true;
             loadingText.style.display = 'block';
+            plateResult.style.display = 'none';
             resultPanel.style.display = 'none';
             croppedContainer.style.display = 'none';
 
             try {
-                // Gọi API
                 const response = await fetch('http://localhost:5237/api/ocr/scan-plate', {
                     method: 'POST',
                     headers: {
@@ -110,23 +132,70 @@
                 });
 
                 const data = await response.json();
-                
-                // Hiển thị kết quả
+
+                // Hiển thị biển số lớn
+                plateResult.style.display = 'block';
+                if (data.isDetected && data.licensePlate && data.licensePlate.length >= 5) {
+                    plateText.textContent = data.licensePlate;
+                    plateText.className = 'plate-text';
+                    const conf = Math.round(data.confidence * 100);
+                    confidenceFill.style.width = conf + '%';
+                    confidenceFill.style.background = conf > 70 ? '#00ff88' : conf > 40 ? '#ffd700' : '#ff6b6b';
+                } else if (data.isDetected) {
+                    plateText.textContent = 'Không đọc được ký tự';
+                    plateText.className = 'plate-text empty';
+                    confidenceFill.style.width = '0%';
+                } else {
+                    plateText.textContent = 'Không tìm thấy biển số';
+                    plateText.className = 'plate-text empty';
+                    confidenceFill.style.width = '0%';
+                }
+                plateMessage.textContent = data.message || '';
+
+                // Hiển thị JSON chi tiết
                 resultPanel.style.display = 'block';
                 jsonResult.textContent = JSON.stringify(data, null, 2);
 
-                if (response.ok && data.isDetected && data.croppedPlateBase64) {
+                if (data.croppedPlateBase64) {
                     croppedImg.src = "data:image/png;base64," + data.croppedPlateBase64;
                     croppedContainer.style.display = 'block';
                 }
 
             } catch (err) {
+                plateResult.style.display = 'block';
+                plateText.textContent = 'Lỗi kết nối API';
+                plateText.className = 'plate-text empty';
                 resultPanel.style.display = 'block';
-                jsonResult.textContent = "Lỗi kết nối tới API:\n" + err.message;
+                jsonResult.textContent = "Lỗi: " + err.message;
             } finally {
                 captureBtn.disabled = false;
+                uploadBtn.disabled = false;
                 loadingText.style.display = 'none';
             }
+        }
+
+        // Nút Chụp từ Camera
+        captureBtn.addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const base64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
+            scanPlate(base64);
+        });
+
+        // Nút Upload File
+        uploadBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64 = reader.result.split(',')[1];
+                scanPlate(base64);
+            };
+            reader.readAsDataURL(file);
+            fileInput.value = '';
         });
     </script>
 </body>

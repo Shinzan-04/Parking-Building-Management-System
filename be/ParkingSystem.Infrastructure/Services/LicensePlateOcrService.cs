@@ -4,33 +4,52 @@ using ParkingSystem.Application.Interfaces;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+using Tesseract;
+using System.Text.RegularExpressions;
 
 namespace ParkingSystem.Infrastructure.Services;
 
 /// <summary>
-/// Service nhận diện biển số xe sử dụng YOLOv8n ONNX + OCR đơn giản.
-/// Luồng: Ảnh camera → YOLO detect vùng biển số → Crop → Trả về ảnh vùng biển số + tọa độ.
+/// Service nhận diện biển số xe hoàn chỉnh: YOLO detect + Tesseract OCR.
 /// 
-/// Trong thực tế production, phần đọc ký tự (OCR) sẽ được thực hiện bằng Tesseract hoặc PaddleOCR.
-/// Hiện tại service này tập trung vào phát hiện vùng biển số bằng YOLO.
+/// Pipeline:
+/// 1. Ảnh camera (Base64) → Decode
+/// 2. YOLO ONNX → Detect vùng biển số (bounding box)
+/// 3. Crop vùng biển số từ ảnh gốc
+/// 4. Tiền xử lý ảnh (Grayscale, Threshold, Resize) → Tăng độ chính xác OCR
+/// 5. Tesseract OCR → Đọc ký tự từ ảnh crop
+/// 6. Hậu xử lý text (loại bỏ ký tự lạ, format biển số VN)
 /// </summary>
 public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
 {
     private readonly InferenceSession _session;
+    private readonly TesseractEngine _ocrEngine;
     private const int ModelInputSize = 640;
-
-    // COCO class index 2 = "car", tuy nhiên model detect plate riêng sẽ dùng class 0 = "license_plate"
-    // Tùy model bạn dùng mà thay đổi giá trị này
     private const float ConfidenceThreshold = 0.25f;
 
-    public LicensePlateOcrService(string modelPath)
+    /// <summary>
+    /// Khởi tạo service với đường dẫn model ONNX và thư mục tessdata.
+    /// </summary>
+    /// <param name="modelPath">Đường dẫn tới file .onnx (YOLOv8)</param>
+    /// <param name="tessdataPath">Đường dẫn tới thư mục chứa eng.traineddata</param>
+    public LicensePlateOcrService(string modelPath, string tessdataPath)
     {
         if (!File.Exists(modelPath))
             throw new FileNotFoundException($"Không tìm thấy model ONNX tại: {modelPath}");
 
+        // Khởi tạo YOLO ONNX session
         var options = new SessionOptions();
         options.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
         _session = new InferenceSession(modelPath, options);
+
+        // Khởi tạo Tesseract OCR engine
+        // PSM 7 = "Treat the image as a single text line" — phù hợp cho biển số 1 dòng
+        // PSM 6 = "Assume a single uniform block of text" — phù hợp cho biển số 2 dòng
+        _ocrEngine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default);
+
+        // Chỉ cho phép ký tự biển số xe Việt Nam (chữ cái + số + dấu chấm/gạch)
+        _ocrEngine.DefaultPageSegMode = PageSegMode.SingleBlock;
+        _ocrEngine.SetVariable("tessedit_char_whitelist", "0123456789ABCDEFGHKLMNPRSTUVXYZ.-");
     }
 
     public async Task<LicensePlateResult> DetectPlateAsync(string imageBase64)
@@ -39,30 +58,28 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
         {
             try
             {
-                // Bước 1: Decode ảnh từ Base64
+                // ===== BƯỚC 1: Decode ảnh từ Base64 =====
                 var imageBytes = Convert.FromBase64String(imageBase64);
                 using var image = Image.Load<Rgb24>(imageBytes);
 
                 var originalWidth = image.Width;
                 var originalHeight = image.Height;
 
-                // Bước 2: Resize ảnh về kích thước model yêu cầu (640x640)
+                // ===== BƯỚC 2: YOLO detect vùng biển số =====
                 using var resized = image.Clone(ctx => ctx.Resize(ModelInputSize, ModelInputSize));
 
-                // Bước 3: Chuyển ảnh thành tensor [1, 3, 640, 640] (NCHW format)
                 var tensor = new DenseTensor<float>(new[] { 1, 3, ModelInputSize, ModelInputSize });
                 for (int y = 0; y < ModelInputSize; y++)
                 {
                     for (int x = 0; x < ModelInputSize; x++)
                     {
                         var pixel = resized[x, y];
-                        tensor[0, 0, y, x] = pixel.R / 255f; // R channel
-                        tensor[0, 1, y, x] = pixel.G / 255f; // G channel
-                        tensor[0, 2, y, x] = pixel.B / 255f; // B channel
+                        tensor[0, 0, y, x] = pixel.R / 255f;
+                        tensor[0, 1, y, x] = pixel.G / 255f;
+                        tensor[0, 2, y, x] = pixel.B / 255f;
                     }
                 }
 
-                // Bước 4: Chạy inference YOLO
                 var inputName = _session.InputNames[0];
                 var inputs = new List<NamedOnnxValue>
                 {
@@ -72,8 +89,6 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
                 using var results = _session.Run(inputs);
                 var output = results.First().AsTensor<float>();
 
-                // Bước 5: Parse kết quả YOLO (format: [1, 84, 8400] cho YOLOv8)
-                // 84 = 4 (bbox) + 80 (classes COCO) hoặc 4 + 1 (nếu model custom 1 class)
                 var detections = ParseYoloOutput(output, originalWidth, originalHeight);
 
                 if (detections.Count == 0)
@@ -88,30 +103,78 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
                 // Lấy detection có confidence cao nhất
                 var best = detections.OrderByDescending(d => d.Confidence).First();
 
-                // Bước 6: Crop vùng biển số từ ảnh gốc
+                // ===== BƯỚC 3: Crop vùng biển số =====
                 var cropX = Math.Max(0, (int)best.X1);
                 var cropY = Math.Max(0, (int)best.Y1);
                 var cropW = Math.Min(originalWidth - cropX, (int)(best.X2 - best.X1));
                 var cropH = Math.Min(originalHeight - cropY, (int)(best.Y2 - best.Y1));
 
-                string? croppedBase64 = null;
-                if (cropW > 0 && cropH > 0)
+                if (cropW <= 0 || cropH <= 0)
                 {
-                    using var cropped = image.Clone(ctx =>
-                        ctx.Crop(new Rectangle(cropX, cropY, cropW, cropH)));
+                    return new LicensePlateResult
+                    {
+                        IsDetected = true,
+                        Confidence = best.Confidence,
+                        Message = "Phát hiện biển số nhưng vùng crop không hợp lệ."
+                    };
+                }
 
-                    using var ms = new MemoryStream();
+                // Crop ảnh biển số
+                using var cropped = image.Clone(ctx =>
+                    ctx.Crop(new Rectangle(cropX, cropY, cropW, cropH)));
+
+                // Lưu ảnh crop dạng Base64 để trả về cho client
+                string croppedBase64;
+                using (var ms = new MemoryStream())
+                {
                     cropped.SaveAsPng(ms);
                     croppedBase64 = Convert.ToBase64String(ms.ToArray());
                 }
+
+                // ===== BƯỚC 4: Tiền xử lý ảnh cho OCR =====
+                // Chuyển sang grayscale + tăng contrast + resize lớn hơn để OCR đọc tốt
+                using var preprocessed = cropped.Clone(ctx =>
+                {
+                    ctx.Grayscale();
+                    ctx.Contrast(1.5f);
+                    // Resize lên ít nhất 300px chiều rộng để Tesseract đọc tốt hơn
+                    if (cropped.Width < 300)
+                    {
+                        var scale = 300.0 / cropped.Width;
+                        ctx.Resize((int)(cropped.Width * scale), (int)(cropped.Height * scale));
+                    }
+                });
+
+                // ===== BƯỚC 5: Tesseract OCR — đọc ký tự =====
+                byte[] preprocessedBytes;
+                using (var ms = new MemoryStream())
+                {
+                    preprocessed.SaveAsPng(ms);
+                    preprocessedBytes = ms.ToArray();
+                }
+
+                string rawText = "";
+                float ocrConfidence = 0;
+
+                using (var pix = Pix.LoadFromMemory(preprocessedBytes))
+                using (var page = _ocrEngine.Process(pix))
+                {
+                    rawText = page.GetText().Trim();
+                    ocrConfidence = page.GetMeanConfidence();
+                }
+
+                // ===== BƯỚC 6: Hậu xử lý — Format biển số xe Việt Nam =====
+                var licensePlate = PostProcessPlateText(rawText);
 
                 return new LicensePlateResult
                 {
                     IsDetected = true,
                     Confidence = best.Confidence,
                     CroppedPlateBase64 = croppedBase64,
-                    LicensePlate = $"DETECTED_AT_{cropX},{cropY},{cropW},{cropH}",
-                    Message = $"Phát hiện biển số xe (confidence: {best.Confidence:P1}). Vùng biển số đã được crop."
+                    LicensePlate = licensePlate,
+                    Message = string.IsNullOrEmpty(licensePlate)
+                        ? $"Phát hiện biển số (YOLO: {best.Confidence:P0}) nhưng không đọc được ký tự. Raw OCR: \"{rawText}\""
+                        : $"Nhận diện thành công: {licensePlate} (YOLO: {best.Confidence:P0}, OCR: {ocrConfidence:P0})"
                 };
             }
             catch (Exception ex)
@@ -126,19 +189,47 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
     }
 
     /// <summary>
+    /// Hậu xử lý text OCR — Chuẩn hóa biển số xe Việt Nam.
+    /// Biển số VN có dạng: "51F-123.45", "30A-12345", "29B1-234.56"
+    /// Loại bỏ ký tự lạ, khoảng trắng thừa, sửa lỗi OCR phổ biến.
+    /// </summary>
+    private string PostProcessPlateText(string rawText)
+    {
+        if (string.IsNullOrWhiteSpace(rawText))
+            return string.Empty;
+
+        // Loại bỏ ký tự không hợp lệ (chỉ giữ chữ, số, dấu chấm, gạch ngang)
+        var cleaned = Regex.Replace(rawText, @"[^A-Z0-9.\-]", "", RegexOptions.IgnoreCase);
+        cleaned = cleaned.ToUpper().Trim();
+
+        // Sửa lỗi OCR phổ biến trên biển số
+        cleaned = cleaned
+            .Replace('O', '0')  // O thường bị nhầm với 0
+            .Replace('I', '1')  // I thường bị nhầm với 1
+            .Replace('Q', '0')  // Q bị nhầm với 0
+            .Replace('S', '5')  // S bị nhầm với 5
+            .Replace('Z', '2')  // Z bị nhầm với 2
+            .Replace('B', '8'); // B bị nhầm với 8 (cân nhắc context)
+
+        // Kiểm tra: Biển số VN tối thiểu 7 ký tự (vd: 51F1234)
+        if (cleaned.Length < 5)
+            return string.Empty;
+
+        return cleaned;
+    }
+
+    /// <summary>
     /// Parse output tensor của YOLOv8
     /// YOLOv8 output format: [1, (4+num_classes), num_detections]
-    /// Với COCO: [1, 84, 8400] — 84 = 4 bbox + 80 classes
-    /// Với custom 1 class: [1, 5, 8400] — 5 = 4 bbox + 1 class
+    /// Với custom 1 class (license_plate): [1, 5, 8400]
     /// </summary>
     private List<Detection> ParseYoloOutput(Tensor<float> output, int originalWidth, int originalHeight)
     {
         var detections = new List<Detection>();
         var dimensions = output.Dimensions;
 
-        // dimensions[0] = batch, dimensions[1] = attributes, dimensions[2] = num_detections
-        int numAttributes = dimensions[1]; // 84 cho COCO, 5 cho custom 1-class
-        int numDetections = dimensions[2]; // 8400
+        int numAttributes = dimensions[1];
+        int numDetections = dimensions[2];
         int numClasses = numAttributes - 4;
 
         float scaleX = (float)originalWidth / ModelInputSize;
@@ -146,7 +237,6 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
 
         for (int i = 0; i < numDetections; i++)
         {
-            // Tìm class có score cao nhất
             float maxScore = 0;
             int maxClassId = 0;
             for (int c = 0; c < numClasses; c++)
@@ -162,13 +252,11 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
             if (maxScore < ConfidenceThreshold)
                 continue;
 
-            // YOLOv8 bbox format: center_x, center_y, width, height
             float cx = output[0, 0, i];
             float cy = output[0, 1, i];
             float w = output[0, 2, i];
             float h = output[0, 3, i];
 
-            // Chuyển về tọa độ góc trên-trái (x1,y1) và góc dưới-phải (x2,y2)
             float x1 = (cx - w / 2) * scaleX;
             float y1 = (cy - h / 2) * scaleY;
             float x2 = (cx + w / 2) * scaleX;
@@ -183,12 +271,11 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
             });
         }
 
-        // Non-Maximum Suppression (NMS) — loại bỏ các box trùng lặp
         return ApplyNms(detections, 0.45f);
     }
 
     /// <summary>
-    /// Non-Maximum Suppression: giữ lại detection tốt nhất, loại bỏ các box chồng chéo
+    /// Non-Maximum Suppression: giữ lại detection tốt nhất, loại bỏ box chồng chéo
     /// </summary>
     private List<Detection> ApplyNms(List<Detection> detections, float iouThreshold)
     {
@@ -200,7 +287,6 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
             var best = sorted[0];
             result.Add(best);
             sorted.RemoveAt(0);
-
             sorted.RemoveAll(d => CalculateIoU(best, d) > iouThreshold);
         }
 
@@ -227,6 +313,7 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
     public void Dispose()
     {
         _session?.Dispose();
+        _ocrEngine?.Dispose();
     }
 
     private class Detection

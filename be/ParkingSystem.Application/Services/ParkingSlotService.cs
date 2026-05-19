@@ -84,7 +84,9 @@ public class ParkingSlotService : IParkingSlotService
         VehicleTypeName = s.VehicleType?.Name ?? string.Empty,
         SlotNumber = s.SlotNumber,
         Status = s.Status,
-        IsAIRecommended = s.IsAIRecommended,
+        Row = s.Row,
+        Column = s.Column,
+        DistanceToEntry = s.DistanceToEntry,
         CreatedAt = s.CreatedAt
     };
 }

@@ -165,17 +165,23 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Column")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DistanceToEntry")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("FloorId")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsAIRecommended")
-                        .HasColumnType("boolean");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<int>("Row")
+                        .HasColumnType("integer");
 
                     b.Property<string>("SlotNumber")
                         .IsRequired()
