@@ -9,6 +9,9 @@ import {
   Zap,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import CameraCapture from '../components/CameraCapture';
+import type { ScanPlateResponse } from '../services/ocrService';
+import { useAuth } from '../hooks/useAuth';
 
 type VehicleType = 'car' | 'motorbike' | 'ev';
 
@@ -152,6 +155,10 @@ export default function GateControlPage() {
   const [notification, setNotification] = useState<{ kind: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [exceptionAction, setExceptionAction] = useState<ExceptionAction | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [currentCameraMode, setCurrentCameraMode] = useState<'entry' | 'exit'>('entry');
+
+  const { token } = useAuth();
 
   const entryInputRef = useRef<HTMLInputElement>(null);
   const exitInputRef = useRef<HTMLInputElement>(null);
@@ -217,6 +224,25 @@ export default function GateControlPage() {
   const openExceptionModal = (action: ExceptionAction) => {
     setExceptionAction(action);
     setExceptionModalOpen(true);
+  };
+
+  const handleCameraResult = (result: ScanPlateResponse) => {
+    if (currentCameraMode === 'entry') {
+      setEntryLicensePlate(result.licensePlate);
+      showNotification(
+        'success',
+        `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
+      );
+      entryInputRef.current?.focus();
+    } else {
+      setExitLicensePlate(result.licensePlate);
+      showNotification(
+        'success',
+        `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
+      );
+      exitInputRef.current?.focus();
+    }
+    setCameraOpen(false);
   };
 
   useEffect(() => {
@@ -306,12 +332,22 @@ export default function GateControlPage() {
           </div>
 
           <div className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
-            <div className="flex aspect-video items-center justify-center">
-              <Camera className="h-16 w-16 text-slate-700" aria-hidden="true" />
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentCameraMode('entry');
+                setCameraOpen(true);
+              }}
+              className="flex aspect-video w-full items-center justify-center transition-colors hover:bg-slate-800"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <Camera className="h-16 w-16 text-emerald-400" aria-hidden="true" />
+                <p className="text-sm font-semibold text-slate-300">Click to open camera</p>
+              </div>
+            </button>
             <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/90 px-3 py-1.5 text-sm font-semibold text-white">
               <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-              OCR scanning...
+              Ready to scan
             </div>
             <div className="absolute bottom-4 right-4 rounded-full bg-slate-950/90 px-3 py-1 text-xs text-slate-400">
               CAM-ENTRY-01
@@ -389,12 +425,22 @@ export default function GateControlPage() {
           </div>
 
           <div className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
-            <div className="flex aspect-video items-center justify-center">
-              <Camera className="h-16 w-16 text-slate-700" aria-hidden="true" />
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentCameraMode('exit');
+                setCameraOpen(true);
+              }}
+              className="flex aspect-video w-full items-center justify-center transition-colors hover:bg-slate-800"
+            >
+              <div className="flex flex-col items-center gap-3">
+                <Camera className="h-16 w-16 text-sky-400" aria-hidden="true" />
+                <p className="text-sm font-semibold text-slate-300">Click to open camera</p>
+              </div>
+            </button>
             <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-sky-500/90 px-3 py-1.5 text-sm font-semibold text-white">
               <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-              OCR scanning...
+              Ready to scan
             </div>
             <div className="absolute bottom-4 right-4 rounded-full bg-slate-950/90 px-3 py-1 text-xs text-slate-400">
               CAM-EXIT-01
@@ -494,6 +540,14 @@ export default function GateControlPage() {
           setExceptionAction(null);
         }}
       />
+
+      {cameraOpen && (
+        <CameraCapture
+          onSuccess={handleCameraResult}
+          onCancel={() => setCameraOpen(false)}
+          token={token}
+        />
+      )}
     </div>
   );
 }
