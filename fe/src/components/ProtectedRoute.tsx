@@ -18,7 +18,14 @@ export function ProtectedRoute({ element, requiredRoles }: ProtectedRouteProps) 
 
   // Kiểm tra role nếu có yêu cầu
   if (requiredRoles && requiredRoles.length > 0) {
-    const hasRequiredRole = requiredRoles.includes(user.role);
+    const roleNames = ['Admin', 'Manager', 'Staff', 'Driver'] as const;
+    const userRoleValue = user.role;
+    const userRoleString = typeof userRoleValue === 'number' ? roleNames[userRoleValue as number] : (userRoleValue as string);
+
+    const hasRequiredRole =
+      requiredRoles.includes(userRoleValue as any) ||
+      requiredRoles.includes(userRoleString as any);
+
     if (!hasRequiredRole) {
       return <Navigate to="/" replace />;
     }
