@@ -7,9 +7,12 @@ interface CameraCaptureProps {
   onSuccess: (result: ScanPlateResponse, imageBase64: string) => void;
   onCancel: () => void;
   token?: string | null;
+  // If inline=true the component renders embedded (no backdrop/modal)
+  inline?: boolean;
+  className?: string;
 }
 
-export default function CameraCapture({ onSuccess, onCancel, token }: CameraCaptureProps) {
+export default function CameraCapture({ onSuccess, onCancel, token, inline, className }: CameraCaptureProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -73,6 +76,65 @@ export default function CameraCapture({ onSuccess, onCancel, token }: CameraCapt
       setLoading(false);
     }
   };
+
+  // If inline mode, render without backdrop/modal wrapper
+  if (inline) {
+    return (
+      <div className={className}>
+        <div className="w-full rounded-2xl overflow-hidden bg-black">
+          <div className="relative aspect-video bg-black">
+            <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
+
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="relative h-32 w-64 border-2 border-cyan-400 rounded-lg">
+                <div className="absolute top-0 left-0 h-4 w-4 border-t-2 border-l-2 border-cyan-400" />
+                <div className="absolute top-0 right-0 h-4 w-4 border-t-2 border-r-2 border-cyan-400" />
+                <div className="absolute bottom-0 left-0 h-4 w-4 border-b-2 border-l-2 border-cyan-400" />
+                <div className="absolute bottom-0 right-0 h-4 w-4 border-b-2 border-r-2 border-cyan-400" />
+              </div>
+            </div>
+
+            <div className="absolute inset-0 pointer-events-none">
+              <svg className="h-full w-full" viewBox="0 0 1280 720" preserveAspectRatio="none">
+                <defs>
+                  <mask id="camera-mask-inline">
+                    <rect width="1280" height="720" fill="white" />
+                    <rect x="508" y="328" width="264" height="128" fill="black" />
+                  </mask>
+                </defs>
+                <rect width="1280" height="720" fill="rgba(0,0,0,0.2)" mask="url(#camera-mask-inline)" />
+              </svg>
+            </div>
+          </div>
+
+          <canvas ref={canvasRef} className="hidden" />
+
+          {error && <div className="px-4 py-2 text-sm text-red-300">{error}</div>}
+
+          <div className="p-3 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={captureAndScan}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <>
+                  <Loader className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  Scanning...
+                </>
+              ) : (
+                <>
+                  <Camera className="h-4 w-4" aria-hidden="true" />
+                  Capture
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
