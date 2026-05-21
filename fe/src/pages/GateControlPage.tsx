@@ -156,8 +156,7 @@ export default function GateControlPage() {
   const [notification, setNotification] = useState<{ kind: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [exceptionAction, setExceptionAction] = useState<ExceptionAction | null>(null);
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [currentCameraMode, setCurrentCameraMode] = useState<'entry' | 'exit'>('entry');
+  
   const [vehicleTypeMap, setVehicleTypeMap] = useState<Record<string, string>>({});
 
   const { token } = useAuth();
@@ -250,45 +249,42 @@ export default function GateControlPage() {
     setExceptionModalOpen(true);
   };
 
-  const handleCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
-    if (currentCameraMode === 'entry') {
-      // If we have a mapping for vehicle type, try scan-and-checkin to get full flow
-      const vtKey = entryVehicleType;
-      const vtId = vehicleTypeMap[vtKey.toLowerCase()];
+  const handleEntryCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
+    const vtKey = entryVehicleType;
+    const vtId = vehicleTypeMap[vtKey.toLowerCase()];
 
-      if (vtId) {
-        try {
-          const checkinRes: ScanAndCheckInResponse = await scanAndCheckIn(imageBase64, vtId, token);
-          setEntryLicensePlate(checkinRes.licensePlate);
-          showNotification(
-            'success',
-            `Detected: ${checkinRes.licensePlate} (Confidence: ${(checkinRes.confidence * 100).toFixed(1)}%)`
-          );
-        } catch (err) {
-          // fallback to basic scan result
-          setEntryLicensePlate(result.licensePlate);
-          showNotification(
-            'info',
-            `Detected (scan only): ${result.licensePlate} - ${err instanceof Error ? err.message : ''}`
-          );
-        }
-      } else {
-        setEntryLicensePlate(result.licensePlate);
+    if (vtId) {
+      try {
+        const checkinRes: ScanAndCheckInResponse = await scanAndCheckIn(imageBase64, vtId, token);
+        setEntryLicensePlate(checkinRes.licensePlate);
         showNotification(
           'success',
-          `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
+          `Detected: ${checkinRes.licensePlate} (Confidence: ${(checkinRes.confidence * 100).toFixed(1)}%)`
+        );
+      } catch (err) {
+        setEntryLicensePlate(result.licensePlate);
+        showNotification(
+          'info',
+          `Detected (scan only): ${result.licensePlate} - ${err instanceof Error ? err.message : ''}`
         );
       }
-      entryInputRef.current?.focus();
     } else {
-      setExitLicensePlate(result.licensePlate);
+      setEntryLicensePlate(result.licensePlate);
       showNotification(
         'success',
         `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
       );
-      exitInputRef.current?.focus();
     }
-    setCameraOpen(false);
+    entryInputRef.current?.focus();
+  };
+
+  const handleExitCameraResult = (result: ScanPlateResponse) => {
+    setExitLicensePlate(result.licensePlate);
+    showNotification(
+      'success',
+      `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
+    );
+    exitInputRef.current?.focus();
   };
 
   useEffect(() => {
@@ -378,19 +374,13 @@ export default function GateControlPage() {
           </div>
 
           <div className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentCameraMode('entry');
-                setCameraOpen(true);
-              }}
-              className="flex aspect-video w-full items-center justify-center transition-colors hover:bg-slate-800"
-            >
-              <div className="flex flex-col items-center gap-3">
-                <Camera className="h-16 w-16 text-emerald-400" aria-hidden="true" />
-                <p className="text-sm font-semibold text-slate-300">Click to open camera</p>
-              </div>
-            </button>
+            <CameraCapture
+              onSuccess={handleEntryCameraResult}
+              onCancel={() => {}}
+              token={token}
+              inline
+              className="w-full"
+            />
             <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/90 px-3 py-1.5 text-sm font-semibold text-white">
               <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
               Ready to scan
@@ -471,19 +461,13 @@ export default function GateControlPage() {
           </div>
 
           <div className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentCameraMode('exit');
-                setCameraOpen(true);
-              }}
-              className="flex aspect-video w-full items-center justify-center transition-colors hover:bg-slate-800"
-            >
-              <div className="flex flex-col items-center gap-3">
-                <Camera className="h-16 w-16 text-sky-400" aria-hidden="true" />
-                <p className="text-sm font-semibold text-slate-300">Click to open camera</p>
-              </div>
-            </button>
+            <CameraCapture
+              onSuccess={(res, img) => handleExitCameraResult(res)}
+              onCancel={() => {}}
+              token={token}
+              inline
+              className="w-full"
+            />
             <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-sky-500/90 px-3 py-1.5 text-sm font-semibold text-white">
               <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
               Ready to scan
@@ -587,13 +571,7 @@ export default function GateControlPage() {
         }}
       />
 
-      {cameraOpen && (
-        <CameraCapture
-          onSuccess={handleCameraResult}
-          onCancel={() => setCameraOpen(false)}
-          token={token}
-        />
-      )}
+      
     </div>
   );
 }
