@@ -8,4 +8,6 @@ public class AuthResponse
     public string Token { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public Role Role { get; set; }
+    public string QrCode { get; set; } = string.Empty;
+    public string? QrCodeImageBase64 { get; set; }
 }

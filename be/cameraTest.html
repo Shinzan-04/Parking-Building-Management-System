@@ -50,7 +50,8 @@
     </div>
 
     <div class="btn-group">
-        <button class="btn-capture" id="captureBtn">📷 Chụp & Scan</button>
+        <button class="btn-capture" id="captureBtn">📷 Chụp Thủ Công</button>
+        <button class="btn-capture" id="autoScanBtn" style="background: linear-gradient(135deg, #ff9800, #f44336);">🔄 Auto-Scan: TẮT</button>
         <button class="btn-upload" id="uploadBtn">📁 Upload Ảnh</button>
         <input type="file" id="fileInput" accept="image/*">
     </div>
@@ -106,20 +107,31 @@
         }
         startCamera();
 
+        let isAutoScanning = false;
+        let isApiCalling = false;
+        let autoScanTimer = null;
+        const autoScanBtn = document.getElementById('autoScanBtn');
+
         // Hàm gửi ảnh lên API
-        async function scanPlate(base64Image) {
+        async function scanPlate(base64Image, isAuto = false) {
             const token = tokenInput.value.trim();
             if (!token) {
-                alert("Vui lòng nhập JWT Token trước!");
+                if (!isAuto) alert("Vui lòng nhập JWT Token trước!");
+                else stopAutoScan();
                 return;
             }
 
-            captureBtn.disabled = true;
-            uploadBtn.disabled = true;
+            if (isApiCalling) return;
+            isApiCalling = true;
+
+            if (!isAuto) {
+                captureBtn.disabled = true;
+                uploadBtn.disabled = true;
+                plateResult.style.display = 'none';
+                resultPanel.style.display = 'none';
+                croppedContainer.style.display = 'none';
+            }
             loadingText.style.display = 'block';
-            plateResult.style.display = 'none';
-            resultPanel.style.display = 'none';
-            croppedContainer.style.display = 'none';
 
             try {
                 const response = await fetch('http://localhost:5237/api/ocr/scan-plate', {
@@ -131,7 +143,17 @@
                     body: JSON.stringify({ imageBase64: base64Image })
                 });
 
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`Lỗi ${response.status}: ${errText || 'Có thể do Token sai/hết hạn hoặc thiếu quyền (401/403). Vui lòng kiểm tra lại Token!'}`);
+                }
+
                 const data = await response.json();
+
+                // Nếu Auto-Scan nhưng không thấy biển số thì ẩn đi chờ ảnh tiếp theo
+                if (isAuto && !data.isDetected) {
+                    return; 
+                }
 
                 // Hiển thị biển số lớn
                 plateResult.style.display = 'block';
@@ -141,6 +163,12 @@
                     const conf = Math.round(data.confidence * 100);
                     confidenceFill.style.width = conf + '%';
                     confidenceFill.style.background = conf > 70 ? '#00ff88' : conf > 40 ? '#ffd700' : '#ff6b6b';
+                    
+                    // Nếu Auto-Scan mà nhận diện tốt, có thể dừng lại hoặc highlight
+                    if (isAuto && conf > 60) {
+                        // Tùy chọn: Tắt tự động nếu đã scan được nét
+                        // stopAutoScan();
+                    }
                 } else if (data.isDetected) {
                     plateText.textContent = 'Không đọc được ký tự';
                     plateText.className = 'plate-text empty';
@@ -162,26 +190,64 @@
                 }
 
             } catch (err) {
-                plateResult.style.display = 'block';
-                plateText.textContent = 'Lỗi kết nối API';
-                plateText.className = 'plate-text empty';
-                resultPanel.style.display = 'block';
-                jsonResult.textContent = "Lỗi: " + err.message;
+                if (!isAuto) {
+                    plateResult.style.display = 'block';
+                    plateText.textContent = 'Lỗi kết nối API';
+                    plateText.className = 'plate-text empty';
+                    resultPanel.style.display = 'block';
+                    jsonResult.textContent = "Lỗi: " + err.message;
+                }
             } finally {
                 captureBtn.disabled = false;
                 uploadBtn.disabled = false;
                 loadingText.style.display = 'none';
+                isApiCalling = false;
             }
         }
 
-        // Nút Chụp từ Camera
+        // --- Nút Bật/Tắt Auto Scan ---
+        autoScanBtn.addEventListener('click', () => {
+            isAutoScanning = !isAutoScanning;
+            if (isAutoScanning) {
+                autoScanBtn.textContent = '🔄 Auto-Scan: ĐANG BẬT';
+                autoScanBtn.style.background = 'linear-gradient(135deg, #4caf50, #009688)';
+                startAutoScan();
+            } else {
+                stopAutoScan();
+            }
+        });
+
+        function startAutoScan() {
+            autoScanTimer = setInterval(() => {
+                if (isApiCalling || video.videoWidth === 0) return;
+                
+                // Tự động capture frame
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1]; // Giảm chất lượng nhẹ để gửi nhanh hơn
+                
+                scanPlate(base64, true);
+            }, 1000); // 1 giây quét 1 lần
+        }
+
+        function stopAutoScan() {
+            isAutoScanning = false;
+            clearInterval(autoScanTimer);
+            autoScanBtn.textContent = '🔄 Auto-Scan: TẮT';
+            autoScanBtn.style.background = 'linear-gradient(135deg, #ff9800, #f44336)';
+        }
+
+        // Nút Chụp từ Camera (Thủ công)
         captureBtn.addEventListener('click', () => {
+            if (video.videoWidth === 0) return;
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext('2d');
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const base64 = canvas.toDataURL('image/jpeg', 0.9).split(',')[1];
-            scanPlate(base64);
+            scanPlate(base64, false);
         });
 
         // Nút Upload File
@@ -192,7 +258,7 @@
             const reader = new FileReader();
             reader.onload = () => {
                 const base64 = reader.result.split(',')[1];
-                scanPlate(base64);
+                scanPlate(base64, false);
             };
             reader.readAsDataURL(file);
             fileInput.value = '';
