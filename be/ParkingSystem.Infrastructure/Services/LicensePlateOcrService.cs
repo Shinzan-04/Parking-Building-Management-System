@@ -4,52 +4,45 @@ using ParkingSystem.Application.Interfaces;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using Tesseract;
+using Sdcb.PaddleInference;
+using Sdcb.PaddleOCR;
+using Sdcb.PaddleOCR.Models.LocalV3;
+using Sdcb.PaddleOCR.Models.Local;
+using OpenCvSharp;
 using System.Text.RegularExpressions;
 
 namespace ParkingSystem.Infrastructure.Services;
 
 /// <summary>
-/// Service nhận diện biển số xe hoàn chỉnh: YOLO detect + Tesseract OCR.
+/// Service nhận diện biển số xe hoàn chỉnh: YOLO detect + PaddleOCR.
 /// 
 /// Pipeline:
 /// 1. Ảnh camera (Base64) → Decode
 /// 2. YOLO ONNX → Detect vùng biển số (bounding box)
 /// 3. Crop vùng biển số từ ảnh gốc
-/// 4. Tiền xử lý ảnh (Grayscale, Threshold, Resize) → Tăng độ chính xác OCR
-/// 5. Tesseract OCR → Đọc ký tự từ ảnh crop
-/// 6. Hậu xử lý text (loại bỏ ký tự lạ, format biển số VN)
+/// 4. Tiền xử lý ảnh (Resize x4, Grayscale, Threshold)
+/// 5. PaddleOCR → Đọc ký tự từng dòng từ ảnh crop
+/// 6. Hậu xử lý text (sửa lỗi OCR, gom dòng)
 /// </summary>
 public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
 {
     private readonly InferenceSession _session;
-    private readonly TesseractEngine _ocrEngine;
     private const int ModelInputSize = 640;
     private const float ConfidenceThreshold = 0.25f;
 
     /// <summary>
-    /// Khởi tạo service với đường dẫn model ONNX và thư mục tessdata.
+    /// Khởi tạo service với đường dẫn model ONNX.
     /// </summary>
     /// <param name="modelPath">Đường dẫn tới file .onnx (YOLOv8)</param>
-    /// <param name="tessdataPath">Đường dẫn tới thư mục chứa eng.traineddata</param>
-    public LicensePlateOcrService(string modelPath, string tessdataPath)
+    public LicensePlateOcrService(string modelPath, string tessdataPath = "")
     {
         if (!File.Exists(modelPath))
             throw new FileNotFoundException($"Không tìm thấy model ONNX tại: {modelPath}");
 
-        // Khởi tạo YOLO ONNX session
+        // Khởi tạo YOLO ONNX session (Singleton an toàn với đa luồng)
         var options = new SessionOptions();
         options.GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL;
         _session = new InferenceSession(modelPath, options);
-
-        // Khởi tạo Tesseract OCR engine
-        // PSM 7 = "Treat the image as a single text line" — phù hợp cho biển số 1 dòng
-        // PSM 6 = "Assume a single uniform block of text" — phù hợp cho biển số 2 dòng
-        _ocrEngine = new TesseractEngine(tessdataPath, "eng", EngineMode.Default);
-
-        // Chỉ cho phép ký tự biển số xe Việt Nam (chữ cái + số + dấu chấm/gạch)
-        _ocrEngine.DefaultPageSegMode = PageSegMode.SingleBlock;
-        _ocrEngine.SetVariable("tessedit_char_whitelist", "0123456789ABCDEFGHKLMNPRSTUVXYZ.-");
     }
 
     public async Task<LicensePlateResult> DetectPlateAsync(string imageBase64)
@@ -131,36 +124,86 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
                     croppedBase64 = Convert.ToBase64String(ms.ToArray());
                 }
 
-                // ===== BƯỚC 4: Tiền xử lý ảnh cho OCR =====
-                // Chuyển sang grayscale + tăng contrast + resize lớn hơn để OCR đọc tốt
-                using var preprocessed = cropped.Clone(ctx =>
-                {
-                    ctx.Grayscale();
-                    ctx.Contrast(1.5f);
-                    // Resize lên ít nhất 300px chiều rộng để Tesseract đọc tốt hơn
-                    if (cropped.Width < 300)
-                    {
-                        var scale = 300.0 / cropped.Width;
-                        ctx.Resize((int)(cropped.Width * scale), (int)(cropped.Height * scale));
-                    }
-                });
-
-                // ===== BƯỚC 5: Tesseract OCR — đọc ký tự =====
-                byte[] preprocessedBytes;
+                // ===== BƯỚC 4 + 5: OpenCV tiền xử lý ANPR chuyên sâu + PaddleOCR =====
+                // Kỹ thuật chuẩn công nghiệp nhận diện biển số xe (ANPR):
+                // CLAHE → Bilateral Filter → Otsu Threshold → Morphology → PaddleOCR
+                
+                // 4a. Chuyển ảnh crop sang byte[] để đưa vào OpenCV
+                byte[] croppedBytes;
                 using (var ms = new MemoryStream())
                 {
-                    preprocessed.SaveAsPng(ms);
-                    preprocessedBytes = ms.ToArray();
+                    cropped.SaveAsPng(ms);
+                    croppedBytes = ms.ToArray();
                 }
 
                 string rawText = "";
                 float ocrConfidence = 0;
 
-                using (var pix = Pix.LoadFromMemory(preprocessedBytes))
-                using (var page = _ocrEngine.Process(pix))
+                using (Mat colorMat = Cv2.ImDecode(croppedBytes, ImreadModes.Color))
                 {
-                    rawText = page.GetText().Trim();
-                    ocrConfidence = page.GetMeanConfidence();
+                    // 4b. Resize lên chuẩn chiều cao 100px (giữ tỉ lệ)
+                    // Ảnh quá nhỏ → PaddleOCR không nhận diện nổi
+                    int targetHeight = 100;
+                    double scale = (double)targetHeight / colorMat.Height;
+                    using Mat ocrResized = new Mat();
+                    Cv2.Resize(colorMat, ocrResized, new OpenCvSharp.Size(0, 0), scale, scale, InterpolationFlags.Cubic);
+
+                    // 4c. Chuyển sang Grayscale
+                    using Mat gray = new Mat();
+                    Cv2.CvtColor(ocrResized, gray, ColorConversionCodes.BGR2GRAY);
+
+                    // 4d. CLAHE — Contrast Limited Adaptive Histogram Equalization
+                    // Đây là bước THEN CHỐT: cân bằng sáng tối CỤC BỘ trên toàn ảnh
+                    // Giúp biển số chụp dưới ánh sáng chói/ngược sáng/ban đêm đều rõ nét như nhau
+                    using var clahe = Cv2.CreateCLAHE(clipLimit: 3.0, tileGridSize: new OpenCvSharp.Size(8, 8));
+                    using Mat enhanced = new Mat();
+                    clahe.Apply(gray, enhanced);
+
+                    // 4e. Bilateral Filter — Làm mịn ảnh nhưng GIỮU NGUYÊN cạnh chữ
+                    // Khác Gaussian Blur (làm mờ tất), bilateral chỉ mờ vùng phẳng, giữ viền sắc nét
+                    using Mat filtered = new Mat();
+                    Cv2.BilateralFilter(enhanced, filtered, 9, 75, 75);
+
+                    // 4f. Otsu Threshold — Tự động tìm ngưỡng tối ưu cho từng ảnh
+                    // Không dùng ngưỡng cố định (0.5) vì mỗi ảnh sáng/tối khác nhau
+                    // Otsu phân tích histogram và chọn ngưỡng chia 2 đỉnh rõ nhất
+                    using Mat binary = new Mat();
+                    Cv2.Threshold(filtered, binary, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
+
+                    // 4g. Morphological Close — Lấp khe hở nhỏ bên trong nét chữ
+                    // Ký tự "8", "0", "B" thường bị đứt nét do threshold → close sẽ nối lại
+                    using Mat kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(2, 2));
+                    using Mat morphed = new Mat();
+                    Cv2.MorphologyEx(binary, morphed, MorphTypes.Close, kernel);
+
+                    // 4h. Padding viền trắng 15px xung quanh
+                    using Mat padded = new Mat();
+                    Cv2.CopyMakeBorder(morphed, padded, 15, 15, 15, 15, 
+                        BorderTypes.Constant, new Scalar(255, 255, 255));
+
+                    // 4i. Chuyển ngược về 3 kênh màu (BGR) vì PaddleOCR yêu cầu input 3 channels
+                    using Mat ocrInput = new Mat();
+                    Cv2.CvtColor(padded, ocrInput, ColorConversionCodes.GRAY2BGR);
+
+                    // ===== BƯỚC 5: PaddleOCR đọc ký tự =====
+                    using (PaddleOcrAll all = new PaddleOcrAll(LocalFullModels.EnglishV3, PaddleDevice.Mkldnn()))
+                    {
+                        all.AllowRotateDetection = true;
+                        all.Enable180Classification = true; // Xử lý biển số bị lật ngược
+
+                        PaddleOcrResult ocrResult = all.Run(ocrInput);
+
+                        if (ocrResult.Regions.Length > 0)
+                        {
+                            var lines = ocrResult.Regions
+                                .OrderBy(r => r.Rect.Center.Y)
+                                .Select(r => r.Text)
+                                .ToList();
+
+                            rawText = string.Join("\n", lines);
+                            ocrConfidence = ocrResult.Regions.Average(r => r.Score);
+                        }
+                    }
                 }
 
                 // ===== BƯỚC 6: Hậu xử lý — Format biển số xe Việt Nam =====
@@ -172,6 +215,7 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
                     Confidence = best.Confidence,
                     CroppedPlateBase64 = croppedBase64,
                     LicensePlate = licensePlate,
+                    RawOcrText = rawText,
                     Message = string.IsNullOrEmpty(licensePlate)
                         ? $"Phát hiện biển số (YOLO: {best.Confidence:P0}) nhưng không đọc được ký tự. Raw OCR: \"{rawText}\""
                         : $"Nhận diện thành công: {licensePlate} (YOLO: {best.Confidence:P0}, OCR: {ocrConfidence:P0})"
@@ -190,33 +234,95 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
 
     /// <summary>
     /// Hậu xử lý text OCR — Chuẩn hóa biển số xe Việt Nam.
-    /// Biển số VN có dạng: "51F-123.45", "30A-12345", "29B1-234.56"
-    /// Loại bỏ ký tự lạ, khoảng trắng thừa, sửa lỗi OCR phổ biến.
+    /// 
+    /// Các dạng biển số VN:
+    ///   75A-145.19  → [2 số][1 chữ][5 số]
+    ///   29-AB 226.58 → [2 số][2 chữ][5 số]
+    ///   12-B1 168.88 → [2 số][1 chữ][1 số][5 số]
+    /// 
+    /// Quy tắc vị trí:
+    ///   Vị trí 0-1: Luôn là SỐ (mã tỉnh 11-99)
+    ///   Vị trí 2  : Luôn là CHỮ CÁI (A-Z)
+    ///   Vị trí 3  : Có thể CHỮ hoặc SỐ → KHÔNG SỬA
+    ///   Vị trí 4+ : Luôn là SỐ
     /// </summary>
     private string PostProcessPlateText(string rawText)
     {
         if (string.IsNullOrWhiteSpace(rawText))
             return string.Empty;
 
-        // Loại bỏ ký tự không hợp lệ (chỉ giữ chữ, số, dấu chấm, gạch ngang)
-        var cleaned = Regex.Replace(rawText, @"[^A-Z0-9.\-]", "", RegexOptions.IgnoreCase);
-        cleaned = cleaned.ToUpper().Trim();
+        // Bước 1: Chuẩn hóa chữ in hoa, loại bỏ ký tự đặc biệt
+        var upper = rawText.ToUpper().Trim();
+        var cleaned = Regex.Replace(upper, @"[^A-Z0-9]", "");
 
-        // Sửa lỗi OCR phổ biến trên biển số
-        cleaned = cleaned
-            .Replace('O', '0')  // O thường bị nhầm với 0
-            .Replace('I', '1')  // I thường bị nhầm với 1
-            .Replace('Q', '0')  // Q bị nhầm với 0
-            .Replace('S', '5')  // S bị nhầm với 5
-            .Replace('Z', '2')  // Z bị nhầm với 2
-            .Replace('B', '8'); // B bị nhầm với 8 (cân nhắc context)
+        if (cleaned.Length < 5) return string.Empty;
 
-        // Kiểm tra: Biển số VN tối thiểu 7 ký tự (vd: 51F1234)
-        if (cleaned.Length < 5)
-            return string.Empty;
+        char[] arr = cleaned.ToCharArray();
 
-        return cleaned;
+        for (int i = 0; i < arr.Length; i++)
+        {
+            if (i < 2)
+            {
+                // === VỊ TRÍ 0-1: Mã tỉnh — BẮT BUỘC là SỐ ===
+                if (!char.IsDigit(arr[i]))
+                {
+                    arr[i] = LetterToDigit(arr[i]);
+                }
+            }
+            else if (i == 2)
+            {
+                // === VỊ TRÍ 2: Seri — BẮT BUỘC là CHỮ ===
+                if (char.IsDigit(arr[i]))
+                {
+                    arr[i] = DigitToLetter(arr[i]);
+                }
+            }
+            else if (i == 3)
+            {
+                // === VỊ TRÍ 3: Có thể CHỮ hoặc SỐ → GIỮ NGUYÊN ===
+                // Không sửa gì cả vì không biết chắc loại xe nào
+            }
+            else
+            {
+                // === VỊ TRÍ 4+: Số đăng ký — BẮT BUỘC là SỐ ===
+                if (!char.IsDigit(arr[i]))
+                {
+                    arr[i] = LetterToDigit(arr[i]);
+                }
+            }
+        }
+
+        return new string(arr);
     }
+
+    /// <summary>
+    /// Chuyển chữ cái bị nhầm thành số tương ứng (dùng cho vị trí bắt buộc là SỐ)
+    /// </summary>
+    private static char LetterToDigit(char c) => c switch
+    {
+        'O' or 'Q' or 'D' => '0',
+        'I' or 'L' or 'T' => '1',
+        'Z' => '2',
+        'A' => '4',
+        'S' => '5',
+        'G' => '6',
+        'B' => '8',
+        _ => c
+    };
+
+    /// <summary>
+    /// Chuyển số bị nhầm thành chữ cái tương ứng (dùng cho vị trí bắt buộc là CHỮ)
+    /// </summary>
+    private static char DigitToLetter(char c) => c switch
+    {
+        '0' => 'D',
+        '1' => 'T',
+        '2' => 'Z',
+        '5' => 'S',
+        '6' => 'G',
+        '8' => 'B',
+        _ => c
+    };
 
     /// <summary>
     /// Parse output tensor của YOLOv8
@@ -313,7 +419,6 @@ public class LicensePlateOcrService : ILicensePlateOcrService, IDisposable
     public void Dispose()
     {
         _session?.Dispose();
-        _ocrEngine?.Dispose();
     }
 
     private class Detection
