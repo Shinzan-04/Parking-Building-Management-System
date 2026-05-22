@@ -36,7 +36,11 @@ public class AuthService : IAuthService
             UserId = user.Id,
             Token = _tokenService.GenerateToken(user),
             FullName = user.FullName,
-            Role = user.Role
+            Role = user.Role,
+            QrCode = user.QrCode,
+            QrCodeImageBase64 = !string.IsNullOrEmpty(user.QrCode) 
+                ? _qrCodeService.GenerateQrCodeBase64(user.QrCode) 
+                : null
         };
     }
 
@@ -130,7 +134,11 @@ public class AuthService : IAuthService
             UserId = user.Id,
             Token = _tokenService.GenerateToken(user),
             FullName = user.FullName,
-            Role = user.Role
+            Role = user.Role,
+            QrCode = user.QrCode,
+            QrCodeImageBase64 = !string.IsNullOrEmpty(user.QrCode) 
+                ? _qrCodeService.GenerateQrCodeBase64(user.QrCode) 
+                : null
         };
     }
 }
