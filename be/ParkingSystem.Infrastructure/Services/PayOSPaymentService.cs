@@ -19,6 +19,8 @@ public class PayOSOptions
     public string ApiKey { get; set; } = string.Empty;
     public string ChecksumKey { get; set; } = string.Empty;
     public string BaseUrl { get; set; } = "https://api.payos.vn";
+    public string ReturnUrl { get; set; } = string.Empty;
+    public string CancelUrl { get; set; } = string.Empty;
 }
 
 public class PayOSPaymentService : IPaymentService
@@ -71,8 +73,8 @@ public class PayOSPaymentService : IPaymentService
                 OrderCode = orderCode,
                 Amount = (int)request.Amount,
                 Description = request.Description,
-                ReturnUrl = $"{_options.BaseUrl}/return",
-                CancelUrl = $"{_options.BaseUrl}/cancel",
+                ReturnUrl = _options.ReturnUrl,
+                CancelUrl = _options.CancelUrl,
                 ExpiredAt = expiredAt
             };
 
