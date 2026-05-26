@@ -71,6 +71,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
 builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
+builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(builder.Configuration.GetSection("PayOS"));
+builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
 
 // Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
 // Sử dụng model license_plate_detector.onnx đã train riêng cho biển số xe Việt Nam
