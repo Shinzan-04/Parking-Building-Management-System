@@ -69,6 +69,7 @@ builder.Services.AddScoped<IParkingSlotService, ParkingSlotService>();
 builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
+builder.Services.AddScoped<ParkingSystem.Application.Interfaces.ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
 
 // Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
@@ -111,6 +112,16 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+// Global exception handler — always returns JSON
+app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
+{
+    var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+    ctx.Response.StatusCode = 500;
+    ctx.Response.ContentType = "application/json";
+    var msg = app.Environment.IsDevelopment() ? ex?.Message : "An internal server error occurred.";
+    await ctx.Response.WriteAsJsonAsync(new { message = msg });
+}));
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
