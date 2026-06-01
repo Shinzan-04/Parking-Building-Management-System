@@ -69,8 +69,10 @@ builder.Services.AddScoped<IParkingSlotService, ParkingSlotService>();
 builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
-builder.Services.AddScoped<ParkingSystem.Application.Interfaces.ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
+builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
+builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(builder.Configuration.GetSection("PayOS"));
+builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
 
 // Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
 // Sử dụng model license_plate_detector.onnx đã train riêng cho biển số xe Việt Nam
@@ -122,6 +124,38 @@ app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
     var msg = app.Environment.IsDevelopment() ? ex?.Message : "An internal server error occurred.";
     await ctx.Response.WriteAsJsonAsync(new { message = msg });
 }));
+
+// ===== DEBUG: Kiểm tra kết nối Database khi khởi động =====
+using (var scope = app.Services.CreateScope())
+{
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
+
+    var safeConnStr = System.Text.RegularExpressions.Regex.Replace(
+        connStr ?? "", @"Password=[^;]*", "Password=***");
+
+    logger.LogInformation("🔌 Connection String: {ConnStr}", safeConnStr);
+
+    try
+    {
+        var canConnect = await dbContext.Database.CanConnectAsync();
+        if (canConnect)
+        {
+            var dbName = dbContext.Database.GetDbConnection().Database;
+            var dbServer = dbContext.Database.GetDbConnection().DataSource;
+            logger.LogInformation("✅ Database THÀNH CÔNG — {DbName} @ {Server}", dbName, dbServer);
+        }
+        else
+        {
+            logger.LogError("❌ Database THẤT BẠI — CanConnect trả về false");
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "❌ Database THẤT BẠI — {Message}", ex.Message);
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
