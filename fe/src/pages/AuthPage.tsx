@@ -17,12 +17,11 @@ type AuthMode = 'login' | 'register';
 
 type AuthRole = 'Admin' | 'Manager' | 'Staff' | 'Driver' | 0 | 1 | 2 | 3;
 
-function isStaffRole(role: AuthRole) {
-  return role === 'Staff' || role === 2;
-}
-
-function getPostLoginPath(role: AuthRole) {
-  return isStaffRole(role) ? '/gate-control' : '/';
+function getPostLoginPath(role: AuthRole): string {
+  if (role === 'Admin'   || role === 0) return '/admin';
+  if (role === 'Manager' || role === 1) return '/manager';
+  if (role === 'Staff'   || role === 2) return '/gate-control';
+  return '/user'; // Driver
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -136,7 +135,12 @@ const registerSchema = Yup.object().shape({
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { login, register, loading, error: apiError, loginWithGoogle } = useAuth();
+  const { user, login, register, loading, error: apiError, loginWithGoogle } = useAuth();
+
+  // Redirect nếu đã đăng nhập
+  useEffect(() => {
+    if (user) navigate(getPostLoginPath(user.role as AuthRole), { replace: true });
+  }, [user, navigate]);
 
   useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;

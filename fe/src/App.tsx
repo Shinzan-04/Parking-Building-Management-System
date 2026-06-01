@@ -3,14 +3,20 @@ import { lazy, Suspense } from 'react';
 import './index.css';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
-const LandingPage    = lazy(() => import('./pages/LandingPage'));
-const AuthPage       = lazy(() => import('./pages/AuthPage'));
-const AdminLayout    = lazy(() => import('./pages/Admin/AdminLayout'));
-const AdminDashboard  = lazy(() => import('./pages/Admin/Dashboard'));
+const LandingPage      = lazy(() => import('./pages/LandingPage'));
+const AuthPage         = lazy(() => import('./pages/AuthPage'));
+
+const AdminLayout      = lazy(() => import('./pages/Admin/AdminLayout'));
+const AdminDashboard   = lazy(() => import('./pages/Admin/Dashboard'));
 const AdminParkingLots = lazy(() => import('./pages/Admin/ParkingLots'));
 const AdminVehicles    = lazy(() => import('./pages/Admin/Vehicles'));
 const AdminUsers       = lazy(() => import('./pages/Admin/Users'));
-const GateControlPage = lazy(() => import('./pages/GateControlPage'));
+
+const ManagerLayout    = lazy(() => import('./pages/Manager/ManagerLayout'));
+const ManagerDashboard = lazy(() => import('./pages/Manager/Dashboard'));
+
+const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
+const UserDashboard    = lazy(() => import('./pages/User/UserDashboard'));
 
 export default function App() {
   return (
@@ -20,22 +26,36 @@ export default function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
 
-          {/* Gate Control - Chỉ Staff */}
-          <Route
-            path="/gate-control"
-            element={<ProtectedRoute element={<GateControlPage />} requiredRoles={["Staff"]} />}
-          />
-
-          {/* Admin Portal - chỉ cho Admin và Manager */}
+          {/* Admin Portal - chỉ Admin */}
           <Route
             path="/admin"
-            element={<ProtectedRoute element={<AdminLayout />} requiredRoles={["Admin", "Manager"]} />}
+            element={<ProtectedRoute element={<AdminLayout />} requiredRoles={["Admin"]} />}
           >
             <Route index element={<AdminDashboard />} />
             <Route path="parking-lots" element={<AdminParkingLots />} />
             <Route path="vehicles" element={<AdminVehicles />} />
             <Route path="users" element={<AdminUsers />} />
           </Route>
+
+          {/* Manager Portal - chỉ Manager */}
+          <Route
+            path="/manager"
+            element={<ProtectedRoute element={<ManagerLayout />} requiredRoles={["Manager"]} />}
+          >
+            <Route index element={<ManagerDashboard />} />
+          </Route>
+
+          {/* Gate Control - chỉ Staff */}
+          <Route
+            path="/gate-control"
+            element={<ProtectedRoute element={<GateControlPage />} requiredRoles={["Staff"]} />}
+          />
+
+          {/* User Dashboard - chỉ Driver */}
+          <Route
+            path="/user"
+            element={<ProtectedRoute element={<UserDashboard />} requiredRoles={["Driver"]} />}
+          />
         </Routes>
       </Suspense>
     </BrowserRouter>
