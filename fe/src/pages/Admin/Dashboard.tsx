@@ -1,8 +1,10 @@
-import { Building2, Car, Banknote, TrendingUp, TrendingDown, ArrowUpRight, Clock, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Building2, Car, Banknote, TrendingUp, Clock, CheckCircle2 } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { getBuildings, getParkingSlots, isSlotOccupied } from '../../services/buildingsService';
 
 const revenueData = [
   { day: 'T2', revenue: 8500 },
@@ -40,48 +42,6 @@ const recentTransactions = [
   { id: 8, plate: '29B-678.90', entry: '09:30', exit: null,    duration: '2h 35m', fee: null,  status: 'parked' },
 ];
 
-const stats = [
-  {
-    label: 'Tổng chỗ đỗ',
-    value: '500',
-    unit: 'chỗ',
-    change: null,
-    positive: null,
-    icon: Building2,
-    color: '#00C2FF',
-    bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5',
-  },
-  {
-    label: 'Đang đỗ xe',
-    value: '342',
-    unit: 'xe',
-    change: '+12 so với hôm qua',
-    positive: true,
-    icon: Car,
-    color: '#3BFFA4',
-    bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5',
-  },
-  {
-    label: 'Doanh thu hôm nay',
-    value: '12,450,000',
-    unit: 'đ',
-    change: '+8.2% so với hôm qua',
-    positive: true,
-    icon: Banknote,
-    color: '#F59E0B',
-    bg: 'from-amber-400/20 to-amber-400/5',
-  },
-  {
-    label: 'Tỷ lệ lấp đầy',
-    value: '68.4',
-    unit: '%',
-    change: '-2.1% so với hôm qua',
-    positive: false,
-    icon: TrendingUp,
-    color: '#A78BFA',
-    bg: 'from-violet-400/20 to-violet-400/5',
-  },
-];
 
 function RevenueTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
   if (!active || !payload?.length) return null;
@@ -110,6 +70,29 @@ export default function Dashboard() {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
+  const [totalSpots, setTotalSpots] = useState(0);
+  const [parkedCount, setParkedCount] = useState(0);
+  const [occupancy, setOccupancy] = useState(0);
+
+  useEffect(() => {
+    Promise.all([getBuildings(), getParkingSlots()])
+      .then(([buildings, slots]) => {
+        const total = buildings.reduce((s, b) => s + b.totalCapacity, 0);
+        const parked = slots.filter(s => isSlotOccupied(s.status)).length;
+        setTotalSpots(total);
+        setParkedCount(parked);
+        setOccupancy(total > 0 ? Math.round((parked / total) * 1000) / 10 : 0);
+      })
+      .catch(() => {});
+  }, []);
+
+  const stats = [
+    { label: 'Tổng chỗ đỗ',     value: totalSpots.toLocaleString('vi-VN'), unit: 'chỗ', icon: Building2, color: '#00C2FF', bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5' },
+    { label: 'Đang đỗ xe',      value: parkedCount.toLocaleString('vi-VN'), unit: 'xe',  icon: Car,       color: '#3BFFA4', bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5' },
+    { label: 'Doanh thu hôm nay', value: '—',                                unit: 'đ',   icon: Banknote,  color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
+    { label: 'Tỷ lệ lấp đầy',   value: `${occupancy}%`,                     unit: '',    icon: TrendingUp, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+  ];
+
   return (
     <div className="space-y-6">
       {/* Page title */}
@@ -128,27 +111,12 @@ export default function Dashboard() {
                 <div className={`p-2.5 rounded-xl bg-gradient-to-br ${stat.bg}`}>
                   <Icon size={20} style={{ color: stat.color }} />
                 </div>
-                {stat.change && (
-                  <span
-                    className={`flex items-center gap-1 text-xs font-medium ${
-                      stat.positive ? 'text-[#3BFFA4]' : 'text-red-400'
-                    }`}
-                  >
-                    {stat.positive ? <ArrowUpRight size={12} /> : <TrendingDown size={12} />}
-                    {stat.change.split(' ')[0]}
-                  </span>
-                )}
               </div>
               <p className="text-2xl font-bold text-white">
                 {stat.value}
                 <span className="text-sm font-normal text-white/40 ml-1">{stat.unit}</span>
               </p>
               <p className="text-sm text-white/50 mt-1">{stat.label}</p>
-              {stat.change && (
-                <p className="text-xs text-white/30 mt-0.5">
-                  {stat.change.split(' ').slice(1).join(' ')}
-                </p>
-              )}
             </div>
           );
         })}

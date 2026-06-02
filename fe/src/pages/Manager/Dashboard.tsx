@@ -1,8 +1,10 @@
-import { Car, Banknote, TrendingUp, TrendingDown, ArrowUpRight, Clock, CheckCircle2, MapPin } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Car, Banknote, TrendingUp, Clock, CheckCircle2, MapPin } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { getBuildings, getParkingSlots, isSlotOccupied } from '../../services/buildingsService';
 
 const revenueData = [
   { day: 'T2', revenue: 8500 },
@@ -32,50 +34,7 @@ const recentSessions = [
   { id: 5, plate: '60H-567.89', slot: 'B-09', entry: '06:30', exit: '09:00', fee: 25000, status: 'completed' },
 ];
 
-const stats = [
-  {
-    label: 'Chỗ đang sử dụng',
-    value: '342',
-    unit: 'chỗ',
-    change: '+12 so với hôm qua',
-    positive: true,
-    icon: Car,
-    color: '#3BFFA4',
-    bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5',
-  },
-  {
-    label: 'Chỗ còn trống',
-    value: '158',
-    unit: 'chỗ',
-    change: '-12 so với hôm qua',
-    positive: false,
-    icon: MapPin,
-    color: '#00C2FF',
-    bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5',
-  },
-  {
-    label: 'Doanh thu hôm nay',
-    value: '12,450,000',
-    unit: 'đ',
-    change: '+8.2% so với hôm qua',
-    positive: true,
-    icon: Banknote,
-    color: '#F59E0B',
-    bg: 'from-amber-400/20 to-amber-400/5',
-  },
-  {
-    label: 'Tỷ lệ lấp đầy',
-    value: '68.4',
-    unit: '%',
-    change: '-2.1% so với hôm qua',
-    positive: false,
-    icon: TrendingUp,
-    color: '#A78BFA',
-    bg: 'from-violet-400/20 to-violet-400/5',
-  },
-];
-
-function ChartTooltip({ active, payload, label, color, formatter }: any) {
+function ChartTooltip({ active, payload, label, color, formatter }: { active?: boolean; payload?: { value: number }[]; label?: string; color: string; formatter: (v: number) => string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[#0B1120] border border-white/10 rounded-xl px-4 py-2.5 text-sm">
@@ -89,6 +48,30 @@ export default function ManagerDashboard() {
   const today = new Date().toLocaleDateString('vi-VN', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
+
+  const [occupied, setOccupied] = useState(0);
+  const [totalCap, setTotalCap] = useState(0);
+
+  useEffect(() => {
+    Promise.all([getBuildings(), getParkingSlots()])
+      .then(([buildings, slots]) => {
+        const total = buildings.reduce((s, b) => s + b.totalCapacity, 0);
+        const occ   = slots.filter(s => isSlotOccupied(s.status)).length;
+        setTotalCap(total);
+        setOccupied(occ);
+      })
+      .catch(() => {});
+  }, []);
+
+  const available = totalCap - occupied;
+  const occupancy = totalCap > 0 ? Math.round((occupied / totalCap) * 1000) / 10 : 0;
+
+  const stats = [
+    { label: 'Chỗ đang sử dụng', value: occupied.toLocaleString('vi-VN'),  unit: 'chỗ', icon: Car,      color: '#3BFFA4', bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5' },
+    { label: 'Chỗ còn trống',    value: available.toLocaleString('vi-VN'), unit: 'chỗ', icon: MapPin,   color: '#00C2FF', bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5' },
+    { label: 'Doanh thu hôm nay', value: '—',                               unit: 'đ',   icon: Banknote, color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
+    { label: 'Tỷ lệ lấp đầy',   value: `${occupancy}%`,                   unit: '',    icon: TrendingUp, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -107,17 +90,12 @@ export default function ManagerDashboard() {
                 <div className={`p-2.5 rounded-xl bg-gradient-to-br ${stat.bg}`}>
                   <Icon size={20} style={{ color: stat.color }} />
                 </div>
-                <span className={`flex items-center gap-1 text-xs font-medium ${stat.positive ? 'text-[#3BFFA4]' : 'text-red-400'}`}>
-                  {stat.positive ? <ArrowUpRight size={12} /> : <TrendingDown size={12} />}
-                  {stat.change.split(' ')[0]}
-                </span>
               </div>
               <p className="text-2xl font-bold text-white">
                 {stat.value}
-                <span className="text-sm font-normal text-white/40 ml-1">{stat.unit}</span>
+                {stat.unit && <span className="text-sm font-normal text-white/40 ml-1">{stat.unit}</span>}
               </p>
               <p className="text-sm text-white/50 mt-1">{stat.label}</p>
-              <p className="text-xs text-white/30 mt-0.5">{stat.change.split(' ').slice(1).join(' ')}</p>
             </div>
           );
         })}
@@ -138,7 +116,7 @@ export default function ManagerDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: '#ffffff66', fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
-              <Tooltip content={<ChartTooltip color="#3BFFA4" formatter={(v: number) => `${new Intl.NumberFormat('vi-VN').format(v * 1000)}đ`} />} cursor={{ fill: '#ffffff05' }} />
+              <Tooltip content={<ChartTooltip color="#3BFFA4" formatter={(v) => `${new Intl.NumberFormat('vi-VN').format(v * 1000)}đ`} />} cursor={{ fill: '#ffffff05' }} />
               <Bar dataKey="revenue" fill="#3BFFA4" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
@@ -157,7 +135,7 @@ export default function ManagerDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" vertical={false} />
               <XAxis dataKey="hour" tick={{ fill: '#ffffff66', fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTooltip color="#00C2FF" formatter={(v: number) => `${v} xe`} />} />
+              <Tooltip content={<ChartTooltip color="#00C2FF" formatter={(v) => `${v} xe`} />} />
               <Line type="monotone" dataKey="vehicles" stroke="#00C2FF" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#00C2FF', strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>

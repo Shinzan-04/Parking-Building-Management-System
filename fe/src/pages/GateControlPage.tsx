@@ -12,6 +12,7 @@ import { Link } from 'react-router-dom';
 import CameraCapture from '../components/CameraCapture';
 import type { ScanPlateResponse, ScanAndCheckInResponse } from '../services/ocrService';
 import { scanAndCheckIn } from '../services/ocrService';
+import { checkInWalkIn } from '../services/checkInService';
 import { useAuth } from '../hooks/useAuth';
 
 type VehicleType = 'car' | 'motorbike' | 'ev';
@@ -203,16 +204,36 @@ export default function GateControlPage() {
     setNotification({ kind, message });
   };
 
-  const handleConfirmEntry = () => {
+  const handleConfirmEntry = async () => {
     if (!entryLicensePlate.trim()) {
       showNotification('error', 'Please enter a license plate for entry.');
       return;
     }
+    if (!token) {
+      showNotification('error', 'Bạn cần đăng nhập để thực hiện check-in.');
+      return;
+    }
 
-    showNotification('success', `Entry confirmed for ${entryLicensePlate} (${entryVehicleType}).`);
-    setEntryLicensePlate('');
-    setEntryVehicleType('car');
-    entryInputRef.current?.focus();
+    const vtId = vehicleTypeMap[entryVehicleType.toLowerCase()];
+    if (!vtId) {
+      showNotification('error', `Không tìm thấy loại xe "${entryVehicleType}" trong hệ thống.`);
+      return;
+    }
+
+    try {
+      const result = await checkInWalkIn({
+        licensePlate: entryLicensePlate.trim(),
+        vehicleTypeId: vtId,
+      }, token);
+      showNotification('success',
+        `✓ Check-in: ${result.licensePlate} → Tầng ${result.floorName}, Chỗ ${result.slotNumber}${result.isAIAssigned ? ' (AI)' : ''}`
+      );
+      setEntryLicensePlate('');
+      setEntryVehicleType('car');
+      entryInputRef.current?.focus();
+    } catch (err) {
+      showNotification('error', err instanceof Error ? err.message : 'Check-in thất bại.');
+    }
   };
 
   const handleSearchExit = () => {
@@ -291,7 +312,7 @@ export default function GateControlPage() {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'F1') {
         event.preventDefault();
-        handleConfirmEntry();
+        void handleConfirmEntry();
         return;
       }
 
