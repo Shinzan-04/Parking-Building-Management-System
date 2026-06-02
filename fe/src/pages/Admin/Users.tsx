@@ -1,16 +1,21 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Users, ShieldCheck, Briefcase, UserCheck, User,
   Plus, Search, Pencil, Trash2, X,
   AlertTriangle, Check, Lock, ChevronDown,
-  UserCog,
+  UserCog, Loader2,
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import {
+  getUsers, createUser, updateUser, deleteUser, normalizeRole,
+  type ApiRole, type UserResponse,
+} from '../../services/usersService';
 
 type Role   = 'Admin' | 'Manager' | 'Staff' | 'User';
 type Status = 'active' | 'inactive';
 
 interface UserAccount {
-  id: number;
+  id: string;
   username: string;
   fullName: string;
   email: string;
@@ -20,25 +25,26 @@ interface UserAccount {
   createdAt: string;
 }
 
-const initialUsers: UserAccount[] = [
-  { id: 1,  username: 'superadmin',  fullName: 'Nguyễn Văn Admin',   email: 'admin@parking.vn',       phone: '0901 234 567', role: 'Admin',   status: 'active',   createdAt: '2024-01-10' },
-  { id: 2,  username: 'admin2',      fullName: 'Lê Thị Quản Trị',    email: 'admin2@parking.vn',      phone: '0902 345 678', role: 'Admin',   status: 'active',   createdAt: '2024-01-15' },
-  { id: 3,  username: 'manager01',   fullName: 'Trần Minh Quản Lý',  email: 'manager1@parking.vn',    phone: '0912 456 789', role: 'Manager', status: 'active',   createdAt: '2024-02-01' },
-  { id: 4,  username: 'manager02',   fullName: 'Phạm Thu Hà',        email: 'manager2@parking.vn',    phone: '0913 567 890', role: 'Manager', status: 'active',   createdAt: '2024-02-10' },
-  { id: 5,  username: 'manager03',   fullName: 'Hoàng Bá Phú',       email: 'manager3@parking.vn',    phone: '0914 678 901', role: 'Manager', status: 'inactive', createdAt: '2024-03-05' },
-  { id: 6,  username: 'staff001',    fullName: 'Vũ Đức Anh',         email: 'vda@parking.vn',         phone: '0931 111 222', role: 'Staff',   status: 'active',   createdAt: '2024-03-12' },
-  { id: 7,  username: 'staff002',    fullName: 'Bùi Thị Lan',        email: 'builan@parking.vn',      phone: '0932 222 333', role: 'Staff',   status: 'active',   createdAt: '2024-03-14' },
-  { id: 8,  username: 'staff003',    fullName: 'Đặng Quốc Hùng',     email: 'dqh@parking.vn',         phone: '0933 333 444', role: 'Staff',   status: 'active',   createdAt: '2024-03-20' },
-  { id: 9,  username: 'staff004',    fullName: 'Ngô Thanh Mai',       email: 'ntmai@parking.vn',       phone: '0934 444 555', role: 'Staff',   status: 'inactive', createdAt: '2024-04-01' },
-  { id: 10, username: 'staff005',    fullName: 'Lý Hoàng Phúc',      email: 'lhphuc@parking.vn',      phone: '0935 555 666', role: 'Staff',   status: 'active',   createdAt: '2024-04-05' },
-  { id: 11, username: 'staff006',    fullName: 'Mai Thị Quyên',       email: 'mtquyen@parking.vn',     phone: '0936 666 777', role: 'Staff',   status: 'active',   createdAt: '2024-04-10' },
-  { id: 12, username: 'staff007',    fullName: 'Cao Minh Sơn',        email: 'caominhson@parking.vn',  phone: '0937 777 888', role: 'Staff',   status: 'active',   createdAt: '2024-04-15' },
-  { id: 13, username: 'user001',     fullName: 'Đinh Thị Hoa',        email: 'dinhthihoa@gmail.com',   phone: '0961 001 001', role: 'User',    status: 'active',   createdAt: '2024-05-01' },
-  { id: 14, username: 'user002',     fullName: 'Trương Văn Tuấn',     email: 'tuantruong@gmail.com',   phone: '0962 002 002', role: 'User',    status: 'active',   createdAt: '2024-05-03' },
-  { id: 15, username: 'user003',     fullName: 'Lê Thị Phương',       email: 'phuongle@gmail.com',     phone: '0963 003 003', role: 'User',    status: 'active',   createdAt: '2024-05-08' },
-  { id: 16, username: 'user004',     fullName: 'Nguyễn Quốc Bảo',    email: 'baonguyen@gmail.com',    phone: '0964 004 004', role: 'User',    status: 'inactive', createdAt: '2024-05-10' },
-  { id: 17, username: 'user005',     fullName: 'Phan Minh Đức',       email: 'ducphan@gmail.com',      phone: '0965 005 005', role: 'User',    status: 'active',   createdAt: '2024-05-15' },
-];
+const API_TO_UI: Record<string, Role> = {
+  Admin: 'Admin', Manager: 'Manager', Staff: 'Staff', Driver: 'User',
+};
+const UI_TO_API: Record<Role, ApiRole> = {
+  Admin: 'Admin', Manager: 'Manager', Staff: 'Staff', User: 'Driver',
+};
+
+function mapApiUser(u: UserResponse): UserAccount {
+  const roleStr = normalizeRole(u.role as ApiRole | number);
+  return {
+    id: u.id,
+    username: u.username,
+    fullName: u.fullName,
+    email: u.email ?? '',
+    phone: u.phoneNumber ?? '',
+    role: API_TO_UI[roleStr] ?? 'User',
+    status: 'active',
+    createdAt: u.createdAt.slice(0, 10),
+  };
+}
 
 const roleConfig: Record<Role, { label: string; bg: string; text: string; icon: typeof ShieldCheck; color: string }> = {
   Admin:   { label: 'Admin',        bg: 'bg-[#00C2FF]/15',   text: 'text-[#00C2FF]',   icon: ShieldCheck, color: '#00C2FF' },
@@ -103,15 +109,28 @@ function PermCheck({ value }: { value: boolean }) {
 const allRoles: Role[] = ['Admin', 'Manager', 'Staff', 'User'];
 
 export default function UsersPage() {
+  const { token } = useAuth();
+
   const [activeTab, setActiveTab]   = useState<Tab>('users');
-  const [users, setUsers]           = useState<UserAccount[]>(initialUsers);
+  const [users, setUsers]           = useState<UserAccount[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [apiError, setApiError]     = useState('');
   const [search, setSearch]         = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [modalType, setModalType]   = useState<'add' | 'edit' | 'delete' | null>(null);
   const [selected, setSelected]     = useState<UserAccount | null>(null);
   const [form, setForm]             = useState(emptyForm);
   const [formError, setFormError]   = useState('');
-  const [showRoleDropdown, setShowRoleDropdown] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [showRoleDropdown, setShowRoleDropdown] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    getUsers(token)
+      .then(data => setUsers(data.map(mapApiUser)))
+      .catch(err => setApiError(err.message))
+      .finally(() => setLoading(false));
+  }, [token]);
 
   const openAdd = () => { setForm(emptyForm); setFormError(''); setModalType('add'); };
   const openEdit = (u: UserAccount) => {
@@ -121,10 +140,23 @@ export default function UsersPage() {
     setModalType('edit');
   };
   const openDelete = (u: UserAccount) => { setSelected(u); setModalType('delete'); };
-  const closeModal = () => { setModalType(null); setSelected(null); setFormError(''); };
+  const closeModal = () => { setModalType(null); setSelected(null); setFormError(''); setSubmitting(false); };
 
-  const quickChangeRole = (userId: number, role: Role) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
+  const quickChangeRole = async (userId: string, role: Role) => {
+    if (!token) return;
+    const user = users.find(u => u.id === userId);
+    if (!user) return;
+    try {
+      await updateUser(userId, {
+        fullName: user.fullName,
+        role: UI_TO_API[role],
+        phoneNumber: user.phone || null,
+        email: user.email || null,
+      }, token);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
+    } catch {
+      // silently revert — dropdown closes below
+    }
     setShowRoleDropdown(null);
   };
 
@@ -137,42 +169,59 @@ export default function UsersPage() {
     return '';
   };
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const err = validateForm();
     if (err) { setFormError(err); return; }
-    setUsers(prev => [...prev, {
-      id: Date.now(),
-      username:  form.username.trim(),
-      fullName:  form.fullName.trim(),
-      email:     form.email.trim(),
-      phone:     form.phone.trim(),
-      role:      form.role,
-      status:    'active',
-      createdAt: new Date().toISOString().slice(0, 10),
-    }]);
-    closeModal();
+    if (!token) return;
+    setSubmitting(true);
+    try {
+      const created = await createUser({
+        username: form.username.trim(),
+        password: form.password.trim(),
+        fullName: form.fullName.trim(),
+        role: UI_TO_API[form.role],
+        phoneNumber: form.phone.trim() || null,
+        email: form.email.trim() || null,
+      }, token);
+      setUsers(prev => [...prev, mapApiUser(created)]);
+      closeModal();
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setSubmitting(false);
+    }
   };
 
-  const handleEdit = () => {
+  const handleEdit = async () => {
     const err = validateForm();
     if (err) { setFormError(err); return; }
-    if (!selected) return;
-    setUsers(prev => prev.map(u => u.id !== selected.id ? u : {
-      ...u,
-      fullName: form.fullName.trim(),
-      username: form.username.trim(),
-      email:    form.email.trim(),
-      phone:    form.phone.trim(),
-      role:     form.role,
-      status:   form.status,
-    }));
-    closeModal();
+    if (!selected || !token) return;
+    setSubmitting(true);
+    try {
+      const updated = await updateUser(selected.id, {
+        fullName: form.fullName.trim(),
+        role: UI_TO_API[form.role],
+        phoneNumber: form.phone.trim() || null,
+        email: form.email.trim() || null,
+      }, token);
+      setUsers(prev => prev.map(u => u.id !== selected.id ? u : mapApiUser(updated)));
+      closeModal();
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setSubmitting(false);
+    }
   };
 
-  const handleDelete = () => {
-    if (!selected) return;
-    setUsers(prev => prev.filter(u => u.id !== selected.id));
-    closeModal();
+  const handleDelete = async () => {
+    if (!selected || !token) return;
+    setSubmitting(true);
+    try {
+      await deleteUser(selected.id, token);
+      setUsers(prev => prev.filter(u => u.id !== selected.id));
+      closeModal();
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setSubmitting(false);
+    }
   };
 
   const counts = useMemo(() => ({
@@ -216,6 +265,14 @@ export default function UsersPage() {
     User:    'Người dùng hệ thống — sử dụng bãi đỗ xe, xem lịch sử và thanh toán phí.',
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={28} className="text-[#00C2FF] animate-spin" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6" onClick={() => setShowRoleDropdown(null)}>
       {/* Header */}
@@ -232,6 +289,13 @@ export default function UsersPage() {
           Thêm người dùng
         </button>
       </div>
+
+      {apiError && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-red-400/10 border border-red-400/20 rounded-xl">
+          <AlertTriangle size={15} className="text-red-400 shrink-0" />
+          <p className="text-sm text-red-400">{apiError}</p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -309,13 +373,12 @@ export default function UsersPage() {
                     <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Số điện thoại</th>
                     <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Vai trò</th>
                     <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Ngày tạo</th>
-                    <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Trạng thái</th>
                     <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Hành động</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
-                    <tr><td colSpan={6} className="text-center py-12 text-white/30 text-sm">Không tìm thấy người dùng nào.</td></tr>
+                    <tr><td colSpan={5} className="text-center py-12 text-white/30 text-sm">Không tìm thấy người dùng nào.</td></tr>
                   ) : filtered.map(u => (
                     <tr key={u.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors">
                       <td className="px-6 py-3.5">
@@ -323,12 +386,12 @@ export default function UsersPage() {
                           <AvatarIcon name={u.fullName} role={u.role} />
                           <div>
                             <p className="text-sm font-medium text-white">{u.fullName}</p>
-                            <p className="text-xs text-white/40">{u.email}</p>
+                            <p className="text-xs text-white/40">{u.email || u.username}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <span className="text-sm text-white/60">{u.phone}</span>
+                        <span className="text-sm text-white/60">{u.phone || '—'}</span>
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="relative" onClick={e => e.stopPropagation()}>
@@ -359,19 +422,6 @@ export default function UsersPage() {
                         <span className="text-sm text-white/50">{new Date(u.createdAt).toLocaleDateString('vi-VN')}</span>
                       </td>
                       <td className="px-4 py-3.5">
-                        {u.status === 'active' ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#3BFFA4]/10 text-[#3BFFA4]">
-                            <span className="w-1.5 h-1.5 bg-[#3BFFA4] rounded-full" />
-                            Hoạt động
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-white/40">
-                            <span className="w-1.5 h-1.5 bg-white/20 rounded-full" />
-                            Tạm khoá
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1">
                           <button onClick={() => openEdit(u)} className="p-2 rounded-lg text-white/40 hover:text-[#00C2FF] hover:bg-[#00C2FF]/10 transition-all" title="Chỉnh sửa">
                             <Pencil size={14} />
@@ -389,7 +439,6 @@ export default function UsersPage() {
             {filtered.length > 0 && (
               <div className="px-6 py-3 border-t border-white/5 flex items-center justify-between">
                 <p className="text-xs text-white/30">Hiển thị {filtered.length} / {users.length} người dùng</p>
-                <p className="text-xs text-white/30">{counts.active} hoạt động · {users.length - counts.active} tạm khoá</p>
               </div>
             )}
           </div>
@@ -495,7 +544,6 @@ export default function UsersPage() {
                 </div>
               ))}
 
-              {/* Role selector — 2×2 grid for 4 roles */}
               <div>
                 <label className="block text-xs font-medium text-white/50 mb-1.5">Vai trò</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -522,7 +570,6 @@ export default function UsersPage() {
                 </div>
               </div>
 
-              {/* Password (add only) */}
               {modalType === 'add' && (
                 <div>
                   <label className="block text-xs font-medium text-white/50 mb-1.5">Mật khẩu</label>
@@ -536,32 +583,6 @@ export default function UsersPage() {
                 </div>
               )}
 
-              {/* Status (edit only) */}
-              {modalType === 'edit' && (
-                <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Trạng thái</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {([
-                      { value: 'active',   label: 'Hoạt động', activeClass: 'bg-[#3BFFA4]/15 text-[#3BFFA4] border-[#3BFFA4]/40' },
-                      { value: 'inactive', label: 'Tạm khoá',  activeClass: 'bg-red-400/15 text-red-400 border-red-400/40' },
-                    ] as const).map(s => (
-                      <button
-                        key={s.value}
-                        type="button"
-                        onClick={() => setForm(prev => ({ ...prev, status: s.value }))}
-                        className={`py-2.5 rounded-xl border text-xs font-medium transition-all ${
-                          form.status === s.value
-                            ? s.activeClass
-                            : 'bg-white/5 text-white/40 border-white/10 hover:border-white/20'
-                        }`}
-                      >
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {formError && (
                 <p className="text-xs text-red-400 flex items-center gap-1.5">
                   <AlertTriangle size={12} />
@@ -571,13 +592,15 @@ export default function UsersPage() {
             </div>
 
             <div className="flex gap-3 px-6 py-4 border-t border-white/10">
-              <button onClick={closeModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">
+              <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50">
                 Huỷ
               </button>
               <button
                 onClick={modalType === 'add' ? handleAdd : handleEdit}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#101A31] bg-gradient-to-r from-[#00C2FF] to-[#3BFFA4] hover:opacity-90 transition-opacity"
+                disabled={submitting}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#101A31] bg-gradient-to-r from-[#00C2FF] to-[#3BFFA4] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
               >
+                {submitting && <Loader2 size={14} className="animate-spin" />}
                 {modalType === 'add' ? 'Thêm mới' : 'Lưu thay đổi'}
               </button>
             </div>
@@ -600,12 +623,19 @@ export default function UsersPage() {
                 <span className="text-xs text-white/30">@{selected.username} · {selected.email}</span>
               </p>
               <p className="text-xs text-white/30 mt-2">Hành động này không thể hoàn tác.</p>
+              {formError && (
+                <p className="text-xs text-red-400 flex items-center justify-center gap-1.5 mt-2">
+                  <AlertTriangle size={12} />
+                  {formError}
+                </p>
+              )}
             </div>
             <div className="flex gap-3 px-6 pb-6">
-              <button onClick={closeModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">
+              <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50">
                 Huỷ
               </button>
-              <button onClick={handleDelete} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors">
+              <button onClick={handleDelete} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                {submitting && <Loader2 size={14} className="animate-spin" />}
                 Xác nhận xoá
               </button>
             </div>
