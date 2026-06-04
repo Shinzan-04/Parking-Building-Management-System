@@ -21,14 +21,22 @@ public class GenericRepository<T> : IGenericRepository<T> where T : class
         return await _dbSet.FindAsync(id);
     }
 
-    public async Task<IEnumerable<T>> GetAllAsync()
+    public async Task<IEnumerable<T>> GetAllAsync(string? include = null)
     {
-        return await _dbSet.ToListAsync();
+        var query = _dbSet.AsQueryable();
+        if (!string.IsNullOrEmpty(include))
+            query = include.Split(',')
+                .Aggregate(query, (current, prop) => current.Include(prop.Trim()));
+        return await query.ToListAsync();
     }
 
-    public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
+    public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate, string? include = null)
     {
-        return await _dbSet.Where(predicate).ToListAsync();
+        var query = _dbSet.Where(predicate).AsQueryable();
+        if (!string.IsNullOrEmpty(include))
+            query = include.Split(',')
+                .Aggregate(query, (current, prop) => current.Include(prop.Trim()));
+        return await query.ToListAsync();
     }
 
     public async Task<T> AddAsync(T entity)
