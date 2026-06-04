@@ -11,7 +11,10 @@ using ParkingSystem.Infrastructure.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 
 // Add CORS
@@ -122,39 +125,45 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// Global exception handler — always returns JSON
+app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
+{
+    var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+    ctx.Response.StatusCode = 500;
+    ctx.Response.ContentType = "application/json";
+    var msg = app.Environment.IsDevelopment() ? ex?.Message : "An internal server error occurred.";
+    await ctx.Response.WriteAsJsonAsync(new { message = msg });
+}));
+
 // ===== DEBUG: Kiểm tra kết nối Database khi khởi động =====
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
-    
-    // Ẩn password trong log
+
     var safeConnStr = System.Text.RegularExpressions.Regex.Replace(
         connStr ?? "", @"Password=[^;]*", "Password=***");
-    
+
     logger.LogInformation("🔌 Connection String: {ConnStr}", safeConnStr);
-    
+
     try
     {
         var canConnect = await dbContext.Database.CanConnectAsync();
         if (canConnect)
         {
-            logger.LogInformation("✅ Kết nối Database THÀNH CÔNG!");
-            
-            // Log thêm thông tin DB
             var dbName = dbContext.Database.GetDbConnection().Database;
             var dbServer = dbContext.Database.GetDbConnection().DataSource;
-            logger.LogInformation("📊 Database: {DbName} | Server: {Server}", dbName, dbServer);
+            logger.LogInformation("✅ Database THÀNH CÔNG — {DbName} @ {Server}", dbName, dbServer);
         }
         else
         {
-            logger.LogError("❌ Kết nối Database THẤT BẠI — CanConnect trả về false");
+            logger.LogError("❌ Database THẤT BẠI — CanConnect trả về false");
         }
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "❌ Kết nối Database THẤT BẠI — Exception: {Message}", ex.Message);
+        logger.LogError(ex, "❌ Database THẤT BẠI — {Message}", ex.Message);
     }
 }
 

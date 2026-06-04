@@ -24,6 +24,8 @@ export interface BaseAuthResponse {
   token: string;
   fullName: string;
   role: UserRole;
+  qrCode?: string;
+  qrCodeImageBase64?: string;
 }
 
 export interface AuthResponse extends BaseAuthResponse {}
