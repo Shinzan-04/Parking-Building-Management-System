@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ParkingSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ParkingSystem.Infrastructure.Data;
 namespace ParkingSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260526085126_AddEntryImageUrlToSession")]
+    partial class AddEntryImageUrlToSession
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -168,14 +171,23 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("Column")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DistanceToEntry")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("FloorId")
                         .HasColumnType("uuid");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<int>("Row")
+                        .HasColumnType("integer");
 
                     b.Property<string>("SlotNumber")
                         .IsRequired()
@@ -243,51 +255,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Payments");
-                });
-
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.PriceSetting", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("DailyMaxPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("DayPassPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("DayStartHour")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("NightPassPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("NightStartHour")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("VehicleTypeId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.HasIndex("VehicleTypeId");
-
-                    b.ToTable("PriceSettings");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.PricingPolicy", b =>
@@ -531,24 +498,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Navigation("ParkingSession");
                 });
 
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.PriceSetting", b =>
-                {
-                    b.HasOne("ParkingSystem.Domain.Entities.User", "UpdatedByUser")
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("ParkingSystem.Domain.Entities.VehicleType", "VehicleType")
-                        .WithMany("PriceSettings")
-                        .HasForeignKey("VehicleTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("UpdatedByUser");
-
-                    b.Navigation("VehicleType");
-                });
-
             modelBuilder.Entity("ParkingSystem.Domain.Entities.PricingPolicy", b =>
                 {
                     b.HasOne("ParkingSystem.Domain.Entities.VehicleType", "VehicleType")
@@ -621,8 +570,6 @@ namespace ParkingSystem.Infrastructure.Migrations
             modelBuilder.Entity("ParkingSystem.Domain.Entities.VehicleType", b =>
                 {
                     b.Navigation("ParkingSlots");
-
-                    b.Navigation("PriceSettings");
 
                     b.Navigation("PricingPolicies");
                 });

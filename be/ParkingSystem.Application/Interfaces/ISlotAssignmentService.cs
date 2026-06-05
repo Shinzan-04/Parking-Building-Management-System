@@ -11,9 +11,19 @@ public interface ISlotAssignmentService
     Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, int topN = 5);
 
     /// <summary>
+    /// Gợi ý slot trong phạm vi 1 tòa nhà cụ thể
+    /// </summary>
+    Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, Guid? buildingId, int topN = 5);
+
+    /// <summary>
     /// Tự động chọn slot tốt nhất (slot đầu tiên trong danh sách gợi ý)
     /// </summary>
     Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId);
+
+    /// <summary>
+    /// Tự động chọn slot tốt nhất trong phạm vi 1 tòa nhà
+    /// </summary>
+    Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId, Guid? buildingId);
 }
 
 /// <summary>

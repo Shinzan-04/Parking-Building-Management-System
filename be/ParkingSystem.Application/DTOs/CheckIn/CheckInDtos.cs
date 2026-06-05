@@ -10,6 +10,11 @@ public class CheckInBookingRequest
     public string BookingCode { get; set; } = string.Empty;
     public string LicensePlateOcr { get; set; } = string.Empty;
     public Guid? StaffId { get; set; }
+    
+    /// <summary>
+    /// Ảnh biển số chụp từ camera (Base64) — lưu làm bằng chứng
+    /// </summary>
+    public string? EntryImageBase64 { get; set; }
 }
 
 /// <summary>
@@ -27,6 +32,16 @@ public class CheckInWalkInRequest
     /// Tùy chọn: Staff tự chọn slot. Nếu null → AI tự động gán slot tốt nhất.
     /// </summary>
     public Guid? SlotId { get; set; }
+    
+    /// <summary>
+    /// Tùy chọn: Chỉ định tòa nhà khi AI gán slot (giới hạn phạm vi tìm kiếm)
+    /// </summary>
+    public Guid? BuildingId { get; set; }
+    
+    /// <summary>
+    /// Ảnh biển số chụp từ camera (Base64) — lưu làm bằng chứng
+    /// </summary>
+    public string? EntryImageBase64 { get; set; }
 }
 
 /// <summary>
@@ -42,6 +57,7 @@ public class CheckInResponse
     
     public string SlotNumber { get; set; } = string.Empty;
     public string FloorName { get; set; } = string.Empty;
+    public string BuildingName { get; set; } = string.Empty;
     public string VehicleTypeName { get; set; } = string.Empty;
     
     /// <summary>
@@ -58,6 +74,11 @@ public class CheckInResponse
     /// Lý do gợi ý vị trí này
     /// </summary>
     public string? SlotReason { get; set; }
+    
+    /// <summary>
+    /// Đường dẫn ảnh biển số lúc check-in
+    /// </summary>
+    public string? EntryImageUrl { get; set; }
     
     public DateTime EntryTime { get; set; }
     public string Message { get; set; } = string.Empty;
