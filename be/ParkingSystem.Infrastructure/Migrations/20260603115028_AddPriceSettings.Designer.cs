@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ParkingSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ParkingSystem.Infrastructure.Data;
 namespace ParkingSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603115028_AddPriceSettings")]
+    partial class AddPriceSettings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -99,9 +102,6 @@ namespace ParkingSystem.Infrastructure.Migrations
 
                     b.Property<Guid?>("DriverId")
                         .HasColumnType("uuid");
-
-                    b.Property<string>("EntryImageUrl")
-                        .HasColumnType("text");
 
                     b.Property<DateTime>("EntryTime")
                         .HasColumnType("timestamp with time zone");

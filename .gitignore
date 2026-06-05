@@ -492,3 +492,11 @@ $RECYCLE.BIN/
 # ASP.NET Core — không commit file chứa secrets
 be/ParkingSystem.API/appsettings.json
 be/ParkingSystem.API/appsettings.Development.json
+
+# Frontend environment
+fe/.env
+
+# Local dev scripts
+start-postgres.bat
+
+.claude

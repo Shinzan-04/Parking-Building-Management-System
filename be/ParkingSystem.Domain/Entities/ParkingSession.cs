@@ -18,6 +18,11 @@ public class ParkingSession : BaseEntity
     public decimal EstimatedFee { get; set; }
     public decimal TotalFee { get; set; }
     
+    /// <summary>
+    /// Đường dẫn ảnh biển số chụp khi xe vào (bằng chứng tranh chấp)
+    /// </summary>
+    public string? EntryImageUrl { get; set; }
+    
     public SessionStatus Status { get; set; } = SessionStatus.Active;
     public IssueType IssueType { get; set; } = IssueType.None;
 

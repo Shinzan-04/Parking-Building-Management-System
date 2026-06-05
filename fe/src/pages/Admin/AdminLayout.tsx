@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Car, Users, BarChart3, Settings,
   LogOut, MapPin, Bell, ChevronDown,
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 const navItems = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -15,12 +16,14 @@ const navItems = [
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem('sp_token');
-    localStorage.removeItem('sp_user');
+    logout();
     navigate('/auth');
   };
+
+  const initials = user?.fullName?.charAt(0)?.toUpperCase() ?? 'A';
 
   return (
     <div className="flex min-h-screen bg-[#101A31]">
@@ -71,11 +74,11 @@ export default function AdminLayout() {
         <div className="px-3 py-4 border-t border-white/10 space-y-1">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5">
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] flex items-center justify-center text-[#101A31] font-bold text-sm shrink-0">
-              A
+              {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">Admin User</p>
-              <p className="text-xs text-white/40 truncate">admin@parking.com</p>
+              <p className="text-sm font-medium text-white truncate">{user?.fullName ?? 'Admin'}</p>
+              <p className="text-xs text-white/40 truncate">Administrator</p>
             </div>
           </div>
           <button
@@ -103,9 +106,9 @@ export default function AdminLayout() {
             </button>
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
               <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] flex items-center justify-center text-[#101A31] font-bold text-xs">
-                A
+                {initials}
               </div>
-              <span className="text-sm text-white/80 font-medium">Admin</span>
+              <span className="text-sm text-white/80 font-medium">{user?.fullName ?? 'Admin'}</span>
               <ChevronDown size={14} className="text-white/40" />
             </div>
           </div>

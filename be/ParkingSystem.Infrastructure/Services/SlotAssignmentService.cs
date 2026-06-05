@@ -34,11 +34,22 @@ public class SlotAssignmentService : ISlotAssignmentService
 
     public async Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, int topN = 5)
     {
+        return await GetRecommendedSlotsAsync(vehicleTypeId, null, topN);
+    }
+
+    public async Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, Guid? buildingId, int topN = 5)
+    {
         // Lấy tất cả slot trống phù hợp với loại xe
-        var availableSlots = await _context.ParkingSlots
+        var query = _context.ParkingSlots
             .Include(s => s.Floor)
-            .Where(s => s.VehicleTypeId == vehicleTypeId && s.Status == SlotStatus.Available)
-            .ToListAsync();
+                .ThenInclude(f => f.Building)
+            .Where(s => s.VehicleTypeId == vehicleTypeId && s.Status == SlotStatus.Available);
+
+        // Lọc theo tòa nhà (nếu có)
+        if (buildingId.HasValue)
+            query = query.Where(s => s.Floor.BuildingId == buildingId.Value);
+
+        var availableSlots = await query.ToListAsync();
 
         if (!availableSlots.Any())
             return new List<SlotRecommendation>();
@@ -115,7 +126,12 @@ public class SlotAssignmentService : ISlotAssignmentService
 
     public async Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId)
     {
-        var recommendations = await GetRecommendedSlotsAsync(vehicleTypeId, 1);
+        return await GetBestSlotAsync(vehicleTypeId, null);
+    }
+
+    public async Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId, Guid? buildingId)
+    {
+        var recommendations = await GetRecommendedSlotsAsync(vehicleTypeId, buildingId, 1);
         return recommendations.FirstOrDefault();
     }
 }
