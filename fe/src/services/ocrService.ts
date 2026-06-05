@@ -8,15 +8,6 @@ export interface ScanPlateResponse {
   message: string;
 }
 
-export interface ScanAndCheckInResponse {
-  licensePlate: string;
-  confidence: number;
-  croppedPlateBase64: string;
-  message: string;
-  vehicleTypeId: string;
-  hint: string;
-}
-
 // ─── Config ─────────────────────────────────────────────────────────────────
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
@@ -86,17 +77,3 @@ export async function scanPlate(
   );
 }
 
-export async function scanAndCheckIn(
-  imageBase64: string,
-  vehicleTypeId: string,
-  token?: string | null
-): Promise<ScanAndCheckInResponse> {
-  return post<
-    { ImageBase64: string; VehicleTypeId: string },
-    ScanAndCheckInResponse
-  >(
-    '/api/Ocr/scan-and-checkin',
-    { ImageBase64: imageBase64, VehicleTypeId: vehicleTypeId },
-    token ?? undefined
-  );
-}

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using ParkingSystem.Domain.Enums;
 
 namespace ParkingSystem.Domain.Entities;
@@ -9,10 +10,14 @@ public class ParkingSlot : BaseEntity
     public string SlotNumber { get; set; } = string.Empty;
     public SlotStatus Status { get; set; } = SlotStatus.Available;
 
-    // Vị trí vật lý trong bãi (dùng cho thuật toán gợi ý thông minh)
-    public int Row { get; set; }        // Hàng (1 = hàng trong cùng, tăng dần ra ngoài)
-    public int Column { get; set; }     // Cột (vị trí trái/phải)
-    public int DistanceToEntry { get; set; } // Khoảng cách tới lối vào (càng nhỏ càng tiện)
+    [NotMapped]
+    public int Row { get; set; }
+
+    [NotMapped]
+    public int Column { get; set; }
+
+    [NotMapped]
+    public int DistanceToEntry { get; set; }
 
     public Floor Floor { get; set; } = null!;
     public VehicleType VehicleType { get; set; } = null!;
