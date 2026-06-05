@@ -86,8 +86,41 @@ export const updateBuilding = (id: string, payload: UpdateBuildingRequest, token
 export const deleteBuilding = (id: string, token: string): Promise<void> =>
   apiFetch(`/api/buildings/${id}`, { method: 'DELETE' }, token);
 
+export interface CreateFloorRequest {
+  buildingId: string;
+  name: string;
+  floorIndex: number;
+}
+
 export const getFloors = (): Promise<FloorResponse[]> =>
   apiFetch('/api/floors');
+
+export const getFloorsByBuilding = (buildingId: string): Promise<FloorResponse[]> =>
+  apiFetch(`/api/floors/building/${buildingId}`);
+
+export const createFloor = (payload: CreateFloorRequest, token: string): Promise<FloorResponse> =>
+  apiFetch('/api/floors', { method: 'POST', body: JSON.stringify(payload) }, token);
+
+export const deleteFloor = (id: string, token: string): Promise<void> =>
+  apiFetch(`/api/floors/${id}`, { method: 'DELETE' }, token);
+
+export interface VehicleTypeResponse {
+  id: string;
+  name: string;
+  description?: string;
+}
+
+export interface CreateParkingSlotRequest {
+  floorId: string;
+  vehicleTypeId: string;
+  slotNumber: string;
+}
+
+export const getVehicleTypes = (): Promise<VehicleTypeResponse[]> =>
+  apiFetch('/api/VehicleTypes');
+
+export const createParkingSlot = (payload: CreateParkingSlotRequest, token: string): Promise<ParkingSlotSummary> =>
+  apiFetch('/api/parkingslots', { method: 'POST', body: JSON.stringify(payload) }, token);
 
 export const getParkingSlots = (): Promise<ParkingSlotSummary[]> =>
   apiFetch('/api/parkingslots');
