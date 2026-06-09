@@ -21,7 +21,7 @@ function getPostLoginPath(role: AuthRole): string {
   if (role === 'Admin'   || role === 0) return '/admin';
   if (role === 'Manager' || role === 1) return '/manager';
   if (role === 'Staff'   || role === 2) return '/gate-control';
-  return '/user'; // Driver
+  return '/'; // Driver (chuyển về trang chủ)
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
