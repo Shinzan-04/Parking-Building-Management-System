@@ -59,8 +59,19 @@ async function authFetch<T>(path: string, token: string, options?: RequestInit):
   return data as T;
 }
 
+export interface CreateReservationRequest {
+  parkingSlotId: string;
+  vehicleTypeId: string;
+  licensePlate: string;
+  startTime: string;
+  endTime: string;
+}
+
 export const getMyReservations = (token: string): Promise<ReservationResponse[]> =>
   authFetch('/api/reservations/my-reservations', token);
 
 export const cancelReservation = (id: string, token: string): Promise<void> =>
   authFetch(`/api/reservations/${id}/cancel`, token, { method: 'PUT' });
+
+export const createReservation = (payload: CreateReservationRequest, token: string): Promise<ReservationResponse> =>
+  authFetch('/api/reservations', token, { method: 'POST', body: JSON.stringify(payload) });
