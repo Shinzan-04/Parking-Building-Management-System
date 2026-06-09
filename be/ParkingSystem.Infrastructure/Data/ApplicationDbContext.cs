@@ -8,6 +8,8 @@ public class ApplicationDbContext : DbContext
     public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
     public DbSet<User> Users { get; set; }
+    public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<OtpCode> OtpCodes { get; set; }
     public DbSet<Building> Buildings { get; set; }
     public DbSet<Floor> Floors { get; set; }
     public DbSet<VehicleType> VehicleTypes { get; set; }
@@ -17,6 +19,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<ParkingSession> ParkingSessions { get; set; }
     public DbSet<Reservation> Reservations { get; set; }
     public DbSet<Payment> Payments { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -114,5 +117,17 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<PriceSetting>()
             .Property(p => p.DailyMaxPrice)
             .HasColumnType("decimal(18,2)");
+
+        // RefreshToken → User (cascade delete khi xóa user)
+        modelBuilder.Entity<RefreshToken>()
+            .HasOne(rt => rt.User)
+            .WithMany(u => u.RefreshTokens)
+            .HasForeignKey(rt => rt.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Index trên Token để tìm nhanh khi refresh
+        modelBuilder.Entity<RefreshToken>()
+            .HasIndex(rt => rt.Token)
+            .IsUnique();
     }
 }

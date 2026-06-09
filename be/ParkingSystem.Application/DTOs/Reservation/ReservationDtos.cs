@@ -23,6 +23,7 @@ public class ReservationResponse
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
     public ReservationStatus Status { get; set; }
+    public string? RejectReason { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
