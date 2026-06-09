@@ -3,7 +3,6 @@ import { lazy, Suspense } from 'react';
 import './index.css';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
-const LandingPage      = lazy(() => import('./pages/LandingPage'));
 const AuthPage         = lazy(() => import('./pages/AuthPage'));
 
 const AdminLayout      = lazy(() => import('./pages/Admin/AdminLayout'));
@@ -16,14 +15,14 @@ const ManagerLayout    = lazy(() => import('./pages/Manager/ManagerLayout'));
 const ManagerDashboard = lazy(() => import('./pages/Manager/Dashboard'));
 
 const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
-const UserDashboard    = lazy(() => import('./pages/User/UserDashboard'));
+const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
 
 export default function App() {
   return (
     <BrowserRouter>
       <Suspense fallback={<div className="loading-screen" />}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<UserLandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
 
           {/* Admin Portal - chỉ Admin */}
@@ -49,12 +48,6 @@ export default function App() {
           <Route
             path="/gate-control"
             element={<ProtectedRoute element={<GateControlPage />} requiredRoles={["Staff"]} />}
-          />
-
-          {/* User Dashboard - chỉ Driver */}
-          <Route
-            path="/user"
-            element={<ProtectedRoute element={<UserDashboard />} requiredRoles={["Driver"]} />}
           />
         </Routes>
       </Suspense>
