@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ParkingSystem.Application.DTOs.CheckOut;
+using ParkingSystem.Application.DTOs.Payment;
 using ParkingSystem.Application.Interfaces;
 
 namespace ParkingSystem.API.Controllers;
@@ -14,10 +15,12 @@ namespace ParkingSystem.API.Controllers;
 public class CheckOutController : ControllerBase
 {
     private readonly ICheckOutService _checkOutService;
+    private readonly IPaymentService _paymentService;
 
-    public CheckOutController(ICheckOutService checkOutService)
+    public CheckOutController(ICheckOutService checkOutService, IPaymentService paymentService)
     {
         _checkOutService = checkOutService;
+        _paymentService = paymentService;
     }
 
     /// <summary>
@@ -111,6 +114,66 @@ public class CheckOutController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500, new { message = $"Loi he thong: {ex.Message}" });
+        }
+    }
+
+    /// <summary>
+    /// Tao thanh toan PayOS cho phien gui xe.
+    /// Tinh phi theo logic cua CheckOutService, tao payment record,
+    /// goi PayOS de lay checkout URL, tra ve URL de chuyen sang trang thanh toan.
+    /// </summary>
+    [HttpPost("create-payment")]
+    public async Task<IActionResult> CreatePayment([FromBody] CreateCheckoutPaymentRequest request)
+    {
+        if (request.SessionId == Guid.Empty)
+        {
+            return BadRequest(new { message = "SessionId khong hop le." });
+        }
+
+        try
+        {
+            var priceResult = await _checkOutService.CalculateFeeBySessionIdAsync(request.SessionId);
+
+            var payOSRequest = new CreatePayOSPaymentRequest
+            {
+                Amount = priceResult.EstimatedFee,
+                Description = $"Gui xe {priceResult.LicensePlate}",
+                ParkingSessionId = request.SessionId
+            };
+
+            var payOSResult = await _paymentService.CreatePayOSPaymentAsync(payOSRequest);
+
+            var response = new CreateCheckoutPaymentResponse
+            {
+                SessionId = request.SessionId,
+                LicensePlate = priceResult.LicensePlate,
+                SlotNumber = priceResult.SlotNumber,
+                FloorName = priceResult.FloorName,
+                EntryTime = priceResult.EntryTime,
+                ExitTime = priceResult.EstimatedExitTime,
+                TotalHours = priceResult.TotalHours,
+                VehicleTypeName = priceResult.VehicleTypeName,
+                PricingModel = priceResult.PricingModel,
+                TotalFee = priceResult.EstimatedFee,
+                HourlyRate = priceResult.HourlyRate,
+                DayPassPrice = priceResult.DayPassPrice,
+                NightPassPrice = priceResult.NightPassPrice,
+                DailyMaxPrice = priceResult.DailyMaxPrice,
+                FeeBreakdown = priceResult.FeeBreakdown,
+                PayOSOrderCode = payOSResult.OrderCode,
+                CheckoutUrl = payOSResult.CheckoutUrl,
+                Message = "Tao thanh toan PayOS thanh cong."
+            };
+
+            return Ok(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = $"Loi tao thanh toan: {ex.Message}" });
         }
     }
 

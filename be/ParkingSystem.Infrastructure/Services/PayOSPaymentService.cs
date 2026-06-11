@@ -52,6 +52,7 @@ public class PayOSPaymentService : IPaymentService
         {
             Id = Guid.NewGuid(),
             PayOSOrderCode = orderCode,
+            ParkingSessionId = request.ParkingSessionId,
             Amount = request.Amount,
             Description = request.Description,
             PaymentDate = DateTime.UtcNow,
@@ -157,10 +158,74 @@ public class PayOSPaymentService : IPaymentService
         }
     }
 
+    public async Task<PaymentStatusResult?> GetPaymentStatusBySessionIdAsync(Guid sessionId)
+    {
+        var payment = await _context.Payments
+            .Where(p => p.ParkingSessionId == sessionId && p.PaymentMethod == PaymentMethod.PayOS)
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
+
+        if (payment == null)
+            return null;
+
+        var label = payment.Status switch
+        {
+            PaymentStatus.Pending => "DANG CHO THANH TOAN",
+            PaymentStatus.Success => "DA THANH TOAN",
+            PaymentStatus.Failed => "THANH TOAN THAT BAI",
+            _ => payment.Status.ToString().ToUpper()
+        };
+
+        return new PaymentStatusResult
+        {
+            SessionId = sessionId,
+            PaymentStatus = payment.Status.ToString(),
+            PaymentMethod = payment.PaymentMethod.ToString(),
+            Amount = payment.Amount,
+            PaymentDate = payment.PaymentDate,
+            PayOSOrderCode = payment.PayOSOrderCode,
+            StatusLabel = label
+        };
+    }
+
     private long GenerateUniqueOrderCode()
     {
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         var random = Random.Shared.Next(1000, 9999);
         return long.Parse($"{timestamp}{random}");
+    }
+
+    public async Task<(bool Success, PaymentStatus Status)> VerifyPayOSPaymentAsync(long orderCode)
+    {
+        try
+        {
+            var paymentInfo = await _payOSClient.PaymentRequests.GetAsync(orderCode);
+
+            if (paymentInfo == null)
+            {
+                _logger.LogWarning("PayOS API returned null for OrderCode={OrderCode}", orderCode);
+                return (false, PaymentStatus.Pending);
+            }
+
+            var statusStr = paymentInfo.Status.ToString().ToUpperInvariant();
+            PaymentStatus status;
+            if (statusStr == "PAID")
+                status = PaymentStatus.Success;
+            else if (statusStr == "CANCELLED" || statusStr == "EXPIRED" || statusStr == "FAILED")
+                status = PaymentStatus.Failed;
+            else
+                status = PaymentStatus.Pending;
+
+            _logger.LogInformation(
+                "PayOS direct verify. OrderCode={OrderCode}, StatusStr={StatusStr} -> {Status}",
+                orderCode, statusStr, status);
+
+            return (true, status);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to verify PayOS payment via API. OrderCode={OrderCode}", orderCode);
+            return (false, PaymentStatus.Pending);
+        }
     }
 }

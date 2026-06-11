@@ -24,4 +24,10 @@ public interface ICheckOutService
     /// tim phien gui xe, so sanh bien so vao/ra, tinh phi uoc tinh.
     /// </summary>
     Task<OcrCheckOutResult> ProcessOcrCheckOutAsync(OcrCheckOutRequest request);
+
+    /// <summary>
+    /// Tinh phi gui xe theo Session ID.
+    /// Su dung de tao payment PayOS — tra ve thong tin phien + phi.
+    /// </summary>
+    Task<CheckOutSearchResult> CalculateFeeBySessionIdAsync(Guid sessionId);
 }

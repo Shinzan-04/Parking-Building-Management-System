@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giá Cước - Test UI</title>
+  <style>
+    :root {
+      --bg: #0a0f1e;
+      --card: #111827;
+      --border: rgba(255,255,255,0.1);
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --sky: #0ea5e9;
+      --sky-dim: rgba(14,165,233,0.15);
+      --emerald: #10b981;
+      --emerald-dim: rgba(16,185,129,0.15);
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,0.15);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245,158,11,0.15);
+      --violet: #8b5cf6;
+      --violet-dim: rgba(139,92,246,0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+
+    header { border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    header h1 { font-size: 1.25rem; font-weight: 700; }
+    header p { font-size: 0.75rem; color: var(--muted); }
+    .header-back { text-decoration: none; color: var(--muted); font-size: 0.8rem; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; transition: all 0.15s; margin-left: auto; flex-shrink: 0; }
+    .header-back:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+    .container { max-width: 800px; margin: 0 auto; padding: 24px 16px; }
+
+    /* Alert */
+    .alert { padding: 12px 16px; border-radius: 12px; font-size: 0.875rem; margin-bottom: 16px; display: none; align-items: center; gap: 10px; }
+    .alert.show { display: flex; }
+    .alert-error { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5; }
+    .alert-success { background: var(--emerald-dim); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; }
+
+    /* Config */
+    .config-bar { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 20px; }
+    .config-bar label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .config-bar input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 0.875rem; outline: none; }
+    .config-bar input:focus { border-color: var(--sky); }
+
+    /* Tabs */
+    .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 6px; }
+    .tab { flex: 1; padding: 10px 16px; border-radius: 12px; border: none; background: transparent; color: var(--muted); font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .tab:hover { color: var(--text); }
+    .tab.active { background: var(--sky); color: #fff; }
+
+    /* Table */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 20px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 600px; table-layout: fixed; }
+    thead { background: rgba(255,255,255,0.03); }
+    th { padding: 10px 12px; text-align: left; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    th:first-child, td:first-child { width: 120px; overflow: hidden; text-overflow: ellipsis; }
+    th:last-child, td:last-child { width: 110px; overflow: hidden; }
+    td { padding: 12px 12px; font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    td input[type="number"] { width: 100%; min-width: 60px; box-sizing: border-box; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .type-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; }
+    .type-car { background: var(--sky-dim); color: #7dd3fc; }
+    .type-moto { background: var(--amber-dim); color: #fcd34d; }
+    .type-ev { background: var(--emerald-dim); color: #6ee7b7; }
+    .type-default { background: var(--violet-dim); color: #c4b5fd; }
+    .price-cell { font-weight: 700; color: var(--emerald); font-size: 1rem; }
+    .price-cell.free { color: var(--muted); font-weight: 400; }
+    .action-cell { text-align: right; white-space: nowrap; }
+    .btn-sm { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--muted); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-sm:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: rgba(255,255,255,0.2); }
+    .btn-sm.save { background: var(--emerald-dim); border-color: rgba(16,185,129,0.4); color: #6ee7b7; }
+    .btn-sm.save:hover { background: var(--emerald); color: #fff; }
+    .btn-sm.cancel { background: var(--red-dim); border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+    .btn-sm.cancel:hover { background: var(--red); color: #fff; }
+    .spinner-sm { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Edit row */
+    .edit-row td { background: rgba(14,165,233,0.05); }
+    .edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .edit-grid label { display: block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 4px; }
+    .edit-grid input { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text); font-size: 0.875rem; outline: none; }
+    .edit-grid input:focus { border-color: var(--sky); }
+    .edit-grid input[readonly] { opacity: 0.5; }
+
+    /* Empty */
+    .empty { padding: 40px; text-align: center; color: var(--muted); font-size: 0.875rem; }
+
+    /* Loading */
+    .loading-row td { text-align: center; color: var(--muted); font-size: 0.875rem; padding: 30px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Quản lý Giá Cước</h1>
+      <p>Xem và chỉnh sửa bảng giá gửi xe</p>
+    </div>
+    <a href="/" class="header-back">&#8592; Check-Out Test</a>
+  </header>
+
+<div class="container">
+
+  <!-- API Config -->
+  <div class="config-bar">
+    <label>API Base URL</label>
+    <input type="text" id="apiBase" placeholder="http://localhost:5237" />
+  </div>
+
+  <!-- Alert -->
+  <div id="alertBox" class="alert"></div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="hourly" onclick="switchTab('hourly')">Theo giờ (PricingPolicies)</button>
+    <button class="tab" data-tab="daynight" onclick="switchTab('daynight')">Ngày / Đêm (PriceSettings)</button>
+  </div>
+
+  <!-- Vehicle Types + Pricing Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr id="thead"></tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────
+  let vehicleTypes = [];
+  let hourlyPolicies = [];
+  let daynightSettings = [];
+  let editingId = null;
+  let editCache = {};
+  let currentTab = 'hourly';
+
+  // ── Init ────────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('pr_api_base');
+    if (saved) document.getElementById('apiBase').value = saved;
+    document.getElementById('apiBase').addEventListener('change', () => {
+      localStorage.setItem('pr_api_base', document.getElementById('apiBase').value);
+    });
+    loadAll();
+  });
+
+  // ── API helpers ─────────────────────────────────────────────────
+  function getBase() {
+    return document.getElementById('apiBase').value.trim() || 'http://localhost:5237';
+  }
+
+  async function apiFetch(path, options = {}) {
+    const token = localStorage.getItem('sp_token');
+    if (!token) { showAlert('error', 'Chưa đăng nhập (cần token Admin/Manager trong localStorage sp_token).'); return null; }
+
+    const res = await fetch(getBase() + path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(options.headers || {}),
+      },
+    });
+
+    let data;
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+    if (!res.ok) {
+      const msg = Array.isArray(data) ? data.map(d => d.description || d).join('; ') : (data.message || `Lỗi ${res.status}`);
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  async function loadAll() {
+    try {
+      const [vt, hp, ds] = await Promise.all([
+        apiFetch('/api/VehicleTypes'),
+        apiFetch('/api/PricingPolicies'),
+        apiFetch('/api/PriceSettings'),
+      ]);
+      if (!vt && !hp && !ds) return;
+      vehicleTypes = vt || [];
+      hourlyPolicies = hp || [];
+      daynightSettings = ds || [];
+      renderTable();
+    } catch (err) {
+      showAlert('error', err.message);
+    }
+  }
+
+  // ── Alert ────────────────────────────────────────────────────────
+  function showAlert(type, msg) {
+    const box = document.getElementById('alertBox');
+    box.className = `alert alert-${type} show`;
+    box.innerHTML = `<span>${type === 'error' ? '&#9888;' : '&#10004;'} ${msg}</span>`;
+    if (type === 'success') setTimeout(() => box.classList.remove('show'), 4000);
+  }
+
+  // ── Tab switch ───────────────────────────────────────────────────
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    editingId = null;
+    renderTable();
+  }
+
+  // ── Render ───────────────────────────────────────────────────────
+  function renderTable() {
+    if (currentTab === 'hourly') {
+      renderHourly();
+    } else {
+      renderDayNight();
+    }
+  }
+
+  function typeBadge(name, colorClass) {
+    const icons = { Car: '&#128663;', Motorbike: '&#128267;', EV: '&#9889;', Default: '&#128663;' };
+    const icon = icons[name] || icons['Default'];
+    return `<span class="type-badge ${colorClass}">${icon} ${name}</span>`;
+  }
+
+  function colorClass(name) {
+    if (name === 'Car') return 'type-car';
+    if (name === 'Motorbike') return 'type-moto';
+    if (name === 'EV') return 'type-ev';
+    return 'type-default';
+  }
+
+  function fmtMoney(n) {
+    if (n === null || n === undefined || n === 0) return '<span class="price-cell free">Miễn phí</span>';
+    return `<span class="price-cell">${new Intl.NumberFormat('vi-VN').format(n)} VND</span>`;
+  }
+
+  function renderHourly() {
+    const thead = document.getElementById('thead');
+    const tbody = document.getElementById('tbody');
+
+      thead.innerHTML = `
+        <th>Loại xe</th>
+        <th>Block (phút)</th>
+        <th>Block (VND)</th>
+        <th>Đơn giá / giờ</th>
+        <th>Tối đa / ngày</th>
+        <th></th>
+      `;
+
+    if (vehicleTypes.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty">Đang tải hoặc chưa có loại xe...</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = vehicleTypes.map(vt => {
+      const pol = hourlyPolicies.find(p => p.vehicleTypeId === vt.id);
+      const isEdit = editingId === vt.id;
+      const cache = editCache[vt.id] || {};
+
+      const blockMin = isEdit
+        ? `<input type="number" id="ev_block_${vt.id}" value="${cache.blockMinutes || pol?.blockMinutes || ''}" placeholder="phút" min="0" />`
+        : `<span>${pol ? pol.blockMinutes + ' phút' : '—'}</span>`;
+
+      const blockPrice = isEdit
+        ? `<input type="number" id="ev_bp_${vt.id}" value="${cache.blockPrice ?? pol?.blockPrice ?? ''}" placeholder="VND" min="0" step="1000" />`
+        : fmtMoney(pol?.blockPrice);
+
+      const hourlyRate = isEdit
+        ? `<input type="number" id="ev_hr_${vt.id}" value="${cache.hourlyRate ?? pol?.hourlyRate ?? ''}" placeholder="VND/giờ" min="0" step="1000" />`
+        : fmtMoney(pol?.hourlyRate);
+
+      const dailyMax = isEdit
+        ? `<input type="number" id="ev_dm_${vt.id}" value="${cache.dailyMaxRate ?? pol?.dailyMaxRate ?? ''}" placeholder="VND" min="0" step="1000" />`
+        : fmtMoney(pol?.dailyMaxRate);
+
+      const actions = isEdit
+        ? `
+          <button class="btn-sm save" onclick="saveHourly('${vt.id}')">Lưu</button>
+          <button class="btn-sm cancel" onclick="cancelEdit('${vt.id}')">Hủy</button>
+        `
+        : (pol
+          ? `<button class="btn-sm" onclick="editHourly('${vt.id}')">Sửa</button>`
+          : `<button class="btn-sm" onclick="createHourly('${vt.id}')">+ Tạo</button>`
+        );
+
+      return `
+        <tr class="${isEdit ? 'edit-row' : ''}" id="row_h_${vt.id}">
+          <td>${typeBadge(vt.name, colorClass(vt.name))}</td>
+          <td>${blockMin}</td>
+          <td>${blockPrice}</td>
+          <td>${hourlyRate}</td>
+          <td>${dailyMax}</td>
+          <td class="action-cell">${actions}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function renderDayNight() {
+    const thead = document.getElementById('thead');
+    const tbody = document.getElementById('tbody');
+
+    thead.innerHTML = `
+      <th>Loại xe</th>
+      <th>Ngày (VND)</th>
+      <th>Đêm (VND)</th>
+      <th>Tối đa / ngày</th>
+      <th></th>
+    `;
+
+    if (vehicleTypes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">Đang tải hoặc chưa có loại xe...</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = vehicleTypes.map(vt => {
+      const set = daynightSettings.find(s => s.vehicleTypeId === vt.id);
+      const isEdit = editingId === vt.id;
+      const cache = editCache[vt.id] || {};
+
+      const dayPrice = isEdit
+        ? `<input type="number" id="ev_dp_${vt.id}" value="${cache.dayPassPrice ?? set?.dayPassPrice ?? ''}" placeholder="VND" min="0" step="1000" />`
+        : fmtMoney(set?.dayPassPrice);
+
+      const nightPrice = isEdit
+        ? `<input type="number" id="ev_np_${vt.id}" value="${cache.nightPassPrice ?? set?.nightPassPrice ?? ''}" placeholder="VND" min="0" step="1000" />`
+        : fmtMoney(set?.nightPassPrice);
+
+      const dailyMax = isEdit
+        ? `<input type="number" id="ev_dmx_${vt.id}" value="${cache.dailyMaxPrice ?? set?.dailyMaxPrice ?? ''}" placeholder="VND" min="0" step="1000" />`
+        : fmtMoney(set?.dailyMaxPrice);
+
+      const actions = isEdit
+        ? `
+          <button class="btn-sm save" onclick="saveDayNight('${vt.id}')">Lưu</button>
+          <button class="btn-sm cancel" onclick="cancelEdit('${vt.id}')">Hủy</button>
+        `
+        : (set
+          ? `<button class="btn-sm" onclick="editDayNight('${vt.id}')">Sửa</button>`
+          : `<button class="btn-sm" onclick="createDayNight('${vt.id}')">+ Tạo</button>`
+        );
+
+      return `
+        <tr class="${isEdit ? 'edit-row' : ''}" id="row_d_${vt.id}">
+          <td>${typeBadge(vt.name, colorClass(vt.name))}</td>
+          <td>${dayPrice}</td>
+          <td>${nightPrice}</td>
+          <td>${dailyMax}</td>
+          <td class="action-cell">${actions}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  // ── Edit Hourly ───────────────────────────────────────────────────
+  function editHourly(vtId) {
+    const pol = hourlyPolicies.find(p => p.vehicleTypeId === vtId);
+    editCache[vtId] = {
+      blockMinutes: pol?.blockMinutes ?? 60,
+      blockPrice: pol?.blockPrice ?? 0,
+      hourlyRate: pol?.hourlyRate ?? 0,
+      dailyMaxRate: pol?.dailyMaxRate ?? 0,
+    };
+    editingId = vtId;
+    renderTable();
+  }
+
+  function createHourly(vtId) {
+    editCache[vtId] = { blockMinutes: 60, blockPrice: 0, hourlyRate: 0, dailyMaxRate: 0 };
+    editingId = vtId;
+    renderTable();
+    document.getElementById('ev_bp_' + vtId)?.focus();
+  }
+
+  async function saveHourly(vtId) {
+    const bp = parseFloat(document.getElementById('ev_bp_' + vtId)?.value) || 0;
+    const bm = parseInt(document.getElementById('ev_block_' + vtId)?.value) || 60;
+    const hr = parseFloat(document.getElementById('ev_hr_' + vtId)?.value) || 0;
+    const dm = parseFloat(document.getElementById('ev_dm_' + vtId)?.value) || 0;
+
+    const existing = hourlyPolicies.find(p => p.vehicleTypeId === vtId);
+    const spinnerId = 'spin_' + vtId;
+
+    try {
+      let data;
+      if (existing) {
+        data = await apiFetch(`/api/PricingPolicies/${existing.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({ blockPrice: bp, blockMinutes: bm, hourlyRate: hr, dailyMaxRate: dm }),
+        });
+        if (data) {
+          const idx = hourlyPolicies.findIndex(p => p.id === existing.id);
+          hourlyPolicies[idx] = { ...hourlyPolicies[idx], ...data };
+        }
+      } else {
+        data = await apiFetch('/api/PricingPolicies', {
+          method: 'POST',
+          body: JSON.stringify({ vehicleTypeId: vtId, blockPrice: bp, blockMinutes: bm, hourlyRate: hr, dailyMaxRate: dm }),
+        });
+        if (data) hourlyPolicies.push(data);
+      }
+      if (!data) return;
+      showAlert('success', 'Lưu thành công!');
+      editingId = null;
+      editCache = {};
+      renderTable();
+    } catch (err) {
+      showAlert('error', err.message);
+    }
+  }
+
+  // ── Edit DayNight ─────────────────────────────────────────────────
+  function editDayNight(vtId) {
+    const set = daynightSettings.find(s => s.vehicleTypeId === vtId);
+    editCache[vtId] = {
+      dayPassPrice: set?.dayPassPrice ?? 0,
+      nightPassPrice: set?.nightPassPrice ?? 0,
+      dailyMaxPrice: set?.dailyMaxPrice ?? 0,
+      dayStartHour: set?.dayStartHour ?? 6,
+      nightStartHour: set?.nightStartHour ?? 18,
+    };
+    editingId = vtId;
+    renderTable();
+  }
+
+  function createDayNight(vtId) {
+    editCache[vtId] = { dayPassPrice: 0, nightPassPrice: 0, dailyMaxPrice: 0, dayStartHour: 6, nightStartHour: 18 };
+    editingId = vtId;
+    renderTable();
+    document.getElementById('ev_dp_' + vtId)?.focus();
+  }
+
+  async function saveDayNight(vtId) {
+    const dp = parseFloat(document.getElementById('ev_dp_' + vtId)?.value) || 0;
+    const np = parseFloat(document.getElementById('ev_np_' + vtId)?.value) || 0;
+    const dmx = parseFloat(document.getElementById('ev_dmx_' + vtId)?.value) || 0;
+    const ds = parseInt(document.getElementById('ev_ds_' + vtId)?.value) || 6;
+    const ns = parseInt(document.getElementById('ev_ns_' + vtId)?.value) || 18;
+
+    const existing = daynightSettings.find(s => s.vehicleTypeId === vtId);
+
+    try {
+      let data;
+      if (existing) {
+        data = await apiFetch(`/api/PriceSettings/${vtId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ dayPassPrice: dp, nightPassPrice: np, dailyMaxPrice: dmx, dayStartHour: ds, nightStartHour: ns }),
+        });
+        if (data) {
+          const idx = daynightSettings.findIndex(s => s.vehicleTypeId === vtId);
+          daynightSettings[idx] = { ...daynightSettings[idx], ...data };
+        }
+      } else {
+        data = await apiFetch('/api/PriceSettings', {
+          method: 'POST',
+          body: JSON.stringify({ vehicleTypeId: vtId, dayPassPrice: dp, nightPassPrice: np, dailyMaxPrice: dmx, dayStartHour: ds, nightStartHour: ns }),
+        });
+        if (data) daynightSettings.push(data);
+      }
+      if (!data) return;
+      showAlert('success', 'Lưu thành công!');
+      editingId = null;
+      editCache = {};
+      renderTable();
+    } catch (err) {
+      showAlert('error', err.message);
+    }
+  }
+
+  function cancelEdit(vtId) {
+    delete editCache[vtId];
+    editingId = null;
+    renderTable();
+  }
+</script>
+
+</body>
+</html>

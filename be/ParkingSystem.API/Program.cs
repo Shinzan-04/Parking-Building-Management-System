@@ -182,6 +182,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors("AllowAll");
 
+app.UseFileServer(new Microsoft.AspNetCore.Builder.FileServerOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"))),
+    RequestPath = "/uitest",
+    EnableDefaultFiles = true,
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 
