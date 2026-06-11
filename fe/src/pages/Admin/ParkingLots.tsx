@@ -793,6 +793,7 @@ export default function ParkingLots() {
                         </div>
                       ) : editFloors.length === 0 ? (
                         <p className="text-xs text-white/30 py-2">Chưa có tầng nào.</p>
+                      ) : (
                         editFloors.map(f => (
                           <div key={f.id} className="flex flex-col gap-2 px-3 py-2 bg-white/5 rounded-lg">
                             {editingFloorId === f.id ? (
