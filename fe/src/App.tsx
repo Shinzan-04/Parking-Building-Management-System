@@ -24,6 +24,8 @@ const ManagerReservations = lazy(() => import('./pages/Manager/Reservations'));
 
 const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
+const StaffLayout      = lazy(() => import('./pages/Staff/StaffLayout'));
+const StaffDashboard   = lazy(() => import('./pages/Staff/StaffDashboard'));
 
 export default function App() {
   return (
@@ -60,11 +62,19 @@ export default function App() {
             <Route path="reports"       element={<ManagerReports />} />
           </Route>
 
-          {/* Gate Control - chỉ Staff */}
+          {/* Gate Control - chỉ Staff (standalone) */}
           <Route
             path="/gate-control"
             element={<ProtectedRoute element={<GateControlPage />} requiredRoles={["Staff"]} />}
           />
+
+          {/* Staff Portal */}
+          <Route
+            path="/staff"
+            element={<ProtectedRoute element={<StaffLayout />} requiredRoles={["Staff"]} />}
+          >
+            <Route index element={<StaffDashboard />} />
+          </Route>
         </Routes>
       </Suspense>
     </BrowserRouter>
