@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -11,10 +10,7 @@ using ParkingSystem.Infrastructure.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers()
-    .AddJsonOptions(opts =>
-        opts.JsonSerializerOptions.Converters.Add(
-            new System.Text.Json.Serialization.JsonStringEnumConverter()));
+builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 // Add CORS
@@ -71,14 +67,14 @@ builder.Services.AddScoped<IFloorService, FloorService>();
 builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 builder.Services.AddScoped<IParkingSlotService, ParkingSlotService>();
 builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
-builder.Services.AddScoped<IPriceSettingService, PriceSettingService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
-builder.Services.AddScoped<ICheckOutService, ParkingSystem.Infrastructure.Services.CheckOutService>();
 builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
-builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(builder.Configuration.GetSection("PayOS"));
-builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
+builder.Services.AddScoped<ISessionService, ParkingSystem.Infrastructure.Services.SessionService>();
+
+// Register Cloudinary Image Upload Service (lưu ảnh biển số lên cloud)
+builder.Services.AddScoped<IImageUploadService, ParkingSystem.Infrastructure.Services.CloudinaryImageService>();
 
 // Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
 // Sử dụng model license_plate_detector.onnx đã train riêng cho biển số xe Việt Nam
@@ -105,7 +101,6 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.MapInboundClaims = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -114,10 +109,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-        ClockSkew = TimeSpan.Zero,
-        RoleClaimType = ClaimTypes.Role,
-        NameClaimType = "unique_name",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
     };
 });
 
@@ -125,45 +117,98 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// Global exception handler — always returns JSON
-app.UseExceptionHandler(errApp => errApp.Run(async ctx =>
-{
-    var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
-    ctx.Response.StatusCode = 500;
-    ctx.Response.ContentType = "application/json";
-    var msg = app.Environment.IsDevelopment() ? ex?.Message : "An internal server error occurred.";
-    await ctx.Response.WriteAsJsonAsync(new { message = msg });
-}));
-
-// ===== DEBUG: Kiểm tra kết nối Database khi khởi động =====
+// ===== Khởi tạo Database: Migrate + Seed dữ liệu mẫu =====
 using (var scope = app.Services.CreateScope())
 {
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
-
+    
+    // Ẩn password trong log
     var safeConnStr = System.Text.RegularExpressions.Regex.Replace(
         connStr ?? "", @"Password=[^;]*", "Password=***");
-
+    
     logger.LogInformation("🔌 Connection String: {ConnStr}", safeConnStr);
-
+    
     try
     {
-        var canConnect = await dbContext.Database.CanConnectAsync();
-        if (canConnect)
+        // Tự động apply migration (tạo bảng nếu chưa có trên Neon)
+        await dbContext.Database.MigrateAsync();
+        logger.LogInformation("✅ Database migration thành công!");
+        
+        var dbName = dbContext.Database.GetDbConnection().Database;
+        var dbServer = dbContext.Database.GetDbConnection().DataSource;
+        logger.LogInformation("📊 Database: {DbName} | Server: {Server}", dbName, dbServer);
+
+        // ===== SEED DATA: Tạo tài khoản mẫu cho từng Role =====
+        if (!dbContext.Users.Any())
         {
-            var dbName = dbContext.Database.GetDbConnection().Database;
-            var dbServer = dbContext.Database.GetDbConnection().DataSource;
-            logger.LogInformation("✅ Database THÀNH CÔNG — {DbName} @ {Server}", dbName, dbServer);
+            logger.LogInformation("🌱 Seeding tài khoản mẫu cho 4 role...");
+
+            var seedUsers = new[]
+            {
+                new ParkingSystem.Domain.Entities.User
+                {
+                    Id = Guid.NewGuid(),
+                    Username = "admin",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
+                    FullName = "Quản trị viên hệ thống",
+                    Role = ParkingSystem.Domain.Enums.Role.Admin,
+                    Email = "admin@parking.vn",
+                    PhoneNumber = "0901000001",
+                    QrCode = Guid.NewGuid().ToString("N")[..8],
+                    CreatedAt = DateTime.UtcNow
+                },
+                new ParkingSystem.Domain.Entities.User
+                {
+                    Id = Guid.NewGuid(),
+                    Username = "manager",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("manager123"),
+                    FullName = "Quản lý bãi xe",
+                    Role = ParkingSystem.Domain.Enums.Role.Manager,
+                    Email = "manager@parking.vn",
+                    PhoneNumber = "0901000002",
+                    QrCode = Guid.NewGuid().ToString("N")[..8],
+                    CreatedAt = DateTime.UtcNow
+                },
+                new ParkingSystem.Domain.Entities.User
+                {
+                    Id = Guid.NewGuid(),
+                    Username = "staff",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("staff123"),
+                    FullName = "Nhân viên trực bãi",
+                    Role = ParkingSystem.Domain.Enums.Role.Staff,
+                    Email = "staff@parking.vn",
+                    PhoneNumber = "0901000003",
+                    QrCode = Guid.NewGuid().ToString("N")[..8],
+                    CreatedAt = DateTime.UtcNow
+                },
+                new ParkingSystem.Domain.Entities.User
+                {
+                    Id = Guid.NewGuid(),
+                    Username = "driver",
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("driver123"),
+                    FullName = "Khách gửi xe",
+                    Role = ParkingSystem.Domain.Enums.Role.Driver,
+                    Email = "driver@parking.vn",
+                    PhoneNumber = "0901000004",
+                    QrCode = Guid.NewGuid().ToString("N")[..8],
+                    CreatedAt = DateTime.UtcNow
+                }
+            };
+
+            dbContext.Users.AddRange(seedUsers);
+            await dbContext.SaveChangesAsync();
+            logger.LogInformation("✅ Đã tạo {Count} tài khoản mẫu!", seedUsers.Length);
         }
         else
         {
-            logger.LogError("❌ Database THẤT BẠI — CanConnect trả về false");
+            logger.LogInformation("📌 Database đã có dữ liệu, bỏ qua seed.");
         }
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "❌ Database THẤT BẠI — {Message}", ex.Message);
+        logger.LogError(ex, "❌ Database khởi tạo THẤT BẠI — {Message}", ex.Message);
     }
 }
 

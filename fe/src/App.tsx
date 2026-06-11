@@ -3,7 +3,6 @@ import { lazy, Suspense } from 'react';
 import './index.css';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
-const LandingPage      = lazy(() => import('./pages/LandingPage'));
 const AuthPage         = lazy(() => import('./pages/AuthPage'));
 
 const AdminLayout      = lazy(() => import('./pages/Admin/AdminLayout'));
@@ -11,19 +10,29 @@ const AdminDashboard   = lazy(() => import('./pages/Admin/Dashboard'));
 const AdminParkingLots = lazy(() => import('./pages/Admin/ParkingLots'));
 const AdminVehicles    = lazy(() => import('./pages/Admin/Vehicles'));
 const AdminUsers       = lazy(() => import('./pages/Admin/Users'));
+const AdminReports     = lazy(() => import('./pages/Admin/Reports'));
+const AdminSettings    = lazy(() => import('./pages/Admin/Settings'));
 
-const ManagerLayout    = lazy(() => import('./pages/Manager/ManagerLayout'));
-const ManagerDashboard = lazy(() => import('./pages/Manager/Dashboard'));
+const ManagerLayout       = lazy(() => import('./pages/Manager/ManagerLayout'));
+const ManagerDashboard    = lazy(() => import('./pages/Manager/Dashboard'));
+const ManagerParkingLots  = lazy(() => import('./pages/Manager/ParkingLots'));
+const ManagerVehicleTypes = lazy(() => import('./pages/Manager/VehicleTypes'));
+const ManagerPricing      = lazy(() => import('./pages/Manager/Pricing'));
+const ManagerSessions     = lazy(() => import('./pages/Manager/Sessions'));
+const ManagerReports      = lazy(() => import('./pages/Manager/Reports'));
+const ManagerReservations = lazy(() => import('./pages/Manager/Reservations'));
 
 const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
-const UserDashboard    = lazy(() => import('./pages/User/UserDashboard'));
+const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
+const StaffLayout      = lazy(() => import('./pages/Staff/StaffLayout'));
+const StaffDashboard   = lazy(() => import('./pages/Staff/StaffDashboard'));
 
 export default function App() {
   return (
     <BrowserRouter>
       <Suspense fallback={<div className="loading-screen" />}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<UserLandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
 
           {/* Admin Portal - chỉ Admin */}
@@ -33,8 +42,10 @@ export default function App() {
           >
             <Route index element={<AdminDashboard />} />
             <Route path="parking-lots" element={<AdminParkingLots />} />
-            <Route path="vehicles" element={<AdminVehicles />} />
-            <Route path="users" element={<AdminUsers />} />
+            <Route path="vehicles"     element={<AdminVehicles />} />
+            <Route path="users"        element={<AdminUsers />} />
+            <Route path="reports"      element={<AdminReports />} />
+            <Route path="settings"     element={<AdminSettings />} />
           </Route>
 
           {/* Manager Portal - chỉ Manager */}
@@ -43,19 +54,27 @@ export default function App() {
             element={<ProtectedRoute element={<ManagerLayout />} requiredRoles={["Manager"]} />}
           >
             <Route index element={<ManagerDashboard />} />
+            <Route path="parking-lots" element={<ManagerParkingLots />} />
+            <Route path="vehicles"     element={<ManagerVehicleTypes />} />
+            <Route path="pricing"      element={<ManagerPricing />} />
+            <Route path="sessions"      element={<ManagerSessions />} />
+            <Route path="reservations"  element={<ManagerReservations />} />
+            <Route path="reports"       element={<ManagerReports />} />
           </Route>
 
-          {/* Gate Control - chỉ Staff */}
+          {/* Gate Control - chỉ Staff (standalone) */}
           <Route
             path="/gate-control"
             element={<ProtectedRoute element={<GateControlPage />} requiredRoles={["Staff"]} />}
           />
 
-          {/* User Dashboard - chỉ Driver */}
+          {/* Staff Portal */}
           <Route
-            path="/user"
-            element={<ProtectedRoute element={<UserDashboard />} requiredRoles={["Driver"]} />}
-          />
+            path="/staff"
+            element={<ProtectedRoute element={<StaffLayout />} requiredRoles={["Staff"]} />}
+          >
+            <Route index element={<StaffDashboard />} />
+          </Route>
         </Routes>
       </Suspense>
     </BrowserRouter>
