@@ -101,6 +101,9 @@ export const getFloorsByBuilding = (buildingId: string): Promise<FloorResponse[]
 export const createFloor = (payload: CreateFloorRequest, token: string): Promise<FloorResponse> =>
   apiFetch('/api/floors', { method: 'POST', body: JSON.stringify(payload) }, token);
 
+export const updateFloor = (id: string, payload: { name: string, floorIndex: number }, token: string): Promise<FloorResponse> =>
+  apiFetch(`/api/floors/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
+
 export const deleteFloor = (id: string, token: string): Promise<void> =>
   apiFetch(`/api/floors/${id}`, { method: 'DELETE' }, token);
 
