@@ -111,6 +111,7 @@ export interface VehicleTypeResponse {
   id: string;
   name: string;
   description?: string;
+  createdAt: string;
 }
 
 export interface CreateParkingSlotRequest {

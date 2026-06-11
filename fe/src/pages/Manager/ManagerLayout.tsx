@@ -1,12 +1,18 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Car, MapPin, BarChart3, LogOut, Bell, ChevronDown } from 'lucide-react';
+import {
+  LayoutDashboard, Car, MapPin, BarChart3, LogOut, Bell, ChevronDown,
+  DollarSign, ClipboardList, CalendarCheck,
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 const navItems = [
-  { to: '/manager',          label: 'Dashboard',    icon: LayoutDashboard, end: true  },
-  { to: '/manager/parking-lots', label: 'Bãi đỗ xe',  icon: MapPin,          end: false },
-  { to: '/manager/vehicles', label: 'Phương tiện',  icon: Car,             end: false },
-  { to: '/manager/reports',  label: 'Báo cáo',      icon: BarChart3,       end: false },
+  { to: '/manager',                  label: 'Dashboard',      icon: LayoutDashboard, end: true  },
+  { to: '/manager/parking-lots',     label: 'Bãi đỗ xe',      icon: MapPin,          end: false },
+  { to: '/manager/vehicles',         label: 'Phương tiện',    icon: Car,             end: false },
+  { to: '/manager/pricing',          label: 'Bảng giá',       icon: DollarSign,      end: false },
+  { to: '/manager/sessions',         label: 'Phiên đỗ xe',    icon: ClipboardList,   end: false },
+  { to: '/manager/reservations',     label: 'Đặt chỗ',        icon: CalendarCheck,   end: false },
+  { to: '/manager/reports',          label: 'Báo cáo',        icon: BarChart3,       end: false },
 ];
 
 export default function ManagerLayout() {
