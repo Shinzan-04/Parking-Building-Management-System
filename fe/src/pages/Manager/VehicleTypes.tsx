@@ -9,6 +9,7 @@
  *  - Xem phân bổ slot Available / Occupied / Reserved / Maintenance theo từng loại
  */
 
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import {
   Car, Plus, Search, Pencil, Trash2, X,

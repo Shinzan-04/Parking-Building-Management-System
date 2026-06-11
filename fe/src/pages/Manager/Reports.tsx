@@ -12,9 +12,10 @@
  *  - Bộ lọc ngày tháng
  */
 
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import {
-  BarChart, Bar, LineChart, Line, XAxis, YAxis,
+  BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import {
@@ -23,9 +24,9 @@ import {
   RefreshCw, Calendar, ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { getBuildings, getParkingSlots, isSlotOccupied } from '../../services/buildingsService';
+import { getBuildings, getParkingSlots } from '../../services/buildingsService';
 import { searchSessions, getActiveSessions } from '../../services/sessionsService';
-import type { SessionDto, SessionListResponse } from '../../services/sessionsService';
+import type { SessionDto } from '../../services/sessionsService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -105,7 +106,7 @@ export default function ManagerReports() {
 
     try {
       // Load KPI: active sessions + capacity
-      const [activeRes, buildings, allSlots] = await Promise.all([
+      const [activeRes, buildings] = await Promise.all([
         getActiveSessions({ pageSize: 1 }, token),
         getBuildings(),
         getParkingSlots(),

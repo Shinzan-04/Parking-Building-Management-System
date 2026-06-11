@@ -10,23 +10,24 @@
  *  - Cập nhật trạng thái slot (Available / Maintenance / v.v.)
  */
 
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import {
   Building2, ParkingSquare, CircleCheck, Wrench,
   Plus, Search, Pencil, Trash2, MapPin,
-  X, AlertTriangle, Eye, Loader2, Car, ChevronRight,
-  ToggleLeft, ToggleRight, Layers, Info, RefreshCw,
+  X, AlertTriangle, Eye, Loader2, Car, Save,
+  Layers, Info, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
-  getBuildings, getFloors, isSlotOccupied,
+  getBuildings, getFloors,
   createBuilding, updateBuilding, deleteBuilding,
-  createFloor, deleteFloor, getFloorsByBuilding,
+  createFloor, updateFloor, deleteFloor, getFloorsByBuilding,
   getVehicleTypes,
 } from '../../services/buildingsService';
-import type { FloorResponse, BuildingResponse, VehicleTypeResponse } from '../../services/buildingsService';
+import type { FloorResponse, VehicleTypeResponse } from '../../services/buildingsService';
 import {
-  getAllSlots, getSlotsByFloor, createSlot, deleteSlot, updateSlotStatus,
+  getAllSlots, getSlotsByFloor, createSlot, updateSlotStatus,
   SLOT_STATUS_LABELS, SLOT_STATUS_COLORS,
 } from '../../services/parkingService';
 import type { ParkingSlotDetail, SlotStatus } from '../../services/parkingService';
@@ -69,14 +70,14 @@ function OccupancyBar({ used, total }: { used: number; total: number }) {
 // ─── Slot Map Component ───────────────────────────────────────────────────────
 
 function SlotMap({
-  floors, buildingId, selectedSlotId, onSelectSlot, onStatusChange, token,
+  floors, buildingId, selectedSlotId, onSelectSlot, onStatusChange,
 }: {
   floors: FloorResponse[];
   buildingId: string;
   selectedSlotId: string | null;
   onSelectSlot: (id: string | null) => void;
   onStatusChange: (slot: ParkingSlotDetail) => void;
-  token: string | null;
+  token?: string | null;
 }) {
   const buildingFloors = floors
     .filter(f => f.buildingId === buildingId)
@@ -338,6 +339,11 @@ export default function ManagerParkingLots() {
   const [newFloorVehicleTypeId, setNewFloorVehicleTypeId] = useState('');
   const [floorError, setFloorError]             = useState('');
 
+  const [editingFloorId, setEditingFloorId] = useState<string | null>(null);
+  const [editFloorName, setEditFloorName]   = useState('');
+  const [editFloorAddedSlots, setEditFloorAddedSlots] = useState('');
+  const [editFloorVehicleTypeId, setEditFloorVehicleTypeId] = useState('');
+
   // ─── Load data ──────────────────────────────────────────────────────────────
 
   const loadData = useCallback(async (silent = false) => {
@@ -395,6 +401,7 @@ export default function ManagerParkingLots() {
     setSelectedSlotId(null); setActiveSlot(null);
     setEditFloors([]); setNewFloorName(''); setNewFloorSlotCount('');
     setNewFloorVehicleTypeId(''); setFloorError('');
+    setEditingFloorId(null);
   };
 
   const openAdd = () => { setForm(emptyBuildingForm); setFormError(''); setModalType('add'); };
@@ -407,6 +414,7 @@ export default function ManagerParkingLots() {
     setSelected(b);
     setForm({ name: b.name, address: b.address, totalCapacity: String(b.totalCapacity) });
     setFormError(''); setNewFloorName(''); setFloorError('');
+    setEditingFloorId(null);
     setFloorLoading(true); setModalType('edit');
     getFloorsByBuilding(b.id)
       .then(f => setEditFloors(f.sort((a, b) => a.floorIndex - b.floorIndex)))
@@ -423,8 +431,8 @@ export default function ManagerParkingLots() {
     const name = newFloorName.trim();
     if (!name) { setFloorError('Vui lòng nhập tên tầng.'); return; }
     const slotCount = Number(newFloorSlotCount);
-    if (newFloorSlotCount && (isNaN(slotCount) || slotCount < 0)) {
-      setFloorError('Số chỗ phải là số nguyên không âm.'); return;
+    if (newFloorSlotCount && (isNaN(slotCount) || slotCount < 0 || slotCount > 100)) {
+      setFloorError('Số chỗ phải từ 0 đến 100.'); return;
     }
     if (slotCount > 0 && !newFloorVehicleTypeId) {
       setFloorError('Vui lòng chọn loại xe khi thêm chỗ đỗ.'); return;
@@ -454,6 +462,66 @@ export default function ManagerParkingLots() {
       setNewFloorName(''); setNewFloorSlotCount(''); setNewFloorVehicleTypeId('');
     } catch (e) {
       setFloorError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+    } finally {
+      setFloorLoading(false);
+    }
+  };
+
+  const startEditFloor = (f: FloorResponse) => {
+    setEditingFloorId(f.id);
+    setEditFloorName(f.name);
+    setEditFloorAddedSlots('');
+    setEditFloorVehicleTypeId('');
+  };
+
+  const saveFloorEdit = async (f: FloorResponse) => {
+    if (!token || !selected) return;
+    setFloorLoading(true); setFloorError('');
+    try {
+      if (editFloorName.trim() && editFloorName.trim() !== f.name) {
+        await updateFloor(f.id, { name: editFloorName.trim(), floorIndex: f.floorIndex }, token);
+      }
+      
+      const addedSlots = Number(editFloorAddedSlots);
+      if (editFloorAddedSlots && (isNaN(addedSlots) || addedSlots < 0)) {
+        setFloorError('Số chỗ thêm phải là số nguyên không âm.');
+        setFloorLoading(false);
+        return;
+      }
+      
+      if (addedSlots > 0) {
+        if (f.slotCount + addedSlots > 100) {
+          setFloorError(`Tổng số chỗ không được vượt quá 100 (hiện tại: ${f.slotCount}).`);
+          setFloorLoading(false);
+          return;
+        }
+        if (!editFloorVehicleTypeId) {
+          setFloorError('Vui lòng chọn loại xe cho các chỗ mới.');
+          setFloorLoading(false);
+          return;
+        }
+        await Promise.all(
+          Array.from({ length: addedSlots }, (_, i) =>
+            createSlot({
+              floorId: f.id,
+              vehicleTypeId: editFloorVehicleTypeId,
+              slotNumber: String(f.slotCount + i + 1).padStart(3, '0'),
+            }, token)
+          )
+        );
+      }
+
+      const updatedFloor = { 
+        ...f, 
+        name: editFloorName.trim() || f.name, 
+        slotCount: f.slotCount + (isNaN(addedSlots) ? 0 : addedSlots) 
+      };
+      
+      setEditFloors(prev => prev.map(floor => floor.id === f.id ? updatedFloor : floor));
+      setAllFloors(prev => prev.map(floor => floor.id === f.id ? updatedFloor : floor));
+      setEditingFloorId(null);
+    } catch (e) {
+      setFloorError(e instanceof Error ? e.message : 'Đã xảy ra lỗi khi sửa tầng.');
     } finally {
       setFloorLoading(false);
     }
@@ -865,18 +933,76 @@ export default function ManagerParkingLots() {
                       <p className="text-xs text-white/30 py-2">Chưa có tầng nào.</p>
                     ) : (
                       editFloors.map(f => (
-                        <div key={f.id} className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-lg">
-                          <div>
-                            <span className="text-sm text-white">{f.name}</span>
-                            <span className="text-xs text-white/30 ml-2">({f.slotCount} chỗ)</span>
-                          </div>
-                          <button
-                            onClick={() => handleDeleteFloor(f.id)}
-                            disabled={floorLoading}
-                            className="p-1 rounded-lg text-red-400/50 hover:text-red-400 hover:bg-red-400/10 transition-all disabled:opacity-30"
-                          >
-                            <Trash2 size={12} />
-                          </button>
+                        <div key={f.id} className="flex flex-col gap-2 px-3 py-2 bg-white/5 rounded-lg">
+                          {editingFloorId === f.id ? (
+                            <div className="space-y-2">
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={editFloorName}
+                                  onChange={e => { setEditFloorName(e.target.value); setFloorError(''); }}
+                                  className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00C2FF]/50"
+                                  placeholder="Tên tầng"
+                                />
+                                <input
+                                  type="number"
+                                  placeholder="+ thêm chỗ"
+                                  min={0}
+                                  max={100 - f.slotCount}
+                                  value={editFloorAddedSlots}
+                                  onChange={e => { setEditFloorAddedSlots(e.target.value); setFloorError(''); }}
+                                  className="w-24 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00C2FF]/50"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <select
+                                  value={editFloorVehicleTypeId}
+                                  onChange={e => { setEditFloorVehicleTypeId(e.target.value); setFloorError(''); }}
+                                  className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00C2FF]/50 appearance-none"
+                                >
+                                  <option value="" className="bg-[#0F1B2D]">-- Loại xe (nếu thêm chỗ) --</option>
+                                  {vehicleTypes.map(vt => (
+                                    <option key={vt.id} value={vt.id} className="bg-[#0F1B2D]">{vt.name}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={() => saveFloorEdit(f)}
+                                  disabled={floorLoading}
+                                  className="p-1.5 rounded-lg text-[#3BFFA4] hover:bg-[#3BFFA4]/10 transition-all disabled:opacity-30"
+                                >
+                                  <Save size={14} />
+                                </button>
+                                <button
+                                  onClick={() => { setEditingFloorId(null); setFloorError(''); }}
+                                  disabled={floorLoading}
+                                  className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-white">{f.name}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-white/30">{f.slotCount} / 100 chỗ</span>
+                                <button
+                                  onClick={() => startEditFloor(f)}
+                                  disabled={floorLoading}
+                                  className="p-1 rounded-lg text-[#00C2FF]/50 hover:text-[#00C2FF] hover:bg-[#00C2FF]/10 transition-all disabled:opacity-30"
+                                >
+                                  <Pencil size={12} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteFloor(f.id)}
+                                  disabled={floorLoading}
+                                  className="p-1 rounded-lg text-red-400/50 hover:text-red-400 hover:bg-red-400/10 transition-all disabled:opacity-30"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))
                     )}
@@ -895,11 +1021,12 @@ export default function ManagerParkingLots() {
                       />
                       <input
                         type="number"
-                        placeholder="Số chỗ"
+                        placeholder="Số chỗ (tối đa 100)"
                         min={0}
+                        max={100}
                         value={newFloorSlotCount}
                         onChange={e => { setNewFloorSlotCount(e.target.value); setFloorError(''); }}
-                        className="w-24 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors"
+                        className="w-32 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -948,11 +1075,11 @@ export default function ManagerParkingLots() {
               </button>
               <button
                 onClick={modalType === 'add' ? handleAdd : handleEdit}
-                disabled={submitting}
+                disabled={submitting || editingFloorId !== null}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-[#101A31] bg-gradient-to-r from-[#3BFFA4] to-[#00C2FF] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                {modalType === 'add' ? 'Tạo tòa nhà' : 'Lưu thay đổi'}
+                {editingFloorId !== null ? 'Đang sửa tầng...' : (modalType === 'add' ? 'Tạo tòa nhà' : 'Lưu thay đổi')}
               </button>
             </div>
           </div>

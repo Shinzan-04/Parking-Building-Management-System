@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import {
   Building2, ParkingSquare, CircleCheck, Wrench,
@@ -920,7 +921,6 @@ export default function ParkingLots() {
                   </div>
                 </>
               )}
-
               {formError && (
                 <p className="text-xs text-red-400 flex items-center gap-1.5">
                   <AlertTriangle size={12} />
@@ -935,11 +935,11 @@ export default function ParkingLots() {
               </button>
               <button
                 onClick={modalType === 'add' ? handleAdd : handleEdit}
-                disabled={submitting}
+                disabled={submitting || (modalType === 'edit' && editingFloorId !== null)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-[#101A31] bg-gradient-to-r from-[#00C2FF] to-[#3BFFA4] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                {modalType === 'add' ? 'Thêm mới' : 'Lưu thay đổi'}
+                {modalType === 'add' ? 'Thêm mới' : (editingFloorId !== null ? 'Đang chỉnh sửa tầng...' : 'Lưu thay đổi')}
               </button>
             </div>
           </div>

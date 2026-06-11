@@ -28,7 +28,7 @@ export interface BaseAuthResponse {
   qrCodeImageBase64?: string;
 }
 
-export interface AuthResponse extends BaseAuthResponse {}
+export type AuthResponse = BaseAuthResponse;
 
 export interface RegisterResponse extends BaseAuthResponse {
   qrCode: string;

@@ -12,10 +12,11 @@
  *  - Tự động refresh sau khi duyệt/từ chối
  */
 
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import {
   CalendarCheck, Check, X, Loader2, RefreshCw,
-  AlertTriangle, Clock, MapPin, Car, FileText,
+  AlertTriangle, Clock, MapPin, FileText,
   CheckCircle2, XCircle, ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
@@ -32,12 +33,6 @@ function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleString('vi-VN', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
   });
 }
 
