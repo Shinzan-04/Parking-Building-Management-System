@@ -75,3 +75,34 @@ export const cancelReservation = (id: string, token: string): Promise<void> =>
 
 export const createReservation = (payload: CreateReservationRequest, token: string): Promise<ReservationResponse> =>
   authFetch('/api/reservations', token, { method: 'POST', body: JSON.stringify(payload) });
+
+// ─── Manager / Staff endpoints ────────────────────────────────────────────────
+
+export const RESERVATION_STATUS_LABELS: Record<string, string> = {
+  Pending:   'Chờ duyệt',
+  Confirmed: 'Đã duyệt',
+  CheckedIn: 'Đã vào bãi',
+  Cancelled: 'Đã hủy',
+  Completed: 'Hoàn thành',
+  Rejected:  'Đã từ chối',
+};
+
+export interface ReviewReservationRequest {
+  isAccepted: boolean;
+  reason?: string;
+}
+
+/** Lấy danh sách đặt chỗ đang Pending (Manager/Staff) */
+export const getPendingReservations = (token: string): Promise<ReservationResponse[]> =>
+  authFetch('/api/reservations/pending', token);
+
+/** Duyệt hoặc từ chối đặt chỗ */
+export const reviewReservation = (
+  id: string,
+  payload: ReviewReservationRequest,
+  token: string,
+): Promise<{ message: string }> =>
+  authFetch(`/api/reservations/${id}/review`, token, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
