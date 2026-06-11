@@ -11,10 +11,13 @@ const AdminParkingLots = lazy(() => import('./pages/Admin/ParkingLots'));
 const AdminVehicles    = lazy(() => import('./pages/Admin/Vehicles'));
 const AdminUsers       = lazy(() => import('./pages/Admin/Users'));
 
-const ManagerLayout        = lazy(() => import('./pages/Manager/ManagerLayout'));
-const ManagerDashboard     = lazy(() => import('./pages/Manager/Dashboard'));
-const ManagerParkingLots   = lazy(() => import('./pages/Manager/ParkingLots'));
-const ManagerVehicleTypes  = lazy(() => import('./pages/Manager/VehicleTypes'));
+const ManagerLayout       = lazy(() => import('./pages/Manager/ManagerLayout'));
+const ManagerDashboard    = lazy(() => import('./pages/Manager/Dashboard'));
+const ManagerParkingLots  = lazy(() => import('./pages/Manager/ParkingLots'));
+const ManagerVehicleTypes = lazy(() => import('./pages/Manager/VehicleTypes'));
+const ManagerPricing      = lazy(() => import('./pages/Manager/Pricing'));
+const ManagerSessions     = lazy(() => import('./pages/Manager/Sessions'));
+const ManagerReports      = lazy(() => import('./pages/Manager/Reports'));
 
 const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
@@ -34,8 +37,8 @@ export default function App() {
           >
             <Route index element={<AdminDashboard />} />
             <Route path="parking-lots" element={<AdminParkingLots />} />
-            <Route path="vehicles" element={<AdminVehicles />} />
-            <Route path="users" element={<AdminUsers />} />
+            <Route path="vehicles"     element={<AdminVehicles />} />
+            <Route path="users"        element={<AdminUsers />} />
           </Route>
 
           {/* Manager Portal - chỉ Manager */}
@@ -45,7 +48,10 @@ export default function App() {
           >
             <Route index element={<ManagerDashboard />} />
             <Route path="parking-lots" element={<ManagerParkingLots />} />
-            <Route path="vehicles" element={<ManagerVehicleTypes />} />
+            <Route path="vehicles"     element={<ManagerVehicleTypes />} />
+            <Route path="pricing"      element={<ManagerPricing />} />
+            <Route path="sessions"     element={<ManagerSessions />} />
+            <Route path="reports"      element={<ManagerReports />} />
           </Route>
 
           {/* Gate Control - chỉ Staff */}
