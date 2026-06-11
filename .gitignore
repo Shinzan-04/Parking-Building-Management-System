@@ -5,9 +5,10 @@
 
 # dotenv files
 .env
-
+# README
+*.md
 # Application Configuration Files (sensitive data)
-appsettings.json
+*appsettings.json
 appsettings.*.json
 !appsettings.Example.json
 
@@ -487,6 +488,15 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
-b e / P a r k i n g S y s t e m . A P I / a p p s e t t i n g s . D e v e l o p m e n t . j s o n 
- 
- 
+
+# ASP.NET Core — không commit file chứa secrets
+be/ParkingSystem.API/appsettings.json
+be/ParkingSystem.API/appsettings.Development.json
+
+# Frontend environment
+fe/.env
+
+# Local dev scripts
+start-postgres.bat
+
+.claude

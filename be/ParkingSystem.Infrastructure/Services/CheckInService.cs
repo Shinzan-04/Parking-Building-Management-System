@@ -11,11 +11,19 @@ public class CheckInService : ICheckInService
 {
     private readonly ApplicationDbContext _context;
     private readonly IQrCodeService _qrCodeService;
+    private readonly ISlotAssignmentService _slotAssignmentService;
+    private readonly IImageUploadService _imageUploadService;
 
-    public CheckInService(ApplicationDbContext context, IQrCodeService qrCodeService)
+    public CheckInService(
+        ApplicationDbContext context,
+        IQrCodeService qrCodeService,
+        ISlotAssignmentService slotAssignmentService,
+        IImageUploadService imageUploadService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
+        _slotAssignmentService = slotAssignmentService;
+        _imageUploadService = imageUploadService;
     }
 
     /// <summary>
@@ -30,6 +38,7 @@ public class CheckInService : ICheckInService
         var reservation = await _context.Reservations
             .Include(r => r.ParkingSlot)
                 .ThenInclude(s => s.Floor)
+                    .ThenInclude(f => f.Building)
             .Include(r => r.VehicleType)
             .FirstOrDefaultAsync(r => r.BookingCode == request.BookingCode
                                    && r.Status == ReservationStatus.Confirmed);
@@ -57,7 +66,7 @@ public class CheckInService : ICheckInService
         }
 
         // Biển số KHỚP → Tiến hành check-in
-        return await ProcessBookingCheckIn(reservation, reservation.LicensePlate, request.StaffId);
+        return await ProcessBookingCheckIn(reservation, reservation.LicensePlate, request.StaffId, request.EntryImageBase64);
     }
 
     /// <summary>
@@ -68,6 +77,7 @@ public class CheckInService : ICheckInService
         var reservation = await _context.Reservations
             .Include(r => r.ParkingSlot)
                 .ThenInclude(s => s.Floor)
+                    .ThenInclude(f => f.Building)
             .Include(r => r.VehicleType)
             .FirstOrDefaultAsync(r => r.Id == request.ReservationId
                                    && r.Status == ReservationStatus.Confirmed);
@@ -76,14 +86,14 @@ public class CheckInService : ICheckInService
             throw new InvalidOperationException("Reservation không tồn tại hoặc không hợp lệ.");
 
         // Staff cho phép → check-in với biển số thực tế
-        return await ProcessBookingCheckIn(reservation, request.ActualLicensePlate, request.StaffId);
+        return await ProcessBookingCheckIn(reservation, request.ActualLicensePlate, request.StaffId, null);
     }
 
     /// <summary>
     /// NHÁNH 2: Check-in trực tiếp (Walk-in)
-    /// Bước 1: Nhận biển số từ OCR/Staff nhập tay
-    /// Bước 2: Kiểm tra slot khả dụng theo loại xe
-    /// Bước 3: Tạo Session + Sinh QR Code vé → In cho khách
+    /// - Nếu request.SlotId != null → Staff chọn thủ công
+    /// - Nếu request.SlotId == null → AI tự động chọn slot tốt nhất
+    /// - Nếu request.BuildingId != null → AI chỉ tìm trong tòa nhà đó
     /// </summary>
     public async Task<CheckInResponse> CheckInWalkInAsync(CheckInWalkInRequest request)
     {
@@ -98,16 +108,65 @@ public class CheckInService : ICheckInService
         if (existingSession)
             throw new InvalidOperationException($"Xe biển số {request.LicensePlate} đang có phiên gửi xe hoạt động.");
 
-        // Tìm slot trống phù hợp với loại xe (ưu tiên tầng thấp nhất)
-        var availableSlot = await _context.ParkingSlots
-            .Include(s => s.Floor)
-            .Where(s => s.VehicleTypeId == request.VehicleTypeId && s.Status == SlotStatus.Available)
-            .OrderBy(s => s.Floor.FloorIndex)
-            .ThenBy(s => s.SlotNumber)
-            .FirstOrDefaultAsync();
+        // Validate BuildingId nếu có
+        if (request.BuildingId.HasValue)
+        {
+            var buildingExists = await _context.Buildings.AnyAsync(b => b.Id == request.BuildingId.Value && !b.IsDeleted);
+            if (!buildingExists)
+                throw new InvalidOperationException("Tòa nhà không tồn tại.");
+        }
 
-        if (availableSlot == null)
-            throw new InvalidOperationException($"Bãi xe đã hết chỗ cho loại xe {vehicleType.Name}.");
+        ParkingSlot? assignedSlot;
+        bool isAIAssigned;
+        double? slotScore = null;
+        string? slotReason = null;
+
+        if (request.SlotId.HasValue)
+        {
+            // ===== STAFF CHỌN THỦ CÔNG =====
+            assignedSlot = await _context.ParkingSlots
+                .Include(s => s.Floor)
+                    .ThenInclude(f => f.Building)
+                .FirstOrDefaultAsync(s => s.Id == request.SlotId.Value
+                                       && s.VehicleTypeId == request.VehicleTypeId
+                                       && s.Status == SlotStatus.Available);
+
+            if (assignedSlot == null)
+                throw new InvalidOperationException("Ô đỗ xe không khả dụng hoặc không phù hợp với loại xe.");
+
+            // Validate: Slot phải thuộc tòa nhà đã chọn (nếu có)
+            if (request.BuildingId.HasValue && assignedSlot.Floor.BuildingId != request.BuildingId.Value)
+                throw new InvalidOperationException("Ô đỗ xe không thuộc tòa nhà đã chọn.");
+
+            isAIAssigned = false;
+        }
+        else
+        {
+            // ===== AI TỰ ĐỘNG GÁN SLOT =====
+            // Truyền BuildingId để giới hạn phạm vi tìm kiếm
+            var bestSlot = await _slotAssignmentService.GetBestSlotAsync(request.VehicleTypeId, request.BuildingId);
+
+            if (bestSlot == null)
+            {
+                var scope = request.BuildingId.HasValue ? " trong tòa nhà đã chọn" : "";
+                throw new InvalidOperationException($"Bãi xe đã hết chỗ cho loại xe {vehicleType.Name}{scope}.");
+            }
+
+            assignedSlot = await _context.ParkingSlots
+                .Include(s => s.Floor)
+                    .ThenInclude(f => f.Building)
+                .FirstOrDefaultAsync(s => s.Id == bestSlot.SlotId);
+
+            if (assignedSlot == null)
+                throw new InvalidOperationException("Lỗi hệ thống: Không tìm thấy slot được gợi ý.");
+
+            isAIAssigned = true;
+            slotScore = bestSlot.Score;
+            slotReason = bestSlot.Reason;
+        }
+
+        // Lưu ảnh biển số (nếu có) → trả về URL
+        string? entryImageUrl = await SaveEntryImageAsync(request.EntryImageBase64, request.LicensePlate);
 
         // Sinh mã QR cho phiên gửi xe (Session Code)
         var sessionCode = _qrCodeService.GenerateUniqueCode(5);
@@ -118,24 +177,28 @@ public class CheckInService : ICheckInService
             Id = Guid.NewGuid(),
             DriverId = null, // Khách vãng lai không có tài khoản
             StaffId = request.StaffId,
-            ParkingSlotId = availableSlot.Id,
+            ParkingSlotId = assignedSlot.Id,
             VehicleTypeId = request.VehicleTypeId,
             LicensePlate = request.LicensePlate,
             SessionCode = sessionCode,
             CheckInMethod = CheckInMethod.WalkIn,
             EntryTime = DateTime.UtcNow,
+            EntryImageUrl = entryImageUrl,
             Status = SessionStatus.Active
         };
 
         // Cập nhật trạng thái Slot → Occupied
-        availableSlot.Status = SlotStatus.Occupied;
-        availableSlot.UpdatedAt = DateTime.UtcNow;
+        assignedSlot.Status = SlotStatus.Occupied;
+        assignedSlot.UpdatedAt = DateTime.UtcNow;
 
         _context.ParkingSessions.Add(session);
         await _context.SaveChangesAsync();
 
         // Sinh ảnh QR Code Base64 (để in vé giấy)
         var qrImageBase64 = _qrCodeService.GenerateQrCodeBase64(sessionCode);
+
+        var buildingName = assignedSlot.Floor?.Building?.Name ?? "";
+        var floorName = assignedSlot.Floor?.Name ?? "";
 
         return new CheckInResponse
         {
@@ -144,20 +207,30 @@ public class CheckInService : ICheckInService
             SessionQrCodeBase64 = qrImageBase64,
             LicensePlate = request.LicensePlate,
             CheckInMethod = CheckInMethod.WalkIn,
-            SlotNumber = availableSlot.SlotNumber,
-            FloorName = availableSlot.Floor?.Name ?? "",
+            SlotNumber = assignedSlot.SlotNumber,
+            FloorName = floorName,
+            BuildingName = buildingName,
             VehicleTypeName = vehicleType.Name,
+            IsAIAssigned = isAIAssigned,
+            SlotScore = slotScore,
+            SlotReason = slotReason,
+            EntryImageUrl = entryImageUrl,
             EntryTime = session.EntryTime,
-            Message = $"Check-in thành công. Vui lòng đỗ xe tại ô {availableSlot.SlotNumber}, tầng {availableSlot.Floor?.Name}."
+            Message = isAIAssigned
+                ? $"Check-in thành công (AI gợi ý). Vui lòng đỗ xe tại ô {assignedSlot.SlotNumber}, tầng {floorName}, tòa {buildingName}."
+                : $"Check-in thành công (Staff chọn). Vui lòng đỗ xe tại ô {assignedSlot.SlotNumber}, tầng {floorName}, tòa {buildingName}."
         };
     }
 
     /// <summary>
     /// Xử lý check-in cho luồng Booking (dùng chung cho cả khớp biển số và staff override)
     /// </summary>
-    private async Task<CheckInResponse> ProcessBookingCheckIn(Reservation reservation, string licensePlate, Guid? staffId)
+    private async Task<CheckInResponse> ProcessBookingCheckIn(Reservation reservation, string licensePlate, Guid? staffId, string? entryImageBase64)
     {
         var sessionCode = _qrCodeService.GenerateUniqueCode(5);
+
+        // Lưu ảnh biển số
+        string? entryImageUrl = await SaveEntryImageAsync(entryImageBase64, licensePlate);
 
         // Tạo Parking Session liên kết với Reservation
         var session = new ParkingSession
@@ -172,6 +245,7 @@ public class CheckInService : ICheckInService
             SessionCode = sessionCode,
             CheckInMethod = CheckInMethod.Booking,
             EntryTime = DateTime.UtcNow,
+            EntryImageUrl = entryImageUrl,
             Status = SessionStatus.Active
         };
 
@@ -188,6 +262,9 @@ public class CheckInService : ICheckInService
 
         var qrImageBase64 = _qrCodeService.GenerateQrCodeBase64(sessionCode);
 
+        var buildingName = slot.Floor?.Building?.Name ?? "";
+        var floorName = slot.Floor?.Name ?? "";
+
         return new CheckInResponse
         {
             SessionId = session.Id,
@@ -196,10 +273,30 @@ public class CheckInService : ICheckInService
             LicensePlate = licensePlate,
             CheckInMethod = CheckInMethod.Booking,
             SlotNumber = slot.SlotNumber,
-            FloorName = slot.Floor?.Name ?? "",
+            FloorName = floorName,
+            BuildingName = buildingName,
             VehicleTypeName = reservation.VehicleType?.Name ?? "",
+            EntryImageUrl = entryImageUrl,
             EntryTime = session.EntryTime,
-            Message = $"Check-in thành công (Đặt trước). Vui lòng đỗ xe tại ô {slot.SlotNumber}, tầng {slot.Floor?.Name}."
+            Message = $"Check-in thành công (Đặt trước). Vui lòng đỗ xe tại ô {slot.SlotNumber}, tầng {floorName}, tòa {buildingName}."
         };
+    }
+
+    /// <summary>
+    /// Upload ảnh biển số lên Cloudinary (thay vì lưu file local).
+    /// Tên file: {biểnsố}_{timestamp}
+    /// Trả về URL HTTPS công khai từ Cloudinary CDN.
+    /// </summary>
+    private async Task<string?> SaveEntryImageAsync(string? base64Image, string licensePlate)
+    {
+        if (string.IsNullOrWhiteSpace(base64Image))
+            return null;
+
+        // Tạo tên file: biển số (loại bỏ ký tự đặc biệt) + timestamp
+        var safePlate = licensePlate.Replace("-", "").Replace(".", "").Replace(" ", "");
+        var fileName = $"{safePlate}_{DateTime.UtcNow:yyyyMMdd_HHmmss}";
+
+        // Upload lên Cloudinary → trả về URL HTTPS
+        return await _imageUploadService.UploadBase64ImageAsync(base64Image, fileName);
     }
 }

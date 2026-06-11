@@ -17,4 +17,8 @@ public class LicensePlateResult
     public bool IsDetected { get; set; }
     public string? CroppedPlateBase64 { get; set; }
     public string Message { get; set; } = string.Empty;
+    /// <summary>
+    /// Text thô từ PaddleOCR trước khi hậu xử lý (dùng để debug)
+    /// </summary>
+    public string RawOcrText { get; set; } = string.Empty;
 }

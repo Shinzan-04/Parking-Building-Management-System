@@ -15,6 +15,15 @@ import {
 
 type AuthMode = 'login' | 'register';
 
+type AuthRole = 'Admin' | 'Manager' | 'Staff' | 'Driver' | 0 | 1 | 2 | 3;
+
+function getPostLoginPath(role: AuthRole): string {
+  if (role === 'Admin'   || role === 0) return '/admin';
+  if (role === 'Manager' || role === 1) return '/manager';
+  if (role === 'Staff'   || role === 2) return '/gate-control';
+  return '/'; // Driver (chuyển về trang chủ)
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function GitHubIcon({ className }: { className?: string }) {
@@ -71,7 +80,7 @@ function FormikField({
           className={`w-full pl-10 pr-10 py-3 rounded-xl bg-white/5 border text-sm outline-none transition-all duration-200
                      ${hasError 
                         ? 'border-red-500/50 text-red-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                        : 'border-white/10 text-white placeholder:text-gray-500 focus:border-[#00C2FF] focus:ring-2 focus:ring-[#00C2FF]/20'
+                        : 'border-white/10 text-white placeholder:text-gray-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
                      }`}
         />
         {showToggle && (
@@ -126,7 +135,12 @@ const registerSchema = Yup.object().shape({
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { login, register, loading, error: apiError, loginWithGoogle } = useAuth();
+  const { user, login, register, loading, error: apiError, loginWithGoogle } = useAuth();
+
+  // Redirect nếu đã đăng nhập
+  useEffect(() => {
+    if (user) navigate(getPostLoginPath(user.role as AuthRole), { replace: true });
+  }, [user, navigate]);
 
   useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -140,8 +154,8 @@ export default function AuthPage() {
       if (idToken) {
         // Login using hook
         loginWithGoogle(idToken)
-          .then(() => {
-            navigate('/');
+          .then((authResponse) => {
+            navigate(getPostLoginPath(authResponse.role as AuthRole));
           })
           .catch(() => {
             // error handled in hook
@@ -201,21 +215,21 @@ export default function AuthPage() {
     onSubmit: async (values, { setSubmitting }) => {
       if (mode === 'login') {
         try {
-          await login({ username: values.username, password: values.password });
-          navigate('/');
+          const authResponse = await login({ username: values.username, password: values.password });
+          navigate(getPostLoginPath(authResponse.role as AuthRole));
         } catch {
           // apiError đã được hook useAuth xử lý
         }
       } else {
         try {
-          await register({
+          const authResponse = await register({
             username: values.username,
             password: values.password,
             fullName: values.fullName,
             email: values.email.trim() || null,
             phoneNumber: values.phoneNumber.trim() || null,
           });
-          navigate('/');
+          navigate(getPostLoginPath(authResponse.role as AuthRole));
         } catch {
           // apiError đã được hook useAuth xử lý
         }
@@ -255,22 +269,22 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#101A31] flex overflow-hidden text-white">
+    <div className="min-h-screen bg-[#0A0A0C] flex overflow-hidden text-white">
 
       {/* ── Left Panel ─────────────────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#00C2FF]/20 via-transparent to-[#3BFFA4]/20" />
-        <div className="blob top-20 left-20 w-96 h-96 bg-[#00C2FF]/25 animate-pulse" />
-        <div className="blob bottom-20 right-20 w-80 h-80 bg-[#3BFFA4]/25 animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-orange-500/10" />
+        <div className="blob top-20 left-20 w-96 h-96 bg-amber-500/10 animate-pulse" />
+        <div className="blob bottom-20 right-20 w-80 h-80 bg-orange-500/10 animate-pulse" style={{ animationDelay: '1s' }} />
 
         <div className="relative z-10 flex flex-col items-center justify-center w-full p-12 text-center">
           {/* Logo visual */}
           <div className="mb-10 w-full max-w-xs">
             <div className="relative rounded-3xl overflow-hidden glass-card p-1">
-              <div className="h-56 rounded-2xl bg-gradient-to-br from-[#00C2FF]/30 to-[#3BFFA4]/20 flex items-center justify-center">
+              <div className="h-56 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/15 flex items-center justify-center">
                 <div className="relative">
-                  <div className="w-36 h-36 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] opacity-70 blur-xl absolute -inset-4" />
-                  <div className="relative z-10 w-28 h-28 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] flex items-center justify-center shadow-2xl shadow-[#00C2FF]/40">
+                  <div className="w-36 h-36 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 opacity-60 blur-xl absolute -inset-4" />
+                  <div className="relative z-10 w-28 h-28 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-2xl shadow-amber-500/40">
                     <Sparkles className="w-14 h-14 text-white" />
                   </div>
                 </div>
@@ -280,7 +294,7 @@ export default function AuthPage() {
 
           <h1 className="text-5xl font-extrabold mb-4 leading-tight">
             Welcome to
-            <span className="block gradient-text">SmartPark</span>
+            <span className="block text-amber-500 mt-2">PARKING BUILDING</span>
           </h1>
           <p className="text-gray-400 text-lg max-w-md">
             Intelligent parking management powered by AI.
@@ -289,9 +303,9 @@ export default function AuthPage() {
 
           <div className="mt-10 flex items-center justify-center gap-10">
             {[
-              { value: '500+',  label: 'Facilities', color: 'text-[#00C2FF]' },
-              { value: '1M+',   label: 'Users',      color: 'text-[#3BFFA4]' },
-              { value: '99.9%', label: 'Uptime',     color: 'text-[#00C2FF]' },
+              { value: '500+',  label: 'Facilities', color: 'text-amber-500' },
+              { value: '1M+',   label: 'Users',      color: 'text-orange-500' },
+              { value: '99.9%', label: 'Uptime',     color: 'text-amber-500' },
             ].map((s) => (
               <div key={s.label}>
                 <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
@@ -308,7 +322,7 @@ export default function AuthPage() {
         <Link
           to="/"
           className="absolute top-6 left-6 flex items-center gap-1.5 text-sm text-gray-400
-                     hover:text-white transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
+                     hover:text-amber-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Home
@@ -316,14 +330,14 @@ export default function AuthPage() {
 
         <div className="w-full max-w-md">
           {/* Card */}
-          <div className="p-8 rounded-3xl backdrop-blur-xl bg-white/5 border border-white/10 shadow-2xl">
+          <div className="p-8 rounded-3xl backdrop-blur-xl bg-[#121214] border border-white/5 shadow-2xl">
 
             {/* Logo */}
             <div className="flex items-center justify-center gap-2 mb-8">
-              <div className="p-2 bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] rounded-lg shadow-lg shadow-[#00C2FF]/30">
+              <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg shadow-lg shadow-amber-500/20">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold">SmartPark</span>
+              <span className="text-xl font-bold tracking-wider">PARKING <span className="text-amber-500">BUILDING</span></span>
             </div>
 
             {/* Header */}
@@ -334,7 +348,7 @@ export default function AuthPage() {
               <p className="text-gray-400 text-sm">
                 {mode === 'login'
                   ? 'Sign in to continue to your dashboard'
-                  : 'Get started with SmartPark today'}
+                  : 'Get started with PARKING BUILDING today'}
               </p>
             </div>
 
@@ -345,7 +359,7 @@ export default function AuthPage() {
                 onClick={handleGoogleClick}
                 className="flex items-center justify-center gap-3 w-full px-4 py-3 rounded-xl
                            bg-white/5 border border-white/10 text-sm text-white font-medium
-                           hover:bg-white/10 hover:border-[#00C2FF]/50 transition-all duration-200"
+                           hover:bg-white/10 hover:border-amber-500/50 transition-all duration-200"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24" aria-hidden="true">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -362,10 +376,10 @@ export default function AuthPage() {
             {/* Divider */}
             <div className="relative mb-5">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
+                <div className="w-full border-t border-white/5" />
               </div>
               <div className="relative flex justify-center">
-                <span className="px-4 bg-[#101A31]/90 text-xs text-gray-500">or continue with</span>
+                <span className="px-4 bg-[#121214] text-xs text-gray-500">or continue with</span>
               </div>
             </div>
 
@@ -494,11 +508,11 @@ export default function AuthPage() {
                       onClick={() => setRememberMe((r) => !r)}
                       className={`w-4 h-4 rounded border flex items-center justify-center transition-all duration-200
                         ${rememberMe
-                          ? 'bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] border-transparent'
-                          : 'border-white/30 bg-white/5 group-hover:border-[#00C2FF]/50'}`}
+                          ? 'bg-amber-500 border-transparent'
+                          : 'border-white/30 bg-white/5 group-hover:border-amber-500/50'}`}
                     >
                       {rememberMe && (
-                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12">
+                        <svg className="w-2.5 h-2.5 text-black" fill="none" viewBox="0 0 12 12">
                           <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       )}
@@ -511,7 +525,7 @@ export default function AuthPage() {
                     />
                     <span className="text-sm text-gray-400">Remember me</span>
                   </label>
-                  <a href="#" className="text-sm text-[#00C2FF] hover:underline hover:text-[#3BFFA4] transition-colors">
+                  <a href="#" className="text-sm text-amber-500 hover:underline hover:text-amber-400 transition-colors">
                     Forgot password?
                   </a>
                 </div>
@@ -521,10 +535,10 @@ export default function AuthPage() {
               <button
                 type="submit"
                 disabled={loading || formik.isSubmitting}
-                className="w-full mt-2 py-3 rounded-xl font-semibold text-sm text-white
-                           bg-gradient-to-r from-[#00C2FF] to-[#3BFFA4]
-                           hover:opacity-90 active:scale-[0.98]
-                           shadow-lg shadow-[#00C2FF]/30 hover:shadow-[#00C2FF]/50
+                className="w-full mt-2 py-3 rounded-xl font-semibold text-sm text-black
+                           bg-gradient-to-r from-amber-500 to-orange-500
+                           hover:opacity-95 active:scale-[0.98]
+                           shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40
                            transition-all duration-200
                            disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
@@ -547,7 +561,7 @@ export default function AuthPage() {
                 <button
                   type="button"
                   onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
-                  className="text-[#00C2FF] hover:text-[#3BFFA4] hover:underline font-semibold transition-colors"
+                  className="text-amber-500 hover:text-amber-400 hover:underline font-semibold transition-colors"
                 >
                   {mode === 'login' ? 'Sign Up' : 'Log In'}
                 </button>
@@ -557,10 +571,10 @@ export default function AuthPage() {
 
           {/* Terms */}
           <p className="text-center text-xs text-gray-500 mt-5 leading-relaxed">
-            By continuing, you agree to SmartPark's{' '}
-            <a href="#" className="text-[#00C2FF] hover:underline">Terms of Service</a>
+            By continuing, you agree to PARKING BUILDING's{' '}
+            <a href="#" className="text-amber-500 hover:underline">Terms of Service</a>
             {' '}and{' '}
-            <a href="#" className="text-[#00C2FF] hover:underline">Privacy Policy</a>
+            <a href="#" className="text-amber-500 hover:underline">Privacy Policy</a>
           </p>
         </div>
       </div>

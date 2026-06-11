@@ -1,6 +1,6 @@
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-export type UserRole = 'Admin' | 'Manager' | 'Driver';
+export type UserRole = 'Admin' | 'Manager' | 'Staff' | 'Driver' | 0 | 1 | 2 | 3;
 
 export interface LoginRequest {
   username: string;
@@ -24,6 +24,8 @@ export interface BaseAuthResponse {
   token: string;
   fullName: string;
   role: UserRole;
+  qrCode?: string;
+  qrCodeImageBase64?: string;
 }
 
 export interface AuthResponse extends BaseAuthResponse {}
