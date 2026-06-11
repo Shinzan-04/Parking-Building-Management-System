@@ -213,6 +213,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
+app.UseCors("AllowAll");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -225,10 +227,9 @@ if (app.Environment.IsDevelopment())
 
 // app.UseHttpsRedirection();
 
-app.UseCors("AllowAll");
-
 app.UseAuthentication();
 app.UseAuthorization();
+
 
 app.MapControllers();
 

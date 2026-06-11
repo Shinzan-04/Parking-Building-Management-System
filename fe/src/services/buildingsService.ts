@@ -42,6 +42,10 @@ export function isSlotOccupied(status: string | number): boolean {
   return status === 'Occupied' || status === 1 || status === 'Reserved' || status === 2;
 }
 
+export function isSlotMaintenance(status: string | number): boolean {
+  return status === 'Maintenance' || status === 3;
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,

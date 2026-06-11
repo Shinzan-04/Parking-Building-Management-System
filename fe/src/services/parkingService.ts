@@ -123,7 +123,7 @@ export const getAvailableSlotsByVehicleType = (vehicleTypeId: string): Promise<P
 export const createSlot = (payload: CreateSlotRequest, token: string): Promise<ParkingSlotDetail> =>
   apiFetch('/api/parkingslots', { method: 'POST', body: JSON.stringify(payload) }, token);
 
-/** Cập nhật trạng thái slot (PATCH) */
+/** Cập nhật trạng thái slot (PATCH) — gửi integer vì backend dùng System.Text.Json mặc định */
 export const updateSlotStatus = (
   slotId: string,
   status: SlotStatus,
