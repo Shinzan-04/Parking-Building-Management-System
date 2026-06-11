@@ -18,6 +18,7 @@ const ManagerVehicleTypes = lazy(() => import('./pages/Manager/VehicleTypes'));
 const ManagerPricing      = lazy(() => import('./pages/Manager/Pricing'));
 const ManagerSessions     = lazy(() => import('./pages/Manager/Sessions'));
 const ManagerReports      = lazy(() => import('./pages/Manager/Reports'));
+const ManagerReservations = lazy(() => import('./pages/Manager/Reservations'));
 
 const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
@@ -50,8 +51,9 @@ export default function App() {
             <Route path="parking-lots" element={<ManagerParkingLots />} />
             <Route path="vehicles"     element={<ManagerVehicleTypes />} />
             <Route path="pricing"      element={<ManagerPricing />} />
-            <Route path="sessions"     element={<ManagerSessions />} />
-            <Route path="reports"      element={<ManagerReports />} />
+            <Route path="sessions"      element={<ManagerSessions />} />
+            <Route path="reservations"  element={<ManagerReservations />} />
+            <Route path="reports"       element={<ManagerReports />} />
           </Route>
 
           {/* Gate Control - chỉ Staff */}
