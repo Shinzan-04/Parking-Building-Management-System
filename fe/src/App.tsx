@@ -10,6 +10,8 @@ const AdminDashboard   = lazy(() => import('./pages/Admin/Dashboard'));
 const AdminParkingLots = lazy(() => import('./pages/Admin/ParkingLots'));
 const AdminVehicles    = lazy(() => import('./pages/Admin/Vehicles'));
 const AdminUsers       = lazy(() => import('./pages/Admin/Users'));
+const AdminReports     = lazy(() => import('./pages/Admin/Reports'));
+const AdminSettings    = lazy(() => import('./pages/Admin/Settings'));
 
 const ManagerLayout       = lazy(() => import('./pages/Manager/ManagerLayout'));
 const ManagerDashboard    = lazy(() => import('./pages/Manager/Dashboard'));
@@ -40,6 +42,8 @@ export default function App() {
             <Route path="parking-lots" element={<AdminParkingLots />} />
             <Route path="vehicles"     element={<AdminVehicles />} />
             <Route path="users"        element={<AdminUsers />} />
+            <Route path="reports"      element={<AdminReports />} />
+            <Route path="settings"     element={<AdminSettings />} />
           </Route>
 
           {/* Manager Portal - chỉ Manager */}
