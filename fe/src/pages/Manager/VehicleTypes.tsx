@@ -22,7 +22,7 @@ import {
 import type { VehicleTypeResponse } from '../../services/buildingsService';
 import { getAllSlots } from '../../services/parkingService';
 import type { ParkingSlotDetail, SlotStatus } from '../../services/parkingService';
-import { SLOT_STATUS_LABELS, SLOT_STATUS_COLORS } from '../../services/parkingService';
+import { SLOT_STATUS_LABELS, SLOT_STATUS_COLORS, SLOT_STATUS_FROM_ENUM } from '../../services/parkingService';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
@@ -135,7 +135,12 @@ export default function ManagerVehicleTypes() {
         const counts: Record<SlotStatus, number> = {
           Available: 0, Occupied: 0, Reserved: 0, Maintenance: 0,
         };
-        typeSlots.forEach(s => { counts[s.status]++; });
+        typeSlots.forEach(s => {
+          const statusStr = typeof s.status === 'number' ? SLOT_STATUS_FROM_ENUM[s.status] : s.status;
+          if (statusStr && counts[statusStr] !== undefined) {
+            counts[statusStr as SlotStatus]++;
+          }
+        });
         return {
           ...vt,
           slotCounts: counts,
@@ -369,7 +374,7 @@ export default function ManagerVehicleTypes() {
                   <LayoutGrid size={11} />
                   {vt.totalSlots} chỗ đỗ
                 </span>
-                <span>Tạo: {new Date(vt.createdAt).toLocaleDateString('vi-VN')}</span>
+                <span>Tạo: {vt.createdAt ? new Date(vt.createdAt).toLocaleDateString('vi-VN') : 'Không rõ'}</span>
               </div>
 
               {/* Actions */}
