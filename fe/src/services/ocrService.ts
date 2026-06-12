@@ -77,3 +77,25 @@ export async function scanPlate(
   );
 }
 
+export interface ScanAndCheckInResponse {
+  licensePlate: string;
+  confidence: number;
+  croppedPlateBase64: string;
+  message: string;
+  vehicleTypeId: string;
+  hint: string;
+}
+
+export async function scanAndCheckIn(
+  imageBase64: string,
+  vehicleTypeId: string,
+  token?: string | null
+): Promise<ScanAndCheckInResponse> {
+  return post<{ imageBase64: string; vehicleTypeId: string }, ScanAndCheckInResponse>(
+    '/api/Ocr/scan-and-checkin',
+    { imageBase64, vehicleTypeId },
+    token ?? undefined
+  );
+}
+
+

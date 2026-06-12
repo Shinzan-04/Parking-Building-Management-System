@@ -21,10 +21,14 @@ export interface GoogleLoginRequest {
 
 export interface BaseAuthResponse {
   userId: string;
+  /** JWT Access Token — backend trả về field "accessToken" */
   accessToken: string;
-  token?: string;
+  /** Refresh Token để gia hạn session */
+  refreshToken: string;
+  accessTokenExpiresAt: string;
   fullName: string;
   role: UserRole;
+  email?: string;
   qrCode?: string;
   qrCodeImageBase64?: string;
 }
@@ -70,7 +74,10 @@ export async function loginApi(payload: LoginRequest): Promise<AuthResponse> {
   return post<LoginRequest, AuthResponse>('/api/auth/login', payload);
 }
 
-/** Đăng ký tài khoản mới */
+/**
+ * @deprecated Chỉ dùng cho dev/testing — bỏ qua xác thực OTP.
+ * Flow đăng ký thật: sendOtpApi() → verifyRegisterApi()
+ */
 export async function registerApi(payload: RegisterRequest): Promise<RegisterResponse> {
   return post<RegisterRequest, RegisterResponse>('/api/auth/register', payload);
 }
@@ -79,3 +86,61 @@ export async function registerApi(payload: RegisterRequest): Promise<RegisterRes
 export async function googleLoginApi(idToken: string): Promise<AuthResponse> {
   return post<GoogleLoginRequest, AuthResponse>('/api/auth/google-login', { idToken });
 }
+
+// ─── OTP API ─────────────────────────────────────────────────────────────────
+
+export interface SendOtpRequest {
+  email: string;
+  /** "Register" hoặc "ForgotPassword" */
+  purpose: string;
+}
+
+export interface VerifyRegisterRequest {
+  email: string;
+  otpCode: string;
+  username: string;
+  password: string;
+  fullName: string;
+  phoneNumber?: string | null;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  otpCode: string;
+  newPassword: string;
+}
+
+/**
+ * Gửi mã OTP về email.
+ * Purpose: "Register" | "ForgotPassword"
+ */
+export async function sendOtpApi(payload: SendOtpRequest): Promise<{ message: string }> {
+  return post<SendOtpRequest, { message: string }>('/api/auth/send-otp', payload);
+}
+
+/**
+ * Xác thực OTP và hoàn tất đăng ký tài khoản.
+ * Backend sẽ tạo user và trả về AuthResponse nếu thành công.
+ */
+export async function verifyRegisterApi(payload: VerifyRegisterRequest): Promise<RegisterResponse> {
+  return post<VerifyRegisterRequest, RegisterResponse>('/api/auth/verify-register', payload);
+}
+
+/**
+ * Đặt lại mật khẩu bằng OTP (quên mật khẩu).
+ */
+export async function resetPasswordApi(payload: ResetPasswordRequest): Promise<{ message: string }> {
+  return post<ResetPasswordRequest, { message: string }>('/api/auth/reset-password', payload);
+}
+
+export interface LogoutRequest {
+  refreshToken: string;
+}
+
+/**
+ * Đăng xuất khỏi hệ thống và vô hiệu hóa Refresh Token ở backend.
+ */
+export async function logoutApi(payload: LogoutRequest): Promise<{ message: string }> {
+  return post<LogoutRequest, { message: string }>('/api/auth/logout', payload);
+}
+

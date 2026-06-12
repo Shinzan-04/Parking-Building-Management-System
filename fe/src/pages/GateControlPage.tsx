@@ -160,7 +160,7 @@ export default function GateControlPage() {
   
   const [vehicleTypeMap, setVehicleTypeMap] = useState<Record<string, string>>({});
 
-  const { token } = useAuth();
+  const { token, logout, user } = useAuth();
 
   const entryInputRef = useRef<HTMLInputElement>(null);
   const exitInputRef = useRef<HTMLInputElement>(null);
@@ -356,17 +356,32 @@ export default function GateControlPage() {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Manager Portal</span>
-              <span className="sm:hidden">Back</span>
-            </Link>
+            {user && (user.role === 'Manager' || user.role === 1) && (
+              <Link
+                to="/manager"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5 hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Manager Portal</span>
+                <span className="sm:hidden">Back</span>
+              </Link>
+            )}
+            {user && (user.role === 'Admin' || user.role === 0) && (
+              <Link
+                to="/admin"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5 hover:text-white"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">Admin Portal</span>
+                <span className="sm:hidden">Back</span>
+              </Link>
+            )}
             <button
               type="button"
-              onClick={() => showNotification('info', 'Logout action is not wired in this page yet.')}
+              onClick={() => {
+                logout();
+                window.location.replace('/auth');
+              }}
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5 hover:text-white"
             >
               <LogOut className="h-4 w-4" aria-hidden="true" />
