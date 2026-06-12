@@ -69,12 +69,26 @@ public class SessionService : ISessionService
         if (filter.FloorId.HasValue)
             query = query.Where(s => s.ParkingSlot.FloorId == filter.FloorId.Value);
 
-        // Lọc theo khoảng ngày
+        // Lọc theo khoảng ngày:
+        // - Completed sessions: dùng ExitTime (thời điểm ra xe thực tế để khớp kỳ báo cáo)
+        // - Active/Overdue sessions: dùng EntryTime (chưa có ExitTime)
         if (filter.FromDate.HasValue)
-            query = query.Where(s => s.EntryTime >= filter.FromDate.Value.ToUniversalTime());
+        {
+            var from = filter.FromDate.Value.ToUniversalTime();
+            query = query.Where(s =>
+                s.Status == SessionStatus.Completed
+                    ? s.ExitTime != null && s.ExitTime.Value >= from
+                    : s.EntryTime >= from);
+        }
 
         if (filter.ToDate.HasValue)
-            query = query.Where(s => s.EntryTime <= filter.ToDate.Value.ToUniversalTime());
+        {
+            var to = filter.ToDate.Value.ToUniversalTime();
+            query = query.Where(s =>
+                s.Status == SessionStatus.Completed
+                    ? s.ExitTime != null && s.ExitTime.Value <= to
+                    : s.EntryTime <= to);
+        }
 
         // Đếm tổng trước phân trang
         var totalCount = await query.CountAsync();

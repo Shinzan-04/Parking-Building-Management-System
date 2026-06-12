@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getBuildings } from '../../services/buildingsService';
-import { searchSessions, getActiveSessions } from '../../services/sessionsService';
+import { searchSessions } from '../../services/sessionsService';
 import type { SessionDto } from '../../services/sessionsService';
 import { getUsers } from '../../services/usersService';
 
@@ -96,25 +96,43 @@ export default function AdminReports() {
     setApiError('');
 
     try {
-      const [activeRes, buildings, users, completedRes] = await Promise.all([
-        getActiveSessions({ pageSize: 1 }, token),
+      const PAGE_SIZE = 200;
+      const sessionParams = {
+        status: 'Completed' as const,
+        fromDate: `${fromDate}T00:00:00Z`,
+        toDate:   `${toDate}T23:59:59Z`,
+        pageSize: PAGE_SIZE,
+      };
+
+      // Chạy song song: page 1 sessions + buildings + users
+      const [firstPage, buildings, users] = await Promise.all([
+        searchSessions({ ...sessionParams, page: 1 }, token),
         getBuildings(),
         getUsers(token),
-        searchSessions({
-          status: 'Completed',
-          fromDate: `${fromDate}T00:00:00`,
-          toDate:   `${toDate}T23:59:59`,
-          pageSize: 500,
-        }, token),
       ]);
+
+      // Nếu có nhiều trang, fetch song song các trang còn lại
+      let allItems = [...firstPage.items];
+      if (firstPage.totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
+            searchSessions({ ...sessionParams, page: i + 2 }, token)
+          )
+        );
+        rest.forEach(r => allItems.push(...r.items));
+      }
+      const completedRes = { ...firstPage, items: allItems };
+
+      // summary là global real-time stats, trả về trong mọi searchSessions response
+      const { summary } = firstPage;
 
       setTotalUsers(users.length);
       setTotalBuildings(buildings.length);
       setTotalCapacity(buildings.reduce((s, b) => s + b.totalCapacity, 0));
-      setActiveCount(activeRes.summary.totalActive);
-      setOverdueCount(activeRes.summary.totalOverdue);
-      setTodayRevenue(activeRes.summary.totalRevenueToday);
-      setTodayCompleted(activeRes.summary.totalCompletedToday);
+      setActiveCount(summary.totalActive);
+      setOverdueCount(summary.totalOverdue);
+      setTodayRevenue(summary.totalRevenueToday);
+      setTodayCompleted(summary.totalCompletedToday);
 
       // Revenue chart
       const last7 = getLast7Days();
@@ -204,9 +222,9 @@ export default function AdminReports() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Tài khoản hệ thống', value: totalUsers.toLocaleString('vi-VN'), unit: 'người dùng', icon: Users,     color: '#00C2FF', bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5' },
-          { label: 'Tòa nhà quản lý',    value: totalBuildings.toLocaleString('vi-VN'), unit: `${totalCapacity} chỗ`, icon: Building2, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-          { label: 'Xe đang đỗ',         value: activeCount.toLocaleString('vi-VN'),    unit: `${occupancyPct}% lấp đầy`, icon: Car,      color: '#3BFFA4', bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5' },
-          { label: 'Doanh thu hôm nay',  value: vnd(todayRevenue),                      unit: 'đ · ' + todayCompleted + ' lượt', icon: Banknote, color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
+          { label: 'Tòa nhà quản lý',    value: totalBuildings.toLocaleString('vi-VN'), unit: `${totalCapacity} chỗ tổng`, icon: Building2, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+          { label: 'Xe đang đỗ (real-time)', value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% lấp đầy`, icon: Car, color: '#3BFFA4', bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5' },
+          { label: 'Doanh thu hôm nay',  value: vnd(todayRevenue),                      unit: todayCompleted + ' lượt · hôm nay', icon: Banknote, color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
         ].map(card => {
           const Icon = card.icon;
           return (
