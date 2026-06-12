@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useEffect } from 'react';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 import {
@@ -14,25 +13,16 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type AuthMode = 'login' | 'register';
-
 type AuthRole = 'Admin' | 'Manager' | 'Staff' | 'Driver' | 0 | 1 | 2 | 3;
 
 function getPostLoginPath(role: AuthRole): string {
   if (role === 'Admin'   || role === 0) return '/admin';
   if (role === 'Manager' || role === 1) return '/manager';
   if (role === 'Staff'   || role === 2) return '/gate-control';
-  return '/'; // Driver (chuyển về trang chủ)
+  return '/';
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function GitHubIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
-    </svg>
-  );
-}
+// ─── Sub-component: Form Field ────────────────────────────────────────────────
 
 interface FieldProps {
   id: string;
@@ -58,7 +48,6 @@ function FormikField({
   value, onChange, onBlur, error, touched
 }: FieldProps) {
   const hasError = touched && Boolean(error);
-  
   return (
     <div>
       <label htmlFor={id} className="block text-sm font-medium text-gray-300 mb-2">
@@ -78,10 +67,10 @@ function FormikField({
           placeholder={placeholder}
           autoComplete={autoComplete}
           className={`w-full pl-10 pr-10 py-3 rounded-xl bg-white/5 border text-sm outline-none transition-all duration-200
-                     ${hasError 
-                        ? 'border-red-500/50 text-red-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                        : 'border-white/10 text-white placeholder:text-gray-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
-                     }`}
+            ${hasError
+              ? 'border-red-500/50 text-red-200 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+              : 'border-white/10 text-white placeholder:text-gray-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
+            }`}
         />
         {showToggle && (
           <button
@@ -94,7 +83,6 @@ function FormikField({
           </button>
         )}
       </div>
-      {/* Hiển thị lỗi ngay bên dưới input */}
       <div className={`overflow-hidden transition-all duration-300 ${hasError ? 'max-h-10 opacity-100 mt-1.5' : 'max-h-0 opacity-0'}`}>
         <p className="text-xs text-red-400">{error}</p>
       </div>
@@ -105,12 +93,11 @@ function FormikField({
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
 const loginSchema = Yup.object().shape({
-  username: Yup.string()
-    .required('Vui lòng nhập tên đăng nhập (username)'),
-  password: Yup.string()
-    .required('Vui lòng nhập mật khẩu'),
+  username: Yup.string().required('Vui lòng nhập tên đăng nhập (username)'),
+  password: Yup.string().required('Vui lòng nhập mật khẩu'),
 });
 
+// Email bắt buộc khi đăng ký vì flow OTP cần gửi mail xác thực
 const registerSchema = Yup.object().shape({
   username: Yup.string()
     .min(3, 'Tên đăng nhập phải có ít nhất 3 ký tự')
@@ -120,9 +107,8 @@ const registerSchema = Yup.object().shape({
     .required('Vui lòng nhập họ và tên'),
   email: Yup.string()
     .email('Email không hợp lệ')
-    .nullable(),
-  phoneNumber: Yup.string()
-    .nullable(),
+    .required('Vui lòng nhập email để nhận mã xác thực OTP'),
+  phoneNumber: Yup.string().nullable(),
   password: Yup.string()
     .min(6, 'Mật khẩu phải có ít nhất 6 ký tự')
     .required('Vui lòng nhập mật khẩu'),
@@ -135,103 +121,102 @@ const registerSchema = Yup.object().shape({
 
 export default function AuthPage() {
   const navigate = useNavigate();
-  const { user, login, register, loading, error: apiError, loginWithGoogle } = useAuth();
+  const { user, login, loading, error: apiError, loginWithGoogle } = useAuth();
+
+  // Loading/lỗi riêng cho bước gửi OTP
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpError, setOtpError]     = useState<string | null>(null);
 
   // Redirect nếu đã đăng nhập
   useEffect(() => {
     if (user) navigate(getPostLoginPath(user.role as AuthRole), { replace: true });
   }, [user, navigate]);
 
+  // Khởi tạo Google Sign-In SDK
   useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) {
-      console.warn('VITE_GOOGLE_CLIENT_ID is not set. Google Sign-In disabled.');
+      console.warn('VITE_GOOGLE_CLIENT_ID chưa được cài đặt. Google Sign-In bị tắt.');
       return;
     }
 
     function handleCredentialResponse(response: any) {
       const idToken = response?.credential;
       if (idToken) {
-        // Login using hook
         loginWithGoogle(idToken)
-          .then((authResponse) => {
-            navigate(getPostLoginPath(authResponse.role as AuthRole));
-          })
-          .catch(() => {
-            // error handled in hook
-          });
+          .then((authResponse) => navigate(getPostLoginPath(authResponse.role as AuthRole)))
+          .catch(() => {});
       }
     }
 
-    // Load Google Identity Services script if not present
+    const initGoogle = () => {
+      (window as any).google?.accounts.id.initialize({ client_id: clientId, callback: handleCredentialResponse });
+      const container = document.getElementById('googleSignInDiv');
+      if (container) {
+        (window as any).google?.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
+      }
+    };
+
     if (!(window as any).google) {
       const id = 'google-identity';
       if (!document.getElementById(id)) {
         const s = document.createElement('script');
         s.src = 'https://accounts.google.com/gsi/client';
-        s.async = true;
-        s.defer = true;
-        s.id = id;
-        s.onload = () => {
-          (window as any).google?.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleCredentialResponse,
-          });
-          // Render button into placeholder
-          const container = document.getElementById('googleSignInDiv');
-          if (container) {
-            (window as any).google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
-          }
-        };
+        s.async = true; s.defer = true; s.id = id;
+        s.onload = initGoogle;
         document.body.appendChild(s);
       }
     } else {
-      (window as any).google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredentialResponse,
-      });
-      const container = document.getElementById('googleSignInDiv');
-      if (container) {
-        (window as any).google.accounts.id.renderButton(container, { theme: 'outline', size: 'large' });
-      }
+      initGoogle();
     }
   }, [loginWithGoogle, navigate]);
 
-  const [mode, setMode] = useState<AuthMode>('login');
+  const [mode, setMode]               = useState<AuthMode>('login');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe]   = useState(false);
 
-  // Khởi tạo Formik
+  // ─── Formik ───────────────────────────────────────────────────────────────
   const formik = useFormik({
     initialValues: {
-      username: '',
-      fullName: '',
-      email: '',
-      phoneNumber: '',
-      password: '',
-      confirmPassword: '',
+      username: '', fullName: '', email: '',
+      phoneNumber: '', password: '', confirmPassword: '',
     },
     validationSchema: mode === 'login' ? loginSchema : registerSchema,
     onSubmit: async (values, { setSubmitting }) => {
       if (mode === 'login') {
+        // ── Đăng nhập ──────────────────────────────────────────────────────
         try {
           const authResponse = await login({ username: values.username, password: values.password });
           navigate(getPostLoginPath(authResponse.role as AuthRole));
         } catch {
-          // apiError đã được hook useAuth xử lý
+          // lỗi đã được hook useAuth xử lý vào apiError
         }
       } else {
+        // ── Đăng ký → gửi OTP → chuyển sang trang verify ─────────────────
+        setOtpLoading(true);
+        setOtpError(null);
         try {
-          const authResponse = await register({
-            username: values.username,
-            password: values.password,
-            fullName: values.fullName,
-            email: values.email.trim() || null,
-            phoneNumber: values.phoneNumber.trim() || null,
+          const { sendOtpApi } = await import('../services/authService');
+          await sendOtpApi({ email: values.email, purpose: 'Register' });
+
+          // Chuyển sang trang xác thực OTP, mang theo toàn bộ thông tin đăng ký
+          navigate('/verify-email', {
+            state: {
+              purpose: 'Register',
+              email: values.email,
+              registrationData: {
+                username: values.username,
+                password: values.password,
+                fullName: values.fullName,
+                email: values.email,
+                phoneNumber: values.phoneNumber.trim() || null,
+              },
+            },
           });
-          navigate(getPostLoginPath(authResponse.role as AuthRole));
-        } catch {
-          // apiError đã được hook useAuth xử lý
+        } catch (err) {
+          setOtpError(err instanceof Error ? err.message : 'Gửi OTP thất bại. Vui lòng thử lại.');
+        } finally {
+          setOtpLoading(false);
         }
       }
       setSubmitting(false);
@@ -242,36 +227,28 @@ export default function AuthPage() {
     setMode(next);
     formik.resetForm();
     setShowPassword(false);
-  };
-
-  const handleSocialAuth = (provider: string) => {
-    alert(`${provider} OAuth chưa được cấu hình.`);
+    setOtpError(null);
   };
 
   const handleGoogleClick = () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      alert('VITE_GOOGLE_CLIENT_ID chưa được cấu hình. Vui lòng thêm Client ID vào .env');
-      return;
-    }
-
-    if ((window as any).google && (window as any).google.accounts?.id) {
-      try {
-        (window as any).google.accounts.id.prompt();
-      } catch {
-        // If prompt fails, try clicking rendered button if exists
-        const btn = document.querySelector('#googleSignInDiv button') as HTMLButtonElement | null;
-        if (btn) btn.click();
-      }
+    if (!clientId) { alert('VITE_GOOGLE_CLIENT_ID chưa được cấu hình. Vui lòng thêm vào .env'); return; }
+    if ((window as any).google?.accounts?.id) {
+      try { (window as any).google.accounts.id.prompt(); }
+      catch { (document.querySelector('#googleSignInDiv button') as HTMLButtonElement | null)?.click(); }
     } else {
       alert('Google Sign-In chưa sẵn sàng. Thử refresh trang.');
     }
   };
 
+  const isWorking    = loading || formik.isSubmitting || otpLoading;
+  const displayError = mode === 'register' ? (otpError ?? apiError) : apiError;
+
+  // ─── JSX ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#0A0A0C] flex overflow-hidden text-white">
 
-      {/* ── Left Panel ─────────────────────────────────────────────────────── */}
+      {/* ── Left Panel ──────────────────────────────────────────────────── */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-orange-500/10" />
         <div className="blob top-20 left-20 w-96 h-96 bg-amber-500/10 animate-pulse" />
@@ -316,9 +293,9 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* ── Right Panel (Form) ──────────────────────────────────────────────── */}
+      {/* ── Right Panel (Form) ──────────────────────────────────────────── */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative">
-        {/* Back button */}
+        {/* Nút quay về trang chủ */}
         <Link
           to="/"
           className="absolute top-6 left-6 flex items-center gap-1.5 text-sm text-gray-400
@@ -329,7 +306,6 @@ export default function AuthPage() {
         </Link>
 
         <div className="w-full max-w-md">
-          {/* Card */}
           <div className="p-8 rounded-3xl backdrop-blur-xl bg-[#121214] border border-white/5 shadow-2xl">
 
             {/* Logo */}
@@ -337,10 +313,12 @@ export default function AuthPage() {
               <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg shadow-lg shadow-amber-500/20">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xl font-bold tracking-wider">PARKING <span className="text-amber-500">BUILDING</span></span>
+              <span className="text-xl font-bold tracking-wider">
+                PARKING <span className="text-amber-500">BUILDING</span>
+              </span>
             </div>
 
-            {/* Header */}
+            {/* Tiêu đề */}
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-white mb-1">
                 {mode === 'login' ? 'Welcome Back' : 'Create Account'}
@@ -352,8 +330,8 @@ export default function AuthPage() {
               </p>
             </div>
 
-            {/* Social buttons (only Google) */}
-            <div className="grid grid-cols-1 gap-3 mb-5 items-center">
+            {/* Google Sign-In button */}
+            <div className="mb-5">
               <button
                 type="button"
                 onClick={handleGoogleClick}
@@ -370,7 +348,7 @@ export default function AuthPage() {
                 Sign in with Google
               </button>
             </div>
-            {/* Hidden container for Google Identity to render into (kept for compatibility) */}
+            {/* Container ẩn cho Google Identity SDK render vào */}
             <div id="googleSignInDiv" className="hidden" />
 
             {/* Divider */}
@@ -383,23 +361,31 @@ export default function AuthPage() {
               </div>
             </div>
 
-            {/* API error */}
-            {apiError && (
+            {/* Thông báo lỗi */}
+            {displayError && (
               <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-start gap-2">
                 <span className="mt-0.5 shrink-0">⚠</span>
-                <span>{apiError}</span>
+                <span>{displayError}</span>
               </div>
             )}
 
-            {/* ── Formik Form ──────────────────────────────────────────────── */}
+            {/* Thông báo OTP khi đang ở chế độ đăng ký */}
+            {mode === 'register' && (
+              <div className="mb-4 px-4 py-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-start gap-2">
+                <span className="mt-0.5 shrink-0">📧</span>
+                <span>
+                  Sau khi điền form, mã OTP sẽ được gửi tới <strong>email</strong> của bạn
+                  để xác thực tài khoản. Email là bắt buộc.
+                </span>
+              </div>
+            )}
+
+            {/* ── Form ──────────────────────────────────────────────────── */}
             <form onSubmit={formik.handleSubmit} className="space-y-4" noValidate>
 
               {/* Username */}
               <FormikField
-                id="username"
-                name="username"
-                label="Username"
-                type="text"
+                id="username" name="username" label="Username"
                 placeholder="your_username"
                 icon={<User className="w-4 h-4" />}
                 autoComplete="username"
@@ -410,66 +396,56 @@ export default function AuthPage() {
                 touched={formik.touched.username}
               />
 
+              {/* Chỉ hiện khi register */}
               {mode === 'register' && (
-                <FormikField
-                  id="fullName"
-                  name="fullName"
-                  label="Full name"
-                  type="text"
-                  placeholder="Nguyễn Văn A"
-                  icon={<User className="w-4 h-4" />}
-                  autoComplete="name"
-                  value={formik.values.fullName}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  error={formik.errors.fullName}
-                  touched={formik.touched.fullName}
-                />
-              )}
-
-              {mode === 'register' && (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <>
                   <FormikField
-                    id="email"
-                    name="email"
-                    label="Email"
-                    type="email"
-                    placeholder="you@example.com"
-                    icon={<Mail className="w-4 h-4" />}
-                    autoComplete="email"
-                    value={formik.values.email}
+                    id="fullName" name="fullName" label="Full name"
+                    placeholder="Nguyễn Văn A"
+                    icon={<User className="w-4 h-4" />}
+                    autoComplete="name"
+                    value={formik.values.fullName}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
-                    error={formik.errors.email}
-                    touched={formik.touched.email}
+                    error={formik.errors.fullName}
+                    touched={formik.touched.fullName}
                   />
 
-                  <FormikField
-                    id="phoneNumber"
-                    name="phoneNumber"
-                    label="Phone number"
-                    type="tel"
-                    placeholder="0901234567"
-                    icon={<Phone className="w-4 h-4" />}
-                    autoComplete="tel"
-                    value={formik.values.phoneNumber}
-                    onChange={formik.handleChange}
-                    onBlur={formik.handleBlur}
-                    error={formik.errors.phoneNumber}
-                    touched={formik.touched.phoneNumber}
-                  />
-                </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <FormikField
+                      id="email" name="email" label="Email *"
+                      type="email"
+                      placeholder="you@example.com"
+                      icon={<Mail className="w-4 h-4" />}
+                      autoComplete="email"
+                      value={formik.values.email}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={formik.errors.email}
+                      touched={formik.touched.email}
+                    />
+                    <FormikField
+                      id="phoneNumber" name="phoneNumber" label="Phone number"
+                      type="tel"
+                      placeholder="0901234567"
+                      icon={<Phone className="w-4 h-4" />}
+                      autoComplete="tel"
+                      value={formik.values.phoneNumber}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      error={formik.errors.phoneNumber}
+                      touched={formik.touched.phoneNumber}
+                    />
+                  </div>
+                </>
               )}
 
               {/* Password */}
               <FormikField
-                id="password"
-                name="password"
-                label="Password"
+                id="password" name="password" label="Password"
                 placeholder="••••••••"
                 icon={<Lock className="w-4 h-4" />}
-                showToggle
-                showValue={showPassword}
+                showToggle showValue={showPassword}
                 onToggle={() => setShowPassword((p) => !p)}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
                 value={formik.values.password}
@@ -479,16 +455,10 @@ export default function AuthPage() {
                 touched={formik.touched.password}
               />
 
-              {/* Confirm Password (chỉ hiện ở mode register) */}
-              <div
-                className={`overflow-hidden transition-all duration-300 ${
-                  mode === 'register' ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'
-                }`}
-              >
+              {/* Confirm Password — chỉ ở register */}
+              <div className={`overflow-hidden transition-all duration-300 ${mode === 'register' ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
                 <FormikField
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  label="Confirm Password"
+                  id="confirmPassword" name="confirmPassword" label="Confirm Password"
                   placeholder="••••••••"
                   icon={<Lock className="w-4 h-4" />}
                   autoComplete="new-password"
@@ -500,16 +470,14 @@ export default function AuthPage() {
                 />
               </div>
 
-              {/* Remember me / Forgot (chỉ hiện ở mode login) */}
+              {/* Remember me / Forgot Password — chỉ ở login */}
               {mode === 'login' && (
                 <div className="flex items-center justify-between pt-1">
                   <label className="flex items-center gap-2 cursor-pointer select-none group">
                     <div
                       onClick={() => setRememberMe((r) => !r)}
                       className={`w-4 h-4 rounded border flex items-center justify-center transition-all duration-200
-                        ${rememberMe
-                          ? 'bg-amber-500 border-transparent'
-                          : 'border-white/30 bg-white/5 group-hover:border-amber-500/50'}`}
+                        ${rememberMe ? 'bg-amber-500 border-transparent' : 'border-white/30 bg-white/5 group-hover:border-amber-500/50'}`}
                     >
                       {rememberMe && (
                         <svg className="w-2.5 h-2.5 text-black" fill="none" viewBox="0 0 12 12">
@@ -517,24 +485,23 @@ export default function AuthPage() {
                         </svg>
                       )}
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                      className="sr-only"
-                    />
+                    <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="sr-only" />
                     <span className="text-sm text-gray-400">Remember me</span>
                   </label>
-                  <a href="#" className="text-sm text-amber-500 hover:underline hover:text-amber-400 transition-colors">
+                  <button
+                    type="button"
+                    onClick={() => navigate('/forgot-password')}
+                    className="text-sm text-amber-500 hover:underline hover:text-amber-400 transition-colors"
+                  >
                     Forgot password?
-                  </a>
+                  </button>
                 </div>
               )}
 
-              {/* Submit Button */}
+              {/* Submit */}
               <button
                 type="submit"
-                disabled={loading || formik.isSubmitting}
+                disabled={isWorking}
                 className="w-full mt-2 py-3 rounded-xl font-semibold text-sm text-black
                            bg-gradient-to-r from-amber-500 to-orange-500
                            hover:opacity-95 active:scale-[0.98]
@@ -542,19 +509,19 @@ export default function AuthPage() {
                            transition-all duration-200
                            disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
-                {loading || formik.isSubmitting ? (
+                {isWorking ? (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                    Please wait…
+                    {mode === 'register' ? 'Đang gửi OTP…' : 'Please wait…'}
                   </span>
-                ) : mode === 'login' ? 'Sign In' : 'Create Account'}
+                ) : mode === 'login' ? 'Sign In' : 'Tiếp theo — Xác thực Email'}
               </button>
             </form>
 
-            {/* Toggle Mode */}
+            {/* Toggle mode */}
             <div className="mt-5 text-center">
               <p className="text-sm text-gray-400">
                 {mode === 'login' ? "Don't have an account?" : 'Already have an account?'}{' '}

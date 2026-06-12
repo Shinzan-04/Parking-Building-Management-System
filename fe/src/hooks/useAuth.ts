@@ -30,7 +30,7 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   const saveSession = useCallback((response: BaseAuthResponse) => {
-    localStorage.setItem(TOKEN_KEY, response.token);
+    localStorage.setItem(TOKEN_KEY, response.accessToken);
     localStorage.setItem(USER_KEY, JSON.stringify(response));
     setUser(response);
     setError(null);
@@ -97,7 +97,7 @@ export function useAuth() {
 
   return {
     user,
-    token: user?.token ?? null,
+    token: user?.accessToken ?? null,
     isAuthenticated: !!user,
     loading,
     error,
@@ -105,5 +105,6 @@ export function useAuth() {
     register,
     loginWithGoogle,
     logout,
+    saveSession,
   };
 }

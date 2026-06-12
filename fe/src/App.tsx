@@ -3,7 +3,9 @@ import { lazy, Suspense } from 'react';
 import './index.css';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
-const AuthPage         = lazy(() => import('./pages/AuthPage'));
+const AuthPage            = lazy(() => import('./pages/AuthPage'));
+const VerifyEmailPage     = lazy(() => import('./pages/VerifyEmailPage'));
+const ForgotPasswordPage  = lazy(() => import('./pages/ForgotPasswordPage'));
 
 const AdminLayout      = lazy(() => import('./pages/Admin/AdminLayout'));
 const AdminDashboard   = lazy(() => import('./pages/Admin/Dashboard'));
@@ -34,6 +36,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<UserLandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
           {/* Admin Portal - chỉ Admin */}
           <Route
