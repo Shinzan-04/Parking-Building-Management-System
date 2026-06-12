@@ -1,13 +1,10 @@
 import { useState, useCallback } from 'react';
 import {
   loginApi,
-  registerApi,
   googleLoginApi,
   type AuthResponse,
   type BaseAuthResponse,
   type LoginRequest,
-  type RegisterRequest,
-  type RegisterResponse,
 } from '../services/authService';
 
 const TOKEN_KEY = 'sp_token';
@@ -25,10 +22,14 @@ function readStorage(): AuthResponse | null {
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useAuth() {
-  const [user, setUser] = useState<AuthResponse | null>(readStorage);
+  const [user, setUser]       = useState<AuthResponse | null>(readStorage);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
+  /**
+   * Lưu session vào localStorage và cập nhật React state.
+   * Dùng sau khi verify-register hoặc bất kỳ API nào trả về AuthResponse.
+   */
   const saveSession = useCallback((response: BaseAuthResponse) => {
     localStorage.setItem(TOKEN_KEY, response.accessToken);
     localStorage.setItem(USER_KEY, JSON.stringify(response));
@@ -36,7 +37,10 @@ export function useAuth() {
     setError(null);
   }, []);
 
-  /** Đăng nhập bằng username + password */
+  /**
+   * Đăng nhập bằng username + password.
+   * Gọi POST /api/auth/login
+   */
   const login = useCallback(async (payload: LoginRequest) => {
     setLoading(true);
     setError(null);
@@ -53,24 +57,10 @@ export function useAuth() {
     }
   }, [saveSession]);
 
-  /** Đăng ký bằng username + password + thông tin hồ sơ */
-  const register = useCallback(async (payload: RegisterRequest) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response: RegisterResponse = await registerApi(payload);
-      saveSession(response);
-      return response;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Đăng ký thất bại.';
-      setError(msg);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [saveSession]);
-
-  /** Đăng nhập bằng Google ID Token */
+  /**
+   * Đăng nhập bằng Google ID Token.
+   * Gọi POST /api/auth/google-login
+   */
   const loginWithGoogle = useCallback(async (idToken: string) => {
     setLoading(true);
     setError(null);
@@ -87,7 +77,7 @@ export function useAuth() {
     }
   }, [saveSession]);
 
-  /** Đăng xuất */
+  /** Đăng xuất — xoá token khỏi localStorage và reset state */
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
@@ -97,14 +87,15 @@ export function useAuth() {
 
   return {
     user,
-    token: user?.accessToken ?? null,
+    /** JWT access token hiện tại (null nếu chưa đăng nhập) */
+    token:           user?.accessToken ?? null,
     isAuthenticated: !!user,
     loading,
     error,
     login,
-    register,
     loginWithGoogle,
     logout,
+    /** Lưu session thủ công — dùng sau verify-register OTP */
     saveSession,
   };
 }

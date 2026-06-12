@@ -74,7 +74,10 @@ export async function loginApi(payload: LoginRequest): Promise<AuthResponse> {
   return post<LoginRequest, AuthResponse>('/api/auth/login', payload);
 }
 
-/** Đăng ký tài khoản mới (không cần OTP) */
+/**
+ * @deprecated Chỉ dùng cho dev/testing — bỏ qua xác thực OTP.
+ * Flow đăng ký thật: sendOtpApi() → verifyRegisterApi()
+ */
 export async function registerApi(payload: RegisterRequest): Promise<RegisterResponse> {
   return post<RegisterRequest, RegisterResponse>('/api/auth/register', payload);
 }
