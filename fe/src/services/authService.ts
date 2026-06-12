@@ -132,3 +132,15 @@ export async function verifyRegisterApi(payload: VerifyRegisterRequest): Promise
 export async function resetPasswordApi(payload: ResetPasswordRequest): Promise<{ message: string }> {
   return post<ResetPasswordRequest, { message: string }>('/api/auth/reset-password', payload);
 }
+
+export interface LogoutRequest {
+  refreshToken: string;
+}
+
+/**
+ * Đăng xuất khỏi hệ thống và vô hiệu hóa Refresh Token ở backend.
+ */
+export async function logoutApi(payload: LogoutRequest): Promise<{ message: string }> {
+  return post<LogoutRequest, { message: string }>('/api/auth/logout', payload);
+}
+

@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   loginApi,
   googleLoginApi,
+  logoutApi,
   type AuthResponse,
   type BaseAuthResponse,
   type LoginRequest,
@@ -77,13 +78,23 @@ export function useAuth() {
     }
   }, [saveSession]);
 
-  /** Đăng xuất — xoá token khỏi localStorage và reset state */
+  /** Đăng xuất — xoá token khỏi localStorage, reset state và gọi API vô hiệu hoá refresh token trên Backend dưới nền */
   const logout = useCallback(() => {
+    const refreshToken = user?.refreshToken;
+
+    // Xóa session ở client ngay lập tức để tránh độ trễ giao diện
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setUser(null);
     setError(null);
-  }, []);
+
+    // Gọi API logout lên backend chạy ngầm
+    if (refreshToken) {
+      logoutApi({ refreshToken }).catch((err) => {
+        console.error('Lỗi khi gọi API logout lên Backend:', err);
+      });
+    }
+  }, [user]);
 
   return {
     user,
