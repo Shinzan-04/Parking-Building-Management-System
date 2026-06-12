@@ -54,12 +54,12 @@ async function post<TBody, TResponse>(
     throw new Error(errorMessage);
   }
 
-  // Parse response
   try {
     return await res.json();
   } catch (error) {
     throw new Error(
-      `Failed to parse JSON response. Backend may not be running or API returned invalid data. URL: ${BASE_URL}${path}`
+      `Failed to parse JSON response. Backend may not be running or API returned invalid data. URL: ${BASE_URL}${path}`,
+      { cause: error }
     );
   }
 }

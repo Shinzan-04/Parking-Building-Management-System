@@ -499,4 +499,4 @@ fe/.env
 # Local dev scripts
 start-postgres.bat
 
-.claude
+.claude/

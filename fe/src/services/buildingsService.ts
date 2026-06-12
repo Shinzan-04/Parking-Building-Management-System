@@ -42,6 +42,10 @@ export function isSlotOccupied(status: string | number): boolean {
   return status === 'Occupied' || status === 1 || status === 'Reserved' || status === 2;
 }
 
+export function isSlotMaintenance(status: string | number): boolean {
+  return status === 'Maintenance' || status === 3;
+}
+
 async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
@@ -100,6 +104,9 @@ export const getFloorsByBuilding = (buildingId: string): Promise<FloorResponse[]
 
 export const createFloor = (payload: CreateFloorRequest, token: string): Promise<FloorResponse> =>
   apiFetch('/api/floors', { method: 'POST', body: JSON.stringify(payload) }, token);
+
+export const updateFloor = (id: string, payload: { name: string, floorIndex: number }, token: string): Promise<FloorResponse> =>
+  apiFetch(`/api/floors/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
 
 export const deleteFloor = (id: string, token: string): Promise<void> =>
   apiFetch(`/api/floors/${id}`, { method: 'DELETE' }, token);

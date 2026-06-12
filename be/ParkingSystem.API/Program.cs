@@ -213,6 +213,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure the HTTP request pipeline.
+app.UseCors("AllowAll");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -225,18 +227,9 @@ if (app.Environment.IsDevelopment())
 
 // app.UseHttpsRedirection();
 
-app.UseCors("AllowAll");
-
-app.UseFileServer(new Microsoft.AspNetCore.Builder.FileServerOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"))),
-    RequestPath = "/uitest",
-    EnableDefaultFiles = true,
-});
-
 app.UseAuthentication();
 app.UseAuthorization();
+
 
 app.MapControllers();
 

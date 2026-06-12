@@ -11,11 +11,12 @@
  *  - Badge IssueType cảnh báo ngoại lệ (Mất vé / Sai biển số…)
  */
 
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  ClipboardList, Search, Filter, RefreshCw, ChevronLeft,
+  ClipboardList, Search, RefreshCw, ChevronLeft,
   ChevronRight, Eye, Clock, CheckCircle2, AlertTriangle,
-  Banknote, Car, X, Loader2, Calendar, Building2,
+  Banknote, Car, X, Loader2, Calendar,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { searchSessions, getActiveSessions, getSessionById } from '../../services/sessionsService';
@@ -216,8 +217,7 @@ export default function ManagerSessions() {
   const [search,     setSearch]     = useState('');
   const [statusFilter, setStatusFilter] = useState<SessionStatus | ''>('');
   const today = toLocalDateStr(new Date());
-  const weekAgo = toLocalDateStr(new Date(Date.now() - 7 * 86400_000));
-  const [fromDate, setFromDate]     = useState(weekAgo);
+  const [fromDate, setFromDate]     = useState(() => toLocalDateStr(new Date(Date.now() - 7 * 86400_000)));
   const [toDate,   setToDate]       = useState(today);
 
   // Detail modal
