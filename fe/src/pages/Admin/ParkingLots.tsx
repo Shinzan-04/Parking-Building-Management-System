@@ -272,6 +272,16 @@ function SlotMap({
 }
 
 
+function getActiveToken(_reactToken?: string | null): string | null {
+  try {
+    const raw = localStorage.getItem('sp_user');
+    const parsed = JSON.parse(raw ?? '{}');
+    const t = parsed?.accessToken ?? parsed?.token ?? null;
+    console.log('[getActiveToken] result:', t?.slice(0, 30));
+    return t;
+  } catch { return null; }
+}
+
 export default function ParkingLots() {
   const { token } = useAuth();
 
@@ -456,7 +466,8 @@ export default function ParkingLots() {
   };
 
   const saveFloorEdit = async (f: FloorResponse) => {
-    if (!token) { setEditFloorError('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.'); return; }
+    const activeToken = getActiveToken(token);
+    if (!activeToken) { setEditFloorError('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.'); return; }
     if (!selected) return;
     const newName = editFloorName.trim();
     const targetCount = Number(editFloorAddedSlots);
@@ -465,7 +476,7 @@ export default function ParkingLots() {
     try {
       // ── Rename ──
       if (newName && newName !== f.name) {
-        await updateFloor(f.id, { name: newName, floorIndex: f.floorIndex }, token);
+        await updateFloor(f.id, { name: newName, floorIndex: f.floorIndex }, activeToken);
       }
 
       // ── Adjust slot count ──
@@ -497,7 +508,7 @@ export default function ParkingLots() {
           if (toRestore.length > 0) {
             const BATCH = 10;
             for (let i = 0; i < toRestore.length; i += BATCH) {
-              await Promise.all(toRestore.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Available', token)));
+              await Promise.all(toRestore.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Available', activeToken)));
             }
           }
           if (toCreate > 0) {
@@ -508,7 +519,7 @@ export default function ParkingLots() {
                   floorId: f.id,
                   vehicleTypeId: editFloorVehicleTypeId,
                   slotNumber: String(totalExisting + i + 1).padStart(3, '0'),
-                }, token)
+                }, activeToken)
               )
             );
           }
@@ -522,7 +533,7 @@ export default function ParkingLots() {
           }
           const BATCH = 10;
           for (let i = 0; i < toDisable.length; i += BATCH) {
-            await Promise.all(toDisable.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Maintenance', token)));
+            await Promise.all(toDisable.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Maintenance', activeToken)));
           }
         }
       }
@@ -549,10 +560,11 @@ export default function ParkingLots() {
   };
 
   const handleDeleteFloor = async (floorId: string) => {
-    if (!token) return;
+    const activeToken = getActiveToken(token);
+    if (!activeToken) return;
     setFloorLoading(true); setFloorError('');
     try {
-      await deleteFloor(floorId, token);
+      await deleteFloor(floorId, activeToken);
       setEditFloors(prev => prev.filter(f => f.id !== floorId));
       setAllFloors(prev => prev.filter(f => f.id !== floorId));
       if (selected) setLots(prev => prev.map(l => l.id === selected.id ? { ...l, floorCount: l.floorCount - 1 } : l));
@@ -575,14 +587,15 @@ export default function ParkingLots() {
   const handleAdd = async () => {
     const err = validateForm();
     if (err) { setFormError(err); return; }
-    if (!token) return;
+    const activeToken = getActiveToken(token);
+    if (!activeToken) return;
     setSubmitting(true);
     try {
       const created = await createBuilding({
         name: form.name.trim(),
         address: form.address.trim(),
         totalCapacity: Number(form.totalSpots),
-      }, token);
+      }, activeToken);
       setLots(prev => [...prev, {
         id: created.id,
         name: created.name,
@@ -602,14 +615,15 @@ export default function ParkingLots() {
   const handleEdit = async () => {
     const err = validateForm();
     if (err) { setFormError(err); return; }
-    if (!selected || !token) return;
+    const activeToken = getActiveToken(token);
+    if (!selected || !activeToken) return;
     setSubmitting(true);
     try {
       const updated = await updateBuilding(selected.id, {
         name: form.name.trim(),
         address: form.address.trim(),
         totalCapacity: Number(form.totalSpots),
-      }, token);
+      }, activeToken);
       setLots(prev => prev.map(l => l.id !== selected.id ? l : {
         ...l,
         name: updated.name,
@@ -626,10 +640,11 @@ export default function ParkingLots() {
   };
 
   const handleDelete = async () => {
-    if (!selected || !token) return;
+    const activeToken = getActiveToken(token);
+    if (!selected || !activeToken) return;
     setSubmitting(true);
     try {
-      await deleteBuilding(selected.id, token);
+      await deleteBuilding(selected.id, activeToken);
       setLots(prev => prev.filter(l => l.id !== selected.id));
       closeModal();
     } catch (e: unknown) {
@@ -846,11 +861,27 @@ export default function ParkingLots() {
                     selectedSlotId={selectedSlotId}
                     onSelectSlot={setSelectedSlotId}
                     onConfirm={async (slotId, action) => {
-                      if (!token) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
+                      const activeToken = getActiveToken(token);
+                      if (!activeToken) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
                       const newStatus = action === 'release' ? 'Available' : 'Occupied';
                       try {
-                        await updateSlotStatus(slotId, newStatus, token);
-                        setAllSlots(prev => prev.map(s => s.id === slotId ? { ...s, status: newStatus } : s));
+                        await updateSlotStatus(slotId, newStatus, activeToken);
+                        const updatedSlots = allSlots.map(s => s.id === slotId ? { ...s, status: newStatus } : s);
+                        setAllSlots(updatedSlots);
+                        // Recalculate usedSpots for this building
+                        const fbMap: Record<string, string> = {};
+                        allFloors.forEach(f => { fbMap[f.id] = f.buildingId; });
+                        const usedByBuilding: Record<string, number> = {};
+                        updatedSlots.filter(s => isSlotOccupied(s.status)).forEach(s => {
+                          const bid = fbMap[s.floorId];
+                          if (bid) usedByBuilding[bid] = (usedByBuilding[bid] ?? 0) + 1;
+                        });
+                        setLots(prev => prev.map(l => ({
+                          ...l,
+                          usedSpots: usedByBuilding[l.id] ?? 0,
+                          status: (usedByBuilding[l.id] ?? 0) >= l.totalSpots ? 'full' : l.status === 'full' ? 'active' : l.status,
+                        })));
+                        if (selected) setSelected(s => s ? { ...s, usedSpots: usedByBuilding[s.id] ?? 0 } : s);
                         showToast('success', action === 'release' ? 'Đã giải phóng chỗ đỗ!' : 'Đã phân bổ chỗ đỗ thành công!');
                       } catch (e) {
                         showToast('error', e instanceof Error ? e.message : 'Không thể cập nhật chỗ đỗ.');

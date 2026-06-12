@@ -218,6 +218,18 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 app.UseCors("AllowAll");
 
+// Allow CORS preflight OPTIONS requests to pass through before auth
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == "OPTIONS")
+    {
+        context.Response.StatusCode = 200;
+        await context.Response.CompleteAsync();
+        return;
+    }
+    await next();
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
