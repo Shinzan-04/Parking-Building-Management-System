@@ -10,11 +10,13 @@ public class ReservationService : IReservationService
 {
     private readonly ApplicationDbContext _context;
     private readonly IQrCodeService _qrCodeService;
+    private readonly INotificationService _notificationService;
 
-    public ReservationService(ApplicationDbContext context, IQrCodeService qrCodeService)
+    public ReservationService(ApplicationDbContext context, IQrCodeService qrCodeService, INotificationService notificationService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
+        _notificationService = notificationService;
     }
 
     public async Task<ReservationResponse> CreateReservationAsync(Guid driverId, CreateReservationRequest request)
@@ -26,7 +28,25 @@ public class ReservationService : IReservationService
         if (request.EndTime <= request.StartTime)
             throw new InvalidOperationException("Thời gian kết thúc phải lớn hơn thời gian bắt đầu.");
 
-        // 2. Kiểm tra xe đã có booking nào trùng giờ chưa
+        // 2. Validate ParkingSlot tồn tại + đang Available
+        var slot = await _context.ParkingSlots.FindAsync(request.ParkingSlotId);
+        if (slot == null)
+            throw new InvalidOperationException("Ô đỗ xe không tồn tại.");
+
+        if (slot.Status != SlotStatus.Available)
+            throw new InvalidOperationException($"Ô đỗ {slot.SlotNumber} hiện không khả dụng (trạng thái: {slot.Status}).");
+
+        // 3. Validate VehicleType — slot chỉ hỗ trợ 1 loại xe
+        if (slot.VehicleTypeId != request.VehicleTypeId)
+        {
+            var slotVehicleType = await _context.VehicleTypes.FindAsync(slot.VehicleTypeId);
+            var requestVehicleType = await _context.VehicleTypes.FindAsync(request.VehicleTypeId);
+            throw new InvalidOperationException(
+                $"Ô đỗ {slot.SlotNumber} chỉ dành cho {slotVehicleType?.Name ?? "loại xe khác"}, " +
+                $"không hỗ trợ {requestVehicleType?.Name ?? "loại xe bạn chọn"}.");
+        }
+
+        // 4. Kiểm tra xe đã có booking nào trùng giờ chưa
         var hasExistingBookingForPlate = await _context.Reservations
             .AnyAsync(r => r.LicensePlate == request.LicensePlate 
                         && r.Status != ReservationStatus.Cancelled 
@@ -37,7 +57,7 @@ public class ReservationService : IReservationService
         if (hasExistingBookingForPlate)
             throw new InvalidOperationException($"Biển số {request.LicensePlate} đã có lịch đặt chỗ trong khoảng thời gian này.");
 
-        // 3. Kiểm tra vị trí đỗ xe có trống trong khoảng thời gian này không (tránh 2 người book cùng lúc)
+        // 5. Kiểm tra vị trí đỗ xe có trống trong khoảng thời gian này không (tránh 2 người book cùng lúc)
         var hasOverlappingReservation = await _context.Reservations
             .AnyAsync(r => r.ParkingSlotId == request.ParkingSlotId
                         && r.Status != ReservationStatus.Cancelled
@@ -49,7 +69,7 @@ public class ReservationService : IReservationService
         if (hasOverlappingReservation)
             throw new InvalidOperationException("Vị trí này đã được đặt trong khoảng thời gian bạn chọn. Vui lòng chọn vị trí khác hoặc thời gian khác.");
 
-        // 4. Tạo mã Booking Code (Sinh ra mã QR vé đặt trước)
+        // 6. Tạo mã Booking Code (Sinh ra mã QR vé đặt trước)
         var bookingCode = _qrCodeService.GenerateUniqueCode(6);
 
         var reservation = new Domain.Entities.Reservation
@@ -68,20 +88,20 @@ public class ReservationService : IReservationService
         _context.Reservations.Add(reservation);
         await _context.SaveChangesAsync();
 
-        var slot = await _context.ParkingSlots.FindAsync(request.ParkingSlotId);
-
+        // slot đã được query ở bước 2 (validate), dùng lại
         return new ReservationResponse
         {
             Id = reservation.Id,
             DriverId = reservation.DriverId,
             ParkingSlotId = reservation.ParkingSlotId,
-            SlotNumber = slot?.SlotNumber ?? "",
+            SlotNumber = slot.SlotNumber,
             BookingCode = bookingCode,
             QrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(bookingCode),
             LicensePlate = reservation.LicensePlate,
             StartTime = reservation.StartTime,
             EndTime = reservation.EndTime,
             Status = reservation.Status,
+            RejectReason = reservation.RejectReason,
             CreatedAt = reservation.CreatedAt
         };
     }
@@ -106,6 +126,7 @@ public class ReservationService : IReservationService
             StartTime = r.StartTime,
             EndTime = r.EndTime,
             Status = r.Status,
+            RejectReason = r.RejectReason,
             CreatedAt = r.CreatedAt
         });
     }
@@ -148,6 +169,7 @@ public class ReservationService : IReservationService
             StartTime = r.StartTime,
             EndTime = r.EndTime,
             Status = r.Status,
+            RejectReason = r.RejectReason,
             CreatedAt = r.CreatedAt
         });
     }
@@ -162,12 +184,40 @@ public class ReservationService : IReservationService
             throw new InvalidOperationException("Chỉ có thể duyệt các yêu cầu đang ở trạng thái Pending.");
 
         reservation.Status = request.IsAccepted ? ReservationStatus.Confirmed : ReservationStatus.Rejected;
+        reservation.ReviewedByStaffId = staffId;
         reservation.UpdatedAt = DateTime.UtcNow;
 
-        // Lưu lý do từ chối (có thể mở rộng entity Reservation thêm field RejectReason sau nếu cần, hiện tại lưu lại bằng log/notification)
-        // Trong hệ thống hoàn chỉnh, ở đây sẽ trigger một NotificationService để gửi thông báo/email cho Driver.
+        // Lưu lý do từ chối (nếu reject)
+        if (!request.IsAccepted)
+        {
+            reservation.RejectReason = request.Reason ?? "Không có lý do.";
+        }
 
         await _context.SaveChangesAsync();
+
+        // Gửi notification cho Driver
+        var slot = await _context.ParkingSlots.FindAsync(reservation.ParkingSlotId);
+        if (request.IsAccepted)
+        {
+            await _notificationService.SendAsync(
+                reservation.DriverId,
+                "✅ Đặt chỗ được chấp nhận",
+                $"Yêu cầu đặt chỗ {slot?.SlotNumber ?? ""} (biển số {reservation.LicensePlate}) đã được chấp nhận. " +
+                $"Vui lòng đến trước {reservation.StartTime:dd/MM/yyyy HH:mm}.",
+                "ReservationApproved",
+                reservation.Id);
+        }
+        else
+        {
+            await _notificationService.SendAsync(
+                reservation.DriverId,
+                "❌ Đặt chỗ bị từ chối",
+                $"Yêu cầu đặt chỗ {slot?.SlotNumber ?? ""} (biển số {reservation.LicensePlate}) đã bị từ chối. " +
+                $"Lý do: {reservation.RejectReason}",
+                "ReservationRejected",
+                reservation.Id);
+        }
+
         return true;
     }
 }

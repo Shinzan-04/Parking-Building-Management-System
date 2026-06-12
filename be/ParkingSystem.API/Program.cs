@@ -32,13 +32,15 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ParkingSystem API", Version = "v1" });
 
+    // Dùng Type = Http + Scheme = Bearer → Swagger tự thêm "Bearer " prefix
+    // User chỉ cần paste token, không cần gõ "Bearer " thủ công
     var securityScheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Description = "Enter 'Bearer {token}'",
+        Description = "Chỉ cần paste JWT token (không cần thêm 'Bearer ')",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
         BearerFormat = "JWT",
         Reference = new OpenApiReference
         {
@@ -50,7 +52,7 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityDefinition("Bearer", securityScheme);
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        { securityScheme, new[] { "Bearer" } }
+        { securityScheme, Array.Empty<string>() }
     });
 });
 
@@ -75,6 +77,14 @@ builder.Services.AddScoped<ISessionService, ParkingSystem.Infrastructure.Service
 
 // Register Cloudinary Image Upload Service (lưu ảnh biển số lên cloud)
 builder.Services.AddScoped<IImageUploadService, ParkingSystem.Infrastructure.Services.CloudinaryImageService>();
+
+// Register Email + OTP Service (xác thực đăng ký / quên mật khẩu qua email)
+builder.Services.AddScoped<IEmailService, ParkingSystem.Infrastructure.Services.GmailEmailService>();
+builder.Services.AddScoped<IOtpService, ParkingSystem.Infrastructure.Services.OtpService>();
+builder.Services.AddScoped<INotificationService, ParkingSystem.Infrastructure.Services.NotificationService>();
+
+// Background Service: Tự động hủy reservation hết hạn (quét mỗi 5 phút)
+builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.ReservationCleanupService>();
 
 // Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
 // Sử dụng model license_plate_detector.onnx đã train riêng cho biển số xe Việt Nam
@@ -111,6 +121,21 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
     };
+
+    // Tự động nhận diện token dù có hay không có prefix "Bearer "
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(authHeader) && !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                // Nếu gửi token thẳng (không có "Bearer ") → gán vào Token để middleware xử lý
+                context.Token = authHeader;
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
 
 builder.Services.AddAuthorization();
@@ -140,70 +165,48 @@ using (var scope = app.Services.CreateScope())
         var dbServer = dbContext.Database.GetDbConnection().DataSource;
         logger.LogInformation("📊 Database: {DbName} | Server: {Server}", dbName, dbServer);
 
-        // ===== SEED DATA: Tạo tài khoản mẫu cho từng Role =====
-        if (!dbContext.Users.Any())
+        // ===== SEED DATA: Đảm bảo 4 tài khoản mẫu luôn tồn tại =====
+        var seedAccounts = new[]
         {
-            logger.LogInformation("🌱 Seeding tài khoản mẫu cho 4 role...");
+            ("admin", "Quản trị viên hệ thống", ParkingSystem.Domain.Enums.Role.Admin, "admin@parking.vn", "0901000001"),
+            ("manager", "Quản lý bãi xe", ParkingSystem.Domain.Enums.Role.Manager, "manager@parking.vn", "0901000002"),
+            ("staff", "Nhân viên trực bãi", ParkingSystem.Domain.Enums.Role.Staff, "staff@parking.vn", "0901000003"),
+            ("driver", "Khách gửi xe", ParkingSystem.Domain.Enums.Role.Driver, "driver@parking.vn", "0901000004")
+        };
 
-            var seedUsers = new[]
+        var seedCount = 0;
+        foreach (var (username, fullName, role, email, phone) in seedAccounts)
+        {
+            var existing = await dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
+            if (existing == null)
             {
-                new ParkingSystem.Domain.Entities.User
+                // Tạo mới
+                dbContext.Users.Add(new ParkingSystem.Domain.Entities.User
                 {
                     Id = Guid.NewGuid(),
-                    Username = "admin",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                    FullName = "Quản trị viên hệ thống",
-                    Role = ParkingSystem.Domain.Enums.Role.Admin,
-                    Email = "admin@parking.vn",
-                    PhoneNumber = "0901000001",
+                    Username = username,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("123123"),
+                    FullName = fullName,
+                    Role = role,
+                    Email = email,
+                    PhoneNumber = phone,
                     QrCode = Guid.NewGuid().ToString("N")[..8],
                     CreatedAt = DateTime.UtcNow
-                },
-                new ParkingSystem.Domain.Entities.User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = "manager",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("manager123"),
-                    FullName = "Quản lý bãi xe",
-                    Role = ParkingSystem.Domain.Enums.Role.Manager,
-                    Email = "manager@parking.vn",
-                    PhoneNumber = "0901000002",
-                    QrCode = Guid.NewGuid().ToString("N")[..8],
-                    CreatedAt = DateTime.UtcNow
-                },
-                new ParkingSystem.Domain.Entities.User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = "staff",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("staff123"),
-                    FullName = "Nhân viên trực bãi",
-                    Role = ParkingSystem.Domain.Enums.Role.Staff,
-                    Email = "staff@parking.vn",
-                    PhoneNumber = "0901000003",
-                    QrCode = Guid.NewGuid().ToString("N")[..8],
-                    CreatedAt = DateTime.UtcNow
-                },
-                new ParkingSystem.Domain.Entities.User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = "driver",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("driver123"),
-                    FullName = "Khách gửi xe",
-                    Role = ParkingSystem.Domain.Enums.Role.Driver,
-                    Email = "driver@parking.vn",
-                    PhoneNumber = "0901000004",
-                    QrCode = Guid.NewGuid().ToString("N")[..8],
-                    CreatedAt = DateTime.UtcNow
-                }
-            };
-
-            dbContext.Users.AddRange(seedUsers);
-            await dbContext.SaveChangesAsync();
-            logger.LogInformation("✅ Đã tạo {Count} tài khoản mẫu!", seedUsers.Length);
+                });
+                seedCount++;
+            }
+            else
+            {
+                // Cập nhật password nếu đã tồn tại
+                existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword("123123");
+                seedCount++;
+            }
         }
-        else
+
+        if (seedCount > 0)
         {
-            logger.LogInformation("📌 Database đã có dữ liệu, bỏ qua seed.");
+            await dbContext.SaveChangesAsync();
+            logger.LogInformation("✅ Đã cập nhật {Count} tài khoản mẫu (password: 123123)", seedCount);
         }
     }
     catch (Exception ex)
