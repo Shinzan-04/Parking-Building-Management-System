@@ -154,8 +154,13 @@ public class AuthService : IAuthService
         if (user == null)
             throw new InvalidOperationException("Không tìm thấy người dùng.");
 
-        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
-            throw new UnauthorizedAccessException("Mật khẩu hiện tại không đúng.");
+        if (string.IsNullOrEmpty(user.Email))
+            throw new InvalidOperationException("Tài khoản chưa có email để xác thực OTP.");
+
+        // Xác thực mã OTP
+        var isValid = await _otpService.VerifyOtpAsync(user.Email, request.OtpCode, "ChangePassword");
+        if (!isValid)
+            throw new InvalidOperationException("Mã OTP không hợp lệ hoặc đã hết hạn.");
 
         if (request.NewPassword.Length < 6)
             throw new InvalidOperationException("Mật khẩu mới phải có ít nhất 6 ký tự.");
@@ -305,11 +310,11 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Email không được để trống.");
 
         // Kiểm tra purpose hợp lệ
-        if (request.Purpose != "Register" && request.Purpose != "ForgotPassword")
-            throw new InvalidOperationException("Purpose phải là 'Register' hoặc 'ForgotPassword'.");
+        if (request.Purpose != "Register" && request.Purpose != "ForgotPassword" && request.Purpose != "ChangePassword")
+            throw new InvalidOperationException("Purpose phải là 'Register', 'ForgotPassword' hoặc 'ChangePassword'.");
 
-        // Nếu quên mật khẩu → kiểm tra email đã tồn tại trong hệ thống
-        if (request.Purpose == "ForgotPassword")
+        // Nếu quên mật khẩu hoặc đổi mật khẩu → kiểm tra email đã tồn tại trong hệ thống
+        if (request.Purpose == "ForgotPassword" || request.Purpose == "ChangePassword")
         {
             var user = await _userRepository.GetByEmailAsync(request.Email);
             if (user == null)

@@ -39,7 +39,7 @@ public class RefreshTokenRequest
 // ===== CHANGE PASSWORD (P0.3) =====
 public class ChangePasswordRequest
 {
-    public string CurrentPassword { get; set; } = string.Empty;
+    public string OtpCode { get; set; } = string.Empty;
     public string NewPassword { get; set; } = string.Empty;
 }
 

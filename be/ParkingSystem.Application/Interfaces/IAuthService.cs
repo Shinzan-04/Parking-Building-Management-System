@@ -16,7 +16,6 @@ public interface IAuthService
     /// </summary>
     Task<AuthResponse> GoogleLoginAsync(GoogleLoginRequest request);
 
-
     /// <summary>
     /// Dùng RefreshToken để lấy AccessToken mới (không cần đăng nhập lại)
     /// </summary>
@@ -28,7 +27,7 @@ public interface IAuthService
     Task<ProfileResponse> GetProfileAsync(Guid userId);
 
     /// <summary>
-    /// Đổi mật khẩu (yêu cầu nhập mật khẩu cũ)
+    /// Đổi mật khẩu (yêu cầu xác thực qua OTP email)
     /// </summary>
     Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
 
@@ -52,7 +51,7 @@ public interface IAuthService
     // ===== OTP Email Verification =====
 
     /// <summary>
-    /// Gửi mã OTP qua email (cho đăng ký hoặc quên mật khẩu)
+    /// Gửi mã OTP qua email (cho đăng ký, quên mật khẩu, hoặc đổi mật khẩu)
     /// </summary>
     Task SendOtpAsync(SendOtpRequest request);
 
