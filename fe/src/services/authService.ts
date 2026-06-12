@@ -21,7 +21,8 @@ export interface GoogleLoginRequest {
 
 export interface BaseAuthResponse {
   userId: string;
-  token: string;
+  accessToken: string;
+  token?: string;
   fullName: string;
   role: UserRole;
   qrCode?: string;
