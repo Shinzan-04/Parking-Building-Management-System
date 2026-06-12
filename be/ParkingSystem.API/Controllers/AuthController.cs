@@ -53,22 +53,6 @@ public class AuthController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Đăng ký tài khoản Driver mới
-    /// </summary>
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
-    {
-        try
-        {
-            var response = await _authService.RegisterAsync(request);
-            return Ok(response);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
 
     /// <summary>
     /// Gia hạn AccessToken bằng RefreshToken (không cần đăng nhập lại)

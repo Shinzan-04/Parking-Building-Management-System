@@ -29,15 +29,6 @@ public class AuthResponse
     public string? QrCodeImageBase64 { get; set; }
 }
 
-// ===== REGISTER =====
-public class RegisterRequest
-{
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-    public string FullName { get; set; } = string.Empty;
-    public string? PhoneNumber { get; set; }
-    public string? Email { get; set; }
-}
 
 // ===== REFRESH TOKEN =====
 public class RefreshTokenRequest
@@ -48,7 +39,7 @@ public class RefreshTokenRequest
 // ===== CHANGE PASSWORD (P0.3) =====
 public class ChangePasswordRequest
 {
-    public string CurrentPassword { get; set; } = string.Empty;
+    public string OtpCode { get; set; } = string.Empty;
     public string NewPassword { get; set; } = string.Empty;
 }
 

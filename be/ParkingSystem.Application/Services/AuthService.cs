@@ -24,7 +24,7 @@ public class AuthService : IAuthService
     // Thời gian sống của Refresh Token (ngày)
     private const int RefreshTokenDays = 7;
 
-    public AuthService(IUserRepository userRepository, ITokenService tokenService, 
+    public AuthService(IUserRepository userRepository, ITokenService tokenService,
         IQrCodeService qrCodeService, IOtpService otpService, IConfiguration configuration)
     {
         _userRepository = userRepository;
@@ -74,43 +74,13 @@ public class AuthService : IAuthService
         return await BuildAuthResponse(user);
     }
 
-    // ===== P0.1: REGISTER =====
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
-    {
-        var existing = await _userRepository.GetByUsernameAsync(request.Username);
-        if (existing != null)
-            throw new InvalidOperationException("Tên đăng nhập đã tồn tại.");
-
-        if (!string.IsNullOrEmpty(request.Email))
-        {
-            var emailExists = await _userRepository.GetByEmailAsync(request.Email);
-            if (emailExists != null)
-                throw new InvalidOperationException("Email đã được đăng ký.");
-        }
-
-        var qrCode = _qrCodeService.GenerateUniqueCode(5);
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Username = request.Username,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            FullName = request.FullName,
-            Role = Role.Driver, // Register chỉ tạo Driver
-            PhoneNumber = request.PhoneNumber,
-            Email = request.Email,
-            QrCode = qrCode
-        };
-
-        await _userRepository.AddAsync(user);
-        return await BuildAuthResponse(user);
-    }
 
     // ===== P0.1: GOOGLE LOGIN =====
     public async Task<AuthResponse> GoogleLoginAsync(GoogleLoginRequest request)
     {
         var settings = new GoogleJsonWebSignature.ValidationSettings
         {
-            Audience = new List<string> { _configuration["Google:ClientId"] 
+            Audience = new List<string> { _configuration["Google:ClientId"]
                 ?? throw new InvalidOperationException("Google ClientId is missing") }
         };
 
@@ -184,8 +154,13 @@ public class AuthService : IAuthService
         if (user == null)
             throw new InvalidOperationException("Không tìm thấy người dùng.");
 
-        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
-            throw new UnauthorizedAccessException("Mật khẩu hiện tại không đúng.");
+        if (string.IsNullOrEmpty(user.Email))
+            throw new InvalidOperationException("Tài khoản chưa có email để xác thực OTP.");
+
+        // Xác thực mã OTP
+        var isValid = await _otpService.VerifyOtpAsync(user.Email, request.OtpCode, "ChangePassword");
+        if (!isValid)
+            throw new InvalidOperationException("Mã OTP không hợp lệ hoặc đã hết hạn.");
 
         if (request.NewPassword.Length < 6)
             throw new InvalidOperationException("Mật khẩu mới phải có ít nhất 6 ký tự.");
@@ -335,11 +310,11 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Email không được để trống.");
 
         // Kiểm tra purpose hợp lệ
-        if (request.Purpose != "Register" && request.Purpose != "ForgotPassword")
-            throw new InvalidOperationException("Purpose phải là 'Register' hoặc 'ForgotPassword'.");
+        if (request.Purpose != "Register" && request.Purpose != "ForgotPassword" && request.Purpose != "ChangePassword")
+            throw new InvalidOperationException("Purpose phải là 'Register', 'ForgotPassword' hoặc 'ChangePassword'.");
 
-        // Nếu quên mật khẩu → kiểm tra email đã tồn tại trong hệ thống
-        if (request.Purpose == "ForgotPassword")
+        // Nếu quên mật khẩu hoặc đổi mật khẩu → kiểm tra email đã tồn tại trong hệ thống
+        if (request.Purpose == "ForgotPassword" || request.Purpose == "ChangePassword")
         {
             var user = await _userRepository.GetByEmailAsync(request.Email);
             if (user == null)
