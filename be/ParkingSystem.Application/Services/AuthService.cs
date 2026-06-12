@@ -24,7 +24,7 @@ public class AuthService : IAuthService
     // Thời gian sống của Refresh Token (ngày)
     private const int RefreshTokenDays = 7;
 
-    public AuthService(IUserRepository userRepository, ITokenService tokenService, 
+    public AuthService(IUserRepository userRepository, ITokenService tokenService,
         IQrCodeService qrCodeService, IOtpService otpService, IConfiguration configuration)
     {
         _userRepository = userRepository;
@@ -74,43 +74,13 @@ public class AuthService : IAuthService
         return await BuildAuthResponse(user);
     }
 
-    // ===== P0.1: REGISTER =====
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
-    {
-        var existing = await _userRepository.GetByUsernameAsync(request.Username);
-        if (existing != null)
-            throw new InvalidOperationException("Tên đăng nhập đã tồn tại.");
-
-        if (!string.IsNullOrEmpty(request.Email))
-        {
-            var emailExists = await _userRepository.GetByEmailAsync(request.Email);
-            if (emailExists != null)
-                throw new InvalidOperationException("Email đã được đăng ký.");
-        }
-
-        var qrCode = _qrCodeService.GenerateUniqueCode(5);
-        var user = new User
-        {
-            Id = Guid.NewGuid(),
-            Username = request.Username,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            FullName = request.FullName,
-            Role = Role.Driver, // Register chỉ tạo Driver
-            PhoneNumber = request.PhoneNumber,
-            Email = request.Email,
-            QrCode = qrCode
-        };
-
-        await _userRepository.AddAsync(user);
-        return await BuildAuthResponse(user);
-    }
 
     // ===== P0.1: GOOGLE LOGIN =====
     public async Task<AuthResponse> GoogleLoginAsync(GoogleLoginRequest request)
     {
         var settings = new GoogleJsonWebSignature.ValidationSettings
         {
-            Audience = new List<string> { _configuration["Google:ClientId"] 
+            Audience = new List<string> { _configuration["Google:ClientId"]
                 ?? throw new InvalidOperationException("Google ClientId is missing") }
         };
 

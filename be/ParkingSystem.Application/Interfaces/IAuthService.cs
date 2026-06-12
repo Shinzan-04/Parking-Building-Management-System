@@ -5,7 +5,7 @@ namespace ParkingSystem.Application.Interfaces;
 public interface IAuthService
 {
     // ===== P0: Core Auth =====
-    
+
     /// <summary>
     /// Đăng nhập bằng username/password → trả về AccessToken + RefreshToken
     /// </summary>
@@ -16,10 +16,6 @@ public interface IAuthService
     /// </summary>
     Task<AuthResponse> GoogleLoginAsync(GoogleLoginRequest request);
 
-    /// <summary>
-    /// Đăng ký tài khoản Driver mới
-    /// </summary>
-    Task<AuthResponse> RegisterAsync(RegisterRequest request);
 
     /// <summary>
     /// Dùng RefreshToken để lấy AccessToken mới (không cần đăng nhập lại)

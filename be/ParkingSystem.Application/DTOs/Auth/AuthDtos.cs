@@ -29,15 +29,6 @@ public class AuthResponse
     public string? QrCodeImageBase64 { get; set; }
 }
 
-// ===== REGISTER =====
-public class RegisterRequest
-{
-    public string Username { get; set; } = string.Empty;
-    public string Password { get; set; } = string.Empty;
-    public string FullName { get; set; } = string.Empty;
-    public string? PhoneNumber { get; set; }
-    public string? Email { get; set; }
-}
 
 // ===== REFRESH TOKEN =====
 public class RefreshTokenRequest
