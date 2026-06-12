@@ -500,3 +500,6 @@ fe/.env
 start-postgres.bat
 
 .claude
+
+# AI Context backup (Xoay tua account Antigravity)
+AI_CONTEXT.md
