@@ -11,11 +11,26 @@ import {
   ChevronDown
 } from 'lucide-react';
 
+function getDashboardPath(role: string | number): string | null {
+  if (role === 'Admin'   || role === 0) return '/admin';
+  if (role === 'Manager' || role === 1) return '/manager';
+  if (role === 'Staff'   || role === 2) return '/gate-control';
+  return null;
+}
+
 export default function UserLandingPage() {
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Redirect admin/manager/staff ra khỏi trang chủ về đúng dashboard
+  useEffect(() => {
+    if (user) {
+      const path = getDashboardPath(user.role);
+      if (path) navigate(path, { replace: true });
+    }
+  }, [user, navigate]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

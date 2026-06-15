@@ -26,17 +26,17 @@ export default function AdminLayout() {
   const initials = user?.fullName?.charAt(0)?.toUpperCase() ?? 'A';
 
   return (
-    <div className="flex min-h-screen bg-[#101A31]">
+    <div className="flex min-h-screen bg-[#0A0A0C]">
       {/* Sidebar */}
-      <aside className="fixed top-0 left-0 h-screen w-64 bg-[#0B1120] border-r border-white/10 flex flex-col z-30">
+      <aside className="fixed top-0 left-0 h-screen w-64 bg-[#0E0E10] border-r border-white/5 flex flex-col z-30">
         {/* Logo */}
-        <div className="px-6 py-5 border-b border-white/10">
+        <div className="px-6 py-5 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] flex items-center justify-center">
-              <Car size={18} className="text-[#101A31]" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+              <Car size={18} className="text-black" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white leading-tight">ParkingSystem</p>
+              <p className="text-sm font-bold text-white leading-tight">PARKING BUILDING</p>
               <p className="text-xs text-white/40">Admin Panel</p>
             </div>
           </div>
@@ -52,7 +52,7 @@ export default function AdminLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-white/10 text-[#00C2FF]'
+                    ? 'bg-amber-500/10 text-amber-500'
                     : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`
               }
@@ -62,7 +62,7 @@ export default function AdminLayout() {
                   <Icon size={17} />
                   {label}
                   {isActive && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#00C2FF]" />
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500" />
                   )}
                 </>
               )}
@@ -71,9 +71,9 @@ export default function AdminLayout() {
         </nav>
 
         {/* User info + logout */}
-        <div className="px-3 py-4 border-t border-white/10 space-y-1">
+        <div className="px-3 py-4 border-t border-white/5 space-y-1">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] flex items-center justify-center text-[#101A31] font-bold text-sm shrink-0">
+            <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-black font-bold text-sm shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
@@ -94,7 +94,7 @@ export default function AdminLayout() {
       {/* Main area */}
       <div className="ml-64 flex-1 flex flex-col min-h-screen">
         {/* Top header */}
-        <header className="sticky top-0 z-20 bg-[#101A31]/80 backdrop-blur-md border-b border-white/10 px-8 py-4 flex items-center justify-between">
+        <header className="sticky top-0 z-20 bg-[#0A0A0C]/80 backdrop-blur-md border-b border-white/5 px-8 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-base font-semibold text-white">Bảng điều khiển Admin</h1>
             <p className="text-xs text-white/40">Hệ thống quản lý bãi đỗ xe thông minh</p>
@@ -102,10 +102,10 @@ export default function AdminLayout() {
           <div className="flex items-center gap-3">
             <button className="relative p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
               <Bell size={17} className="text-white/60" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#00C2FF] rounded-full ring-2 ring-[#101A31]" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-[#0A0A0C]" />
             </button>
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#00C2FF] to-[#3BFFA4] flex items-center justify-center text-[#101A31] font-bold text-xs">
+              <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-black font-bold text-xs">
                 {initials}
               </div>
               <span className="text-sm text-white/80 font-medium">{user?.fullName ?? 'Admin'}</span>

@@ -310,7 +310,7 @@ export default function ManagerPricing() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-[#3BFFA4] animate-spin" />
+        <Loader2 size={28} className="text-orange-500 animate-spin" />
         <p className="text-sm text-white/40">Đang tải bảng giá...</p>
       </div>
     );
@@ -356,7 +356,7 @@ export default function ManagerPricing() {
               onClick={() => setActiveTab(t.key)}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                 activeTab === t.key
-                  ? 'bg-[#3BFFA4] text-[#101A31]'
+                  ? 'bg-orange-500 text-black'
                   : 'text-white/50 hover:text-white'
               }`}
             >
@@ -378,7 +378,7 @@ export default function ManagerPricing() {
             <button
               onClick={openAddPolicy}
               disabled={vtWithoutPolicy.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3BFFA4] to-[#00C2FF] text-[#101A31] font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-black font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
               title={vtWithoutPolicy.length === 0 ? 'Tất cả loại xe đã có chính sách' : ''}
             >
               <Plus size={15} /> Thêm chính sách
@@ -405,8 +405,8 @@ export default function ManagerPricing() {
                 {/* Vehicle type badge */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-[#3BFFA4]/10 flex items-center justify-center">
-                      <DollarSign size={16} className="text-[#3BFFA4]" />
+                    <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                      <DollarSign size={16} className="text-orange-500" />
                     </div>
                     <div>
                       <p className="font-semibold text-white">{p.vehicleTypeName}</p>
@@ -418,8 +418,8 @@ export default function ManagerPricing() {
                 {/* Price rows */}
                 <div className="space-y-2.5">
                   {[
-                    { icon: Clock,     label: `Mỗi ${p.blockMinutes} phút`, value: vnd(p.blockPrice),    color: '#3BFFA4' },
-                    { icon: TrendingUp, label: 'Theo giờ',                  value: vnd(p.hourlyRate),    color: '#00C2FF' },
+                    { icon: Clock,     label: `Mỗi ${p.blockMinutes} phút`, value: vnd(p.blockPrice),    color: '#F97316' },
+                    { icon: TrendingUp, label: 'Theo giờ',                  value: vnd(p.hourlyRate),    color: '#F59E0B' },
                     { icon: Sun,       label: 'Tối đa / ngày',              value: vnd(p.dailyMaxRate),  color: '#F59E0B' },
                   ].map(row => {
                     const Icon = row.icon;
@@ -443,7 +443,7 @@ export default function ManagerPricing() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => openEditPolicy(p)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-[#3BFFA4]/70 hover:text-[#3BFFA4] hover:bg-[#3BFFA4]/10 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-orange-500/70 hover:text-orange-500 hover:bg-orange-500/10 transition-all"
                   >
                     <Pencil size={13} /> Sửa
                   </button>
@@ -471,7 +471,7 @@ export default function ManagerPricing() {
             <button
               onClick={openAddSetting}
               disabled={vtWithoutSetting.length === 0}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3BFFA4] to-[#00C2FF] text-[#101A31] font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-black font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
               title={vtWithoutSetting.length === 0 ? 'Tất cả loại xe đã có bảng giá' : ''}
             >
               <Plus size={15} /> Thêm bảng giá
@@ -494,8 +494,8 @@ export default function ManagerPricing() {
             {settings.map(s => (
               <div key={s.id} className="glass-card p-5 rounded-2xl space-y-4 hover:border-white/20 transition-all">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#00C2FF]/10 flex items-center justify-center">
-                    <Tag size={16} className="text-[#00C2FF]" />
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                    <Tag size={16} className="text-amber-500" />
                   </div>
                   <div>
                     <p className="font-semibold text-white">{s.vehicleTypeName}</p>
@@ -532,7 +532,7 @@ export default function ManagerPricing() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => openEditSetting(s)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-[#00C2FF]/70 hover:text-[#00C2FF] hover:bg-[#00C2FF]/10 transition-all"
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-amber-500/70 hover:text-amber-500 hover:bg-amber-500/10 transition-all"
                   >
                     <Pencil size={13} /> Sửa
                   </button>
@@ -554,7 +554,7 @@ export default function ManagerPricing() {
       {/* Add/Edit Policy */}
       {(policyModal === 'add' || policyModal === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0F1B2D] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-semibold text-white">
                 {policyModal === 'add' ? 'Thêm chính sách giá' : `Sửa chính sách · ${selectedPolicy?.vehicleTypeName}`}
@@ -571,11 +571,11 @@ export default function ManagerPricing() {
                   <select
                     value={policyForm.vehicleTypeId}
                     onChange={e => setPolicyForm(p => ({ ...p, vehicleTypeId: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#3BFFA4]/50 transition-colors appearance-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors appearance-none"
                   >
-                    <option value="" className="bg-[#0F1B2D]">-- Chọn loại xe --</option>
+                    <option value="" className="bg-[#121214]">-- Chọn loại xe --</option>
                     {vtWithoutPolicy.map(vt => (
-                      <option key={vt.id} value={vt.id} className="bg-[#0F1B2D]">{vt.name}</option>
+                      <option key={vt.id} value={vt.id} className="bg-[#121214]">{vt.name}</option>
                     ))}
                   </select>
                 </div>
@@ -595,7 +595,7 @@ export default function ManagerPricing() {
                     placeholder={f.placeholder}
                     value={policyForm[f.key]}
                     onChange={e => setPolicyForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500/50 transition-colors"
                   />
                 </div>
               ))}
@@ -613,7 +613,7 @@ export default function ManagerPricing() {
               <button
                 onClick={policyModal === 'add' ? handleAddPolicy : handleEditPolicy}
                 disabled={policySubmitting}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-[#101A31] bg-gradient-to-r from-[#3BFFA4] to-[#00C2FF] hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {policySubmitting && <Loader2 size={14} className="animate-spin" />}
                 {policyModal === 'add' ? 'Tạo chính sách' : 'Lưu thay đổi'}
@@ -626,7 +626,7 @@ export default function ManagerPricing() {
       {/* Delete Policy */}
       {policyModal === 'delete' && selectedPolicy && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0F1B2D] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+          <div className="bg-[#121214] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} className="text-red-400" />
@@ -655,7 +655,7 @@ export default function ManagerPricing() {
       {/* Add/Edit Setting */}
       {(settingModal === 'add' || settingModal === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0F1B2D] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-semibold text-white">
                 {settingModal === 'add' ? 'Thêm bảng giá vé' : `Sửa bảng giá · ${selectedSetting?.vehicleTypeName}`}
@@ -672,11 +672,11 @@ export default function ManagerPricing() {
                   <select
                     value={settingForm.vehicleTypeId}
                     onChange={e => setSettingForm(p => ({ ...p, vehicleTypeId: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#3BFFA4]/50 transition-colors appearance-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors appearance-none"
                   >
-                    <option value="" className="bg-[#0F1B2D]">-- Chọn loại xe --</option>
+                    <option value="" className="bg-[#121214]">-- Chọn loại xe --</option>
                     {vtWithoutSetting.map(vt => (
-                      <option key={vt.id} value={vt.id} className="bg-[#0F1B2D]">{vt.name}</option>
+                      <option key={vt.id} value={vt.id} className="bg-[#121214]">{vt.name}</option>
                     ))}
                   </select>
                 </div>
@@ -690,7 +690,7 @@ export default function ManagerPricing() {
                   <input type="number" min={0} max={23} placeholder="6"
                     value={settingForm.dayStartHour}
                     onChange={e => setSettingForm(p => ({ ...p, dayStartHour: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500/50 transition-colors"
                   />
                 </div>
                 <div>
@@ -700,7 +700,7 @@ export default function ManagerPricing() {
                   <input type="number" min={0} max={23} placeholder="18"
                     value={settingForm.nightStartHour}
                     onChange={e => setSettingForm(p => ({ ...p, nightStartHour: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500/50 transition-colors"
                   />
                 </div>
               </div>
@@ -720,7 +720,7 @@ export default function ManagerPricing() {
                     <input type="number" min={0} placeholder={f.placeholder}
                       value={settingForm[f.key]}
                       onChange={e => setSettingForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500/50 transition-colors"
                     />
                   </div>
                 );
@@ -739,7 +739,7 @@ export default function ManagerPricing() {
               <button
                 onClick={settingModal === 'add' ? handleAddSetting : handleEditSetting}
                 disabled={settingSubmitting}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-[#101A31] bg-gradient-to-r from-[#3BFFA4] to-[#00C2FF] hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {settingSubmitting && <Loader2 size={14} className="animate-spin" />}
                 {settingModal === 'add' ? 'Tạo bảng giá' : 'Lưu thay đổi'}
@@ -752,7 +752,7 @@ export default function ManagerPricing() {
       {/* Delete Setting */}
       {settingModal === 'delete' && selectedSetting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0F1B2D] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+          <div className="bg-[#121214] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} className="text-red-400" />
