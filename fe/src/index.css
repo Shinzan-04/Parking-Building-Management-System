@@ -33,3 +33,44 @@
     @apply absolute rounded-full blur-3xl pointer-events-none;
   }
 }
+
+/* Leaflet popup dark theme override */
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: #121214 !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+  color: #e2e8f0 !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+}
+.leaflet-popup-close-button {
+  color: #64748b !important;
+  top: 8px !important;
+  right: 8px !important;
+}
+
+/* Scrollbar thin */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+}
+
+/* Slide in from right animation */
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

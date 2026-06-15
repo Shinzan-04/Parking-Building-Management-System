@@ -158,6 +158,7 @@ export default function UserLandingPage() {
               </p>
               <div>
                 <button
+                  onClick={() => navigate('/booking')}
                   className="border border-white hover:border-amber-500 hover:text-amber-500 text-white font-bold px-7 py-3 rounded-md text-xs tracking-wider uppercase transition-all duration-200"
                 >
                   Get a Spot
