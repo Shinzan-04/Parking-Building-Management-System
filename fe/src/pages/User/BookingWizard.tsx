@@ -737,15 +737,17 @@ function BookingSummary({
 }
 
 // ─────────────────────────────────────────────
-// Confirmation + Payment Popup
+// Confirmation + Payment + QR Popup
 // ─────────────────────────────────────────────
-type PopupPhase = 'confirm' | 'payment';
+import { QRCodeSVG } from 'qrcode.react';
+
+type PopupPhase = 'confirm' | 'payment' | 'qr';
 
 const PAYMENT_METHODS = [
-  { key: 'cash',   label: 'Tiền mặt',       icon: '💵' },
-  { key: 'card',   label: 'Thẻ tín dụng',   icon: '💳' },
-  { key: 'momo',   label: 'MoMo',           icon: '🟣' },
-  { key: 'vnpay',  label: 'VNPay',          icon: '🔵' },
+  { key: 'cash',  label: 'Tiền mặt',     icon: '💵' },
+  { key: 'card',  label: 'Thẻ tín dụng', icon: '💳' },
+  { key: 'momo',  label: 'MoMo',         icon: '🟣' },
+  { key: 'vnpay', label: 'VNPay',        icon: '🔵' },
 ];
 
 function ConfirmationPopup({
@@ -766,13 +768,33 @@ function ConfirmationPopup({
     state.vehicleType === 'car' ? 10000 : state.vehicleType === 'motorbike' ? 5000 : 0;
   const total = pricePerHour * state.duration;
 
+  // Mã đặt chỗ hardcode (sau này lấy từ API response)
+  const bookingRef = `PKG-${Date.now().toString(36).toUpperCase().slice(-8)}`;
+
+  // Dữ liệu nhúng vào QR (JSON compact)
+  const qrData = JSON.stringify({
+    ref: bookingRef,
+    lot: lot.name,
+    plate: state.licensePlate,
+    vehicle: state.vehicleType,
+    slot: `${state.floor}/${state.zone}/${state.slot}`,
+    date: state.entryDate,
+    entry: state.entryTime,
+    duration: state.duration,
+  });
+
+  useEffect(() => {
+    if (phase === 'qr') {
+      localStorage.setItem('latest_booking_qr', qrData);
+    }
+  }, [phase, qrData]);
+
   const formatDateDisplay = (d: string) => {
     if (!d) return '--';
     const [y, mo, dd] = d.split('-');
     return `${dd}/${mo}/${y}`;
   };
 
-  // Tính giờ ra
   const exitTime = (() => {
     if (!state.entryDate || !state.entryTime) return '--:--';
     const [h, m] = state.entryTime.split(':').map(Number);
@@ -783,62 +805,74 @@ function ConfirmationPopup({
   })();
 
   const rows = [
-    { label: 'Bãi đỗ xe',  value: lot.name },
-    { label: 'Biển số',    value: state.licensePlate },
-    { label: 'Loại xe',    value: state.vehicleType === 'car' ? '🚗 Car' : '🏍️ Motorcycle' },
-    { label: 'Ngày vào',   value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
+    { label: 'Bãi đỗ xe', value: lot.name },
+    { label: 'Biển số',   value: state.licensePlate },
+    { label: 'Loại xe',   value: state.vehicleType === 'car' ? '🚗 Car' : '🏍️ Motorcycle' },
+    { label: 'Ngày vào',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
     { label: 'Giờ ra (dự kiến)', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
-    { label: 'Thời gian',  value: `${state.duration}h` },
-    { label: 'Vị trí',     value: `${state.floor} › ${state.zone} › Ô ${state.slot}` },
+    { label: 'Thời gian', value: `${state.duration}h` },
+    { label: 'Vị trí',   value: `${state.floor} › ${state.zone} › Ô ${state.slot}` },
   ];
+
+  // ─── Header config theo phase ───
+  const headerConfig = {
+    confirm: {
+      icon: <ClipboardList size={18} className="text-amber-400" />,
+      iconBg: 'bg-amber-500/15 border border-amber-500/30',
+      headerBg: '',
+      title: 'Xác nhận thông tin',
+      subtitle: 'Kiểm tra kỹ trước khi xác nhận',
+    },
+    payment: {
+      icon: <CheckCircle2 size={18} className="text-emerald-400" />,
+      iconBg: 'bg-emerald-500/20 border border-emerald-500/40',
+      headerBg: 'bg-emerald-500/5',
+      title: 'Thanh toán',
+      subtitle: 'Chọn phương thức thanh toán',
+    },
+    qr: {
+      icon: <CheckCircle2 size={18} className="text-blue-400" />,
+      iconBg: 'bg-blue-500/20 border border-blue-500/40',
+      headerBg: 'bg-blue-500/5',
+      title: 'Đặt chỗ thành công!',
+      subtitle: 'Xuất trình mã QR cho nhân viên khi vào',
+    },
+  }[phase];
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
       <div className="w-full max-w-md bg-[#0E0E11] border border-white/[0.09] rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up">
 
         {/* ── Header ── */}
-        <div className={`px-6 pt-6 pb-5 border-b border-white/[0.06] ${
-          phase === 'payment' ? 'bg-emerald-500/5' : ''
-        }`}>
+        <div className={`px-6 pt-6 pb-5 border-b border-white/[0.06] ${headerConfig.headerBg}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                phase === 'payment'
-                  ? 'bg-emerald-500/20 border border-emerald-500/40'
-                  : 'bg-amber-500/15 border border-amber-500/30'
-              }`}>
-                {phase === 'payment'
-                  ? <CheckCircle2 size={18} className="text-emerald-400" />
-                  : <ClipboardList size={18} className="text-amber-400" />
-                }
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${headerConfig.iconBg}`}>
+                {headerConfig.icon}
               </div>
               <div>
-                <h2 className="text-base font-bold text-white">
-                  {phase === 'confirm' ? 'Xác nhận thông tin' : 'Thanh toán'}
-                </h2>
-                <p className="text-xs text-slate-500">
-                  {phase === 'confirm'
-                    ? 'Kiểm tra kỹ trước khi xác nhận'
-                    : 'Chọn phương thức thanh toán'
-                  }
-                </p>
+                <h2 className="text-base font-bold text-white">{headerConfig.title}</h2>
+                <p className="text-xs text-slate-500">{headerConfig.subtitle}</p>
               </div>
             </div>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/[0.07] transition-all"
-            >
-              <X size={16} />
-            </button>
+            {/* Chỉ cho đóng ở phase confirm và qr */}
+            {phase !== 'payment' && (
+              <button
+                onClick={phase === 'qr' ? onDone : onClose}
+                className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/[0.07] transition-all"
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
         </div>
 
         {/* ── Body ── */}
-        <div className="px-6 py-5 max-h-[60vh] overflow-y-auto scrollbar-thin">
+        <div className="px-6 py-5 max-h-[62vh] overflow-y-auto scrollbar-thin">
 
+          {/* ── Phase: Confirm ── */}
           {phase === 'confirm' && (
             <div className="space-y-4">
-              {/* Booking info rows */}
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
                 {rows.map(({ label, value }, i) => (
                   <div
@@ -852,8 +886,6 @@ function ConfirmationPopup({
                   </div>
                 ))}
               </div>
-
-              {/* Total */}
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-slate-400 mb-0.5">Tổng chi phí dự kiến</p>
@@ -864,9 +896,9 @@ function ConfirmationPopup({
             </div>
           )}
 
+          {/* ── Phase: Payment ── */}
           {phase === 'payment' && (
             <div className="space-y-5">
-              {/* Booking mini-summary */}
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Vị trí đặt</p>
@@ -879,7 +911,6 @@ function ConfirmationPopup({
                 </div>
               </div>
 
-              {/* Payment methods */}
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Phương thức thanh toán</p>
                 <div className="grid grid-cols-2 gap-2">
@@ -900,9 +931,71 @@ function ConfirmationPopup({
                 </div>
               </div>
 
-              {/* Note */}
               <p className="text-xs text-slate-600 text-center">
                 Bằng cách xác nhận, bạn đồng ý với điều khoản sử dụng dịch vụ.
+              </p>
+            </div>
+          )}
+
+          {/* ── Phase: QR Code ── */}
+          {phase === 'qr' && (
+            <div className="flex flex-col items-center gap-5">
+              {/* Success badge */}
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1.5">
+                <CheckCircle2 size={14} className="text-emerald-400" />
+                <span className="text-xs font-semibold text-emerald-400">Thanh toán thành công</span>
+              </div>
+
+              {/* QR Code */}
+              <div className="relative">
+                {/* Glow ring */}
+                <div className="absolute inset-0 rounded-2xl bg-amber-500/10 blur-xl" />
+                <div className="relative bg-white rounded-2xl p-4 shadow-2xl">
+                  <QRCodeSVG
+                    value={qrData}
+                    size={180}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#0a0a0c"
+                    imageSettings={{
+                      src: '', // có thể thêm logo vào đây
+                      height: 0,
+                      width: 0,
+                      excavate: false,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Booking ref */}
+              <div className="text-center">
+                <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest">Mã đặt chỗ</p>
+                <p className="text-lg font-black text-amber-400 tracking-widest">{bookingRef}</p>
+              </div>
+
+              {/* Info summary */}
+              <div className="w-full bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
+                {[
+                  { label: 'Bãi đỗ xe', value: lot.name },
+                  { label: 'Biển số',   value: state.licensePlate },
+                  { label: 'Vị trí',   value: `${state.floor} › ${state.zone} › Ô ${state.slot}` },
+                  { label: 'Giờ vào',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
+                  { label: 'Giờ ra (d.k)', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
+                ].map(({ label, value }, i, arr) => (
+                  <div
+                    key={label}
+                    className={`flex items-center justify-between gap-3 px-4 py-2.5 ${
+                      i < arr.length - 1 ? 'border-b border-white/[0.05]' : ''
+                    }`}
+                  >
+                    <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
+                    <span className="text-xs font-semibold text-slate-200 text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-slate-600 text-center px-4">
+                Xuất trình mã QR này cho nhân viên tại bãi để xác nhận chỗ đỗ.
               </p>
             </div>
           )}
@@ -910,7 +1003,7 @@ function ConfirmationPopup({
 
         {/* ── Footer ── */}
         <div className="px-6 py-4 border-t border-white/[0.06] flex items-center gap-3 bg-[#0A0A0C]/60">
-          {phase === 'confirm' ? (
+          {phase === 'confirm' && (
             <>
               <button
                 onClick={onClose}
@@ -926,7 +1019,9 @@ function ConfirmationPopup({
                 Xác nhận
               </button>
             </>
-          ) : (
+          )}
+
+          {phase === 'payment' && (
             <>
               <button
                 onClick={() => setPhase('confirm')}
@@ -936,7 +1031,7 @@ function ConfirmationPopup({
                 Quay lại
               </button>
               <button
-                onClick={onDone}
+                onClick={() => setPhase('qr')}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
               >
                 <CheckCircle2 size={15} />
@@ -944,11 +1039,22 @@ function ConfirmationPopup({
               </button>
             </>
           )}
+
+          {phase === 'qr' && (
+            <button
+              onClick={onDone}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 size={15} />
+              Xong – Đóng
+            </button>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
 
 // ─────────────────────────────────────────────
 // Stepper progress bar
