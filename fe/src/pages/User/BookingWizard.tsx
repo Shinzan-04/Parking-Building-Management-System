@@ -737,6 +737,220 @@ function BookingSummary({
 }
 
 // ─────────────────────────────────────────────
+// Confirmation + Payment Popup
+// ─────────────────────────────────────────────
+type PopupPhase = 'confirm' | 'payment';
+
+const PAYMENT_METHODS = [
+  { key: 'cash',   label: 'Tiền mặt',       icon: '💵' },
+  { key: 'card',   label: 'Thẻ tín dụng',   icon: '💳' },
+  { key: 'momo',   label: 'MoMo',           icon: '🟣' },
+  { key: 'vnpay',  label: 'VNPay',          icon: '🔵' },
+];
+
+function ConfirmationPopup({
+  lot,
+  state,
+  onClose,
+  onDone,
+}: {
+  lot: ParkingLot;
+  state: WizardState;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [phase, setPhase] = useState<PopupPhase>('confirm');
+  const [payMethod, setPayMethod] = useState<string>('cash');
+
+  const pricePerHour =
+    state.vehicleType === 'car' ? 10000 : state.vehicleType === 'motorbike' ? 5000 : 0;
+  const total = pricePerHour * state.duration;
+
+  const formatDateDisplay = (d: string) => {
+    if (!d) return '--';
+    const [y, mo, dd] = d.split('-');
+    return `${dd}/${mo}/${y}`;
+  };
+
+  // Tính giờ ra
+  const exitTime = (() => {
+    if (!state.entryDate || !state.entryTime) return '--:--';
+    const [h, m] = state.entryTime.split(':').map(Number);
+    const entry = new Date(state.entryDate);
+    entry.setHours(h, m, 0, 0);
+    const ex = new Date(entry.getTime() + state.duration * 3600000);
+    return `${String(ex.getHours()).padStart(2, '0')}:${String(ex.getMinutes()).padStart(2, '0')}`;
+  })();
+
+  const rows = [
+    { label: 'Bãi đỗ xe',  value: lot.name },
+    { label: 'Biển số',    value: state.licensePlate },
+    { label: 'Loại xe',    value: state.vehicleType === 'car' ? '🚗 Car' : '🏍️ Motorcycle' },
+    { label: 'Ngày vào',   value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
+    { label: 'Giờ ra (dự kiến)', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
+    { label: 'Thời gian',  value: `${state.duration}h` },
+    { label: 'Vị trí',     value: `${state.floor} › ${state.zone} › Ô ${state.slot}` },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-[#0E0E11] border border-white/[0.09] rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up">
+
+        {/* ── Header ── */}
+        <div className={`px-6 pt-6 pb-5 border-b border-white/[0.06] ${
+          phase === 'payment' ? 'bg-emerald-500/5' : ''
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                phase === 'payment'
+                  ? 'bg-emerald-500/20 border border-emerald-500/40'
+                  : 'bg-amber-500/15 border border-amber-500/30'
+              }`}>
+                {phase === 'payment'
+                  ? <CheckCircle2 size={18} className="text-emerald-400" />
+                  : <ClipboardList size={18} className="text-amber-400" />
+                }
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-white">
+                  {phase === 'confirm' ? 'Xác nhận thông tin' : 'Thanh toán'}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {phase === 'confirm'
+                    ? 'Kiểm tra kỹ trước khi xác nhận'
+                    : 'Chọn phương thức thanh toán'
+                  }
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/[0.07] transition-all"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="px-6 py-5 max-h-[60vh] overflow-y-auto scrollbar-thin">
+
+          {phase === 'confirm' && (
+            <div className="space-y-4">
+              {/* Booking info rows */}
+              <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
+                {rows.map(({ label, value }, i) => (
+                  <div
+                    key={label}
+                    className={`flex items-start justify-between gap-4 px-4 py-3 ${
+                      i < rows.length - 1 ? 'border-b border-white/[0.05]' : ''
+                    }`}
+                  >
+                    <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
+                    <span className="text-xs font-semibold text-slate-200 text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total */}
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-slate-400 mb-0.5">Tổng chi phí dự kiến</p>
+                  <p className="text-xs text-slate-500">{state.duration}h × {formatCurrency(pricePerHour)}</p>
+                </div>
+                <p className="text-2xl font-black text-amber-400">{formatCurrency(total)}</p>
+              </div>
+            </div>
+          )}
+
+          {phase === 'payment' && (
+            <div className="space-y-5">
+              {/* Booking mini-summary */}
+              <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Vị trí đặt</p>
+                  <p className="text-sm font-bold text-white">{state.floor} › {state.zone} › Ô {state.slot}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{lot.name}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-500 mb-1">Tổng tiền</p>
+                  <p className="text-xl font-black text-amber-400">{formatCurrency(total)}</p>
+                </div>
+              </div>
+
+              {/* Payment methods */}
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Phương thức thanh toán</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {PAYMENT_METHODS.map(({ key, label, icon }) => (
+                    <button
+                      key={key}
+                      onClick={() => setPayMethod(key)}
+                      className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${
+                        payMethod === key
+                          ? 'bg-amber-500/10 border-amber-500 text-white'
+                          : 'bg-white/[0.03] border-white/10 text-slate-400 hover:border-white/20 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-xl">{icon}</span>
+                      <span className="text-xs font-semibold">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Note */}
+              <p className="text-xs text-slate-600 text-center">
+                Bằng cách xác nhận, bạn đồng ý với điều khoản sử dụng dịch vụ.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="px-6 py-4 border-t border-white/[0.06] flex items-center gap-3 bg-[#0A0A0C]/60">
+          {phase === 'confirm' ? (
+            <>
+              <button
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all"
+              >
+                Huỷ
+              </button>
+              <button
+                onClick={() => setPhase('payment')}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 size={15} />
+                Xác nhận
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setPhase('confirm')}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all"
+              >
+                <ChevronLeft size={15} />
+                Quay lại
+              </button>
+              <button
+                onClick={onDone}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 size={15} />
+                Thanh toán ngay
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // Stepper progress bar
 // ─────────────────────────────────────────────
 function StepperBar({ currentStep }: { currentStep: number }) {
@@ -799,6 +1013,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     zone: null,
     slot: null,
   });
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
   // Lock body scroll
   useEffect(() => {
@@ -826,9 +1041,14 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     if (step > 1) setStep((s) => s - 1);
   };
 
+  // Mở popup xác nhận
   const handleConfirm = () => {
-    // Placeholder – sẽ gọi API khi tích hợp
-    alert(`✅ Đặt chỗ thành công!\n\nBãi: ${lot.name}\nXe: ${state.vehicleType}\nBiển số: ${state.licensePlate}\nVị trí: ${state.floor} > ${state.zone} > Ô ${state.slot}`);
+    if (canAdvance()) setShowConfirmPopup(true);
+  };
+
+  // Sau khi thanh toán xong
+  const handlePaymentDone = () => {
+    setShowConfirmPopup(false);
     onClose();
   };
 
@@ -845,93 +1065,94 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   };
 
   return (
-    /* Backdrop */
-    <div className="fixed inset-0 z-[9000] flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-md">
-      {/* Modal container */}
-      <div
-        className="relative w-full max-w-4xl bg-[#0E0E11] border border-white/[0.08] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
-        style={{ maxHeight: '90vh' }}
-      >
-        {/* ── Modal Header ── */}
-        <div className="flex-shrink-0 px-6 pt-6 pb-5 border-b border-white/[0.06]">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h1 className="text-base font-bold text-white">Đặt chỗ đỗ xe</h1>
-              <p className="text-xs text-slate-500 mt-0.5 truncate max-w-xs">{lot.name}</p>
+    <>
+      {/* ── Wizard Backdrop + Modal ── */}
+      <div className="fixed inset-0 z-[9000] flex items-center justify-center p-4 sm:p-6 bg-black/70">
+        <div
+          className="relative w-full max-w-4xl bg-[#0E0E11] border border-white/[0.08] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+          style={{ maxHeight: '90vh' }}
+        >
+          {/* ── Modal Header ── */}
+          <div className="flex-shrink-0 px-6 pt-6 pb-5 border-b border-white/[0.06]">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h1 className="text-base font-bold text-white">Đặt chỗ đỗ xe</h1>
+                <p className="text-xs text-slate-500 mt-0.5 truncate max-w-xs">{lot.name}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.07] transition-all"
+              >
+                <X size={18} />
+              </button>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.07] transition-all"
-            >
-              <X size={18} />
-            </button>
+            <StepperBar currentStep={step} />
           </div>
 
-          {/* Stepper */}
-          <StepperBar currentStep={step} />
-        </div>
-
-        {/* ── Modal Body ── */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Step content */}
-          <div className="flex-1 overflow-y-auto scrollbar-thin p-6">
-            <div key={step} className="animate-fade-in-up">
-              {renderStep()}
+          {/* ── Modal Body ── */}
+          <div className="flex flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto scrollbar-thin p-6">
+              <div key={step} className="animate-fade-in-up">
+                {renderStep()}
+              </div>
             </div>
           </div>
 
-          {/* Booking Summary sidebar */}
-          <div className="hidden lg:flex flex-shrink-0 p-4 border-l border-white/[0.06]">
-            <BookingSummary lot={lot} state={state} />
+          {/* ── Modal Footer ── */}
+          <div className="flex-shrink-0 px-6 py-4 border-t border-white/[0.06] flex items-center justify-between gap-3 bg-[#0A0A0C]/50">
+            <button
+              onClick={step === 1 ? onClose : handleBack}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all"
+            >
+              <ChevronLeft size={16} />
+              {step === 1 ? 'Close' : 'Back'}
+            </button>
+
+            <span className="text-xs text-slate-600 font-medium">
+              {step} / {STEPS.length}
+            </span>
+
+            {step < 6 ? (
+              <button
+                onClick={handleNext}
+                disabled={!canAdvance()}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                  canAdvance()
+                    ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20'
+                    : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed'
+                }`}
+              >
+                Continue
+                <ChevronRight size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={handleConfirm}
+                disabled={!canAdvance()}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                  canAdvance()
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20'
+                    : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed'
+                }`}
+              >
+                <CheckCircle2 size={16} />
+                Xác nhận đặt chỗ
+              </button>
+            )}
           </div>
-        </div>
-
-        {/* ── Modal Footer / Navigation ── */}
-        <div className="flex-shrink-0 px-6 py-4 border-t border-white/[0.06] flex items-center justify-between gap-3 bg-[#0A0A0C]/50">
-          {/* Back */}
-          <button
-            onClick={step === 1 ? onClose : handleBack}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all"
-          >
-            <ChevronLeft size={16} />
-            {step === 1 ? 'Close' : 'Back'}
-          </button>
-
-          {/* Step indicator (mobile) */}
-          <span className="text-xs text-slate-600 font-medium">
-            {step} / {STEPS.length}
-          </span>
-
-          {/* Next / Confirm */}
-          {step < 6 ? (
-            <button
-              onClick={handleNext}
-              disabled={!canAdvance()}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                canAdvance()
-                  ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20'
-                  : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed'
-              }`}
-            >
-              Continue
-              <ChevronRight size={16} />
-            </button>
-          ) : (
-            <button
-              onClick={handleConfirm}
-              disabled={!canAdvance()}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                canAdvance()
-                  ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20'
-                  : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed'
-              }`}
-            >
-              <CheckCircle2 size={16} />
-              Xác nhận đặt chỗ
-            </button>
-          )}
         </div>
       </div>
-    </div>
+
+      {/* ── Confirmation & Payment Popup ──
+          Đặt NGOÀI backdrop div để tránh stacking context trap từ backdrop-filter */}
+      {showConfirmPopup && (
+        <ConfirmationPopup
+          lot={lot}
+          state={state}
+          onClose={() => setShowConfirmPopup(false)}
+          onDone={handlePaymentDone}
+        />
+      )}
+    </>
   );
 }
