@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import {
@@ -6,12 +7,27 @@ import {
   ArrowRight,
   BookOpen,
   LogOut,
-  Activity
+  Activity,
+  ChevronDown
 } from 'lucide-react';
 
 export default function UserLandingPage() {
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // Đăng xuất
   const handleLogout = () => {
@@ -48,24 +64,41 @@ export default function UserLandingPage() {
 
             <div className="flex items-center gap-3">
               {token && user ? (
-                <>
-                  {/* Profile info & Logout */}
-                  <div className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-full py-1.5 pl-2 pr-4">
-                    <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-black font-bold text-xs">
+                <div className="relative" ref={dropdownRef}>
+                  {/* Profile info badge with dropdown toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center gap-3 bg-white/5 border border-white/10 rounded-full py-1.5 pl-2 pr-4 hover:bg-white/10 hover:border-white/20 transition-all focus:outline-none"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-black font-bold text-xs shrink-0">
                       {initials}
                     </div>
                     <span className="text-sm text-slate-200 font-bold hidden sm:block">
                       {user.fullName}
                     </span>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="p-2.5 rounded-full text-slate-400 hover:text-red-600 hover:bg-red-500/10 transition-all border border-white/5"
-                    title="Đăng xuất"
-                  >
-                    <LogOut size={16} />
+                    <ChevronDown
+                      size={14}
+                      className={`text-slate-400 transition-transform duration-200 ${
+                        isDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
                   </button>
-                </>
+
+                  {/* Dropdown Menu */}
+                  {isDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-red-500 hover:bg-red-500/10 transition-colors text-left"
+                      >
+                        <LogOut size={16} />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <Link
                   to="/auth"
