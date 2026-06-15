@@ -10,7 +10,7 @@
   html { scroll-behavior: smooth; }
 
   body {
-    @apply bg-[#101A31] text-white font-sans antialiased overflow-x-hidden;
+    @apply bg-[#0A0A0C] text-white font-sans antialiased overflow-x-hidden;
   }
 
   #root { @apply min-h-screen; }
@@ -22,7 +22,7 @@
 
 @layer utilities {
   .gradient-text {
-    @apply bg-gradient-to-r from-[#00C2FF] to-[#3BFFA4] bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-amber-500 to-orange-500 bg-clip-text text-transparent;
   }
 
   .glass-card {
