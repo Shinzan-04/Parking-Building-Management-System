@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import BookingWizard from './BookingWizard';
 import { useNavigate, Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -257,6 +258,7 @@ export default function BookingPage() {
   const [isSortOpen, setIsSortOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [showDetailPanel, setShowDetailPanel] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const sortRef = useRef<HTMLDivElement>(null);
@@ -771,7 +773,7 @@ export default function BookingPage() {
                 <div className="space-y-3 pt-2">
                   <button
                     className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3.5 rounded-2xl text-sm tracking-wide transition-all shadow-lg shadow-amber-500/20"
-                    onClick={() => alert('Tính năng đặt chỗ sẽ được tích hợp!')}
+                    onClick={() => setShowWizard(true)}
                   >
                     ĐẶT CHỖ NGAY
                   </button>
@@ -787,6 +789,14 @@ export default function BookingPage() {
           )}
         </div>
       </div>
+
+      {/* ===== Booking Wizard Overlay ===== */}
+      {showWizard && selectedLot && (
+        <BookingWizard
+          lot={selectedLot}
+          onClose={() => setShowWizard(false)}
+        />
+      )}
     </div>
   );
 }
