@@ -193,50 +193,66 @@ function StepLicensePlate({
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
 }) {
+  // Icon xe tương ứng với lựa chọn ở step 1
+  const VehicleIcon = state.vehicleType === 'motorbike' ? Bike : Car;
+  const vehicleLabel = state.vehicleType === 'motorbike' ? 'Motorcycle' : 'Car';
+  const placeholder = state.vehicleType === 'motorbike' ? '59T1-12345' : '51A-12345';
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-7">
+      {/* Step header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
           <ParkingSquare size={20} className="text-amber-400" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">License Plate</h2>
-          <p className="text-sm text-slate-500">Step 2 of 6 — Enter your vehicle license plate</p>
+          <h2 className="text-lg font-bold text-white">Enter License Plate</h2>
+          <p className="text-sm text-slate-500">
+            Step 2 of 6 — Your vehicle's identification number
+          </p>
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Biển số xe
-          </label>
+      {/* Vehicle type display */}
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-24 h-24 rounded-2xl bg-white/[0.05] border-2 border-white/10 flex items-center justify-center">
+          <VehicleIcon
+            size={52}
+            strokeWidth={1.5}
+            className="text-amber-400"
+          />
+        </div>
+        <span className="text-sm font-semibold text-slate-400">{vehicleLabel}</span>
+      </div>
+
+      {/* License plate input */}
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-full max-w-sm">
           <input
             type="text"
-            placeholder="VD: 51A-12345"
+            placeholder={placeholder}
             value={state.licensePlate}
             onChange={(e) =>
               setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
             }
-            className="w-full bg-white/[0.05] border border-white/10 rounded-2xl px-5 py-4 text-white text-xl font-bold text-center tracking-widest placeholder-slate-700 outline-none focus:border-amber-500/60 focus:bg-white/[0.08] transition-all"
+            maxLength={12}
+            className="w-full bg-white/[0.04] border-2 border-amber-500/40 focus:border-amber-500 rounded-2xl px-6 py-4 text-white text-2xl font-black text-center tracking-[0.25em] placeholder-slate-700 outline-none transition-all duration-200 shadow-lg shadow-amber-500/5 focus:shadow-amber-500/15"
           />
-          <p className="text-xs text-slate-600 text-center mt-2">
-            Nhập đúng biển số để hệ thống nhận diện xe khi vào bãi
-          </p>
         </div>
 
-        {/* Preview plate */}
-        {state.licensePlate && (
-          <div className="flex justify-center">
-            <div className="bg-amber-500/10 border-2 border-amber-500/40 rounded-xl px-8 py-4 text-center">
-              <p className="text-xs text-amber-400/70 font-semibold uppercase tracking-widest mb-1">
-                Biển số xe
-              </p>
-              <p className="text-2xl font-black text-amber-400 tracking-widest">
-                {state.licensePlate}
-              </p>
-            </div>
-          </div>
-        )}
+        {/* Format hint */}
+        <div className="text-center space-y-1">
+          <p className="text-xs text-slate-500">
+            Format:{' '}
+            <span className="text-slate-300 font-semibold">51A-12345</span>{' '}
+            (car) or{' '}
+            <span className="text-slate-300 font-semibold">59T1-12345</span>{' '}
+            (motorcycle)
+          </p>
+          <p className="text-xs text-slate-600">
+            This will be linked to your parking session.
+          </p>
+        </div>
       </div>
     </div>
   );
