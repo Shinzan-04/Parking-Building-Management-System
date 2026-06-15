@@ -268,8 +268,32 @@ function StepDateTime({
 }) {
   const durations = [1, 2, 3, 4, 6, 8, 12, 24];
 
+  // Tính giờ ra dựa trên giờ vào + duration
+  const computeExitTime = (): { time: string; date: string } => {
+    if (!state.entryDate || !state.entryTime) return { time: '--:--', date: '--/--/----' };
+    const [h, m] = state.entryTime.split(':').map(Number);
+    const entry = new Date(state.entryDate);
+    entry.setHours(h, m, 0, 0);
+    const exit = new Date(entry.getTime() + state.duration * 60 * 60 * 1000);
+    const exitTime = `${String(exit.getHours()).padStart(2, '0')}:${String(exit.getMinutes()).padStart(2, '0')}`;
+    const exitDate = `${String(exit.getDate()).padStart(2, '0')}/${String(exit.getMonth() + 1).padStart(2, '0')}/${exit.getFullYear()}`;
+    return { time: exitTime, date: exitDate };
+  };
+
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return '--/--/----';
+    const [y, mo, d] = dateStr.split('-');
+    return `${d}/${mo}/${y}`;
+  };
+
+  const pricePerHour =
+    state.vehicleType === 'car' ? 10000 : state.vehicleType === 'motorbike' ? 5000 : 0;
+  const total = pricePerHour * state.duration;
+  const exitInfo = computeExitTime();
+
   return (
     <div className="flex flex-col gap-6">
+      {/* Step header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
           <Calendar size={20} className="text-amber-400" />
@@ -280,37 +304,40 @@ function StepDateTime({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Calendar size={12} />
-            Ngày vào
-          </label>
-          <input
-            type="date"
-            value={state.entryDate}
-            min={todayDateStr()}
-            onChange={(e) => setState((s) => ({ ...s, entryDate: e.target.value }))}
-            className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-amber-500/60 transition-all [color-scheme:dark]"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-            <Clock size={12} />
-            Giờ vào
-          </label>
-          <input
-            type="time"
-            value={state.entryTime}
-            onChange={(e) => setState((s) => ({ ...s, entryTime: e.target.value }))}
-            className="w-full bg-white/[0.05] border border-white/10 rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-amber-500/60 transition-all [color-scheme:dark]"
-          />
-        </div>
+      {/* ── Booking Date ── */}
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+          <Calendar size={12} className="text-amber-500" />
+          Booking Date
+        </label>
+        <input
+          type="date"
+          value={state.entryDate}
+          min={todayDateStr()}
+          onChange={(e) => setState((s) => ({ ...s, entryDate: e.target.value }))}
+          className="w-full bg-white/[0.05] border border-white/10 hover:border-white/20 focus:border-amber-500/60 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all [color-scheme:dark]"
+        />
       </div>
 
+      {/* ── Arrival Time ── */}
       <div>
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-          Thời gian gửi xe (giờ)
+        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+          <Clock size={12} className="text-amber-500" />
+          Arrival Time
+        </label>
+        <input
+          type="time"
+          value={state.entryTime}
+          onChange={(e) => setState((s) => ({ ...s, entryTime: e.target.value }))}
+          className="w-full bg-white/[0.05] border border-white/10 hover:border-white/20 focus:border-amber-500/60 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all [color-scheme:dark]"
+        />
+      </div>
+
+      {/* ── Duration ── */}
+      <div>
+        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+          <Clock size={12} className="text-amber-500" />
+          Duration
         </label>
         <div className="flex flex-wrap gap-2">
           {durations.map((d) => (
@@ -319,8 +346,8 @@ function StepDateTime({
               onClick={() => setState((s) => ({ ...s, duration: d }))}
               className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
                 state.duration === d
-                  ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/20'
-                  : 'bg-white/[0.04] text-slate-300 border-white/10 hover:bg-white/[0.08] hover:text-white'
+                  ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/25'
+                  : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-white/[0.08] hover:text-white hover:border-white/20'
               }`}
             >
               {d}h
@@ -328,9 +355,65 @@ function StepDateTime({
           ))}
         </div>
       </div>
+
+      {/* ── Parking Summary Card ── */}
+      <div className="rounded-2xl bg-[#0D1520] border border-[#1E3A5F]/60 p-5 mt-1">
+        {/* Label */}
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-5 h-5 rounded bg-blue-500 flex items-center justify-center">
+            <span className="text-white text-[10px] font-black">P</span>
+          </div>
+          <span className="text-xs font-black text-slate-300 uppercase tracking-widest">
+            Your Parking
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: times */}
+          <div className="flex items-center gap-4">
+            {/* Entry time */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-3xl font-black text-blue-400 leading-none">
+                {state.entryTime || '--:--'}
+              </span>
+              <span className="text-xs text-slate-500 mt-1">
+                {formatDateDisplay(state.entryDate)}
+              </span>
+            </div>
+
+            {/* Duration badge */}
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-xs font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded-full">
+                {state.duration}h
+              </span>
+              <div className="w-8 h-px bg-blue-500/50" />
+            </div>
+
+            {/* Exit time */}
+            <div className="flex flex-col gap-0.5">
+              <span className="text-3xl font-black text-emerald-400 leading-none">
+                {exitInfo.time}
+              </span>
+              <span className="text-xs text-slate-500 mt-1">{exitInfo.date}</span>
+            </div>
+          </div>
+
+          {/* Right: Est. Cost */}
+          <div className="text-right flex-shrink-0">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+              Est. Cost
+            </p>
+            <p className="text-2xl font-black text-amber-400">
+              {pricePerHour > 0 ? `${total.toLocaleString('vi-VN')}đ` : '--'}
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
+
+
 
 // Step 4 – Select Floor
 function StepSelectFloor({
