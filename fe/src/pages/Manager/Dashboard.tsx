@@ -37,7 +37,7 @@ const recentSessions = [
 function ChartTooltip({ active, payload, label, color, formatter }: { active?: boolean; payload?: { value: number }[]; label?: string; color: string; formatter: (v: number) => string }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#0B1120] border border-white/10 rounded-xl px-4 py-2.5 text-sm">
+    <div className="bg-[#0E0E10] border border-white/10 rounded-xl px-4 py-2.5 text-sm">
       <p className="text-white/60 mb-1">{label}</p>
       <p className="font-semibold" style={{ color }}>{formatter(payload[0].value)}</p>
     </div>
@@ -67,8 +67,8 @@ export default function ManagerDashboard() {
   const occupancy = totalCap > 0 ? Math.round((occupied / totalCap) * 1000) / 10 : 0;
 
   const stats = [
-    { label: 'Chỗ đang sử dụng', value: occupied.toLocaleString('vi-VN'),  unit: 'chỗ', icon: Car,      color: '#3BFFA4', bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5' },
-    { label: 'Chỗ còn trống',    value: available.toLocaleString('vi-VN'), unit: 'chỗ', icon: MapPin,   color: '#00C2FF', bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5' },
+    { label: 'Chỗ đang sử dụng', value: occupied.toLocaleString('vi-VN'),  unit: 'chỗ', icon: Car,      color: '#F97316', bg: 'from-orange-500/20 to-orange-500/5' },
+    { label: 'Chỗ còn trống',    value: available.toLocaleString('vi-VN'), unit: 'chỗ', icon: MapPin,   color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5' },
     { label: 'Doanh thu hôm nay', value: '—',                               unit: 'đ',   icon: Banknote, color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
     { label: 'Tỷ lệ lấp đầy',   value: `${occupancy}%`,                   unit: '',    icon: TrendingUp, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
   ];
@@ -116,8 +116,8 @@ export default function ManagerDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" vertical={false} />
               <XAxis dataKey="day" tick={{ fill: '#ffffff66', fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v / 1000}k`} />
-              <Tooltip content={<ChartTooltip color="#3BFFA4" formatter={(v) => `${new Intl.NumberFormat('vi-VN').format(v * 1000)}đ`} />} cursor={{ fill: '#ffffff05' }} />
-              <Bar dataKey="revenue" fill="#3BFFA4" radius={[6, 6, 0, 0]} />
+              <Tooltip content={<ChartTooltip color="#F97316" formatter={(v) => `${new Intl.NumberFormat('vi-VN').format(v * 1000)}đ`} />} cursor={{ fill: '#ffffff05' }} />
+              <Bar dataKey="revenue" fill="#F97316" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -135,8 +135,8 @@ export default function ManagerDashboard() {
               <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" vertical={false} />
               <XAxis dataKey="hour" tick={{ fill: '#ffffff66', fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTooltip color="#00C2FF" formatter={(v) => `${v} xe`} />} />
-              <Line type="monotone" dataKey="vehicles" stroke="#00C2FF" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#00C2FF', strokeWidth: 0 }} />
+              <Tooltip content={<ChartTooltip color="#F59E0B" formatter={(v) => `${v} xe`} />} />
+              <Line type="monotone" dataKey="vehicles" stroke="#F59E0B" strokeWidth={2.5} dot={false} activeDot={{ r: 5, fill: '#F59E0B', strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -146,7 +146,7 @@ export default function ManagerDashboard() {
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
           <h3 className="text-base font-semibold text-white">Phiên đỗ xe gần đây</h3>
-          <button className="text-xs text-[#3BFFA4] hover:text-[#3BFFA4]/80 font-medium transition-colors">
+          <button className="text-xs text-orange-500 hover:text-orange-500/80 font-medium transition-colors">
             Xem tất cả →
           </button>
         </div>
@@ -186,8 +186,8 @@ export default function ManagerDashboard() {
                   </td>
                   <td className="px-4 py-3.5">
                     {s.status === 'parked' ? (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#3BFFA4]/10 text-[#3BFFA4]">
-                        <span className="w-1.5 h-1.5 bg-[#3BFFA4] rounded-full animate-pulse" />
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-orange-500/10 text-orange-500">
+                        <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
                         Đang đỗ
                       </span>
                     ) : (

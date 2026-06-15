@@ -47,7 +47,7 @@ function toLocalDateStr(d: Date) {
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<SessionStatus, { bg: string; text: string; dot: string }> = {
-  Active:    { bg: 'bg-[#3BFFA4]/10', text: 'text-[#3BFFA4]',  dot: 'bg-[#3BFFA4]'  },
+  Active:    { bg: 'bg-orange-500/10', text: 'text-orange-500',  dot: 'bg-orange-500'  },
   Overdue:   { bg: 'bg-red-400/10',   text: 'text-red-400',    dot: 'bg-red-400'    },
   Completed: { bg: 'bg-white/10',     text: 'text-white/60',   dot: 'bg-white/40'   },
 };
@@ -106,11 +106,11 @@ function SessionDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#0F1B2D] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
+      <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
-            <ClipboardList size={16} className="text-[#3BFFA4]" />
+            <ClipboardList size={16} className="text-orange-500" />
             <h3 className="text-base font-semibold text-white">
               Chi tiết phiên đỗ xe
             </h3>
@@ -163,12 +163,12 @@ function SessionDetailModal({
               </div>
 
               {/* Fee */}
-              <div className="flex items-center justify-between px-4 py-3.5 bg-gradient-to-r from-[#3BFFA4]/10 to-[#00C2FF]/10 border border-[#3BFFA4]/20 rounded-xl">
+              <div className="flex items-center justify-between px-4 py-3.5 bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-xl">
                 <div className="flex items-center gap-2 text-sm text-white/60">
-                  <Banknote size={15} className="text-[#3BFFA4]" />
+                  <Banknote size={15} className="text-orange-500" />
                   Phí gửi xe
                 </div>
-                <p className="text-lg font-bold text-[#3BFFA4]">{vnd(session.totalFee)}đ</p>
+                <p className="text-lg font-bold text-orange-500">{vnd(session.totalFee)}đ</p>
               </div>
 
               {/* Entry image */}
@@ -303,9 +303,9 @@ export default function ManagerSessions() {
       {/* KPI mini-banner */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {[
-          { icon: Car,          label: 'Đang đỗ',       value: summary.totalActive,            color: '#3BFFA4', alert: false },
+          { icon: Car,          label: 'Đang đỗ',       value: summary.totalActive,            color: '#F97316', alert: false },
           { icon: AlertTriangle, label: 'Quá giờ',      value: summary.totalOverdue,            color: '#F87171', alert: summary.totalOverdue > 0 },
-          { icon: CheckCircle2, label: 'Ra hôm nay',    value: summary.totalCompletedToday,    color: '#00C2FF', alert: false },
+          { icon: CheckCircle2, label: 'Ra hôm nay',    value: summary.totalCompletedToday,    color: '#F59E0B', alert: false },
           { icon: Banknote,     label: 'Doanh thu hôm nay', value: null,                       color: '#F59E0B', alert: false },
         ].map((kpi, i) => {
           const Icon = kpi.icon;
@@ -339,7 +339,7 @@ export default function ManagerSessions() {
             placeholder="Tìm biển số xe..."
             value={search}
             onChange={e => handleSearchChange(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors"
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-orange-500/50 transition-colors"
           />
         </div>
 
@@ -356,7 +356,7 @@ export default function ManagerSessions() {
               onClick={() => setStatusFilter(opt.value)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 statusFilter === opt.value
-                  ? 'bg-[#3BFFA4] text-[#101A31]'
+                  ? 'bg-orange-500 text-black'
                   : 'text-white/50 hover:text-white'
               }`}
             >
@@ -384,7 +384,7 @@ export default function ManagerSessions() {
       <div className="glass-card rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-white/40">
-            <Loader2 size={22} className="animate-spin text-[#3BFFA4]" />
+            <Loader2 size={22} className="animate-spin text-orange-500" />
             <span className="text-sm">Đang tải...</span>
           </div>
         ) : sessions.length === 0 ? (
@@ -413,7 +413,7 @@ export default function ManagerSessions() {
                         <p className="text-[10px] text-white/30 mt-0.5">{s.sessionCode}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-xs bg-[#3BFFA4]/10 text-[#3BFFA4] px-2 py-0.5 rounded-full">{s.vehicleTypeName}</span>
+                        <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full">{s.vehicleTypeName}</span>
                       </td>
                       <td className="px-4 py-3">
                         <p className="text-xs text-white/70">{s.buildingName}</p>
@@ -435,7 +435,7 @@ export default function ManagerSessions() {
                         <span className="text-xs text-white/60">{s.duration || '—'}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-semibold text-[#3BFFA4]">{vnd(s.totalFee)}đ</span>
+                        <span className="text-sm font-semibold text-orange-500">{vnd(s.totalFee)}đ</span>
                         {s.estimatedFee > 0 && s.status !== 'Completed' && (
                           <p className="text-[10px] text-white/30">~{vnd(s.estimatedFee)}đ</p>
                         )}
@@ -446,7 +446,7 @@ export default function ManagerSessions() {
                       <td className="pr-6 py-3">
                         <button
                           onClick={() => setDetailId(s.id)}
-                          className="p-2 rounded-xl text-white/30 hover:text-[#3BFFA4] hover:bg-[#3BFFA4]/10 transition-all"
+                          className="p-2 rounded-xl text-white/30 hover:text-orange-500 hover:bg-orange-500/10 transition-all"
                           title="Xem chi tiết"
                         >
                           <Eye size={15} />
@@ -484,7 +484,7 @@ export default function ManagerSessions() {
                       onClick={() => setPage(pg)}
                       className={`w-8 h-8 rounded-xl text-xs font-medium transition-all ${
                         page === pg
-                          ? 'bg-[#3BFFA4] text-[#101A31]'
+                          ? 'bg-orange-500 text-black'
                           : 'text-white/50 hover:text-white hover:bg-white/10'
                       }`}
                     >
