@@ -52,8 +52,8 @@ export default function Vehicles() {
   const carCount    = mockVehicles.filter(v => v.type === 'car').length;
 
   const stats = [
-    { label: 'Tổng xe hôm nay', value: mockVehicles.length, unit: 'xe',   icon: TrendingUp,    color: '#00C2FF', bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5' },
-    { label: 'Đang đỗ',         value: parkedCount,          unit: 'xe',   icon: Car,           color: '#3BFFA4', bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5' },
+    { label: 'Tổng xe hôm nay', value: mockVehicles.length, unit: 'xe',   icon: TrendingUp,    color: '#F59E0B', bg: 'from-[#F59E0B]/20 to-[#F59E0B]/5' },
+    { label: 'Đang đỗ',         value: parkedCount,          unit: 'xe',   icon: Car,           color: '#F97316', bg: 'from-[#F97316]/20 to-[#F97316]/5' },
     { label: 'Đã ra về',        value: exitedCount,          unit: 'xe',   icon: CheckCircle2,  color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
     { label: 'Ô tô / Xe máy',   value: `${carCount}/${mockVehicles.length - carCount}`, unit: '', icon: CalendarDays, color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
   ];
@@ -111,7 +111,7 @@ export default function Vehicles() {
             placeholder="Tìm biển số, chủ xe, khu đỗ..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00C2FF]/50 transition-colors"
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#F59E0B]/50 transition-colors"
           />
         </div>
 
@@ -128,7 +128,7 @@ export default function Vehicles() {
               }`}
             >
               {t.label}
-              <span className={`ml-1.5 text-xs ${activeTab === t.key ? 'text-[#00C2FF]' : 'text-white/20'}`}>
+              <span className={`ml-1.5 text-xs ${activeTab === t.key ? 'text-[#F59E0B]' : 'text-white/20'}`}>
                 {t.key === 'all' ? mockVehicles.length : t.key === 'parked' ? parkedCount : exitedCount}
               </span>
             </button>
@@ -178,9 +178,9 @@ export default function Vehicles() {
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5">
                         {v.type === 'car' ? (
-                          <Car size={13} className="text-[#00C2FF]" />
+                          <Car size={13} className="text-[#F59E0B]" />
                         ) : (
-                          <Bike size={13} className="text-[#3BFFA4]" />
+                          <Bike size={13} className="text-[#F97316]" />
                         )}
                         <span className="text-sm text-white/60">
                           {v.type === 'car' ? 'Ô tô' : 'Xe máy'}
@@ -209,8 +209,8 @@ export default function Vehicles() {
                     </td>
                     <td className="px-4 py-3.5">
                       {v.status === 'parked' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#3BFFA4]/10 text-[#3BFFA4]">
-                          <span className="w-1.5 h-1.5 bg-[#3BFFA4] rounded-full animate-pulse" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#F97316]/10 text-[#F97316]">
+                          <span className="w-1.5 h-1.5 bg-[#F97316] rounded-full animate-pulse" />
                           Đang đỗ
                         </span>
                       ) : (
