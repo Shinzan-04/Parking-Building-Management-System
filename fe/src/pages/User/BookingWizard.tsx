@@ -13,7 +13,10 @@ import {
   CheckCircle2,
   ClipboardList,
   Building2,
+  Loader2,
 } from 'lucide-react';
+import { getVehicleTypes } from '../../services/vehicleTypesService';
+import { getAllPolicies } from '../../services/pricingService';
 
 // ─────────────────────────────────────────────
 // Types
@@ -26,7 +29,7 @@ interface ParkingLot {
 }
 
 interface WizardState {
-  vehicleType: 'car' | 'motorbike' | null;
+  vehicleType: string | null;
   licensePlate: string;
   entryDate: string;
   entryTime: string;
@@ -94,27 +97,43 @@ const nowTimeStr = () => {
 // ─────────────────────────────────────────────
 
 // Step 1 – Vehicle Type
+interface ApiVehicleType {
+  id: string;
+  name: string;
+  description?: string;
+  hourlyRate: number;
+}
+
+// Step 1 – Vehicle Type
 function StepVehicleType({
   state,
   setState,
+  vehicles,
+  loading,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  vehicles: ApiVehicleType[];
+  loading: boolean;
 }) {
-  const vehicles = [
-    {
-      key: 'car' as const,
-      label: 'Car',
-      price: 10000,
-      Icon: Car,
-    },
-    {
-      key: 'motorbike' as const,
-      label: 'Motorcycle',
-      price: 5000,
-      Icon: Bike,
-    },
-  ];
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <Loader2 size={32} className="text-amber-400 animate-spin" />
+        <p className="text-sm text-slate-400">Đang tải danh sách loại xe...</p>
+      </div>
+    );
+  }
+
+  if (vehicles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <Car size={48} className="text-slate-600 mb-3" />
+        <p className="text-sm text-slate-400 font-bold">Không tìm thấy loại xe nào</p>
+        <p className="text-xs text-slate-600">Vui lòng kiểm tra lại cấu hình hệ thống.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -128,13 +147,19 @@ function StepVehicleType({
         </div>
       </div>
 
-      <div className="flex gap-4">
-        {vehicles.map(({ key, label, price, Icon }) => {
-          const selected = state.vehicleType === key;
+      <div className="grid grid-cols-2 gap-4">
+        {vehicles.map((v) => {
+          const selected = state.vehicleType === v.id;
+          const isMotorbike = v.name.toLowerCase().includes('moto') || 
+                              v.name.toLowerCase().includes('xe máy') ||
+                              v.name.toLowerCase().includes('bike') ||
+                              v.name.toLowerCase().includes('xe hai bánh');
+          const Icon = isMotorbike ? Bike : Car;
+
           return (
             <button
-              key={key}
-              onClick={() => setState((s) => ({ ...s, vehicleType: key }))}
+              key={v.id}
+              onClick={() => setState((s) => ({ ...s, vehicleType: v.id }))}
               className={`flex-1 flex flex-col items-center gap-5 py-10 rounded-2xl border-2 transition-all duration-200 group ${
                 selected
                   ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
@@ -158,16 +183,21 @@ function StepVehicleType({
                 />
               </div>
 
-              <div className="text-center">
+              <div className="text-center px-4">
                 <p
                   className={`font-bold text-base ${
                     selected ? 'text-amber-400' : 'text-slate-200'
                   }`}
                 >
-                  {label}
+                  {v.name}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {formatCurrency(price)}/hr
+                {v.description && (
+                  <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">
+                    {v.description}
+                  </p>
+                )}
+                <p className="text-xs text-slate-400 mt-1.5 font-semibold">
+                  {formatCurrency(v.hourlyRate)}/hr
                 </p>
               </div>
 
@@ -189,14 +219,21 @@ function StepVehicleType({
 function StepLicensePlate({
   state,
   setState,
+  vehicles,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  vehicles: ApiVehicleType[];
 }) {
-  // Icon xe tương ứng với lựa chọn ở step 1
-  const VehicleIcon = state.vehicleType === 'motorbike' ? Bike : Car;
-  const vehicleLabel = state.vehicleType === 'motorbike' ? 'Motorcycle' : 'Car';
-  const placeholder = state.vehicleType === 'motorbike' ? '59T1-12345' : '51A-12345';
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') || 
+                      selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+                      selectedVehicle?.name.toLowerCase().includes('bike') ||
+                      selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+                      false;
+  const VehicleIcon = isMotorbike ? Bike : Car;
+  const vehicleLabel = selectedVehicle?.name || 'Car';
+  const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
 
   return (
     <div className="flex flex-col gap-7">
@@ -262,9 +299,11 @@ function StepLicensePlate({
 function StepDateTime({
   state,
   setState,
+  vehicles,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  vehicles: ApiVehicleType[];
 }) {
   const durations = [1, 2, 3, 4, 6, 8, 12, 24];
 
@@ -286,8 +325,8 @@ function StepDateTime({
     return `${d}/${mo}/${y}`;
   };
 
-  const pricePerHour =
-    state.vehicleType === 'car' ? 10000 : state.vehicleType === 'motorbike' ? 5000 : 0;
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
   const total = pricePerHour * state.duration;
   const exitInfo = computeExitTime();
 
@@ -635,13 +674,21 @@ function StepSelectSlot({
 function BookingSummary({
   lot,
   state,
+  vehicles,
 }: {
   lot: ParkingLot;
   state: WizardState;
+  vehicles: ApiVehicleType[];
 }) {
-  const pricePerHour =
-    state.vehicleType === 'car' ? 10000 : state.vehicleType === 'motorbike' ? 5000 : 0;
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
   const total = pricePerHour * state.duration;
+
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') || 
+                      selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+                      selectedVehicle?.name.toLowerCase().includes('bike') ||
+                      selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+                      false;
 
   const rows: { label: string; value: string; muted?: boolean }[] = [
     { label: 'Facility', value: lot.name },
@@ -652,12 +699,7 @@ function BookingSummary({
     },
     {
       label: 'Vehicle',
-      value:
-        state.vehicleType === 'car'
-          ? 'Car'
-          : state.vehicleType === 'motorbike'
-          ? 'Motorcycle'
-          : 'Not selected',
+      value: selectedVehicle?.name ?? 'Not selected',
       muted: !state.vehicleType,
     },
     {
@@ -755,18 +797,26 @@ function ConfirmationPopup({
   state,
   onClose,
   onDone,
+  vehicles,
 }: {
   lot: ParkingLot;
   state: WizardState;
   onClose: () => void;
   onDone: () => void;
+  vehicles: ApiVehicleType[];
 }) {
   const [phase, setPhase] = useState<PopupPhase>('confirm');
   const [payMethod, setPayMethod] = useState<string>('cash');
 
-  const pricePerHour =
-    state.vehicleType === 'car' ? 10000 : state.vehicleType === 'motorbike' ? 5000 : 0;
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
   const total = pricePerHour * state.duration;
+
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') || 
+                      selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+                      selectedVehicle?.name.toLowerCase().includes('bike') ||
+                      selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+                      false;
 
   // Mã đặt chỗ hardcode (sau này lấy từ API response)
   const bookingRef = `PKG-${Date.now().toString(36).toUpperCase().slice(-8)}`;
@@ -776,7 +826,7 @@ function ConfirmationPopup({
     ref: bookingRef,
     lot: lot.name,
     plate: state.licensePlate,
-    vehicle: state.vehicleType,
+    vehicle: selectedVehicle?.name ?? '',
     slot: `${state.floor}/${state.zone}/${state.slot}`,
     date: state.entryDate,
     entry: state.entryTime,
@@ -807,7 +857,7 @@ function ConfirmationPopup({
   const rows = [
     { label: 'Bãi đỗ xe', value: lot.name },
     { label: 'Biển số',   value: state.licensePlate },
-    { label: 'Loại xe',   value: state.vehicleType === 'car' ? '🚗 Car' : '🏍️ Motorcycle' },
+    { label: 'Loại xe',   value: selectedVehicle ? `${isMotorbike ? '🏍️' : '🚗'} ${selectedVehicle.name}` : 'Chưa chọn' },
     { label: 'Ngày vào',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
     { label: 'Giờ ra (dự kiến)', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
     { label: 'Thời gian', value: `${state.duration}h` },
@@ -1109,6 +1159,9 @@ function StepperBar({ currentStep }: { currentStep: number }) {
 // ─────────────────────────────────────────────
 export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   const [step, setStep] = useState(1);
+  const [vehicles, setVehicles] = useState<ApiVehicleType[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
+
   const [state, setState] = useState<WizardState>({
     vehicleType: null,
     licensePlate: '',
@@ -1120,6 +1173,46 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     slot: null,
   });
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+
+  // Load vehicle types & policies
+  useEffect(() => {
+    async function loadVehicleTypes() {
+      try {
+        setLoadingVehicles(true);
+        const [types, policies] = await Promise.all([
+          getVehicleTypes(),
+          getAllPolicies()
+        ]);
+        
+        const mapped = types.map(t => {
+          const policy = policies.find(p => p.vehicleTypeId === t.id);
+          let rate = policy?.hourlyRate ?? 0;
+          if (rate === 0) {
+            const lowerName = t.name.toLowerCase();
+            if (lowerName.includes('car') || lowerName.includes('ô tô') || lowerName.includes('xe hơi') || lowerName.includes('oto') || lowerName.includes('xe 01')) {
+              rate = 10000;
+            } else if (lowerName.includes('moto') || lowerName.includes('xe máy') || lowerName.includes('bike') || lowerName.includes('xe hai bánh')) {
+              rate = 5000;
+            } else {
+              rate = 10000;
+            }
+          }
+          return {
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            hourlyRate: rate
+          };
+        });
+        setVehicles(mapped);
+      } catch (err) {
+        console.error('Lỗi khi tải loại xe:', err);
+      } finally {
+        setLoadingVehicles(false);
+      }
+    }
+    loadVehicleTypes();
+  }, []);
 
   // Lock body scroll
   useEffect(() => {
@@ -1160,9 +1253,9 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
 
   const renderStep = () => {
     switch (step) {
-      case 1: return <StepVehicleType state={state} setState={setState} />;
-      case 2: return <StepLicensePlate state={state} setState={setState} />;
-      case 3: return <StepDateTime state={state} setState={setState} />;
+      case 1: return <StepVehicleType state={state} setState={setState} vehicles={vehicles} loading={loadingVehicles} />;
+      case 2: return <StepLicensePlate state={state} setState={setState} vehicles={vehicles} />;
+      case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} />;
       case 4: return <StepSelectFloor state={state} setState={setState} />;
       case 5: return <StepSelectZone state={state} setState={setState} />;
       case 6: return <StepSelectSlot state={state} setState={setState} />;
@@ -1257,6 +1350,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           state={state}
           onClose={() => setShowConfirmPopup(false)}
           onDone={handlePaymentDone}
+          vehicles={vehicles}
         />
       )}
     </>
