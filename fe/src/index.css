@@ -83,3 +83,10 @@
 .animate-fade-in-up {
   animation: fadeInUp 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* Pulse ring animation cho marker vị trí người dùng */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.6); opacity: 0.8; }
+  60%  { transform: scale(2.2); opacity: 0.15; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
