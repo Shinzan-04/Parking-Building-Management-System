@@ -17,6 +17,11 @@ import {
 } from 'lucide-react';
 import { getVehicleTypes } from '../../services/vehicleTypesService';
 import { getAllPolicies } from '../../services/pricingService';
+import { getFloorsByBuilding, getBuildings } from '../../services/buildingsService';
+import type { FloorResponse } from '../../services/buildingsService';
+import { getSlotsByFloor } from '../../services/parkingService';
+import type { ParkingSlotDetail } from '../../services/parkingService';
+import { createReservation } from '../../services/reservationsService';
 
 // ─────────────────────────────────────────────
 // Types
@@ -37,6 +42,7 @@ interface WizardState {
   floor: string | null;
   zone: string | null;
   slot: string | null;
+  slotId: string | null;
 }
 
 interface BookingWizardProps {
@@ -47,14 +53,7 @@ interface BookingWizardProps {
 // ─────────────────────────────────────────────
 // Hard-coded parking layout data
 // ─────────────────────────────────────────────
-const FLOORS = ['Tầng 1', 'Tầng 2', 'Tầng 3', 'Tầng 4'];
-
-const ZONES_BY_FLOOR: Record<string, string[]> = {
-  'Tầng 1': ['Khu A', 'Khu B', 'Khu C'],
-  'Tầng 2': ['Khu A', 'Khu B'],
-  'Tầng 3': ['Khu A', 'Khu B', 'Khu C', 'Khu D'],
-  'Tầng 4': ['Khu A'],
-};
+// Removed hard-coded floors & zones in favor of API dynamic fetching
 
 // null = occupied, string = available slot code
 const generateSlots = (floor: string, zone: string): (string | null)[] => {
@@ -458,12 +457,34 @@ function StepDateTime({
 function StepSelectFloor({
   state,
   setState,
+  floors,
+  loading,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  floors: FloorResponse[];
+  loading: boolean;
 }) {
-  // Icon tương ứng theo tầng
   const floorIconComponents = [ParkingSquare, Car, Layers, Building2];
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <Loader2 size={32} className="text-amber-400 animate-spin" />
+        <p className="text-sm text-slate-400">Đang tải danh sách tầng...</p>
+      </div>
+    );
+  }
+
+  if (floors.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <Layers size={48} className="text-slate-600 mb-3" />
+        <p className="text-sm text-slate-400 font-bold">Không tìm thấy tầng nào</p>
+        <p className="text-xs text-slate-600">Bãi đỗ xe này chưa cấu hình tầng.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -478,14 +499,13 @@ function StepSelectFloor({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {FLOORS.map((floor, idx) => {
-          const selected = state.floor === floor;
-          const zones = ZONES_BY_FLOOR[floor]?.length ?? 0;
+        {floors.map((floor, idx) => {
+          const selected = state.floor === floor.id;
           const FloorIcon = floorIconComponents[idx % floorIconComponents.length];
           return (
             <button
-              key={floor}
-              onClick={() => setState((s) => ({ ...s, floor, zone: null, slot: null }))}
+              key={floor.id}
+              onClick={() => setState((s) => ({ ...s, floor: floor.id, zone: null, slot: null, slotId: null }))}
               className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all group ${
                 selected
                   ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
@@ -509,9 +529,9 @@ function StepSelectFloor({
               </div>
               <div className="text-center">
                 <p className={`font-bold ${selected ? 'text-amber-400' : 'text-slate-200'}`}>
-                  {floor}
+                  {floor.name}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">{zones} khu vực</p>
+                <p className="text-xs text-slate-500 mt-0.5">{floor.slotCount} chỗ đỗ</p>
               </div>
               {selected && (
                 <CheckCircle2 size={16} className="text-amber-500" />
@@ -524,16 +544,57 @@ function StepSelectFloor({
   );
 }
 
+// Hàm phụ định nghĩa cách xác định zone từ slotNumber
+const getZoneName = (slotNo: string): string => {
+  const firstChar = slotNo.trim().charAt(0).toUpperCase();
+  if (firstChar >= 'A' && firstChar <= 'Z') {
+    return `Khu ${firstChar}`;
+  }
+  const num = parseInt(slotNo, 10);
+  if (!isNaN(num)) {
+    if (num <= 20) return 'Khu A';
+    if (num <= 40) return 'Khu B';
+    if (num <= 60) return 'Khu C';
+    return 'Khu D';
+  }
+  return 'Khu A';
+};
+
 // Step 5 – Select Zone
 function StepSelectZone({
   state,
   setState,
+  slots,
+  loading,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  slots: ParkingSlotDetail[];
+  loading: boolean;
 }) {
-  const zones = state.floor ? ZONES_BY_FLOOR[state.floor] ?? [] : [];
   const zoneColors = ['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6'];
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <Loader2 size={32} className="text-amber-400 animate-spin" />
+        <p className="text-sm text-slate-400">Đang tải danh sách khu vực...</p>
+      </div>
+    );
+  }
+
+  // Lấy các zone độc nhất từ slots của tầng này
+  const zones = Array.from(new Set(slots.map(s => getZoneName(s.slotNumber)))).sort();
+
+  if (zones.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <LayoutGrid size={48} className="text-slate-600 mb-3" />
+        <p className="text-sm text-slate-400 font-bold">Không tìm thấy khu vực nào</p>
+        <p className="text-xs text-slate-600">Tầng này chưa có ô đỗ xe nào được tạo.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -544,7 +605,7 @@ function StepSelectZone({
         <div>
           <h2 className="text-lg font-bold text-white">Select Zone</h2>
           <p className="text-sm text-slate-500">
-            Step 5 of 6 — Zones available on {state.floor}
+            Step 5 of 6 — Zones available on this floor
           </p>
         </div>
       </div>
@@ -553,10 +614,11 @@ function StepSelectZone({
         {zones.map((zone, idx) => {
           const selected = state.zone === zone;
           const color = zoneColors[idx % zoneColors.length];
+          const zoneSlotsCount = slots.filter(s => getZoneName(s.slotNumber) === zone).length;
           return (
             <button
               key={zone}
-              onClick={() => setState((s) => ({ ...s, zone, slot: null }))}
+              onClick={() => setState((s) => ({ ...s, zone, slot: null, slotId: null }))}
               className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all ${
                 selected
                   ? 'border-amber-500 shadow-lg shadow-amber-500/10'
@@ -583,7 +645,7 @@ function StepSelectZone({
                 <p className={`font-bold ${selected ? 'text-amber-400' : 'text-slate-200'}`}>
                   {zone}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">20 ô đỗ xe</p>
+                <p className="text-xs text-slate-500 mt-0.5">{zoneSlotsCount} ô đỗ xe</p>
               </div>
               {selected && <CheckCircle2 size={16} className="text-amber-500" />}
             </button>
@@ -598,11 +660,16 @@ function StepSelectZone({
 function StepSelectSlot({
   state,
   setState,
+  slots,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  slots: ParkingSlotDetail[];
 }) {
-  const slots = state.floor && state.zone ? generateSlots(state.floor, state.zone) : [];
+  // Lọc slots theo zone đã chọn và loại xe đã chọn
+  const zoneSlots = slots.filter(
+    (s) => getZoneName(s.slotNumber) === state.zone && s.vehicleTypeId === state.vehicleType
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -634,36 +701,36 @@ function StepSelectSlot({
         </div>
       </div>
 
-      {/* Slot grid */}
-      <div className="grid grid-cols-5 gap-2">
-        {slots.map((slot, idx) => {
-          const available = slot !== null;
-          const selected = state.slot === slot;
-          return (
-            <button
-              key={idx}
-              disabled={!available}
-              onClick={() => available && setState((s) => ({ ...s, slot }))}
-              className={`aspect-square rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center justify-center gap-1 ${
-                !available
-                  ? 'bg-red-500/10 border-red-500/30 text-red-500/40 cursor-not-allowed'
-                  : selected
-                  ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/20 scale-105'
-                  : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 hover:scale-105'
-              }`}
-            >
-              {available ? (
-                <>
-                  <Car size={14} />
-                  <span className="text-[10px] leading-none">{slot}</span>
-                </>
-              ) : (
+      {zoneSlots.length === 0 ? (
+        <div className="py-10 text-center">
+          <p className="text-sm text-slate-500">Không tìm thấy ô đỗ xe nào phù hợp với loại xe của bạn tại khu vực này.</p>
+        </div>
+      ) : (
+        /* Slot grid */
+        <div className="grid grid-cols-5 gap-2">
+          {zoneSlots.map((slot) => {
+            const isAvailable = slot.status === 'Available' || slot.status === '0' || (slot.status as unknown as number) === 0;
+            const selected = state.slot === slot.slotNumber;
+            return (
+              <button
+                key={slot.id}
+                disabled={!isAvailable}
+                onClick={() => isAvailable && setState((s) => ({ ...s, slot: slot.slotNumber, slotId: slot.id }))}
+                className={`aspect-square rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center justify-center gap-1 ${
+                  !isAvailable
+                    ? 'bg-red-500/10 border-red-500/30 text-red-500/40 cursor-not-allowed'
+                    : selected
+                    ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/20 scale-105'
+                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 hover:scale-105'
+                }`}
+              >
                 <Car size={14} />
-              )}
-            </button>
-          );
-        })}
-      </div>
+                <span className="text-[10px] leading-none">{slot.slotNumber}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -675,10 +742,12 @@ function BookingSummary({
   lot,
   state,
   vehicles,
+  floorLabel,
 }: {
   lot: ParkingLot;
   state: WizardState;
   vehicles: ApiVehicleType[];
+  floorLabel: string;
 }) {
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
@@ -716,7 +785,7 @@ function BookingSummary({
     },
     {
       label: 'Floor',
-      value: state.floor ?? 'Not selected',
+      value: floorLabel,
       muted: !state.floor,
     },
     {
@@ -798,15 +867,20 @@ function ConfirmationPopup({
   onClose,
   onDone,
   vehicles,
+  floorLabel,
 }: {
   lot: ParkingLot;
   state: WizardState;
   onClose: () => void;
   onDone: () => void;
   vehicles: ApiVehicleType[];
+  floorLabel: string;
 }) {
   const [phase, setPhase] = useState<PopupPhase>('confirm');
   const [payMethod, setPayMethod] = useState<string>('cash');
+  const [createdReservation, setCreatedReservation] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
@@ -818,20 +892,56 @@ function ConfirmationPopup({
                       selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
                       false;
 
-  // Mã đặt chỗ hardcode (sau này lấy từ API response)
+  // Mã đặt chỗ hardcode fallback
   const bookingRef = `PKG-${Date.now().toString(36).toUpperCase().slice(-8)}`;
+
+  const displayBookingRef = createdReservation?.bookingCode ?? bookingRef;
 
   // Dữ liệu nhúng vào QR (JSON compact)
   const qrData = JSON.stringify({
-    ref: bookingRef,
+    ref: displayBookingRef,
     lot: lot.name,
     plate: state.licensePlate,
     vehicle: selectedVehicle?.name ?? '',
-    slot: `${state.floor}/${state.zone}/${state.slot}`,
+    slot: `${floorLabel}/${state.zone}/${state.slot}`,
     date: state.entryDate,
     entry: state.entryTime,
     duration: state.duration,
   });
+
+  const handlePayAndBook = async () => {
+    try {
+      setSubmitting(true);
+      setError(null);
+      const token = localStorage.getItem('sp_token') || '';
+      if (!token) {
+        throw new Error('Vui lòng đăng nhập để thực hiện đặt chỗ.');
+      }
+
+      const [h, m] = state.entryTime.split(':').map(Number);
+      const entry = new Date(state.entryDate);
+      entry.setHours(h, m, 0, 0);
+      const exit = new Date(entry.getTime() + state.duration * 3600000);
+
+      // Chuyển đổi thời gian sang dạng UTC ISO string để tương thích Postgres
+      const payload = {
+        parkingSlotId: state.slotId!,
+        vehicleTypeId: state.vehicleType!,
+        licensePlate: state.licensePlate,
+        startTime: entry.toISOString(),
+        endTime: exit.toISOString(),
+      };
+
+      const res = await createReservation(payload, token);
+      setCreatedReservation(res);
+      setPhase('qr');
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Đặt chỗ thất bại. Vui lòng kiểm tra lại thông tin.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     if (phase === 'qr') {
@@ -861,7 +971,7 @@ function ConfirmationPopup({
     { label: 'Ngày vào',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
     { label: 'Giờ ra (dự kiến)', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
     { label: 'Thời gian', value: `${state.duration}h` },
-    { label: 'Vị trí',   value: `${state.floor} › ${state.zone} › Ô ${state.slot}` },
+    { label: 'Vị trí',   value: `${floorLabel} › ${state.zone} › Ô ${state.slot}` },
   ];
 
   // ─── Header config theo phase ───
@@ -952,7 +1062,7 @@ function ConfirmationPopup({
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between">
                 <div>
                   <p className="text-xs text-slate-500 mb-1">Vị trí đặt</p>
-                  <p className="text-sm font-bold text-white">{state.floor} › {state.zone} › Ô {state.slot}</p>
+                  <p className="text-sm font-bold text-white">{floorLabel} › {state.zone} › Ô {state.slot}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{lot.name}</p>
                 </div>
                 <div className="text-right">
@@ -981,6 +1091,12 @@ function ConfirmationPopup({
                 </div>
               </div>
 
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-2xl text-center">
+                  ⚠️ {error}
+                </div>
+              )}
+
               <p className="text-xs text-slate-600 text-center">
                 Bằng cách xác nhận, bạn đồng ý với điều khoản sử dụng dịch vụ.
               </p>
@@ -1000,27 +1116,35 @@ function ConfirmationPopup({
               <div className="relative">
                 {/* Glow ring */}
                 <div className="absolute inset-0 rounded-2xl bg-amber-500/10 blur-xl" />
-                <div className="relative bg-white rounded-2xl p-4 shadow-2xl">
-                  <QRCodeSVG
-                    value={qrData}
-                    size={180}
-                    level="M"
-                    bgColor="#ffffff"
-                    fgColor="#0a0a0c"
-                    imageSettings={{
-                      src: '', // có thể thêm logo vào đây
-                      height: 0,
-                      width: 0,
-                      excavate: false,
-                    }}
-                  />
+                <div className="relative bg-white rounded-2xl p-4 shadow-2xl flex items-center justify-center min-w-[212px] min-h-[212px]">
+                  {createdReservation?.qrCodeBase64 ? (
+                    <img
+                      src={`data:image/png;base64,${createdReservation.qrCodeBase64}`}
+                      alt="QR Code"
+                      className="w-[180px] h-[180px] object-contain"
+                    />
+                  ) : (
+                    <QRCodeSVG
+                      value={qrData}
+                      size={180}
+                      level="M"
+                      bgColor="#ffffff"
+                      fgColor="#0a0a0c"
+                      imageSettings={{
+                        src: '',
+                        height: 0,
+                        width: 0,
+                        excavate: false,
+                      }}
+                    />
+                  )}
                 </div>
               </div>
 
               {/* Booking ref */}
               <div className="text-center">
                 <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest">Mã đặt chỗ</p>
-                <p className="text-lg font-black text-amber-400 tracking-widest">{bookingRef}</p>
+                <p className="text-lg font-black text-amber-400 tracking-widest">{displayBookingRef}</p>
               </div>
 
               {/* Info summary */}
@@ -1028,7 +1152,7 @@ function ConfirmationPopup({
                 {[
                   { label: 'Bãi đỗ xe', value: lot.name },
                   { label: 'Biển số',   value: state.licensePlate },
-                  { label: 'Vị trí',   value: `${state.floor} › ${state.zone} › Ô ${state.slot}` },
+                  { label: 'Vị trí',   value: `${floorLabel} › ${state.zone} › Ô ${state.slot}` },
                   { label: 'Giờ vào',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
                   { label: 'Giờ ra (d.k)', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
                 ].map(({ label, value }, i, arr) => (
@@ -1074,18 +1198,29 @@ function ConfirmationPopup({
           {phase === 'payment' && (
             <>
               <button
+                disabled={submitting}
                 onClick={() => setPhase('confirm')}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all disabled:opacity-50"
               >
                 <ChevronLeft size={15} />
                 Quay lại
               </button>
               <button
-                onClick={() => setPhase('qr')}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                disabled={submitting}
+                onClick={handlePayAndBook}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/50 text-black shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
               >
-                <CheckCircle2 size={15} />
-                Thanh toán ngay
+                {submitting ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={15} />
+                    Thanh toán ngay
+                  </>
+                )}
               </button>
             </>
           )}
@@ -1161,6 +1296,10 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   const [step, setStep] = useState(1);
   const [vehicles, setVehicles] = useState<ApiVehicleType[]>([]);
   const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [floors, setFloors] = useState<FloorResponse[]>([]);
+  const [loadingFloors, setLoadingFloors] = useState(true);
+  const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
 
   const [state, setState] = useState<WizardState>({
     vehicleType: null,
@@ -1171,6 +1310,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     floor: null,
     zone: null,
     slot: null,
+    slotId: null,
   });
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
@@ -1214,6 +1354,57 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     loadVehicleTypes();
   }, []);
 
+  // Load floors by building
+  useEffect(() => {
+    if (!lot.id) return;
+    async function loadFloors() {
+      try {
+        setLoadingFloors(true);
+        
+        let buildingId = lot.id;
+        // Kiểm tra xem lot.id có phải dạng GUID hợp lệ không (xxxxx-xxxx...)
+        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lot.id);
+        
+        if (!isGuid) {
+          // Nếu là bãi đỗ xe từ OSM (không có trong database), ta lấy building đầu tiên trong DB để demo tầng & slot thật
+          const buildings = await getBuildings();
+          if (buildings.length > 0) {
+            buildingId = buildings[0].id;
+          }
+        }
+
+        const data = await getFloorsByBuilding(buildingId);
+        const sorted = data.sort((a, b) => a.floorIndex - b.floorIndex);
+        setFloors(sorted);
+      } catch (err) {
+        console.error('Lỗi khi tải tầng:', err);
+      } finally {
+        setLoadingFloors(false);
+      }
+    }
+    loadFloors();
+  }, [lot.id]);
+
+  // Load slots when floor changes
+  useEffect(() => {
+    if (!state.floor) {
+      setSlots([]);
+      return;
+    }
+    async function loadSlots() {
+      try {
+        setLoadingSlots(true);
+        const data = await getSlotsByFloor(state.floor);
+        setSlots(data);
+      } catch (err) {
+        console.error('Lỗi khi tải ô đỗ xe:', err);
+      } finally {
+        setLoadingSlots(false);
+      }
+    }
+    loadSlots();
+  }, [state.floor]);
+
   // Lock body scroll
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -1251,14 +1442,17 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     onClose();
   };
 
+  const selectedFloorObj = floors.find(f => f.id === state.floor);
+  const floorLabel = selectedFloorObj?.name ?? 'Chưa chọn';
+
   const renderStep = () => {
     switch (step) {
       case 1: return <StepVehicleType state={state} setState={setState} vehicles={vehicles} loading={loadingVehicles} />;
       case 2: return <StepLicensePlate state={state} setState={setState} vehicles={vehicles} />;
       case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} />;
-      case 4: return <StepSelectFloor state={state} setState={setState} />;
-      case 5: return <StepSelectZone state={state} setState={setState} />;
-      case 6: return <StepSelectSlot state={state} setState={setState} />;
+      case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} />;
+      case 5: return <StepSelectZone state={state} setState={setState} slots={slots} loading={loadingSlots} />;
+      case 6: return <StepSelectSlot state={state} setState={setState} slots={slots} />;
       default: return null;
     }
   };
@@ -1351,6 +1545,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           onClose={() => setShowConfirmPopup(false)}
           onDone={handlePaymentDone}
           vehicles={vehicles}
+          floorLabel={floorLabel}
         />
       )}
     </>
