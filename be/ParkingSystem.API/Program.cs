@@ -74,6 +74,8 @@ builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Service
 builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
 builder.Services.AddScoped<ISessionService, ParkingSystem.Infrastructure.Services.SessionService>();
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IRealtimeService, ParkingSystem.API.Services.RealtimeService>();
 
 // Register Cloudinary Image Upload Service (lưu ảnh biển số lên cloud)
 builder.Services.AddScoped<IImageUploadService, ParkingSystem.Infrastructure.Services.CloudinaryImageService>();
@@ -216,5 +218,6 @@ app.UseAuthorization();
 
 
 app.MapControllers();
+app.MapHub<ParkingSystem.API.Hubs.ParkingHub>("/parking-hub");
 
 app.Run();

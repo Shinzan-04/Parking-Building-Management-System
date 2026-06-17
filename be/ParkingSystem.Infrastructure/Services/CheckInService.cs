@@ -14,19 +14,22 @@ public class CheckInService : ICheckInService
     private readonly ISlotAssignmentService _slotAssignmentService;
     private readonly IImageUploadService _imageUploadService;
     private readonly ITokenService _tokenService;
+    private readonly IRealtimeService _realtimeService;
 
     public CheckInService(
         ApplicationDbContext context,
         IQrCodeService qrCodeService,
         ISlotAssignmentService slotAssignmentService,
         IImageUploadService imageUploadService,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        IRealtimeService realtimeService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
         _slotAssignmentService = slotAssignmentService;
         _imageUploadService = imageUploadService;
         _tokenService = tokenService;
+        _realtimeService = realtimeService;
     }
 
     /// <summary>
@@ -253,6 +256,8 @@ public class CheckInService : ICheckInService
 
         _context.ParkingSessions.Add(session);
         await _context.SaveChangesAsync();
+        await _realtimeService.SendDashboardUpdateAsync();
+        await _realtimeService.SendSlotStatusUpdateAsync(assignedSlot.Id, assignedSlot.Status.ToString());
 
         // Sinh ảnh QR Code Base64 (để in vé giấy)
         var qrImageBase64 = _qrCodeService.GenerateQrCodeBase64(sessionCode);

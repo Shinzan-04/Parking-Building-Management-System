@@ -12,11 +12,13 @@ public class CheckOutService : ICheckOutService
 {
     private readonly ApplicationDbContext _context;
     private readonly ILicensePlateRecognizer _lprService;
+    private readonly IRealtimeService _realtimeService;
 
-    public CheckOutService(ApplicationDbContext context, ILicensePlateRecognizer lprService)
+    public CheckOutService(ApplicationDbContext context, ILicensePlateRecognizer lprService, IRealtimeService realtimeService)
     {
         _context = context;
         _lprService = lprService;
+        _realtimeService = realtimeService;
     }
 
     public async Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate)
