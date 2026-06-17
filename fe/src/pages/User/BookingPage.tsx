@@ -108,13 +108,13 @@ async function fetchOsmParking(lat: number, lng: number, radiusM: number): Promi
     const lat = el.type === 'node' ? el.lat : el.center?.lat;
     const lng = el.type === 'node' ? el.lon : el.center?.lon;
     const tags = el.tags ?? {};
-    const name = tags.name || tags['name:vi'] || tags['name:en'] || 'Bãi đỗ xe';
+    const name = tags.name || tags['name:vi'] || tags['name:en'] || 'Parking Lot';
     const addr = [
       tags['addr:housenumber'],
       tags['addr:street'],
       tags['addr:district'],
       tags['addr:city'],
-    ].filter(Boolean).join(', ') || 'Không có địa chỉ';
+    ].filter(Boolean).join(', ') || 'No address';
     return {
       id: `osm-${el.type}-${el.id}`,
       name,
@@ -362,7 +362,7 @@ function osmToBookingLot(osm: OsmParkingLot): any {
     rating: 4.0,
     openHours: '06:00 – 22:00',
     vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['Dữ liệu OSM'],
+    features: ['OSM Data'],
   };
 }
 
@@ -459,7 +459,7 @@ export default function BookingPage() {
 
   const handleGetDirections = useCallback(async (toLat: number, toLng: number) => {
     if (!userLocation) {
-      alert('Bật "Định vị" trước để chỉ đường!');
+      alert('Please enable location service first for directions!');
       return;
     }
     setIsLoadingRoute(true);
@@ -483,7 +483,7 @@ export default function BookingPage() {
       });
       mapInstance?.flyTo([toLat, toLng], 16, { duration: 1 });
     } catch {
-      setRouteError('Không thể tính đường đi. Kiểm tra kết nối.');
+      setRouteError('Failed to calculate route. Check your connection.');
     } finally {
       setIsLoadingRoute(false);
     }
@@ -534,7 +534,7 @@ export default function BookingPage() {
       })
       .catch(() => {
         if (!cancelled) {
-          setOsmError('Không thể tải dữ liệu bãi đỗ. Kiểm tra internet.');
+          setOsmError('Failed to load parking lot data. Check your internet connection.');
           setIsLoadingOsm(false);
         }
       });
@@ -544,7 +544,7 @@ export default function BookingPage() {
   // Hàm lấy vị trí người dùng
   const handleLocateMe = useCallback(() => {
     if (!navigator.geolocation) {
-      setLocationError('Trình duyệt không hỗ trợ định vị.');
+      setLocationError('Your browser does not support geolocation.');
       return;
     }
     setLocatingUser(true);
@@ -560,8 +560,8 @@ export default function BookingPage() {
       },
       (err) => {
         setLocatingUser(false);
-        if (err.code === 1) setLocationError('Bạn đã từ chối quyền truy cập vị trí.');
-        else setLocationError('Không thể lấy vị trí. Thử lại sau.');
+        if (err.code === 1) setLocationError('Location access denied.');
+        else setLocationError('Failed to get location. Try again later.');
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -647,10 +647,10 @@ export default function BookingPage() {
   };
 
   const SORT_LABELS: Record<SortOption, string> = {
-    relevance: 'Liên quan',
-    price: 'Giá thấp nhất',
-    rating: 'Đánh giá cao nhất',
-    distance: 'Gần nhất',
+    relevance: 'Relevance',
+    price: 'Lowest Price',
+    rating: 'Highest Rating',
+    distance: 'Closest',
   };
 
   const availabilityColor = (lot: ParkingLot) => {
@@ -726,7 +726,7 @@ export default function BookingPage() {
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-red-500 hover:bg-red-500/10 transition-colors text-left"
                       >
                         <LogOut size={15} />
-                        <span>Đăng xuất</span>
+                        <span>Log Out</span>
                       </button>
                     </div>
                   )}
@@ -736,7 +736,7 @@ export default function BookingPage() {
                   to="/auth"
                   className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-2 rounded-full text-sm transition-all"
                 >
-                  Đăng nhập
+                  Log In
                 </Link>
               )}
             </div>
@@ -750,10 +750,10 @@ export default function BookingPage() {
           {/* Vehicle type filters */}
           {(
             [
-              { key: 'all', label: 'Tất cả', icon: Filter },
-              { key: 'motorbike', label: 'Xe máy', icon: Bike },
-              { key: 'car', label: 'Ô tô', icon: Car },
-              { key: 'ev', label: 'Xe điện', icon: Zap },
+               { key: 'all', label: 'All', icon: Filter },
+               { key: 'motorbike', label: 'Motorbike', icon: Bike },
+               { key: 'car', label: 'Car', icon: Car },
+               { key: 'ev', label: 'EV', icon: Zap },
             ] as { key: VehicleFilter; label: string; icon: any }[]
           ).map(({ key, label, icon: Icon }) => (
             <button
@@ -776,7 +776,7 @@ export default function BookingPage() {
               onClick={() => setIsSortOpen(!isSortOpen)}
               className="flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all"
             >
-              Sắp xếp: <span className="text-amber-500">{SORT_LABELS[sortBy]}</span>
+              Sort by: <span className="text-amber-500">{SORT_LABELS[sortBy]}</span>
               <ChevronDown size={14} className={`transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
             </button>
             {isSortOpen && (
@@ -813,7 +813,7 @@ export default function BookingPage() {
               />
               <input
                 type="text"
-                placeholder="Tìm bãi đỗ xe..."
+                placeholder="Search parking lots..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-amber-500/60 transition-colors"
@@ -828,23 +828,23 @@ export default function BookingPage() {
                   {isLoadingOsm ? (
                     <p className="text-xs font-bold text-blue-300 flex items-center gap-1.5">
                       <Loader2 size={10} className="animate-spin" />
-                      Đang tải bãi đỗ từ OpenStreetMap...
+                      Loading parking lots from OpenStreetMap...
                     </p>
                   ) : osmError ? (
                     <p className="text-xs font-bold text-red-400">{osmError}</p>
                   ) : (
                     <>
                       <p className="text-xs font-bold text-emerald-300">
-                        {osmFiltered.length} bãi thực tế trong {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
+                        {osmFiltered.length} real lots within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
                       </p>
-                      <p className="text-[10px] text-blue-400/70 truncate">từ dữ liệu OpenStreetMap</p>
+                      <p className="text-[10px] text-blue-400/70 truncate">from OpenStreetMap data</p>
                     </>
                   )}
                 </div>
                 <button
                   onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); }}
                   className="shrink-0 text-blue-400/60 hover:text-white transition-colors text-xs font-bold leading-none"
-                  title="Tắt chế độ gần tôi"
+                  title="Turn off near me mode"
                 >
                   ✕
                 </button>
@@ -861,9 +861,9 @@ export default function BookingPage() {
                 <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500/20 to-emerald-500/10 border border-blue-500/20 flex items-center justify-center mb-5 shadow-lg shadow-blue-500/10">
                   <Navigation size={32} className="text-blue-400" />
                 </div>
-                <h3 className="text-base font-bold text-white mb-2">Tìm bãi đỗ gần bạn</h3>
+                <h3 className="text-base font-bold text-white mb-2">Find Parking Near You</h3>
                 <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                  Cho phép truy cập vị trí để hiển thị các bãi đỗ xe thực tế gần bạn nhất từ dữ liệu OpenStreetMap.
+                  Allow location access to show the closest real parking lots from OpenStreetMap data.
                 </p>
                 <button
                   onClick={handleLocateMe}
@@ -875,13 +875,13 @@ export default function BookingPage() {
                   ) : (
                     <Navigation size={16} />
                   )}
-                  {locatingUser ? 'Đang định vị...' : 'Tìm bãi gần tôi'}
+                  {locatingUser ? 'Locating...' : 'Find Near Me'}
                 </button>
                 {locationError && (
                   <p className="text-xs text-red-400 mt-3">{locationError}</p>
                 )}
                 <div className="mt-6 pt-5 border-t border-white/5 w-full">
-                  <p className="text-[10px] text-slate-600 mb-3 uppercase tracking-wider font-semibold">Hoặc chọn bán kính</p>
+                  <p className="text-[10px] text-slate-600 mb-3 uppercase tracking-wider font-semibold">Or select search radius</p>
                   <div className="flex gap-2 justify-center">
                     {RADIUS_OPTIONS.map((opt) => (
                       <button
@@ -906,7 +906,7 @@ export default function BookingPage() {
                 {isLoadingOsm && (
                   <div className="flex flex-col items-center justify-center py-10 gap-3">
                     <Loader2 size={28} className="text-blue-400 animate-spin" />
-                    <p className="text-sm text-slate-400">Khớp bãi đỗ gần bạn từ OSM...</p>
+                    <p className="text-sm text-slate-400">Matching parking lots near you from OSM...</p>
                   </div>
                 )}
 
@@ -919,7 +919,7 @@ export default function BookingPage() {
                       onClick={() => setUserLocation({ ...userLocation })}
                       className="text-xs text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-full hover:bg-blue-500/10 transition-all"
                     >
-                      Thử lại
+                      Retry
                     </button>
                   </div>
                 )}
@@ -969,7 +969,7 @@ export default function BookingPage() {
                       {lot.capacity && (
                         <div className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                          <span className="text-slate-400">≤ <span className="font-semibold text-slate-200">{lot.capacity}</span> chỗ</span>
+                          <span className="text-slate-400">≤ <span className="font-semibold text-slate-200">{lot.capacity}</span> spots</span>
                         </div>
                       )}
                       {/* Badge OSM */}
@@ -984,7 +984,7 @@ export default function BookingPage() {
                         onClick={(e) => e.stopPropagation()}
                         className="ml-auto text-[10px] font-semibold text-blue-400 hover:text-blue-300 underline transition-colors"
                       >
-                        Chỉ đư῝ng
+                        Directions
                       </a>
                     </div>
 
@@ -993,7 +993,7 @@ export default function BookingPage() {
                         ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
                         : 'border-white/10 text-slate-400 bg-white/5 group-hover:text-emerald-400 group-hover:border-emerald-500/20'
                     }`}>
-                      📍 Xem trên bản đồ
+                      📍 View on Map
                     </div>
                   </button>
                 ))}
@@ -1004,13 +1004,13 @@ export default function BookingPage() {
                     <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-3">
                       <Navigation size={24} className="text-blue-400" />
                     </div>
-                    <p className="text-sm font-bold text-slate-300 mb-1">Không có bãi nào gần bạn</p>
-                    <p className="text-xs text-slate-600 mb-3">trong bán kính {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}</p>
+                    <p className="text-sm font-bold text-slate-300 mb-1">No parking lots found near you</p>
+                    <p className="text-xs text-slate-600 mb-3">within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}</p>
                     <button
                       onClick={() => setNearbyRadius(Math.min(nearbyRadius * 2, 5000))}
                       className="text-xs font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 rounded-full transition-all"
                     >
-                      Mở rộng bán kính tìm kiếm
+                      Expand search radius
                     </button>
                   </div>
                 )}
@@ -1074,7 +1074,7 @@ export default function BookingPage() {
                           <Navigation2 size={10} />{getOsmDistance(lot)}
                         </span>
                         {lot.capacity && (
-                          <span className="text-slate-400">≤ {lot.capacity} chỗ</span>
+                          <span className="text-slate-400">≤ {lot.capacity} spots</span>
                         )}
                       </div>
                     </div>
@@ -1086,14 +1086,14 @@ export default function BookingPage() {
                         className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-blue-500/20"
                       >
                         {isLoadingRoute ? <Loader2 size={13} className="animate-spin" /> : <Route size={13} />}
-                        Chỉ đường
+                        Get Directions
                       </button>
                       <button
                         onClick={() => handleBookOsm(lot)}
                         className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-emerald-500/20"
                       >
                         <CalendarCheck size={13} />
-                        Đặt chỗ ngay
+                        Book Now
                       </button>
                     </div>
                   </div>
@@ -1129,8 +1129,8 @@ export default function BookingPage() {
                 >
                   <Popup className="parking-popup">
                     <div className="bg-[#121214] rounded-xl p-3 min-w-[160px] border border-white/10">
-                      <p className="font-bold text-blue-400 text-sm">📍 Vị trí của bạn</p>
-                      <p className="text-xs text-slate-400 mt-1">Đang hiển thị bãi đỗ gần đây</p>
+                      <p className="font-bold text-blue-400 text-sm">📍 Your Location</p>
+                      <p className="text-xs text-slate-400 mt-1">Showing nearby parking lots</p>
                     </div>
                   </Popup>
                 </Marker>
@@ -1210,10 +1210,10 @@ export default function BookingPage() {
                 </div>
                 <div className="bg-[#0E0E10]/90 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-3 text-center shadow-xl">
                   <p className="text-sm font-bold text-white mb-0.5">
-                    {locatingUser ? 'Đang xác định vị trí...' : 'Find Parking Near Me'}
+                    {locatingUser ? 'Locating...' : 'Find Parking Near Me'}
                   </p>
                   <p className="text-[11px] text-slate-500">
-                    {locatingUser ? 'Vui lòng chờ trong giây lát' : 'Nhấn để tìm bãi đỗ gần bạn'}
+                    {locatingUser ? 'Please wait a moment' : 'Click to find parking near you'}
                   </p>
                 </div>
               </div>
@@ -1226,7 +1226,7 @@ export default function BookingPage() {
               {/* Bộ chọn bán kính */}
               <div className="flex items-center gap-1 bg-[#0E0E10]/95 backdrop-blur-md border border-blue-500/30 rounded-full px-2 py-1.5 shadow-xl">
                 <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse mx-1 shrink-0" />
-                <span className="text-[11px] font-semibold text-blue-300 mr-1 whitespace-nowrap">Bán kính:</span>
+                <span className="text-[11px] font-semibold text-blue-300 mr-1 whitespace-nowrap">Radius:</span>
                 {RADIUS_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
@@ -1244,14 +1244,14 @@ export default function BookingPage() {
                 <button
                   onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); handleCancelRoute(); }}
                   className="text-slate-500 hover:text-white transition-colors text-[11px] px-1.5 font-bold"
-                  title="Tắt Gần tôi"
+                  title="Turn off Near Me"
                 >
                   ✕
                 </button>
               </div>
               {/* Số bãi tìm thấy */}
               <div className="text-[10px] text-blue-400/70 font-medium">
-                Tìm thấy <span className="text-blue-300 font-bold">{osmFiltered.length}</span> bãi trong bán kính {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
+                Found <span className="text-blue-300 font-bold">{osmFiltered.length}</span> parking lots within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
               </div>
             </div>
           )}
@@ -1262,12 +1262,12 @@ export default function BookingPage() {
               <Route size={14} className="text-blue-400 shrink-0" />
               <span className="text-sm font-bold text-white">{routeInfo.distKm}</span>
               <span className="text-slate-400 text-xs">•</span>
-              <span className="text-sm text-slate-300">{routeInfo.mins} phút lái xe</span>
+              <span className="text-sm text-slate-300">{routeInfo.mins} mins driving</span>
               <button
                 onClick={handleCancelRoute}
                 className="ml-2 flex items-center gap-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 px-3 py-1 rounded-full text-xs font-bold transition-all"
               >
-                <X size={11} /> Hủy chỉ đường
+                <X size={11} /> Cancel Directions
               </button>
             </div>
           )}
@@ -1276,7 +1276,7 @@ export default function BookingPage() {
           {isLoadingRoute && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 bg-[#0E0E10]/95 backdrop-blur-md border border-blue-500/30 rounded-full px-4 py-2.5 shadow-xl">
               <Loader2 size={14} className="text-blue-400 animate-spin" />
-              <span className="text-sm text-slate-300">Đang tính đường đi...</span>
+              <span className="text-sm text-slate-300">Calculating route...</span>
             </div>
           )}
 
@@ -1285,7 +1285,7 @@ export default function BookingPage() {
             <div className="absolute top-0 right-0 h-full w-80 bg-[#0E0E10]/95 backdrop-blur-xl border-l border-white/10 z-[500] flex flex-col shadow-2xl animate-slide-in-right overflow-y-auto">
               {/* Close */}
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-                <h3 className="text-sm font-bold text-white">Chi tiết bãi đỗ xe</h3>
+                <h3 className="text-sm font-bold text-white">Parking Lot Details</h3>
                 <button
                   onClick={() => { setShowDetailPanel(false); setSelectedLot(null); }}
                   className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all"
@@ -1320,7 +1320,7 @@ export default function BookingPage() {
                 {/* Stats grid */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Chỗ trống</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Available Spots</p>
                     <div className="flex items-end gap-1">
                       <span
                         className="text-xl font-black"
@@ -1343,7 +1343,7 @@ export default function BookingPage() {
                   </div>
 
                   <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Đánh giá</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Rating</p>
                     <div className="flex items-center gap-1.5">
                       <Star size={14} className="text-amber-400 fill-amber-400" />
                       <span className="text-xl font-black text-white">{selectedLot.rating}</span>
@@ -1352,15 +1352,15 @@ export default function BookingPage() {
                   </div>
 
                   <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Giá/giờ</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Hourly Rate</p>
                     <p className="text-base font-black text-amber-400">
                       {selectedLot.pricePerHour.toLocaleString('vi-VN')}đ
                     </p>
-                    <p className="text-[10px] text-slate-600">mỗi giờ</p>
+                    <p className="text-[10px] text-slate-600">per hour</p>
                   </div>
 
                   <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Giờ mở cửa</p>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Open Hours</p>
                     <p className="text-sm font-bold text-white">{selectedLot.openHours}</p>
                   </div>
                 </div>
@@ -1368,7 +1368,7 @@ export default function BookingPage() {
                 {/* Vehicle types */}
                 <div>
                   <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
-                    Loại xe được phép
+                    Allowed Vehicles
                   </p>
                   <div className="flex gap-2 flex-wrap">
                     {selectedLot.vehicleTypes
@@ -1380,9 +1380,9 @@ export default function BookingPage() {
                           ev: Zap,
                         };
                         const labels: Record<string, string> = {
-                          motorbike: 'Xe máy',
-                          car: 'Ô tô',
-                          ev: 'Xe điện',
+                          motorbike: 'Motorbike',
+                          car: 'Car',
+                          ev: 'EV',
                         };
                         const Icon = icons[v] || Car;
                         return (
@@ -1401,7 +1401,7 @@ export default function BookingPage() {
                 {/* Features */}
                 <div>
                   <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
-                    Tiện ích
+                    Amenities
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {selectedLot.features.map((f) => (
@@ -1421,13 +1421,13 @@ export default function BookingPage() {
                     className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3.5 rounded-2xl text-sm tracking-wide transition-all shadow-lg shadow-amber-500/20"
                     onClick={() => setShowWizard(true)}
                   >
-                    ĐẶT CHỖ NGAY
+                    BOOK NOW
                   </button>
                   <button
                     className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white font-semibold py-3 rounded-2xl text-sm transition-all"
-                    onClick={() => alert('Tính năng chỉ đường sẽ được tích hợp!')}
+                    onClick={() => alert('Directions feature will be integrated!')}
                   >
-                    🗺️ Chỉ đường đến đây
+                    🗺️ Directions to here
                   </button>
                 </div>
               </div>

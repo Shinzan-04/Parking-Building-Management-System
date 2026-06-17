@@ -55,15 +55,6 @@ interface BookingWizardProps {
 // ─────────────────────────────────────────────
 // Removed hard-coded floors & zones in favor of API dynamic fetching
 
-// null = occupied, string = available slot code
-const generateSlots = (floor: string, zone: string): (string | null)[] => {
-  const seed = floor.charCodeAt(2) + zone.charCodeAt(4);
-  return Array.from({ length: 20 }, (_, i) => {
-    const occupied = (seed + i * 7) % 5 === 0;
-    return occupied ? null : `${zone.replace('Khu ', '')}${String(i + 1).padStart(2, '0')}`;
-  });
-};
-
 // ─────────────────────────────────────────────
 // Step definitions
 // ─────────────────────────────────────────────
@@ -119,7 +110,7 @@ function StepVehicleType({
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
         <Loader2 size={32} className="text-amber-400 animate-spin" />
-        <p className="text-sm text-slate-400">Đang tải danh sách loại xe...</p>
+        <p className="text-sm text-slate-400">Loading vehicle types...</p>
       </div>
     );
   }
@@ -128,8 +119,8 @@ function StepVehicleType({
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <Car size={48} className="text-slate-600 mb-3" />
-        <p className="text-sm text-slate-400 font-bold">Không tìm thấy loại xe nào</p>
-        <p className="text-xs text-slate-600">Vui lòng kiểm tra lại cấu hình hệ thống.</p>
+        <p className="text-sm text-slate-400 font-bold">No vehicle types found</p>
+        <p className="text-xs text-slate-600">Please check the system configuration.</p>
       </div>
     );
   }
@@ -471,7 +462,7 @@ function StepSelectFloor({
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
         <Loader2 size={32} className="text-amber-400 animate-spin" />
-        <p className="text-sm text-slate-400">Đang tải danh sách tầng...</p>
+        <p className="text-sm text-slate-400">Loading floors...</p>
       </div>
     );
   }
@@ -480,8 +471,8 @@ function StepSelectFloor({
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <Layers size={48} className="text-slate-600 mb-3" />
-        <p className="text-sm text-slate-400 font-bold">Không tìm thấy tầng nào</p>
-        <p className="text-xs text-slate-600">Bãi đỗ xe này chưa cấu hình tầng.</p>
+        <p className="text-sm text-slate-400 font-bold">No floors found</p>
+        <p className="text-xs text-slate-600">This parking lot has no floors configured.</p>
       </div>
     );
   }
@@ -531,7 +522,7 @@ function StepSelectFloor({
                 <p className={`font-bold ${selected ? 'text-amber-400' : 'text-slate-200'}`}>
                   {floor.name}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">{floor.slotCount} chỗ đỗ</p>
+                <p className="text-xs text-slate-500 mt-0.5">{floor.slotCount} spots</p>
               </div>
               {selected && (
                 <CheckCircle2 size={16} className="text-amber-500" />
@@ -548,16 +539,16 @@ function StepSelectFloor({
 const getZoneName = (slotNo: string): string => {
   const firstChar = slotNo.trim().charAt(0).toUpperCase();
   if (firstChar >= 'A' && firstChar <= 'Z') {
-    return `Khu ${firstChar}`;
+    return `Zone ${firstChar}`;
   }
   const num = parseInt(slotNo, 10);
   if (!isNaN(num)) {
-    if (num <= 20) return 'Khu A';
-    if (num <= 40) return 'Khu B';
-    if (num <= 60) return 'Khu C';
-    return 'Khu D';
+    if (num <= 20) return 'Zone A';
+    if (num <= 40) return 'Zone B';
+    if (num <= 60) return 'Zone C';
+    return 'Zone D';
   }
-  return 'Khu A';
+  return 'Zone A';
 };
 
 // Step 5 – Select Zone
@@ -578,7 +569,7 @@ function StepSelectZone({
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
         <Loader2 size={32} className="text-amber-400 animate-spin" />
-        <p className="text-sm text-slate-400">Đang tải danh sách khu vực...</p>
+        <p className="text-sm text-slate-400">Loading zones...</p>
       </div>
     );
   }
@@ -590,8 +581,8 @@ function StepSelectZone({
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <LayoutGrid size={48} className="text-slate-600 mb-3" />
-        <p className="text-sm text-slate-400 font-bold">Không tìm thấy khu vực nào</p>
-        <p className="text-xs text-slate-600">Tầng này chưa có ô đỗ xe nào được tạo.</p>
+        <p className="text-sm text-slate-400 font-bold">No zones found</p>
+        <p className="text-xs text-slate-600">This floor has no parking spots created.</p>
       </div>
     );
   }
@@ -639,13 +630,13 @@ function StepSelectZone({
                   border: `2px solid ${selected ? color + '60' : 'rgba(255,255,255,0.08)'}`,
                 }}
               >
-                {zone.replace('Khu ', '')}
+                {zone.replace('Zone ', '')}
               </div>
               <div className="text-center">
                 <p className={`font-bold ${selected ? 'text-amber-400' : 'text-slate-200'}`}>
                   {zone}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">{zoneSlotsCount} ô đỗ xe</p>
+                <p className="text-xs text-slate-500 mt-0.5">{zoneSlotsCount} spots</p>
               </div>
               {selected && <CheckCircle2 size={16} className="text-amber-500" />}
             </button>
@@ -661,11 +652,21 @@ function StepSelectSlot({
   state,
   setState,
   slots,
+  vehicles,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   slots: ParkingSlotDetail[];
+  vehicles: ApiVehicleType[];
 }) {
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') || 
+                      selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+                      selectedVehicle?.name.toLowerCase().includes('bike') ||
+                      selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+                      false;
+  const VehicleIcon = isMotorbike ? Bike : Car;
+
   // Lọc slots theo zone đã chọn và loại xe đã chọn
   const zoneSlots = slots.filter(
     (s) => getZoneName(s.slotNumber) === state.zone && s.vehicleTypeId === state.vehicleType
@@ -689,21 +690,21 @@ function StepSelectSlot({
       <div className="flex items-center gap-6 text-xs">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-md bg-emerald-500/20 border border-emerald-500/40" />
-          <span className="text-slate-400">Trống</span>
+          <span className="text-slate-400">Available</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-md bg-amber-500/20 border-2 border-amber-500" />
-          <span className="text-slate-400">Đang chọn</span>
+          <span className="text-slate-400">Selected</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded-md bg-red-500/20 border border-red-500/40" />
-          <span className="text-slate-400">Đã có xe</span>
+          <span className="text-slate-400">Occupied</span>
         </div>
       </div>
 
       {zoneSlots.length === 0 ? (
         <div className="py-10 text-center">
-          <p className="text-sm text-slate-500">Không tìm thấy ô đỗ xe nào phù hợp với loại xe của bạn tại khu vực này.</p>
+          <p className="text-sm text-slate-500">No suitable parking slots found for your vehicle type in this zone.</p>
         </div>
       ) : (
         /* Slot grid */
@@ -724,7 +725,7 @@ function StepSelectSlot({
                     : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 hover:scale-105'
                 }`}
               >
-                <Car size={14} />
+                <VehicleIcon size={14} />
                 <span className="text-[10px] leading-none">{slot.slotNumber}</span>
               </button>
             );
@@ -839,7 +840,7 @@ function BookingSummary({
           </div>
         ) : (
           <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 text-center">
-            <p className="text-xs text-slate-600">Chọn loại xe để xem giá</p>
+            <p className="text-xs text-slate-600">Select vehicle type to view pricing</p>
           </div>
         )}
       </div>
@@ -855,8 +856,8 @@ import { QRCodeSVG } from 'qrcode.react';
 type PopupPhase = 'confirm' | 'payment' | 'qr';
 
 const PAYMENT_METHODS = [
-  { key: 'cash',  label: 'Tiền mặt',     icon: '💵' },
-  { key: 'card',  label: 'Thẻ tín dụng', icon: '💳' },
+  { key: 'cash',  label: 'Cash',         icon: '💵' },
+  { key: 'card',  label: 'Credit Card',  icon: '💳' },
   { key: 'momo',  label: 'MoMo',         icon: '🟣' },
   { key: 'vnpay', label: 'VNPay',        icon: '🔵' },
 ];
@@ -915,7 +916,7 @@ function ConfirmationPopup({
       setError(null);
       const token = localStorage.getItem('sp_token') || '';
       if (!token) {
-        throw new Error('Vui lòng đăng nhập để thực hiện đặt chỗ.');
+        throw new Error('Please log in to make a reservation.');
       }
 
       const [h, m] = state.entryTime.split(':').map(Number);
@@ -937,7 +938,7 @@ function ConfirmationPopup({
       setPhase('qr');
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Đặt chỗ thất bại. Vui lòng kiểm tra lại thông tin.');
+      setError(err.message || 'Reservation failed. Please check your information.');
     } finally {
       setSubmitting(false);
     }
@@ -965,37 +966,37 @@ function ConfirmationPopup({
   })();
 
   const rows = [
-    { label: 'Bãi đỗ xe', value: lot.name },
-    { label: 'Biển số',   value: state.licensePlate },
-    { label: 'Loại xe',   value: selectedVehicle ? `${isMotorbike ? '🏍️' : '🚗'} ${selectedVehicle.name}` : 'Chưa chọn' },
-    { label: 'Ngày vào',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
-    { label: 'Giờ ra (dự kiến)', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
-    { label: 'Thời gian', value: `${state.duration}h` },
-    { label: 'Vị trí',   value: `${floorLabel} › ${state.zone} › Ô ${state.slot}` },
+    { label: 'Parking Lot', value: lot.name },
+    { label: 'License Plate',   value: state.licensePlate },
+    { label: 'Vehicle Type',   value: selectedVehicle ? `${isMotorbike ? '🏍️' : '🚗'} ${selectedVehicle.name}` : 'Not selected' },
+    { label: 'Entry Date',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
+    { label: 'Estimated Exit', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
+    { label: 'Duration', value: `${state.duration}h` },
+    { label: 'Location',   value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
   ];
 
-  // ─── Header config theo phase ───
+  // ─── Header config according to phase ───
   const headerConfig = {
     confirm: {
       icon: <ClipboardList size={18} className="text-amber-400" />,
       iconBg: 'bg-amber-500/15 border border-amber-500/30',
       headerBg: '',
-      title: 'Xác nhận thông tin',
-      subtitle: 'Kiểm tra kỹ trước khi xác nhận',
+      title: 'Confirm Information',
+      subtitle: 'Double check before confirming',
     },
     payment: {
       icon: <CheckCircle2 size={18} className="text-emerald-400" />,
       iconBg: 'bg-emerald-500/20 border border-emerald-500/40',
       headerBg: 'bg-emerald-500/5',
-      title: 'Thanh toán',
-      subtitle: 'Chọn phương thức thanh toán',
+      title: 'Payment',
+      subtitle: 'Select payment method',
     },
     qr: {
       icon: <CheckCircle2 size={18} className="text-blue-400" />,
       iconBg: 'bg-blue-500/20 border border-blue-500/40',
       headerBg: 'bg-blue-500/5',
-      title: 'Đặt chỗ thành công!',
-      subtitle: 'Xuất trình mã QR cho nhân viên khi vào',
+      title: 'Reservation Successful!',
+      subtitle: 'Present this QR code to the staff upon entry',
     },
   }[phase];
 
@@ -1048,7 +1049,7 @@ function ConfirmationPopup({
               </div>
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Tổng chi phí dự kiến</p>
+                  <p className="text-xs text-slate-400 mb-0.5">Estimated Total Cost</p>
                   <p className="text-xs text-slate-500">{state.duration}h × {formatCurrency(pricePerHour)}</p>
                 </div>
                 <p className="text-2xl font-black text-amber-400">{formatCurrency(total)}</p>
@@ -1061,18 +1062,18 @@ function ConfirmationPopup({
             <div className="space-y-5">
               <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500 mb-1">Vị trí đặt</p>
-                  <p className="text-sm font-bold text-white">{floorLabel} › {state.zone} › Ô {state.slot}</p>
+                  <p className="text-xs text-slate-500 mb-1">Reserved Location</p>
+                  <p className="text-sm font-bold text-white">{floorLabel} › {state.zone} › Slot {state.slot}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{lot.name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-slate-500 mb-1">Tổng tiền</p>
+                  <p className="text-xs text-slate-500 mb-1">Total Price</p>
                   <p className="text-xl font-black text-amber-400">{formatCurrency(total)}</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Phương thức thanh toán</p>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Payment Method</p>
                 <div className="grid grid-cols-2 gap-2">
                   {PAYMENT_METHODS.map(({ key, label, icon }) => (
                     <button
@@ -1098,7 +1099,7 @@ function ConfirmationPopup({
               )}
 
               <p className="text-xs text-slate-600 text-center">
-                Bằng cách xác nhận, bạn đồng ý với điều khoản sử dụng dịch vụ.
+                By confirming, you agree to the terms of service.
               </p>
             </div>
           )}
@@ -1109,7 +1110,7 @@ function ConfirmationPopup({
               {/* Success badge */}
               <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1.5">
                 <CheckCircle2 size={14} className="text-emerald-400" />
-                <span className="text-xs font-semibold text-emerald-400">Thanh toán thành công</span>
+                <span className="text-xs font-semibold text-emerald-400">Payment Successful</span>
               </div>
 
               {/* QR Code */}
@@ -1143,18 +1144,18 @@ function ConfirmationPopup({
 
               {/* Booking ref */}
               <div className="text-center">
-                <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest">Mã đặt chỗ</p>
+                <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest">Booking Code</p>
                 <p className="text-lg font-black text-amber-400 tracking-widest">{displayBookingRef}</p>
               </div>
 
               {/* Info summary */}
               <div className="w-full bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
                 {[
-                  { label: 'Bãi đỗ xe', value: lot.name },
-                  { label: 'Biển số',   value: state.licensePlate },
-                  { label: 'Vị trí',   value: `${floorLabel} › ${state.zone} › Ô ${state.slot}` },
-                  { label: 'Giờ vào',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
-                  { label: 'Giờ ra (d.k)', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
+                  { label: 'Parking Lot', value: lot.name },
+                  { label: 'License Plate',   value: state.licensePlate },
+                  { label: 'Location',   value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
+                  { label: 'Entry Time',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
+                  { label: 'Est. Exit Time', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
                 ].map(({ label, value }, i, arr) => (
                   <div
                     key={label}
@@ -1169,7 +1170,7 @@ function ConfirmationPopup({
               </div>
 
               <p className="text-xs text-slate-600 text-center px-4">
-                Xuất trình mã QR này cho nhân viên tại bãi để xác nhận chỗ đỗ.
+                Present this QR code to the staff at the parking lot to confirm your reservation.
               </p>
             </div>
           )}
@@ -1183,14 +1184,14 @@ function ConfirmationPopup({
                 onClick={onClose}
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all"
               >
-                Huỷ
+                Cancel
               </button>
               <button
                 onClick={() => setPhase('payment')}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
               >
                 <CheckCircle2 size={15} />
-                Xác nhận
+                Confirm
               </button>
             </>
           )}
@@ -1203,7 +1204,7 @@ function ConfirmationPopup({
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all disabled:opacity-50"
               >
                 <ChevronLeft size={15} />
-                Quay lại
+                Back
               </button>
               <button
                 disabled={submitting}
@@ -1213,12 +1214,12 @@ function ConfirmationPopup({
                 {submitting ? (
                   <>
                     <Loader2 size={15} className="animate-spin" />
-                    Đang xử lý...
+                    Processing...
                   </>
                 ) : (
                   <>
                     <CheckCircle2 size={15} />
-                    Thanh toán ngay
+                    Pay Now
                   </>
                 )}
               </button>
@@ -1231,7 +1232,7 @@ function ConfirmationPopup({
               className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
             >
               <CheckCircle2 size={15} />
-              Xong – Đóng
+              Done – Close
             </button>
           )}
         </div>
@@ -1443,7 +1444,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   };
 
   const selectedFloorObj = floors.find(f => f.id === state.floor);
-  const floorLabel = selectedFloorObj?.name ?? 'Chưa chọn';
+  const floorLabel = selectedFloorObj?.name ?? 'Not selected';
 
   const renderStep = () => {
     switch (step) {
@@ -1452,7 +1453,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
       case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} />;
       case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} />;
       case 5: return <StepSelectZone state={state} setState={setState} slots={slots} loading={loadingSlots} />;
-      case 6: return <StepSelectSlot state={state} setState={setState} slots={slots} />;
+      case 6: return <StepSelectSlot state={state} setState={setState} slots={slots} vehicles={vehicles} />;
       default: return null;
     }
   };
@@ -1469,7 +1470,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           <div className="flex-shrink-0 px-6 pt-6 pb-5 border-b border-white/[0.06]">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h1 className="text-base font-bold text-white">Đặt chỗ đỗ xe</h1>
+                <h1 className="text-base font-bold text-white">Book a Parking Spot</h1>
                 <p className="text-xs text-slate-500 mt-0.5 truncate max-w-xs">{lot.name}</p>
               </div>
               <button
@@ -1529,7 +1530,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
                 }`}
               >
                 <CheckCircle2 size={16} />
-                Xác nhận đặt chỗ
+                Confirm Booking
               </button>
             )}
           </div>
