@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ParkingSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ParkingSystem.Infrastructure.Data;
 namespace ParkingSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617181450_PaymentFirstReservationFlow")]
+    partial class PaymentFirstReservationFlow
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -548,41 +551,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.ToTable("Reservations");
                 });
 
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.ReservationLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ReservationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("StatusSnapshot")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReservationId");
-
-                    b.ToTable("ReservationLogs");
-                });
-
             modelBuilder.Entity("ParkingSystem.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -889,17 +857,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Navigation("VehicleType");
                 });
 
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.ReservationLog", b =>
-                {
-                    b.HasOne("ParkingSystem.Domain.Entities.Reservation", "Reservation")
-                        .WithMany("Logs")
-                        .HasForeignKey("ReservationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Reservation");
-                });
-
             modelBuilder.Entity("ParkingSystem.Domain.Entities.Vehicle", b =>
                 {
                     b.HasOne("ParkingSystem.Domain.Entities.User", "Driver")
@@ -939,11 +896,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Navigation("ParkingSessions");
 
                     b.Navigation("Reservations");
-                });
-
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.Reservation", b =>
-                {
-                    b.Navigation("Logs");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.User", b =>

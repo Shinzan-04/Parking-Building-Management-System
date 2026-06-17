@@ -2,27 +2,30 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ParkingSystem.Domain.Entities;
 using ParkingSystem.Domain.Enums;
 using ParkingSystem.Infrastructure.Data;
 
 namespace ParkingSystem.Infrastructure.Services;
 
 /// <summary>
-/// Background Service tự động hủy reservation quá hạn.
-/// Chạy mỗi 5 phút, kiểm tra và cancel các reservation:
-/// - Pending quá 30 phút không được Staff duyệt → Cancel
-/// - Confirmed nhưng Driver không đến sau StartTime + 30 phút → Cancel
+/// Background Service tự động xử lý reservation quá hạn.
+/// Chạy mỗi 5 phút, kiểm tra 3 rule:
+/// 
+/// Rule 1: PaymentPending > 15 phút → Cancelled (chưa thanh toán)
+/// Rule 2: PendingReview > 30 phút → Rejected + Refund (Staff không duyệt)
+/// Rule 3: Confirmed + Now > StartTime + 30 phút + chưa CheckIn → NoShow (không hoàn tiền)
 /// </summary>
 public class ReservationCleanupService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ReservationCleanupService> _logger;
 
-    // Thời gian chờ trước khi auto-cancel (phút)
-    private const int PendingTimeoutMinutes = 30;    // Pending quá 30 phút → cancel
-    private const int ConfirmedGraceMinutes = 30;    // Confirmed nhưng quá StartTime 30 phút → cancel
-    // Chu kỳ quét (phút)
-    private const int ScanIntervalMinutes = 5;
+    // Cấu hình thời gian (phút)
+    private const int PaymentTimeoutMinutes = 15;     // Chưa thanh toán trong 15 phút → cancel
+    private const int ReviewTimeoutMinutes = 30;      // Staff không duyệt trong 30 phút → reject
+    private const int NoShowGraceMinutes = 30;        // Không check-in trong 30 phút sau StartTime → NoShow
+    private const int ScanIntervalMinutes = 5;        // Chu kỳ quét
 
     public ReservationCleanupService(IServiceScopeFactory scopeFactory, ILogger<ReservationCleanupService> logger)
     {
@@ -45,7 +48,6 @@ public class ReservationCleanupService : BackgroundService
                 _logger.LogError(ex, "❌ Lỗi khi quét reservation hết hạn.");
             }
 
-            // Chờ N phút trước khi quét lại
             await Task.Delay(TimeSpan.FromMinutes(ScanIntervalMinutes), stoppingToken);
         }
 
@@ -59,48 +61,137 @@ public class ReservationCleanupService : BackgroundService
         var notificationService = scope.ServiceProvider.GetRequiredService<Application.Interfaces.INotificationService>();
         var now = DateTime.UtcNow;
 
-        // 1. Pending quá lâu không được duyệt → Auto-cancel
-        var expiredPending = await context.Reservations
-            .Where(r => r.Status == ReservationStatus.Pending
-                     && r.CreatedAt.AddMinutes(PendingTimeoutMinutes) < now)
+        int cancelledCount = 0, rejectedCount = 0, noShowCount = 0;
+
+        // ===== RULE 1: PaymentPending > 15 phút → Cancelled =====
+        var expiredPayment = await context.Reservations
+            .Where(r => r.Status == ReservationStatus.PaymentPending
+                     && r.CreatedAt.AddMinutes(PaymentTimeoutMinutes) < now)
             .ToListAsync();
 
-        foreach (var reservation in expiredPending)
+        foreach (var reservation in expiredPayment)
         {
             reservation.Status = ReservationStatus.Cancelled;
-            reservation.RejectReason = $"Tự động hủy — không được duyệt trong {PendingTimeoutMinutes} phút.";
+            reservation.RejectReason = $"Tự động hủy — không thanh toán trong {PaymentTimeoutMinutes} phút.";
             reservation.UpdatedAt = now;
+            
+            // Trả slot về Available
+            var slot = await context.ParkingSlots.FindAsync(reservation.ParkingSlotId);
+            if (slot != null && slot.Status == SlotStatus.TemporaryHeld)
+            {
+                slot.Status = SlotStatus.Available;
+                slot.UpdatedAt = now;
+            }
+
+            cancelledCount++;
         }
 
-        // 2. Confirmed nhưng Driver không đến đúng giờ → Auto-cancel
-        var expiredConfirmed = await context.Reservations
+        // ===== RULE 2: PendingReview > 30 phút → Rejected + Refund =====
+        var expiredReview = await context.Reservations
+            .Where(r => r.Status == ReservationStatus.PendingReview
+                     && r.UpdatedAt.HasValue
+                        ? r.UpdatedAt.Value.AddMinutes(ReviewTimeoutMinutes) < now
+                        : r.CreatedAt.AddMinutes(ReviewTimeoutMinutes) < now)
+            .ToListAsync();
+
+        foreach (var reservation in expiredReview)
+        {
+            reservation.Status = ReservationStatus.Rejected;
+            reservation.RejectReason = $"Tự động từ chối — Staff không duyệt trong {ReviewTimeoutMinutes} phút.";
+            reservation.UpdatedAt = now;
+
+            // Đánh dấu Payment cần hoàn tiền
+            var payment = await context.Payments
+                .FirstOrDefaultAsync(p => p.ReservationId == reservation.Id
+                                       && p.Status == PaymentStatus.Success);
+            if (payment != null)
+            {
+                payment.Status = PaymentStatus.Refunding;
+                payment.UpdatedAt = now;
+            }
+
+            rejectedCount++;
+        }
+
+        // ===== RULE 3: Confirmed + quá StartTime + 30 phút + chưa CheckIn → NoShow =====
+        var noShowReservations = await context.Reservations
             .Where(r => r.Status == ReservationStatus.Confirmed
-                     && r.StartTime.AddMinutes(ConfirmedGraceMinutes) < now)
+                     && r.StartTime.AddMinutes(NoShowGraceMinutes) < now)
             .ToListAsync();
 
-        foreach (var reservation in expiredConfirmed)
+        foreach (var reservation in noShowReservations)
         {
-            reservation.Status = ReservationStatus.Cancelled;
-            reservation.RejectReason = $"Tự động hủy — không check-in trong {ConfirmedGraceMinutes} phút sau giờ hẹn.";
+            reservation.Status = ReservationStatus.NoShow;
+            reservation.RejectReason = $"Không check-in trong {NoShowGraceMinutes} phút sau giờ hẹn. Không hoàn tiền.";
             reservation.UpdatedAt = now;
+
+            // Trả slot về Available
+            var slot = await context.ParkingSlots.FindAsync(reservation.ParkingSlotId);
+            if (slot != null && slot.Status == SlotStatus.Reserved)
+            {
+                slot.Status = SlotStatus.Available;
+                slot.UpdatedAt = now;
+            }
+
+            // NoShow KHÔNG hoàn tiền
+
+            noShowCount++;
         }
 
-        var allCancelled = expiredPending.Concat(expiredConfirmed).ToList();
-        if (allCancelled.Count > 0)
+        // Lưu tất cả thay đổi
+        var totalChanged = cancelledCount + rejectedCount + noShowCount;
+        if (totalChanged > 0)
         {
+            // Ghi log cho tất cả các thay đổi
+            var allAffected = expiredPayment.Concat(expiredReview).Concat(noShowReservations);
+            foreach (var r in allAffected)
+            {
+                var action = r.Status switch
+                {
+                    ReservationStatus.Cancelled => "Cancel",
+                    ReservationStatus.Rejected => "Reject",
+                    ReservationStatus.NoShow => "NoShow",
+                    _ => "AutoCleanup"
+                };
+
+                context.ReservationLogs.Add(new ReservationLog
+                {
+                    Id = Guid.NewGuid(),
+                    ReservationId = r.Id,
+                    Action = action,
+                    StatusSnapshot = r.Status,
+                    Note = r.RejectReason,
+                    CreatedAt = now
+                });
+            }
+
             await context.SaveChangesAsync();
 
-            // Gửi notification cho từng Driver bị hủy
-            foreach (var reservation in allCancelled)
+            // Gửi notification cho từng Driver
+            foreach (var reservation in allAffected)
             {
                 try
                 {
+                    var (title, body) = reservation.Status switch
+                    {
+                        ReservationStatus.Cancelled => (
+                            "⏰ Đặt chỗ bị hủy — Hết hạn thanh toán",
+                            $"Đặt chỗ {reservation.BookingCode} đã bị hủy vì không thanh toán trong {PaymentTimeoutMinutes} phút."
+                        ),
+                        ReservationStatus.Rejected => (
+                            "⏰ Đặt chỗ bị từ chối — Hết thời gian duyệt",
+                            $"Đặt chỗ {reservation.BookingCode} đã bị từ chối tự động. Tiền sẽ được hoàn lại."
+                        ),
+                        ReservationStatus.NoShow => (
+                            "🚫 Không đến — NoShow",
+                            $"Đặt chỗ {reservation.BookingCode} đã bị đánh dấu NoShow vì không check-in đúng giờ. Không hoàn tiền."
+                        ),
+                        _ => ("Thông báo đặt chỗ", reservation.RejectReason ?? "")
+                    };
+
                     await notificationService.SendAsync(
-                        reservation.DriverId,
-                        "⏰ Đặt chỗ đã bị hủy tự động",
-                        $"Đặt chỗ biển số {reservation.LicensePlate} đã bị hủy. {reservation.RejectReason}",
-                        "ReservationCancelled",
-                        reservation.Id);
+                        reservation.DriverId, title, body,
+                        "ReservationAutoCleanup", reservation.Id);
                 }
                 catch (Exception ex)
                 {
@@ -109,8 +200,8 @@ public class ReservationCleanupService : BackgroundService
             }
 
             _logger.LogInformation(
-                "🧹 Auto-cancel: {Pending} pending + {Confirmed} confirmed = {Total} reservation đã bị hủy.",
-                expiredPending.Count, expiredConfirmed.Count, allCancelled.Count);
+                "🧹 Auto-cleanup: {Cancelled} cancelled (payment timeout) + {Rejected} rejected (review timeout) + {NoShow} no-show = {Total} total.",
+                cancelledCount, rejectedCount, noShowCount, totalChanged);
         }
     }
 }

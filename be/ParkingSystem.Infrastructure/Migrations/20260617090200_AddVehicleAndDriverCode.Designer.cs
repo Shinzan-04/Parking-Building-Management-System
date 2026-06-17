@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ParkingSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ParkingSystem.Infrastructure.Data;
 namespace ParkingSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617090200_AddVehicleAndDriverCode")]
+    partial class AddVehicleAndDriverCode
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -51,43 +54,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Buildings");
-                });
-
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.FavoriteSlot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("DriverId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("LastUsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("ParkingSlotId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("UsageCount")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ParkingSlotId");
-
-                    b.HasIndex("DriverId", "ParkingSlotId")
-                        .IsUnique();
-
-                    b.ToTable("FavoriteSlots");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.Floor", b =>
@@ -341,9 +307,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Property<int>("PaymentMethod")
                         .HasColumnType("integer");
 
-                    b.Property<Guid?>("ReservationId")
-                        .HasColumnType("uuid");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -356,8 +319,6 @@ namespace ParkingSystem.Infrastructure.Migrations
 
                     b.HasIndex("PayOSOrderCode")
                         .IsUnique();
-
-                    b.HasIndex("ReservationId");
 
                     b.ToTable("Payments");
                 });
@@ -482,18 +443,9 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AIReason")
-                        .HasColumnType("text");
-
-                    b.Property<double?>("AIScore")
-                        .HasColumnType("double precision");
-
                     b.Property<string>("BookingCode")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<int>("BookingMethod")
-                        .HasColumnType("integer");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -529,9 +481,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid?>("VehicleId")
-                        .HasColumnType("uuid");
-
                     b.Property<Guid>("VehicleTypeId")
                         .HasColumnType("uuid");
 
@@ -541,46 +490,9 @@ namespace ParkingSystem.Infrastructure.Migrations
 
                     b.HasIndex("ParkingSlotId");
 
-                    b.HasIndex("VehicleId");
-
                     b.HasIndex("VehicleTypeId");
 
                     b.ToTable("Reservations");
-                });
-
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.ReservationLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Note")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("ReservationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("StatusSnapshot")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ReservationId");
-
-                    b.ToTable("ReservationLogs");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.User", b =>
@@ -698,25 +610,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.ToTable("VehicleTypes");
                 });
 
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.FavoriteSlot", b =>
-                {
-                    b.HasOne("ParkingSystem.Domain.Entities.User", "Driver")
-                        .WithMany()
-                        .HasForeignKey("DriverId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ParkingSystem.Domain.Entities.ParkingSlot", "ParkingSlot")
-                        .WithMany()
-                        .HasForeignKey("ParkingSlotId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Driver");
-
-                    b.Navigation("ParkingSlot");
-                });
-
             modelBuilder.Entity("ParkingSystem.Domain.Entities.Floor", b =>
                 {
                     b.HasOne("ParkingSystem.Domain.Entities.Building", "Building")
@@ -805,14 +698,7 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .HasForeignKey("ParkingSessionId")
                         .OnDelete(DeleteBehavior.SetNull);
 
-                    b.HasOne("ParkingSystem.Domain.Entities.Reservation", "Reservation")
-                        .WithMany()
-                        .HasForeignKey("ReservationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.Navigation("ParkingSession");
-
-                    b.Navigation("Reservation");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.PriceSetting", b =>
@@ -869,11 +755,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("ParkingSystem.Domain.Entities.Vehicle", "Vehicle")
-                        .WithMany()
-                        .HasForeignKey("VehicleId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("ParkingSystem.Domain.Entities.VehicleType", "VehicleType")
                         .WithMany()
                         .HasForeignKey("VehicleTypeId")
@@ -884,20 +765,7 @@ namespace ParkingSystem.Infrastructure.Migrations
 
                     b.Navigation("ParkingSlot");
 
-                    b.Navigation("Vehicle");
-
                     b.Navigation("VehicleType");
-                });
-
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.ReservationLog", b =>
-                {
-                    b.HasOne("ParkingSystem.Domain.Entities.Reservation", "Reservation")
-                        .WithMany("Logs")
-                        .HasForeignKey("ReservationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Reservation");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.Vehicle", b =>
@@ -939,11 +807,6 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Navigation("ParkingSessions");
 
                     b.Navigation("Reservations");
-                });
-
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.Reservation", b =>
-                {
-                    b.Navigation("Logs");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.User", b =>

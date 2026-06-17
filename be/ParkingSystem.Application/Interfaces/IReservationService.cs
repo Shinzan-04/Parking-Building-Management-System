@@ -8,6 +8,10 @@ public interface IReservationService
     Task<IEnumerable<ReservationResponse>> GetMyReservationsAsync(Guid driverId);
     Task<bool> CancelReservationAsync(Guid reservationId, Guid driverId);
     
+    // Payment callbacks
+    Task<bool> ConfirmPaymentAsync(Guid reservationId);
+    Task<bool> FailPaymentAsync(Guid reservationId);
+    
     // For Staff
     Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync();
     Task<bool> ReviewReservationAsync(Guid reservationId, Guid staffId, ReviewReservationRequest request);

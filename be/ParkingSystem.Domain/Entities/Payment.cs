@@ -6,6 +6,7 @@ public class Payment : BaseEntity
 {
     public long PayOSOrderCode { get; set; }
     public Guid? ParkingSessionId { get; set; }
+    public Guid? ReservationId { get; set; }
     public decimal Amount { get; set; }
     public string? Description { get; set; }
     public DateTime PaymentDate { get; set; }
@@ -13,4 +14,5 @@ public class Payment : BaseEntity
     public PaymentStatus Status { get; set; } = PaymentStatus.Pending;
 
     public ParkingSession? ParkingSession { get; set; }
+    public Reservation? Reservation { get; set; }
 }
