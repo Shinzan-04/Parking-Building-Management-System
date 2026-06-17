@@ -74,13 +74,13 @@ function OtpInput({ value, onChange, disabled, hasError }: OtpInputProps) {
           onPaste={handlePaste}
           disabled={disabled}
           className={`
-            w-12 h-14 text-center text-xl font-bold rounded-xl border
-            outline-none transition-all duration-200 bg-white/5
+            w-12 h-14 text-center text-xl font-black rounded-2xl border
+            outline-none transition-all duration-200 bg-gray-50
             ${hasError
-              ? 'border-red-500/60 text-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/30'
+              ? 'border-red-500/60 text-red-600 focus:border-red-500 focus:ring-2 focus:ring-red-500/10'
               : value[i]
-                ? 'border-amber-500/70 text-amber-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/30'
-                : 'border-white/10 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
+                ? 'border-[#FF4C4C]/70 text-[#FF4C4C] focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10'
+                : 'border-gray-200 text-stone-850 focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10'
             }
             disabled:opacity-40 disabled:cursor-not-allowed
           `}
@@ -106,16 +106,16 @@ function CountdownTimer({ seconds, onFinish }: { seconds: number; onFinish: () =
   return (
     <div className="flex flex-col items-center gap-1">
       <svg width="52" height="52" viewBox="0 0 52 52" className="-rotate-90">
-        <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="4" />
+        <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(0,0,0,0.04)" strokeWidth="4" />
         <circle
-          cx="26" cy="26" r="22" fill="none" stroke="#f59e0b" strokeWidth="4"
+          cx="26" cy="26" r="22" fill="none" stroke="#FF4C4C" strokeWidth="4"
           strokeDasharray={`${2 * Math.PI * 22}`}
           strokeDashoffset={`${2 * Math.PI * 22 * (1 - pct / 100)}`}
           strokeLinecap="round"
           style={{ transition: 'stroke-dashoffset 1s linear' }}
         />
       </svg>
-      <span className="text-amber-400 text-xs font-mono">{remaining}s</span>
+      <span className="text-[#FF4C4C] text-xs font-bold font-mono">{remaining}s</span>
     </div>
   );
 }
@@ -131,24 +131,24 @@ function PasswordInput({
 }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-300 mb-2">{label}</label>
+      <label htmlFor={id} className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">{label}</label>
       <div className="relative">
-        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
         <input
           id={id}
           type={show ? 'text' : 'password'}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full pl-10 pr-10 py-3 rounded-xl bg-white/5 border border-white/10
-                     text-white text-sm placeholder:text-gray-500
-                     focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none
+          className="w-full pl-10 pr-10 py-3 rounded-2xl bg-gray-50 border border-gray-200
+                     text-stone-850 text-sm placeholder:text-stone-300
+                     focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10 outline-none
                      transition-all duration-200"
         />
         <button
           type="button"
           onClick={onToggle}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 transition-colors"
         >
           {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
         </button>
@@ -166,16 +166,15 @@ function SubmitButton({ loading, label, loadingLabel, disabled }: {
     <button
       type="submit"
       disabled={loading || disabled}
-      className="w-full py-3 rounded-xl font-semibold text-sm text-black
-                 bg-gradient-to-r from-amber-500 to-orange-500
-                 hover:opacity-95 active:scale-[0.98]
-                 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/40
+      className="w-full py-3 rounded-2xl font-bold text-sm text-white
+                 bg-[#FF4C4C] hover:bg-[#E13B3B] active:scale-[0.98]
+                 shadow-sm shadow-[#FF4C4C]/15
                  transition-all duration-200
                  disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
     >
       {loading ? (
         <span className="flex items-center justify-center gap-2">
-          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
           </svg>
@@ -279,22 +278,22 @@ export default function ForgotPasswordPage() {
     send_email:   {
       title: 'Quên mật khẩu',
       sub:   'Nhập email đã đăng ký để nhận mã OTP',
-      icon:  <Mail className="w-12 h-12 text-amber-500" />,
+      icon:  <Mail className="w-12 h-12 text-[#FF4C4C]" />,
     },
     enter_otp:    {
       title: 'Nhập mã xác thực',
       sub:   `Mã 6 chữ số đã được gửi tới ${email}`,
-      icon:  <KeyRound className="w-12 h-12 text-amber-500" />,
+      icon:  <KeyRound className="w-12 h-12 text-[#FF4C4C]" />,
     },
     new_password: {
       title: 'Mật khẩu mới',
       sub:   'Đặt mật khẩu mới cho tài khoản của bạn',
-      icon:  <Lock className="w-12 h-12 text-amber-500" />,
+      icon:  <Lock className="w-12 h-12 text-[#FF4C4C]" />,
     },
     done: {
       title: 'Hoàn tất!',
       sub:   'Mật khẩu đã được đổi thành công.',
-      icon:  <CheckCircle2 className="w-12 h-12 text-amber-500" />,
+      icon:  <CheckCircle2 className="w-12 h-12 text-[#FF4C4C]" />,
     },
   };
 
@@ -306,31 +305,28 @@ export default function ForgotPasswordPage() {
 
   // ─── JSX ────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0A0A0C] flex overflow-hidden text-white">
+    <div className="min-h-screen bg-[#F3F3F5] flex overflow-hidden text-stone-900 font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C]">
 
       {/* ── Left Panel ──────────────────────────────────────────────────── */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-transparent to-orange-500/10" />
-        <div className="absolute top-20 left-20 w-96 h-96 rounded-full bg-amber-500/10 animate-pulse blur-3xl" />
-        <div className="absolute bottom-20 right-20 w-80 h-80 rounded-full bg-orange-500/10 animate-pulse blur-3xl" style={{ animationDelay: '1.2s' }} />
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-[#EBEBEF] border-r border-gray-200/50">
+        <div className="absolute inset-0 bg-[#FF4C4C]/[0.02] pointer-events-none" />
+        <div className="absolute top-20 left-20 w-96 h-96 rounded-full bg-[#FF4C4C]/5 blur-3xl pointer-events-none" />
+        <div className="absolute bottom-20 right-20 w-80 h-80 rounded-full bg-[#FF4C4C]/5 blur-3xl pointer-events-none" style={{ animationDelay: '1.2s' }} />
 
         <div className="relative z-10 flex flex-col items-center justify-center w-full p-12 text-center">
           {/* Icon thay đổi theo bước */}
           <div className="mb-10">
-            <div className="w-40 h-40 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/10
-                            border border-amber-500/20 flex items-center justify-center mx-auto shadow-2xl
-                            transition-all duration-500">
+            <div className="w-40 h-40 rounded-full bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 flex items-center justify-center mx-auto shadow-2xl transition-all duration-500">
               {meta.icon}
             </div>
           </div>
 
-          <h1 className="text-5xl font-extrabold mb-4 leading-tight">
+          <h1 className="text-5xl font-extrabold mb-4 leading-tight text-stone-900">
             Lấy lại
-            <span className="block text-amber-500 mt-2">quyền truy cập</span>
+            <span className="block text-[#FF4C4C] mt-2">quyền truy cập</span>
           </h1>
-          <p className="text-gray-400 text-lg max-w-md leading-relaxed">
-            Chỉ cần email đã đăng ký, bạn có thể đặt lại mật khẩu
-            trong <strong className="text-amber-400">vài bước đơn giản</strong>.
+          <p className="text-stone-500 text-lg font-medium max-w-md leading-relaxed">
+            Chỉ cần email đã đăng ký, bạn có thể đặt lại mật khẩu trong <strong className="text-[#FF4C4C]">vài bước đơn giản</strong>.
           </p>
 
           {/* Progress steps */}
@@ -339,17 +335,17 @@ export default function ForgotPasswordPage() {
               <div key={label} className="flex items-center gap-3">
                 <div className={`flex flex-col items-center gap-1 transition-all duration-300`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
-                    ${idx < currentIdx  ? 'bg-amber-500 text-black'
-                    : idx === currentIdx ? 'bg-amber-500/20 border-2 border-amber-500 text-amber-400'
-                                         : 'bg-white/5 border border-white/10 text-gray-500'}`}>
+                    ${idx < currentIdx  ? 'bg-[#FF4C4C] text-white'
+                    : idx === currentIdx ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C] text-[#FF4C4C]'
+                                         : 'bg-white border border-gray-200 text-stone-400'}`}>
                     {idx < currentIdx ? '✓' : idx + 1}
                   </div>
-                  <span className={`text-xs whitespace-nowrap ${idx <= currentIdx ? 'text-amber-400' : 'text-gray-500'}`}>
+                  <span className={`text-xs font-semibold whitespace-nowrap ${idx <= currentIdx ? 'text-[#FF4C4C]' : 'text-stone-400'}`}>
                     {label}
                   </span>
                 </div>
                 {idx < 3 && (
-                  <div className={`w-8 h-0.5 mb-4 transition-all duration-300 ${idx < currentIdx ? 'bg-amber-500' : 'bg-white/10'}`} />
+                  <div className={`w-8 h-0.5 mb-4 transition-all duration-300 ${idx < currentIdx ? 'bg-[#FF4C4C]' : 'bg-gray-200'}`} />
                 )}
               </div>
             ))}
@@ -358,39 +354,39 @@ export default function ForgotPasswordPage() {
       </div>
 
       {/* ── Right Panel ─────────────────────────────────────────────────── */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative">
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-6 relative bg-[#F3F3F5]">
         <Link
           to="/auth"
-          className="absolute top-6 left-6 flex items-center gap-1.5 text-sm text-gray-400
-                     hover:text-amber-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5"
+          className="absolute top-6 left-6 flex items-center gap-1.5 text-xs text-stone-500
+                     hover:text-[#FF4C4C] hover:bg-gray-100 font-bold transition-all px-3.5 py-2 rounded-xl border border-gray-200/40 bg-white"
         >
           <ArrowLeft className="w-4 h-4" />
           Quay lại đăng nhập
         </Link>
 
         <div className="w-full max-w-md">
-          <div className="p-8 rounded-3xl backdrop-blur-xl bg-[#121214] border border-white/5 shadow-2xl">
+          <div className="p-8 rounded-[2.5rem] bg-white border border-gray-250/60 shadow-xl text-stone-900">
 
             {/* Logo */}
-            <div className="flex items-center justify-center gap-2 mb-8">
-              <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg shadow-lg shadow-amber-500/20">
-                <Sparkles className="w-5 h-5 text-white" />
+            <div className="flex items-center justify-center gap-2.5 mb-8">
+              <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-sm shadow-sm shadow-[#FF4C4C]/25">
+                P
               </div>
-              <span className="text-xl font-bold tracking-wider">
-                PARKING <span className="text-amber-500">BUILDING</span>
+              <span className="text-lg font-extrabold tracking-tight text-stone-900">
+                Parking<span className="text-[#FF4C4C]">.</span>
               </span>
             </div>
 
             {/* Tiêu đề */}
             <div className="text-center mb-7">
-              <h2 className="text-2xl font-bold text-white mb-2 transition-all duration-300">{meta.title}</h2>
-              <p className="text-gray-400 text-sm transition-all duration-300">{meta.sub}</p>
+              <h2 className="text-2xl font-bold text-stone-900 mb-2 transition-all duration-300">{meta.title}</h2>
+              <p className="text-stone-400 text-sm font-medium transition-all duration-300">{meta.sub}</p>
             </div>
 
             {/* Lỗi */}
             {error && (
-              <div className="mb-5 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-start gap-2">
-                <span className="shrink-0 mt-0.5">⚠</span>
+              <div className="mb-5 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm flex items-start gap-2 font-semibold">
+                <span className="shrink-0 mt-0.5">⚠️</span>
                 <span>{error}</span>
               </div>
             )}
@@ -399,11 +395,11 @@ export default function ForgotPasswordPage() {
             {step === 'send_email' && (
               <form onSubmit={handleSendEmail} className="space-y-5">
                 <div>
-                  <label htmlFor="forgot-email" className="block text-sm font-medium text-gray-300 mb-2">
+                  <label htmlFor="forgot-email" className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
                     Địa chỉ Email
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
                     <input
                       id="forgot-email"
                       type="email"
@@ -411,9 +407,9 @@ export default function ForgotPasswordPage() {
                       onChange={(e) => { setEmail(e.target.value); clearError(); }}
                       placeholder="you@example.com"
                       autoComplete="email"
-                      className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/5 border border-white/10
-                                 text-white text-sm placeholder:text-gray-500
-                                 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none
+                      className="w-full pl-10 pr-4 py-3 rounded-2xl bg-gray-50 border border-gray-200
+                                 text-stone-850 text-sm placeholder:text-stone-300
+                                 focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10 outline-none
                                  transition-all duration-200"
                     />
                   </div>
@@ -432,7 +428,7 @@ export default function ForgotPasswordPage() {
                     disabled={loading}
                     hasError={!!error}
                   />
-                  <p className="text-center text-xs text-gray-500">
+                  <p className="text-center text-xs text-stone-450 font-medium">
                     Nhập thủ công hoặc dán (Ctrl+V) mã từ email
                   </p>
                 </div>
@@ -441,7 +437,7 @@ export default function ForgotPasswordPage() {
                 <div className="flex flex-col items-center gap-2">
                   {!canResend ? (
                     <>
-                      <p className="text-xs text-gray-400">Gửi lại mã sau</p>
+                      <p className="text-xs text-stone-400 font-semibold">Gửi lại mã sau</p>
                       <CountdownTimer
                         key={resendKey}
                         seconds={RESEND_DELAY}
@@ -453,8 +449,8 @@ export default function ForgotPasswordPage() {
                       type="button"
                       onClick={handleResend}
                       disabled={loading}
-                      className="flex items-center gap-2 text-sm text-amber-500 hover:text-amber-400
-                                 font-semibold transition-colors disabled:opacity-50"
+                      className="flex items-center gap-2 text-sm text-[#FF4C4C] hover:text-[#E13B3B]
+                                 font-extrabold transition-colors disabled:opacity-50"
                     >
                       <RefreshCw className="w-4 h-4" />
                       Gửi lại mã OTP
@@ -470,12 +466,12 @@ export default function ForgotPasswordPage() {
                 />
 
                 {/* Đổi email */}
-                <p className="text-center text-xs text-gray-500">
+                <p className="text-center text-xs text-stone-550 font-semibold">
                   Email không đúng?{' '}
                   <button
                     type="button"
                     onClick={() => { setStep('send_email'); setOtp(Array(OTP_LENGTH).fill('')); clearError(); }}
-                    className="text-amber-400 hover:underline font-medium"
+                    className="text-[#FF4C4C] hover:underline font-extrabold"
                   >
                     Thay đổi email
                   </button>
@@ -513,11 +509,11 @@ export default function ForgotPasswordPage() {
                         <div key={i} className={`h-1 flex-1 rounded-full transition-all duration-300
                           ${newPw.length >= (i === 0 ? 1 : i === 1 ? 4 : i === 2 ? 7 : 10)
                             ? i < 2 ? 'bg-red-400' : i < 3 ? 'bg-amber-400' : 'bg-green-400'
-                            : 'bg-white/10'}`}
+                            : 'bg-gray-200'}`}
                         />
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-stone-400 font-bold">
                       {newPw.length < 4 ? 'Quá ngắn' : newPw.length < 7 ? 'Yếu' : newPw.length < 10 ? 'Trung bình' : 'Mạnh'}
                     </p>
                   </div>
@@ -530,23 +526,23 @@ export default function ForgotPasswordPage() {
             {/* ══ Bước 4: Hoàn tất ════════════════════════════════════════ */}
             {step === 'done' && (
               <div className="flex flex-col items-center gap-5 py-4">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-500
-                                flex items-center justify-center shadow-2xl shadow-amber-500/40 animate-pulse">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#FF4C4C] to-[#E13B3B]
+                                flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30 animate-pulse">
                   <CheckCircle2 className="w-10 h-10 text-white" />
                 </div>
                 <div className="text-center space-y-1">
-                  <p className="text-white font-bold text-lg">Đặt lại mật khẩu thành công!</p>
-                  <p className="text-gray-400 text-sm">Bạn có thể đăng nhập với mật khẩu mới.</p>
+                  <p className="text-stone-900 font-bold text-lg">Đặt lại mật khẩu thành công!</p>
+                  <p className="text-stone-400 text-sm font-medium">Bạn có thể đăng nhập với mật khẩu mới.</p>
                 </div>
-                <p className="text-xs text-gray-500">Đang chuyển về trang đăng nhập…</p>
+                <p className="text-xs text-stone-450 font-bold">Đang chuyển về trang đăng nhập…</p>
               </div>
             )}
 
             {/* Gợi ý spam (chỉ ở bước OTP) */}
             {step === 'enter_otp' && (
-              <p className="mt-5 text-center text-xs text-gray-500 leading-relaxed">
+              <p className="mt-5 text-center text-xs text-stone-400 font-medium leading-relaxed">
                 Không nhận được email? Kiểm tra thư mục{' '}
-                <span className="text-amber-400 font-medium">Spam / Junk</span>.
+                <span className="text-[#FF4C4C] font-extrabold">Spam / Junk</span>.
               </p>
             )}
           </div>
