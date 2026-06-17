@@ -1426,7 +1426,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
       {/* ── Wizard Backdrop + Modal ── */}
       <div className="fixed inset-0 z-[9000] flex items-center justify-center p-4 sm:p-6 bg-stone-900/60 backdrop-blur-sm">
         <div
-          className="relative w-full max-w-4xl bg-white border border-gray-200 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+          className="relative w-full max-w-2xl bg-white border border-gray-200 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
           style={{ maxHeight: '90vh' }}
         >
           {/* ── Modal Header ── */}
@@ -1452,10 +1452,6 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
               <div key={step} className="animate-fade-in-up">
                 {renderStep()}
               </div>
-            </div>
-            {/* Sidebar Summary */}
-            <div className="hidden md:block p-6 bg-gray-50/50 border-l border-gray-200">
-              <BookingSummary lot={lot} state={state} vehicles={vehicles} floorLabel={floorLabel} />
             </div>
           </div>
 
