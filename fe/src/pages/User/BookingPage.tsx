@@ -22,6 +22,7 @@ import {
   Route,
   X,
   CalendarCheck,
+  Ticket
 } from 'lucide-react';
 
 // ---------- Leaflet icon fix ----------
@@ -683,6 +684,15 @@ export default function BookingPage() {
                   </button>
                   {isDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-[9999]">
+                      <button
+                        type="button"
+                        onClick={() => { setIsDropdownOpen(false); navigate('/myticket'); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                      >
+                        <Ticket size={15} />
+                        <span>My Tickets</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
                       <button
                         type="button"
                         onClick={handleLogout}

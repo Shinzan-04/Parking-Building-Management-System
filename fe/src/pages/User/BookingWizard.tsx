@@ -1088,27 +1088,19 @@ function ConfirmationPopup({
               <div className="relative">
                 <div className="absolute inset-0 rounded-2xl bg-[#FF4C4C]/5 blur-lg" />
                 <div className="relative bg-white border border-gray-200/80 rounded-2xl p-4 shadow-xl flex items-center justify-center min-w-[212px] min-h-[212px]">
-                  {createdReservation?.qrCodeBase64 ? (
-                    <img
-                      src={`data:image/png;base64,${createdReservation.qrCodeBase64}`}
-                      alt="QR Code"
-                      className="w-[180px] h-[180px] object-contain"
-                    />
-                  ) : (
-                    <QRCodeSVG
-                      value={qrData}
-                      size={180}
-                      level="M"
-                      bgColor="#ffffff"
-                      fgColor="#1c1917"
-                      imageSettings={{
-                        src: '',
-                        height: 0,
-                        width: 0,
-                        excavate: false,
-                      }}
-                    />
-                  )}
+                  <QRCodeSVG
+                    value={qrData}
+                    size={180}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#1c1917"
+                    imageSettings={{
+                      src: '',
+                      height: 0,
+                      width: 0,
+                      excavate: false,
+                    }}
+                  />
                 </div>
               </div>
 
