@@ -60,7 +60,7 @@ function loadSettings(): SystemSettings {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SectionCard({ title, icon: Icon, children, accent = '#00C2FF' }: {
+function SectionCard({ title, icon: Icon, children, accent = '#F59E0B' }: {
   title: string; icon: React.ElementType; children: React.ReactNode; accent?: string;
 }) {
   return (
@@ -96,7 +96,7 @@ function TextInput({ value, onChange, placeholder, type = 'text' }: {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#00C2FF]/50 transition-colors"
+      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#F59E0B]/50 transition-colors"
     />
   );
 }
@@ -160,7 +160,7 @@ export default function AdminSettings() {
             <RefreshCw size={14} /> Reset
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-[#101A31] bg-gradient-to-r from-[#00C2FF] to-[#3BFFA4] hover:opacity-90 transition-opacity disabled:opacity-60">
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-[#F59E0B] to-[#F97316] hover:opacity-90 transition-opacity disabled:opacity-60">
             {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <CheckCircle2 size={14} /> : <Save size={14} />}
             {saving ? 'Đang lưu...' : saved ? 'Đã lưu!' : 'Lưu thay đổi'}
           </button>
@@ -168,22 +168,22 @@ export default function AdminSettings() {
       </div>
 
       {saved && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-[#3BFFA4]/10 border border-[#3BFFA4]/20 rounded-xl">
-          <CheckCircle2 size={15} className="text-[#3BFFA4] shrink-0" />
-          <p className="text-sm text-[#3BFFA4]">Đã lưu cài đặt thành công vào localStorage.</p>
+        <div className="flex items-center gap-3 px-4 py-3 bg-[#F97316]/10 border border-[#F97316]/20 rounded-xl">
+          <CheckCircle2 size={15} className="text-[#F97316] shrink-0" />
+          <p className="text-sm text-[#F97316]">Đã lưu cài đặt thành công vào localStorage.</p>
         </div>
       )}
 
       {/* Info notice */}
-      <div className="flex items-start gap-2.5 px-4 py-3 bg-[#00C2FF]/10 border border-[#00C2FF]/20 rounded-xl">
-        <Info size={14} className="text-[#00C2FF] shrink-0 mt-0.5" />
-        <p className="text-xs text-[#00C2FF]/80">
+      <div className="flex items-start gap-2.5 px-4 py-3 bg-[#F59E0B]/10 border border-[#F59E0B]/20 rounded-xl">
+        <Info size={14} className="text-[#F59E0B] shrink-0 mt-0.5" />
+        <p className="text-xs text-[#F59E0B]/80">
           Các cài đặt này được lưu cục bộ trên trình duyệt. Để cấu hình backend, vui lòng chỉnh sửa file <span className="font-mono font-semibold">.env</span> trên server.
         </p>
       </div>
 
       {/* Parking Info */}
-      <SectionCard title="Thông tin bãi đỗ xe" icon={Building2} accent="#3BFFA4">
+      <SectionCard title="Thông tin bãi đỗ xe" icon={Building2} accent="#F97316">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Tên bãi đỗ xe">
             <TextInput value={settings.parkingName} onChange={set('parkingName')} placeholder="Tên hệ thống" />
@@ -200,14 +200,14 @@ export default function AdminSettings() {
             <div className="relative">
               <Phone size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
               <input value={settings.phone} onChange={e => set('phone')(e.target.value)} placeholder="028 ..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors" />
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#F97316]/50 transition-colors" />
             </div>
           </Field>
           <Field label="Email liên hệ">
             <div className="relative">
               <Mail size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
               <input type="email" value={settings.email} onChange={e => set('email')(e.target.value)} placeholder="admin@..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors" />
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#F97316]/50 transition-colors" />
             </div>
           </Field>
         </div>
@@ -230,7 +230,7 @@ export default function AdminSettings() {
               onChange={e => set('currency')(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#F59E0B]/50 transition-colors appearance-none">
               {['VND', 'USD', 'EUR'].map(c => (
-                <option key={c} value={c} className="bg-[#0F1B2D]">{c}</option>
+                <option key={c} value={c} className="bg-[#121214]">{c}</option>
               ))}
             </select>
           </Field>
@@ -240,7 +240,7 @@ export default function AdminSettings() {
             onChange={e => set('timezone')(e.target.value)}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#F59E0B]/50 transition-colors appearance-none">
             {['Asia/Ho_Chi_Minh', 'UTC', 'Asia/Bangkok', 'Asia/Singapore'].map(tz => (
-              <option key={tz} value={tz} className="bg-[#0F1B2D]">{tz}</option>
+              <option key={tz} value={tz} className="bg-[#121214]">{tz}</option>
             ))}
           </select>
         </Field>

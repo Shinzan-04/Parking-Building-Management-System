@@ -71,8 +71,8 @@ function DistributionBar({ counts, total }: { counts: Record<SlotStatus, number>
   if (total === 0) return <p className="text-xs text-white/30 py-1">Chưa có chỗ đỗ</p>;
   const statuses: SlotStatus[] = ['Available', 'Occupied', 'Reserved', 'Maintenance'];
   const colors: Record<SlotStatus, string> = {
-    Available:   '#3BFFA4',
-    Occupied:    '#00C2FF',
+    Available:   '#F97316',
+    Occupied:    '#F59E0B',
     Reserved:    '#F59E0B',
     Maintenance: '#F87171',
   };
@@ -250,7 +250,7 @@ export default function ManagerVehicleTypes() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-[#3BFFA4] animate-spin" />
+        <Loader2 size={28} className="text-orange-500 animate-spin" />
         <p className="text-sm text-white/40">Đang tải dữ liệu phương tiện...</p>
       </div>
     );
@@ -278,7 +278,7 @@ export default function ManagerVehicleTypes() {
           </button>
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#3BFFA4] to-[#00C2FF] text-[#101A31] font-semibold text-sm hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-black font-semibold text-sm hover:opacity-90 transition-opacity"
           >
             <Plus size={16} />
             Thêm loại xe
@@ -297,8 +297,8 @@ export default function ManagerVehicleTypes() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Tổng chỗ đỗ',  value: totalSlots,     icon: ParkingSquare, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-          { label: 'Chỗ còn trống', value: totalAvailable, icon: CircleCheck,   color: '#3BFFA4', bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5' },
-          { label: 'Đang có xe',    value: totalOccupied,  icon: Car,           color: '#00C2FF', bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5' },
+          { label: 'Chỗ còn trống', value: totalAvailable, icon: CircleCheck,   color: '#F97316', bg: 'from-orange-500/20 to-orange-500/5' },
+          { label: 'Đang có xe',    value: totalOccupied,  icon: Car,           color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5' },
         ].map(s => {
           const Icon = s.icon;
           return (
@@ -321,7 +321,7 @@ export default function ManagerVehicleTypes() {
           placeholder="Tìm loại phương tiện..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors"
+          className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-orange-500/50 transition-colors"
         />
       </div>
 
@@ -337,8 +337,8 @@ export default function ManagerVehicleTypes() {
               {/* Header */}
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#3BFFA4]/15 to-[#00C2FF]/10 flex items-center justify-center">
-                    <Car size={20} className="text-[#3BFFA4]" />
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-orange-500/15 to-amber-500/10 flex items-center justify-center">
+                    <Car size={20} className="text-orange-500" />
                   </div>
                   <div>
                     <p className="font-semibold text-white">{vt.name}</p>
@@ -348,7 +348,7 @@ export default function ManagerVehicleTypes() {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-[#3BFFA4]">{availPct}%</p>
+                  <p className="text-lg font-bold text-orange-500">{availPct}%</p>
                   <p className="text-[10px] text-white/30">còn trống</p>
                 </div>
               </div>
@@ -382,7 +382,7 @@ export default function ManagerVehicleTypes() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => openEdit(vt)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-[#3BFFA4]/70 hover:text-[#3BFFA4] hover:bg-[#3BFFA4]/10 transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-orange-500/70 hover:text-orange-500 hover:bg-orange-500/10 transition-all"
                 >
                   <Pencil size={13} /> Chỉnh sửa
                 </button>
@@ -401,7 +401,7 @@ export default function ManagerVehicleTypes() {
       {/* ══ ADD / EDIT MODAL ══ */}
       {(modalType === 'add' || modalType === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0F1B2D] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-semibold text-white">
                 {modalType === 'add' ? 'Thêm loại phương tiện' : `Chỉnh sửa · ${selected?.name}`}
@@ -419,7 +419,7 @@ export default function ManagerVehicleTypes() {
                   placeholder="Ví dụ: Xe máy, Ô tô, Xe tải..."
                   value={form.name}
                   onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500/50 transition-colors"
                 />
               </div>
               <div>
@@ -429,7 +429,7 @@ export default function ManagerVehicleTypes() {
                   placeholder="Mô tả về loại phương tiện này..."
                   value={form.description}
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#3BFFA4]/50 transition-colors resize-none"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500/50 transition-colors resize-none"
                 />
               </div>
 
@@ -448,7 +448,7 @@ export default function ManagerVehicleTypes() {
               <button
                 onClick={modalType === 'add' ? handleAdd : handleEdit}
                 disabled={submitting}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-[#101A31] bg-gradient-to-r from-[#3BFFA4] to-[#00C2FF] hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
                 {modalType === 'add' ? 'Thêm loại xe' : 'Lưu thay đổi'}
@@ -461,7 +461,7 @@ export default function ManagerVehicleTypes() {
       {/* ══ DELETE MODAL ══ */}
       {modalType === 'delete' && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#0F1B2D] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+          <div className="bg-[#121214] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} className="text-red-400" />
