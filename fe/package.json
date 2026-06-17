@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/leaflet": "^1.9.21",
     "formik": "^2.4.9",
+    "jsqr": "^1.4.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.14.0",
     "qrcode.react": "^4.2.0",

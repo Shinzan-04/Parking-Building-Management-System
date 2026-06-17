@@ -138,3 +138,20 @@
     opacity: 0;
   }
 }
+
+/* Scan line keyframes and animation utility */
+@keyframes scan {
+  0% {
+    top: 0%;
+  }
+  50% {
+    top: 100%;
+  }
+  100% {
+    top: 0%;
+  }
+}
+
+.animate-scan-line {
+  animation: scan 4s linear infinite;
+}
