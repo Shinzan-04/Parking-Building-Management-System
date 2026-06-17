@@ -51,11 +51,6 @@ interface BookingWizardProps {
 }
 
 // ─────────────────────────────────────────────
-// Hard-coded parking layout data
-// ─────────────────────────────────────────────
-// Removed hard-coded floors & zones in favor of API dynamic fetching
-
-// ─────────────────────────────────────────────
 // Step definitions
 // ─────────────────────────────────────────────
 const STEPS = [
@@ -94,7 +89,6 @@ interface ApiVehicleType {
   hourlyRate: number;
 }
 
-// Step 1 – Vehicle Type
 function StepVehicleType({
   state,
   setState,
@@ -109,8 +103,8 @@ function StepVehicleType({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 size={32} className="text-amber-400 animate-spin" />
-        <p className="text-sm text-slate-400">Loading vehicle types...</p>
+        <Loader2 size={32} className="text-[#FF4C4C] animate-spin" />
+        <p className="text-sm text-stone-500">Loading vehicle types...</p>
       </div>
     );
   }
@@ -118,9 +112,9 @@ function StepVehicleType({
   if (vehicles.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <Car size={48} className="text-slate-600 mb-3" />
-        <p className="text-sm text-slate-400 font-bold">No vehicle types found</p>
-        <p className="text-xs text-slate-600">Please check the system configuration.</p>
+        <Car size={48} className="text-stone-300 mb-3" />
+        <p className="text-sm text-stone-500 font-bold">No vehicle types found</p>
+        <p className="text-xs text-stone-400">Please check the system configuration.</p>
       </div>
     );
   }
@@ -128,12 +122,12 @@ function StepVehicleType({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-          <Car size={20} className="text-amber-400" />
+        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+          <Car size={20} className="text-[#FF4C4C]" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">Select Vehicle Type</h2>
-          <p className="text-sm text-slate-500">Step 1 of 6 — Choose your vehicle category</p>
+          <h2 className="text-lg font-bold text-stone-900">Select Vehicle Type</h2>
+          <p className="text-xs text-stone-500">Step 1 of 6 — Choose your vehicle category</p>
         </div>
       </div>
 
@@ -150,46 +144,46 @@ function StepVehicleType({
             <button
               key={v.id}
               onClick={() => setState((s) => ({ ...s, vehicleType: v.id }))}
-              className={`flex-1 flex flex-col items-center gap-5 py-10 rounded-2xl border-2 transition-all duration-200 group ${selected
-                  ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
-                  : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20'
+              className={`flex-1 flex flex-col items-center gap-5 py-8 rounded-2xl border-2 transition-all duration-200 group ${selected
+                  ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                  : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
                 }`}
             >
-              {/* Icon container – outline icon màu amber trên nền tròn mờ */}
+              {/* Icon container */}
               <div
-                className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-200 ${selected
-                    ? 'bg-amber-500/20 border-2 border-amber-500/40'
-                    : 'bg-white/[0.06] border-2 border-white/10 group-hover:bg-amber-500/10 group-hover:border-amber-500/20'
+                className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-200 ${selected
+                    ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]/30'
+                    : 'bg-gray-100 border-2 border-gray-200/60 group-hover:bg-[#FF4C4C]/10 group-hover:border-[#FF4C4C]/20'
                   }`}
               >
                 <Icon
-                  size={44}
+                  size={32}
                   strokeWidth={1.5}
-                  className={`transition-colors duration-200 ${selected ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-400'
+                  className={`transition-colors duration-200 ${selected ? 'text-[#FF4C4C]' : 'text-stone-400 group-hover:text-[#FF4C4C]'
                     }`}
                 />
               </div>
 
               <div className="text-center px-4">
                 <p
-                  className={`font-bold text-base ${selected ? 'text-amber-400' : 'text-slate-200'
+                  className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-800'
                     }`}
                 >
                   {v.name}
                 </p>
                 {v.description && (
-                  <p className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">
+                  <p className="text-[10px] text-stone-400 mt-0.5 line-clamp-1 font-medium">
                     {v.description}
                   </p>
                 )}
-                <p className="text-xs text-slate-400 mt-1.5 font-semibold">
+                <p className="text-xs text-stone-500 mt-1.5 font-bold">
                   {formatCurrency(v.hourlyRate)}/hr
                 </p>
               </div>
 
               {selected && (
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
-                  <CheckCircle2 size={14} className="text-amber-400" />
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF4C4C]">
+                  <CheckCircle2 size={14} className="text-[#FF4C4C]" />
                   Selected
                 </div>
               )}
@@ -222,15 +216,15 @@ function StepLicensePlate({
   const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
 
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-6">
       {/* Step header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-          <ParkingSquare size={20} className="text-amber-400" />
+        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+          <ParkingSquare size={20} className="text-[#FF4C4C]" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">Enter License Plate</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="text-lg font-bold text-stone-900">Enter License Plate</h2>
+          <p className="text-xs text-stone-500">
             Step 2 of 6 — Your vehicle's identification number
           </p>
         </div>
@@ -238,14 +232,14 @@ function StepLicensePlate({
 
       {/* Vehicle type display */}
       <div className="flex flex-col items-center gap-3">
-        <div className="w-24 h-24 rounded-2xl bg-white/[0.05] border-2 border-white/10 flex items-center justify-center">
+        <div className="w-20 h-20 rounded-2xl bg-gray-100 border-2 border-gray-200/60 flex items-center justify-center">
           <VehicleIcon
-            size={52}
+            size={40}
             strokeWidth={1.5}
-            className="text-amber-400"
+            className="text-[#FF4C4C]"
           />
         </div>
-        <span className="text-sm font-semibold text-slate-400">{vehicleLabel}</span>
+        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">{vehicleLabel}</span>
       </div>
 
       {/* License plate input */}
@@ -259,20 +253,20 @@ function StepLicensePlate({
               setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
             }
             maxLength={12}
-            className="w-full bg-white/[0.04] border-2 border-amber-500/40 focus:border-amber-500 rounded-2xl px-6 py-4 text-white text-2xl font-black text-center tracking-[0.25em] placeholder-slate-700 outline-none transition-all duration-200 shadow-lg shadow-amber-500/5 focus:shadow-amber-500/15"
+            className="w-full bg-gray-50 border-2 border-gray-200/80 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-850 text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
           />
         </div>
 
         {/* Format hint */}
         <div className="text-center space-y-1">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-stone-500">
             Format:{' '}
-            <span className="text-slate-300 font-semibold">51A-12345</span>{' '}
+            <span className="text-stone-700 font-bold">51A-12345</span>{' '}
             (car) or{' '}
-            <span className="text-slate-300 font-semibold">59T1-12345</span>{' '}
+            <span className="text-stone-700 font-bold">59T1-12345</span>{' '}
             (motorcycle)
           </p>
-          <p className="text-xs text-slate-600">
+          <p className="text-xs text-stone-400">
             This will be linked to your parking session.
           </p>
         </div>
@@ -320,48 +314,51 @@ function StepDateTime({
     <div className="flex flex-col gap-6">
       {/* Step header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-          <Calendar size={20} className="text-amber-400" />
+        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+          <Calendar size={20} className="text-[#FF4C4C]" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">Date & Time</h2>
-          <p className="text-sm text-slate-500">Step 3 of 6 — When do you plan to park?</p>
+          <h2 className="text-lg font-bold text-stone-900">Date & Time</h2>
+          <p className="text-xs text-stone-500">Step 3 of 6 — When do you plan to park?</p>
         </div>
       </div>
 
-      {/* ── Booking Date ── */}
-      <div>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-          <Calendar size={12} className="text-amber-500" />
-          Booking Date
-        </label>
-        <input
-          type="date"
-          value={state.entryDate}
-          min={todayDateStr()}
-          onChange={(e) => setState((s) => ({ ...s, entryDate: e.target.value }))}
-          className="w-full bg-white/[0.05] border border-white/10 hover:border-white/20 focus:border-amber-500/60 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all [color-scheme:dark]"
-        />
-      </div>
+      {/* Inputs grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* ── Booking Date ── */}
+        <div>
+          <label className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
+            <Calendar size={12} className="text-[#FF4C4C]" />
+            Booking Date
+          </label>
+          <input
+            type="date"
+            value={state.entryDate}
+            min={todayDateStr()}
+            onChange={(e) => setState((s) => ({ ...s, entryDate: e.target.value }))}
+            className="w-full bg-white border border-gray-200 hover:border-gray-300 focus:border-[#FF4C4C]/60 rounded-xl px-4 py-3 text-stone-800 text-sm outline-none transition-all"
+          />
+        </div>
 
-      {/* ── Arrival Time ── */}
-      <div>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-          <Clock size={12} className="text-amber-500" />
-          Arrival Time
-        </label>
-        <input
-          type="time"
-          value={state.entryTime}
-          onChange={(e) => setState((s) => ({ ...s, entryTime: e.target.value }))}
-          className="w-full bg-white/[0.05] border border-white/10 hover:border-white/20 focus:border-amber-500/60 rounded-xl px-4 py-3 text-white text-sm outline-none transition-all [color-scheme:dark]"
-        />
+        {/* ── Arrival Time ── */}
+        <div>
+          <label className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
+            <Clock size={12} className="text-[#FF4C4C]" />
+            Arrival Time
+          </label>
+          <input
+            type="time"
+            value={state.entryTime}
+            onChange={(e) => setState((s) => ({ ...s, entryTime: e.target.value }))}
+            className="w-full bg-white border border-gray-200 hover:border-gray-300 focus:border-[#FF4C4C]/60 rounded-xl px-4 py-3 text-stone-800 text-sm outline-none transition-all"
+          />
+        </div>
       </div>
 
       {/* ── Duration ── */}
       <div>
-        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-          <Clock size={12} className="text-amber-500" />
+        <label className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-3">
+          <Clock size={12} className="text-[#FF4C4C]" />
           Duration
         </label>
         <div className="flex flex-wrap gap-2">
@@ -369,9 +366,9 @@ function StepDateTime({
             <button
               key={d}
               onClick={() => setState((s) => ({ ...s, duration: d }))}
-              className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${state.duration === d
-                  ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/25'
-                  : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-white/[0.08] hover:text-white hover:border-white/20'
+              className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${state.duration === d
+                  ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/20'
+                  : 'bg-white text-stone-600 border-gray-200 hover:bg-gray-50 hover:text-stone-900 hover:border-gray-300'
                 }`}
             >
               {d}h
@@ -381,13 +378,13 @@ function StepDateTime({
       </div>
 
       {/* ── Parking Summary Card ── */}
-      <div className="rounded-2xl bg-[#0D1520] border border-[#1E3A5F]/60 p-5 mt-1">
+      <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-5 mt-1">
         {/* Label */}
         <div className="flex items-center gap-2 mb-4">
-          <div className="w-5 h-5 rounded bg-blue-500 flex items-center justify-center">
-            <span className="text-white text-[10px] font-black">P</span>
+          <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center">
+            <span className="text-white text-[10px] font-bold">P</span>
           </div>
-          <span className="text-xs font-black text-slate-300 uppercase tracking-widest">
+          <span className="text-[10px] font-bold text-blue-700 uppercase tracking-widest">
             Your Parking
           </span>
         </div>
@@ -397,37 +394,37 @@ function StepDateTime({
           <div className="flex items-center gap-4">
             {/* Entry time */}
             <div className="flex flex-col gap-0.5">
-              <span className="text-3xl font-black text-blue-400 leading-none">
+              <span className="text-2xl font-black text-blue-600 leading-none">
                 {state.entryTime || '--:--'}
               </span>
-              <span className="text-xs text-slate-500 mt-1">
+              <span className="text-[10px] text-stone-400 font-bold mt-1">
                 {formatDateDisplay(state.entryDate)}
               </span>
             </div>
 
             {/* Duration badge */}
             <div className="flex flex-col items-center gap-1">
-              <span className="text-xs font-bold text-slate-300 bg-white/10 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold text-stone-500 bg-white border border-gray-200 px-2 py-0.5 rounded-full">
                 {state.duration}h
               </span>
-              <div className="w-8 h-px bg-blue-500/50" />
+              <div className="w-8 h-px bg-blue-300" />
             </div>
 
             {/* Exit time */}
             <div className="flex flex-col gap-0.5">
-              <span className="text-3xl font-black text-emerald-400 leading-none">
+              <span className="text-2xl font-black text-emerald-600 leading-none">
                 {exitInfo.time}
               </span>
-              <span className="text-xs text-slate-500 mt-1">{exitInfo.date}</span>
+              <span className="text-[10px] text-stone-400 font-bold mt-1">{exitInfo.date}</span>
             </div>
           </div>
 
           {/* Right: Est. Cost */}
           <div className="text-right flex-shrink-0">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+            <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">
               Est. Cost
             </p>
-            <p className="text-2xl font-black text-amber-400">
+            <p className="text-xl font-black text-[#FF4C4C]">
               {pricePerHour > 0 ? `${total.toLocaleString('vi-VN')}đ` : '--'}
             </p>
           </div>
@@ -436,8 +433,6 @@ function StepDateTime({
     </div>
   );
 }
-
-
 
 // Step 4 – Select Floor
 function StepSelectFloor({
@@ -456,8 +451,8 @@ function StepSelectFloor({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 size={32} className="text-amber-400 animate-spin" />
-        <p className="text-sm text-slate-400">Loading floors...</p>
+        <Loader2 size={32} className="text-[#FF4C4C] animate-spin" />
+        <p className="text-sm text-stone-500">Loading floors...</p>
       </div>
     );
   }
@@ -465,9 +460,9 @@ function StepSelectFloor({
   if (floors.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <Layers size={48} className="text-slate-600 mb-3" />
-        <p className="text-sm text-slate-400 font-bold">No floors found</p>
-        <p className="text-xs text-slate-600">This parking lot has no floors configured.</p>
+        <Layers size={48} className="text-stone-300 mb-3" />
+        <p className="text-sm text-stone-500 font-bold">No floors found</p>
+        <p className="text-xs text-stone-400">This parking lot has no floors configured.</p>
       </div>
     );
   }
@@ -475,12 +470,12 @@ function StepSelectFloor({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-          <Layers size={20} className="text-amber-400" />
+        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+          <Layers size={20} className="text-[#FF4C4C]" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">Select Floor</h2>
-          <p className="text-sm text-slate-500">Step 4 of 6 — Choose a floor to park on</p>
+          <h2 className="text-lg font-bold text-stone-900">Select Floor</h2>
+          <p className="text-xs text-stone-500">Step 4 of 6 — Choose a floor to park on</p>
         </div>
       </div>
 
@@ -493,31 +488,31 @@ function StepSelectFloor({
               key={floor.id}
               onClick={() => setState((s) => ({ ...s, floor: floor.id, zone: null, slot: null, slotId: null }))}
               className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all group ${selected
-                  ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
-                  : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-amber-500/20'
+                  ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                  : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
                 }`}
             >
               <div
-                className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all ${selected
-                    ? 'bg-amber-500/20 border-2 border-amber-500/40'
-                    : 'bg-white/[0.06] border-2 border-white/10 group-hover:bg-amber-500/10 group-hover:border-amber-500/20'
+                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${selected
+                    ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]/30'
+                    : 'bg-gray-100 border-2 border-gray-200/60 group-hover:bg-[#FF4C4C]/10 group-hover:border-[#FF4C4C]/20'
                   }`}
               >
                 <FloorIcon
-                  size={28}
+                  size={24}
                   strokeWidth={1.5}
-                  className={`transition-colors ${selected ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-400'
+                  className={`transition-colors ${selected ? 'text-[#FF4C4C]' : 'text-stone-450 group-hover:text-[#FF4C4C]'
                     }`}
                 />
               </div>
               <div className="text-center">
-                <p className={`font-bold ${selected ? 'text-amber-400' : 'text-slate-200'}`}>
+                <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-850'}`}>
                   {floor.name}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">{floor.slotCount} spots</p>
+                <p className="text-xs text-stone-400 mt-0.5">{floor.slotCount} spots</p>
               </div>
               {selected && (
-                <CheckCircle2 size={16} className="text-amber-500" />
+                <CheckCircle2 size={16} className="text-[#FF4C4C]" />
               )}
             </button>
           );
@@ -555,13 +550,13 @@ function StepSelectZone({
   slots: ParkingSlotDetail[];
   loading: boolean;
 }) {
-  const zoneColors = ['#F59E0B', '#3B82F6', '#10B981', '#8B5CF6'];
+  const zoneColors = ['#FF4C4C', '#3B82F6', '#10B981', '#8B5CF6'];
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 size={32} className="text-amber-400 animate-spin" />
-        <p className="text-sm text-slate-400">Loading zones...</p>
+        <Loader2 size={32} className="text-[#FF4C4C] animate-spin" />
+        <p className="text-sm text-stone-500">Loading zones...</p>
       </div>
     );
   }
@@ -572,9 +567,9 @@ function StepSelectZone({
   if (zones.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <LayoutGrid size={48} className="text-slate-600 mb-3" />
-        <p className="text-sm text-slate-400 font-bold">No zones found</p>
-        <p className="text-xs text-slate-600">This floor has no parking spots created.</p>
+        <LayoutGrid size={48} className="text-stone-300 mb-3" />
+        <p className="text-sm text-stone-500 font-bold">No zones found</p>
+        <p className="text-xs text-stone-400">This floor has no parking spots created.</p>
       </div>
     );
   }
@@ -582,12 +577,12 @@ function StepSelectZone({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-          <LayoutGrid size={20} className="text-amber-400" />
+        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+          <LayoutGrid size={20} className="text-[#FF4C4C]" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">Select Zone</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="text-lg font-bold text-stone-900">Select Zone</h2>
+          <p className="text-xs text-stone-500">
             Step 5 of 6 — Zones available on this floor
           </p>
         </div>
@@ -603,33 +598,33 @@ function StepSelectZone({
               key={zone}
               onClick={() => setState((s) => ({ ...s, zone, slot: null, slotId: null }))}
               className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all ${selected
-                  ? 'border-amber-500 shadow-lg shadow-amber-500/10'
-                  : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20'
+                  ? 'border-[#FF4C4C] shadow-sm'
+                  : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
                 }`}
               style={
                 selected
-                  ? { background: `${color}18` }
+                  ? { background: `${color}0C` }
                   : {}
               }
             >
               {/* Zone letter badge */}
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black"
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black"
                 style={{
-                  background: selected ? `${color}30` : 'rgba(255,255,255,0.05)',
-                  color: selected ? color : '#94a3b8',
-                  border: `2px solid ${selected ? color + '60' : 'rgba(255,255,255,0.08)'}`,
+                  background: selected ? `${color}1A` : '#F3F3F5',
+                  color: selected ? color : '#78716c',
+                  border: `2px solid ${selected ? color + '40' : 'rgba(0,0,0,0.06)'}`,
                 }}
               >
                 {zone.replace('Zone ', '')}
               </div>
               <div className="text-center">
-                <p className={`font-bold ${selected ? 'text-amber-400' : 'text-slate-200'}`}>
+                <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-800'}`}>
                   {zone}
                 </p>
-                <p className="text-xs text-slate-500 mt-0.5">{zoneSlotsCount} spots</p>
+                <p className="text-xs text-stone-400 mt-0.5">{zoneSlotsCount} spots</p>
               </div>
-              {selected && <CheckCircle2 size={16} className="text-amber-500" />}
+              {selected && <CheckCircle2 size={16} className="text-[#FF4C4C]" />}
             </button>
           );
         })}
@@ -666,36 +661,36 @@ function StepSelectSlot({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-          <ParkingSquare size={20} className="text-amber-400" />
+        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+          <ParkingSquare size={20} className="text-[#FF4C4C]" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">Select Slot</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="text-lg font-bold text-stone-900">Select Slot</h2>
+          <p className="text-xs text-stone-500">
             Step 6 of 6 — Pick an available parking spot
           </p>
         </div>
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-6 text-xs">
+      <div className="flex items-center gap-6 text-xs font-medium">
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-emerald-500/20 border border-emerald-500/40" />
-          <span className="text-slate-400">Available</span>
+          <div className="w-4 h-4 rounded-md bg-emerald-50 border border-emerald-200" />
+          <span className="text-stone-500">Available</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-amber-500/20 border-2 border-amber-500" />
-          <span className="text-slate-400">Selected</span>
+          <div className="w-4 h-4 rounded-md bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]" />
+          <span className="text-stone-500">Selected</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-red-500/20 border border-red-500/40" />
-          <span className="text-slate-400">Occupied</span>
+          <div className="w-4 h-4 rounded-md bg-red-50 border border-red-200" />
+          <span className="text-stone-500">Occupied</span>
         </div>
       </div>
 
       {zoneSlots.length === 0 ? (
-        <div className="py-10 text-center">
-          <p className="text-sm text-slate-500">No suitable parking slots found for your vehicle type in this zone.</p>
+        <div className="py-10 text-center bg-gray-50 rounded-2xl border border-gray-150 p-4">
+          <p className="text-sm text-stone-400 font-medium">No suitable slots found for your vehicle type in this zone.</p>
         </div>
       ) : (
         /* Slot grid */
@@ -709,10 +704,10 @@ function StepSelectSlot({
                 disabled={!isAvailable}
                 onClick={() => isAvailable && setState((s) => ({ ...s, slot: slot.slotNumber, slotId: slot.id }))}
                 className={`aspect-square rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center justify-center gap-1 ${!isAvailable
-                    ? 'bg-red-500/10 border-red-500/30 text-red-500/40 cursor-not-allowed'
+                    ? 'bg-red-50 border-red-200/60 text-red-400/50 cursor-not-allowed'
                     : selected
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/20 scale-105'
-                      : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 hover:scale-105'
+                      ? 'bg-[#FF4C4C]/10 border-[#FF4C4C] text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10 scale-105'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-105'
                   }`}
               >
                 <VehicleIcon size={14} />
@@ -743,12 +738,6 @@ function BookingSummary({
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
   const total = pricePerHour * state.duration;
-
-  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
-    selectedVehicle?.name.toLowerCase().includes('xe máy') ||
-    selectedVehicle?.name.toLowerCase().includes('bike') ||
-    selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
-    false;
 
   const rows: { label: string; value: string; muted?: boolean }[] = [
     { label: 'Facility', value: lot.name },
@@ -792,44 +781,42 @@ function BookingSummary({
   ];
 
   return (
-    <div className="w-72 flex-shrink-0 bg-[#0D0D0F] border border-white/[0.07] rounded-2xl overflow-hidden">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-white/[0.06] flex items-center gap-2">
-        <ClipboardList size={16} className="text-amber-500" />
-        <h3 className="text-sm font-bold text-white">Booking Summary</h3>
-      </div>
+    <div className="w-72 flex-shrink-0 bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden flex flex-col justify-between">
+      <div>
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-200/80 flex items-center gap-2">
+          <ClipboardList size={16} className="text-[#FF4C4C]" />
+          <h3 className="text-sm font-bold text-stone-850">Booking Summary</h3>
+        </div>
 
-      {/* Rows */}
-      <div className="px-5 py-4 space-y-3.5">
-        {rows.map(({ label, value, muted }) => (
-          <div key={label} className="flex items-start justify-between gap-3">
-            <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
-            <span
-              className={`text-xs font-semibold text-right leading-snug ${muted ? 'text-slate-600 italic' : 'text-slate-200'
-                }`}
-            >
-              {value}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Divider */}
-      <div className="mx-5 h-px bg-white/[0.06]" />
-
-      {/* Total */}
-      <div className="px-5 py-4">
-        {pricePerHour > 0 ? (
-          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs text-slate-400">Estimated total</span>
-              <span className="text-xs text-slate-400">{state.duration}h × {formatCurrency(pricePerHour)}</span>
+        {/* Rows */}
+        <div className="px-5 py-4 space-y-3">
+          {rows.map(({ label, value, muted }) => (
+            <div key={label} className="flex items-start justify-between gap-3">
+              <span className="text-xs text-stone-400 font-semibold flex-shrink-0">{label}</span>
+              <span
+                className={`text-xs font-bold text-right leading-snug ${muted ? 'text-stone-350 italic' : 'text-stone-700'
+                  }`}
+              >
+                {value}
+              </span>
             </div>
-            <p className="text-xl font-black text-amber-400">{formatCurrency(total)}</p>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-4 border-t border-gray-200/80">
+        {pricePerHour > 0 ? (
+          <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-stone-400 font-bold">Estimated Total</span>
+              <span className="text-[10px] text-stone-400 font-bold">{state.duration}h × {formatCurrency(pricePerHour)}</span>
+            </div>
+            <p className="text-lg font-black text-[#FF4C4C]">{formatCurrency(total)}</p>
           </div>
         ) : (
-          <div className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 text-center">
-            <p className="text-xs text-slate-600">Select vehicle type to view pricing</p>
+          <div className="bg-white border border-gray-200/80 rounded-xl p-4 text-center">
+            <p className="text-xs text-stone-400 font-semibold">Select vehicle type to view pricing</p>
           </div>
         )}
       </div>
@@ -913,7 +900,6 @@ function ConfirmationPopup({
       entry.setHours(h, m, 0, 0);
       const exit = new Date(entry.getTime() + state.duration * 3600000);
 
-      // Chuyển đổi thời gian sang dạng UTC ISO string để tương thích Postgres
       const payload = {
         parkingSlotId: state.slotId!,
         vehicleTypeId: state.vehicleType!,
@@ -964,52 +950,50 @@ function ConfirmationPopup({
     { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
   ];
 
-  // ─── Header config according to phase ───
   const headerConfig = {
     confirm: {
-      icon: <ClipboardList size={18} className="text-amber-400" />,
-      iconBg: 'bg-amber-500/15 border border-amber-500/30',
+      icon: <ClipboardList size={18} className="text-[#FF4C4C]" />,
+      iconBg: 'bg-[#FF4C4C]/10 border border-[#FF4C4C]/30',
       headerBg: '',
       title: 'Confirm Information',
       subtitle: 'Double check before confirming',
     },
     payment: {
-      icon: <CheckCircle2 size={18} className="text-emerald-400" />,
-      iconBg: 'bg-emerald-500/20 border border-emerald-500/40',
-      headerBg: 'bg-emerald-500/5',
+      icon: <CheckCircle2 size={18} className="text-emerald-500" />,
+      iconBg: 'bg-emerald-50 border border-emerald-200',
+      headerBg: 'bg-emerald-50/30',
       title: 'Payment',
       subtitle: 'Select payment method',
     },
     qr: {
-      icon: <CheckCircle2 size={18} className="text-blue-400" />,
-      iconBg: 'bg-blue-500/20 border border-blue-500/40',
-      headerBg: 'bg-blue-500/5',
+      icon: <CheckCircle2 size={18} className="text-blue-500" />,
+      iconBg: 'bg-blue-50 border border-blue-200',
+      headerBg: 'bg-blue-50/30',
       title: 'Reservation Successful!',
       subtitle: 'Present this QR code to the staff upon entry',
     },
   }[phase];
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-[#0E0E11] border border-white/[0.09] rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-white border border-gray-200 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up">
 
         {/* ── Header ── */}
-        <div className={`px-6 pt-6 pb-5 border-b border-white/[0.06] ${headerConfig.headerBg}`}>
+        <div className={`px-6 pt-6 pb-5 border-b border-gray-100 ${headerConfig.headerBg}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${headerConfig.iconBg}`}>
                 {headerConfig.icon}
               </div>
               <div>
-                <h2 className="text-base font-bold text-white">{headerConfig.title}</h2>
-                <p className="text-xs text-slate-500">{headerConfig.subtitle}</p>
+                <h2 className="text-base font-bold text-stone-850">{headerConfig.title}</h2>
+                <p className="text-xs text-stone-400 font-medium">{headerConfig.subtitle}</p>
               </div>
             </div>
-            {/* Chỉ cho đóng ở phase confirm và qr */}
             {phase !== 'payment' && (
               <button
                 onClick={phase === 'qr' ? onDone : onClose}
-                className="p-1.5 rounded-xl text-slate-500 hover:text-white hover:bg-white/[0.07] transition-all"
+                className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-gray-100 transition-all"
               >
                 <X size={16} />
               </button>
@@ -1023,24 +1007,24 @@ function ConfirmationPopup({
           {/* ── Phase: Confirm ── */}
           {phase === 'confirm' && (
             <div className="space-y-4">
-              <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden">
                 {rows.map(({ label, value }, i) => (
                   <div
                     key={label}
-                    className={`flex items-start justify-between gap-4 px-4 py-3 ${i < rows.length - 1 ? 'border-b border-white/[0.05]' : ''
+                    className={`flex items-start justify-between gap-4 px-4 py-3 ${i < rows.length - 1 ? 'border-b border-gray-150' : ''
                       }`}
                   >
-                    <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
-                    <span className="text-xs font-semibold text-slate-200 text-right">{value}</span>
+                    <span className="text-xs text-stone-400 font-semibold flex-shrink-0">{label}</span>
+                    <span className="text-xs font-bold text-stone-700 text-right">{value}</span>
                   </div>
                 ))}
               </div>
-              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center justify-between">
+              <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-2xl p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-400 mb-0.5">Estimated Total Cost</p>
-                  <p className="text-xs text-slate-500">{state.duration}h × {formatCurrency(pricePerHour)}</p>
+                  <p className="text-xs text-stone-400 font-bold mb-0.5">Estimated Total Cost</p>
+                  <p className="text-xs text-stone-400 font-medium">{state.duration}h × {formatCurrency(pricePerHour)}</p>
                 </div>
-                <p className="text-2xl font-black text-amber-400">{formatCurrency(total)}</p>
+                <p className="text-2xl font-black text-[#FF4C4C]">{formatCurrency(total)}</p>
               </div>
             </div>
           )}
@@ -1048,44 +1032,44 @@ function ConfirmationPopup({
           {/* ── Phase: Payment ── */}
           {phase === 'payment' && (
             <div className="space-y-5">
-              <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl p-4 flex items-center justify-between">
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500 mb-1">Reserved Location</p>
-                  <p className="text-sm font-bold text-white">{floorLabel} › {state.zone} › Slot {state.slot}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{lot.name}</p>
+                  <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Reserved Location</p>
+                  <p className="text-sm font-bold text-stone-800">{floorLabel} › {state.zone} › Slot {state.slot}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">{lot.name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-slate-500 mb-1">Total Price</p>
-                  <p className="text-xl font-black text-amber-400">{formatCurrency(total)}</p>
+                  <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Total Price</p>
+                  <p className="text-xl font-black text-[#FF4C4C]">{formatCurrency(total)}</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Payment Method</p>
+                <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Payment Method</p>
                 <div className="grid grid-cols-2 gap-2">
                   {PAYMENT_METHODS.map(({ key, label, icon }) => (
                     <button
                       key={key}
                       onClick={() => setPayMethod(key)}
                       className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${payMethod === key
-                          ? 'bg-amber-500/10 border-amber-500 text-white'
-                          : 'bg-white/[0.03] border-white/10 text-slate-400 hover:border-white/20 hover:text-white'
+                          ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] text-stone-800'
+                          : 'bg-white border-gray-200/80 text-stone-500 hover:border-gray-300 hover:text-stone-855'
                         }`}
                     >
                       <span className="text-xl">{icon}</span>
-                      <span className="text-xs font-semibold">{label}</span>
+                      <span className="text-xs font-bold">{label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-xs px-4 py-3 rounded-2xl text-center">
+                <div className="bg-red-50 border border-red-150 text-red-500 text-xs px-4 py-3 rounded-2xl text-center font-bold">
                   ⚠️ {error}
                 </div>
               )}
 
-              <p className="text-xs text-slate-600 text-center">
+              <p className="text-xs text-stone-400 font-medium text-center">
                 By confirming, you agree to the terms of service.
               </p>
             </div>
@@ -1095,16 +1079,15 @@ function ConfirmationPopup({
           {phase === 'qr' && (
             <div className="flex flex-col items-center gap-5">
               {/* Success badge */}
-              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1.5">
-                <CheckCircle2 size={14} className="text-emerald-400" />
-                <span className="text-xs font-semibold text-emerald-400">Payment Successful</span>
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-full px-4 py-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" />
+                <span className="text-xs font-bold text-emerald-600">Payment Successful</span>
               </div>
 
               {/* QR Code */}
               <div className="relative">
-                {/* Glow ring */}
-                <div className="absolute inset-0 rounded-2xl bg-amber-500/10 blur-xl" />
-                <div className="relative bg-white rounded-2xl p-4 shadow-2xl flex items-center justify-center min-w-[212px] min-h-[212px]">
+                <div className="absolute inset-0 rounded-2xl bg-[#FF4C4C]/5 blur-lg" />
+                <div className="relative bg-white border border-gray-200/80 rounded-2xl p-4 shadow-xl flex items-center justify-center min-w-[212px] min-h-[212px]">
                   {createdReservation?.qrCodeBase64 ? (
                     <img
                       src={`data:image/png;base64,${createdReservation.qrCodeBase64}`}
@@ -1117,7 +1100,7 @@ function ConfirmationPopup({
                       size={180}
                       level="M"
                       bgColor="#ffffff"
-                      fgColor="#0a0a0c"
+                      fgColor="#1c1917"
                       imageSettings={{
                         src: '',
                         height: 0,
@@ -1131,12 +1114,12 @@ function ConfirmationPopup({
 
               {/* Booking ref */}
               <div className="text-center">
-                <p className="text-xs text-slate-500 mb-1 uppercase tracking-widest">Booking Code</p>
-                <p className="text-lg font-black text-amber-400 tracking-widest">{displayBookingRef}</p>
+                <p className="text-[10px] text-stone-400 font-bold mb-1 uppercase tracking-widest">Booking Code</p>
+                <p className="text-lg font-black text-[#FF4C4C] tracking-widest">{displayBookingRef}</p>
               </div>
 
               {/* Info summary */}
-              <div className="w-full bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
+              <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden">
                 {[
                   { label: 'Parking Lot', value: lot.name },
                   { label: 'License Plate', value: state.licensePlate },
@@ -1146,16 +1129,16 @@ function ConfirmationPopup({
                 ].map(({ label, value }, i, arr) => (
                   <div
                     key={label}
-                    className={`flex items-center justify-between gap-3 px-4 py-2.5 ${i < arr.length - 1 ? 'border-b border-white/[0.05]' : ''
+                    className={`flex items-center justify-between gap-3 px-4 py-2.5 ${i < arr.length - 1 ? 'border-b border-gray-150' : ''
                       }`}
                   >
-                    <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
-                    <span className="text-xs font-semibold text-slate-200 text-right">{value}</span>
+                    <span className="text-xs text-stone-400 font-semibold flex-shrink-0">{label}</span>
+                    <span className="text-xs font-bold text-stone-700 text-right">{value}</span>
                   </div>
                 ))}
               </div>
 
-              <p className="text-xs text-slate-600 text-center px-4">
+              <p className="text-xs text-stone-400 font-medium text-center px-4 leading-relaxed">
                 Present this QR code to the staff at the parking lot to confirm your reservation.
               </p>
             </div>
@@ -1163,18 +1146,18 @@ function ConfirmationPopup({
         </div>
 
         {/* ── Footer ── */}
-        <div className="px-6 py-4 border-t border-white/[0.06] flex items-center gap-3 bg-[#0A0A0C]/60">
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center gap-3 bg-gray-50/50">
           {phase === 'confirm' && (
             <>
               <button
                 onClick={onClose}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all"
               >
                 Cancel
               </button>
               <button
                 onClick={() => setPhase('payment')}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-md shadow-[#FF4C4C]/10 transition-all flex items-center justify-center gap-2"
               >
                 <CheckCircle2 size={15} />
                 Confirm
@@ -1187,7 +1170,7 @@ function ConfirmationPopup({
               <button
                 disabled={submitting}
                 onClick={() => setPhase('confirm')}
-                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all disabled:opacity-50"
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all disabled:opacity-50"
               >
                 <ChevronLeft size={15} />
                 Back
@@ -1195,7 +1178,7 @@ function ConfirmationPopup({
               <button
                 disabled={submitting}
                 onClick={handlePayAndBook}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/50 text-black shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white shadow-sm transition-all flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <>
@@ -1215,7 +1198,7 @@ function ConfirmationPopup({
           {phase === 'qr' && (
             <button
               onClick={onDone}
-              className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-all flex items-center justify-center gap-2"
             >
               <CheckCircle2 size={15} />
               Done – Close
@@ -1226,7 +1209,6 @@ function ConfirmationPopup({
     </div>
   );
 }
-
 
 // ─────────────────────────────────────────────
 // Stepper progress bar
@@ -1243,16 +1225,16 @@ function StepperBar({ currentStep }: { currentStep: number }) {
             <div className="flex flex-col items-center gap-1.5">
               <div
                 className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black border-2 transition-all duration-300 ${done
-                    ? 'bg-amber-500 border-amber-500 text-black'
+                    ? 'bg-[#FF4C4C] border-[#FF4C4C] text-white'
                     : active
-                      ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/30'
-                      : 'bg-white/[0.03] border-white/10 text-slate-600'
+                      ? 'bg-[#FF4C4C]/10 border-[#FF4C4C] text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                      : 'bg-gray-50 border-gray-200 text-stone-400'
                   }`}
               >
                 {done ? <CheckCircle2 size={16} /> : step.id}
               </div>
               <span
-                className={`text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${active ? 'text-amber-400' : done ? 'text-amber-500/60' : 'text-slate-600'
+                className={`text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${active ? 'text-[#FF4C4C]' : done ? 'text-[#FF4C4C]/70' : 'text-stone-400'
                   }`}
               >
                 {step.short}
@@ -1262,7 +1244,7 @@ function StepperBar({ currentStep }: { currentStep: number }) {
             {/* Connector line */}
             {idx < STEPS.length - 1 && (
               <div
-                className={`w-12 sm:w-16 h-0.5 mb-5 mx-1 rounded-full transition-all duration-300 ${done ? 'bg-amber-500' : 'bg-white/[0.06]'
+                className={`w-12 sm:w-16 h-0.5 mb-5 mx-1 rounded-full transition-all duration-300 ${done ? 'bg-[#FF4C4C]' : 'bg-gray-200'
                   }`}
               />
             )}
@@ -1346,11 +1328,9 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
         setLoadingFloors(true);
 
         let buildingId = lot.id;
-        // Kiểm tra xem lot.id có phải dạng GUID hợp lệ không (xxxxx-xxxx...)
         const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lot.id);
 
         if (!isGuid) {
-          // Nếu là bãi đỗ xe từ OSM (không có trong database), ta lấy building đầu tiên trong DB để demo tầng & slot thật
           const buildings = await getBuildings();
           if (buildings.length > 0) {
             buildingId = buildings[0].id;
@@ -1444,21 +1424,21 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   return (
     <>
       {/* ── Wizard Backdrop + Modal ── */}
-      <div className="fixed inset-0 z-[9000] flex items-center justify-center p-4 sm:p-6 bg-black/70">
+      <div className="fixed inset-0 z-[9000] flex items-center justify-center p-4 sm:p-6 bg-stone-900/60 backdrop-blur-sm">
         <div
-          className="relative w-full max-w-4xl bg-[#0E0E11] border border-white/[0.08] rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+          className="relative w-full max-w-4xl bg-white border border-gray-200 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
           style={{ maxHeight: '90vh' }}
         >
           {/* ── Modal Header ── */}
-          <div className="flex-shrink-0 px-6 pt-6 pb-5 border-b border-white/[0.06]">
+          <div className="flex-shrink-0 px-6 pt-6 pb-5 border-b border-gray-150">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h1 className="text-base font-bold text-white">Book a Parking Spot</h1>
-                <p className="text-xs text-slate-500 mt-0.5 truncate max-w-xs">{lot.name}</p>
+                <h1 className="text-base font-bold text-stone-850">Book a Parking Spot</h1>
+                <p className="text-xs text-stone-400 font-semibold mt-0.5 truncate max-w-xs">{lot.name}</p>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.07] transition-all"
+                className="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-gray-100 transition-all"
               >
                 <X size={18} />
               </button>
@@ -1473,19 +1453,23 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
                 {renderStep()}
               </div>
             </div>
+            {/* Sidebar Summary */}
+            <div className="hidden md:block p-6 bg-gray-50/50 border-l border-gray-200">
+              <BookingSummary lot={lot} state={state} vehicles={vehicles} floorLabel={floorLabel} />
+            </div>
           </div>
 
           {/* ── Modal Footer ── */}
-          <div className="flex-shrink-0 px-6 py-4 border-t border-white/[0.06] flex items-center justify-between gap-3 bg-[#0A0A0C]/50">
+          <div className="flex-shrink-0 px-6 py-4 border-t border-gray-150 flex items-center justify-between gap-3 bg-gray-50/50">
             <button
               onClick={step === 1 ? onClose : handleBack}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-400 border border-white/10 hover:text-white hover:border-white/20 hover:bg-white/5 transition-all"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all"
             >
               <ChevronLeft size={16} />
               {step === 1 ? 'Close' : 'Back'}
             </button>
 
-            <span className="text-xs text-slate-600 font-medium">
+            <span className="text-xs text-stone-450 font-bold">
               {step} / {STEPS.length}
             </span>
 
@@ -1494,8 +1478,8 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
                 onClick={handleNext}
                 disabled={!canAdvance()}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
-                    ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20'
-                    : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed'
+                    ? 'bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-sm shadow-[#FF4C4C]/10'
+                    : 'bg-gray-100 text-stone-300 border-gray-200/80 cursor-not-allowed'
                   }`}
               >
                 Continue
@@ -1506,8 +1490,8 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
                 onClick={handleConfirm}
                 disabled={!canAdvance()}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
-                    ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20'
-                    : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed'
+                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-stone-300 border-gray-200/80 cursor-not-allowed'
                   }`}
               >
                 <CheckCircle2 size={16} />
@@ -1518,8 +1502,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
         </div>
       </div>
 
-      {/* ── Confirmation & Payment Popup ──
-          Đặt NGOÀI backdrop div để tránh stacking context trap từ backdrop-filter */}
+      {/* ── Confirmation & Payment Popup ── */}
       {showConfirmPopup && (
         <ConfirmationPopup
           lot={lot}

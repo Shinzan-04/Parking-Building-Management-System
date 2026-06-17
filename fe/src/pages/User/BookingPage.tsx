@@ -9,7 +9,6 @@ import {
   Search,
   MapPin,
   ChevronDown,
-  Filter,
   ChevronRight,
   Car,
   Bike,
@@ -34,8 +33,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Custom parking marker
-const createParkingIcon = (color: string = '#F59E0B') =>
+// Custom parking marker - Redesigned with white border and modern shadow
+const createParkingIcon = (color: string = '#FF4C4C') =>
   L.divIcon({
     className: '',
     html: `
@@ -44,14 +43,14 @@ const createParkingIcon = (color: string = '#F59E0B') =>
         background: ${color};
         border-radius: 50% 50% 50% 0;
         transform: rotate(-45deg);
-        border: 3px solid #0A0A0C;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+        border: 3px solid #ffffff;
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
         display: flex; align-items: center; justify-content: center;
       ">
         <span style="
           transform: rotate(45deg);
-          color: #0A0A0C;
-          font-weight: 900;
+          color: #ffffff;
+          font-weight: 800;
           font-size: 14px;
           line-height: 1;
         ">P</span>
@@ -128,24 +127,24 @@ async function fetchOsmParking(lat: number, lng: number, radiusM: number): Promi
   }).filter((p) => p.lat && p.lng); // loại bỏ phần tử không có toạ độ
 }
 
-// ---------- Icon OSM bãi đỗ thực (xanh lá) ----------
+// ---------- Icon OSM bãi đỗ thực (xanh lá hoặc màu san hô chọn) ----------
 const createOsmParkingIcon = (isSelected: boolean = false) =>
   L.divIcon({
     className: '',
     html: `
       <div style="
         width: 32px; height: 32px;
-        background: ${isSelected ? '#F59E0B' : '#22C55E'};
+        background: ${isSelected ? '#FF4C4C' : '#10B981'};
         border-radius: 50% 50% 50% 0;
         transform: rotate(-45deg);
-        border: 3px solid #0A0A0C;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.6);
+        border: 3px solid #ffffff;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
         display: flex; align-items: center; justify-content: center;
       ">
         <span style="
           transform: rotate(45deg);
-          color: #0A0A0C;
-          font-weight: 900;
+          color: #ffffff;
+          font-weight: 850;
           font-size: 13px;
           line-height: 1;
         ">P</span>
@@ -330,22 +329,6 @@ const PARKING_LOTS: ParkingLot[] = [
   },
 ];
 
-// ---------- Hàm fetch đường đi từ OSRM API ----------
-async function fetchOsrmRoute(
-  fromLat: number, fromLng: number,
-  toLat: number, toLng: number
-): Promise<[number, number][]> {
-  const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('OSRM error');
-  const data = await res.json();
-  if (data.code !== 'Ok' || !data.routes?.length) throw new Error('No route found');
-  // GeoJSON trả về [lng, lat] → đảo thành [lat, lng] cho Leaflet
-  return (data.routes[0].geometry.coordinates as [number, number][]).map(
-    ([lng, lat]) => [lat, lng]
-  );
-}
-
 // ---------- Chuyển OsmParkingLot → ParkingLot cho BookingWizard ----------
 function osmToBookingLot(osm: OsmParkingLot): any {
   const cap = osm.capacity ? parseInt(osm.capacity) : 20;
@@ -391,7 +374,7 @@ function FlyToUser({ lat, lng }: { lat: number; lng: number }) {
   return null;
 }
 
-// ---------- Icon vị trí người dùng ----------
+// ---------- Icon vị trí người dùng (Đổi thành viền trắng) ----------
 const createUserIcon = () =>
   L.divIcon({
     className: '',
@@ -399,7 +382,7 @@ const createUserIcon = () =>
       <div style="position:relative; width:22px; height:22px;">
         <div style="
           position:absolute; inset:0;
-          background: rgba(59,130,246,0.25);
+          background: rgba(59,130,246,0.2);
           border-radius:50%;
           animation: pulse-ring 1.8s cubic-bezier(0.4,0,0.6,1) infinite;
         "></div>
@@ -409,8 +392,8 @@ const createUserIcon = () =>
           width:14px; height:14px;
           background:#3B82F6;
           border-radius:50%;
-          border:3px solid #fff;
-          box-shadow: 0 0 8px rgba(59,130,246,0.8);
+          border:2.5px solid #ffffff;
+          box-shadow: 0 0 10px rgba(59,130,246,0.5);
         "></div>
       </div>
     `,
@@ -436,7 +419,6 @@ export default function BookingPage() {
   const sortRef = useRef<HTMLDivElement>(null);
   const handleMapRef = useCallback((map: L.Map) => setMapInstance(map), []);
 
-
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingUser, setLocatingUser] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -451,10 +433,9 @@ export default function BookingPage() {
     { label: '5 km', value: 5000 },
   ];
 
-  // ── Route (OSRM) state ── (phải khai báo SAU userLocation)
+  // ── Route (OSRM) state ──
   const [routeCoords, setRouteCoords] = useState<[number, number][] | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(false);
-  const [routeError, setRouteError] = useState<string | null>(null);
   const [routeInfo, setRouteInfo] = useState<{ distKm: string; mins: number } | null>(null);
 
   const handleGetDirections = useCallback(async (toLat: number, toLng: number) => {
@@ -464,7 +445,6 @@ export default function BookingPage() {
     }
     setIsLoadingRoute(true);
     setRouteCoords(null);
-    setRouteError(null);
     setRouteInfo(null);
     try {
       const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lng},${userLocation.lat};${toLng},${toLat}?overview=full&geometries=geojson`;
@@ -483,7 +463,7 @@ export default function BookingPage() {
       });
       mapInstance?.flyTo([toLat, toLng], 16, { duration: 1 });
     } catch {
-      setRouteError('Failed to calculate route. Check your connection.');
+      alert('Failed to calculate route. Check your connection.');
     } finally {
       setIsLoadingRoute(false);
     }
@@ -492,7 +472,6 @@ export default function BookingPage() {
   const handleCancelRoute = useCallback(() => {
     setRouteCoords(null);
     setRouteInfo(null);
-    setRouteError(null);
   }, []);
 
   // ── Wizard cho OSM lot ──
@@ -509,11 +488,6 @@ export default function BookingPage() {
   const [isLoadingOsm, setIsLoadingOsm] = useState(false);
   const [osmError, setOsmError] = useState<string | null>(null);
   const [selectedOsmLot, setSelectedOsmLot] = useState<OsmParkingLot | null>(null);
-
-  // Tự động định vị khi mở trang lần đầu
-  useEffect(() => {
-    // Chủ động request người dùng bấm nút thay vì auto-locate nếu muốn bảo quyền
-  }, []);
 
   // Tự động fetch OSM khi có vị trí hoặc thay đổi bán kính
   useEffect(() => {
@@ -588,7 +562,7 @@ export default function BookingPage() {
 
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
 
-  // Filter & sort (khoảng cách tính theo Haversine nếu có vị trí người dùng)
+  // Filter & sort
   const filtered = PARKING_LOTS.filter((lot) => {
     const matchType =
       vehicleFilter === 'all' || lot.vehicleTypes.includes(vehicleFilter);
@@ -596,7 +570,6 @@ export default function BookingPage() {
       !searchText ||
       lot.name.toLowerCase().includes(searchText.toLowerCase()) ||
       lot.address.toLowerCase().includes(searchText.toLowerCase());
-    // Khi bật "Gần tôi": chỉ giữ bãi trong bán kính
     const matchNearby = !userLocation
       ? true
       : calcDistanceKm(userLocation.lat, userLocation.lng, lot.lat, lot.lng) <= nearbyRadius / 1000;
@@ -609,15 +582,8 @@ export default function BookingPage() {
       const dB = calcDistanceKm(userLocation.lat, userLocation.lng, b.lat, b.lng);
       return dA - dB;
     }
-    return 0; // relevance
+    return 0;
   });
-
-  // Helper: lấy khoảng cách đến từng bãi (nếu có vị trí)
-  const getDistance = (lot: ParkingLot): string | null => {
-    if (!userLocation) return null;
-    const d = calcDistanceKm(userLocation.lat, userLocation.lng, lot.lat, lot.lng);
-    return d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
-  };
 
   const getOsmDistance = (lot: OsmParkingLot): string => {
     if (!userLocation) return '';
@@ -638,14 +604,6 @@ export default function BookingPage() {
     );
   });
 
-  // Tổng số bãi trong bán kính (để hiện thống kê) — dùng OSM khi có vị trí
-  const totalNearby = userLocation ? osmLots.length : 0;
-
-  const handleSelectLot = (lot: ParkingLot) => {
-    setSelectedLot(lot);
-    setShowDetailPanel(true);
-  };
-
   const SORT_LABELS: Record<SortOption, string> = {
     relevance: 'Relevance',
     price: 'Lowest Price',
@@ -655,29 +613,34 @@ export default function BookingPage() {
 
   const availabilityColor = (lot: ParkingLot) => {
     const ratio = lot.availableSpots / lot.totalSpots;
-    if (ratio > 0.5) return '#22c55e';
-    if (ratio > 0.2) return '#f59e0b';
-    return '#ef4444';
+    if (ratio > 0.5) return '#10B981'; // Emerald
+    if (ratio > 0.2) return '#F59E0B'; // Amber
+    return '#FF4C4C'; // Coral Red
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#0A0A0C] text-slate-100 overflow-hidden">
+    <div className="flex flex-col h-screen bg-[#F3F3F5] text-stone-900 overflow-hidden font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C]">
+      
       {/* ===== Top Navigation ===== */}
-      <nav className="flex-shrink-0 z-50 bg-[#0E0E10]/95 backdrop-blur-md border-b border-white/5 shadow-lg">
+      <nav className="flex-shrink-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
         <div className="max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
+            
             {/* Logo + Back */}
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigate('/')}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+                className="p-2 rounded-xl text-stone-400 hover:text-stone-900 hover:bg-gray-100 transition-all"
                 title="Về trang chủ"
               >
                 <ArrowLeft size={18} />
               </button>
               <Link to="/" className="flex items-center gap-2">
-                <span className="text-lg font-bold tracking-wider text-white">
-                  PARKING <span className="text-amber-500">BUILDING</span>
+                <div className="w-8 h-8 rounded-lg bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-sm shadow-sm shadow-[#FF4C4C]/20">
+                  P
+                </div>
+                <span className="text-lg font-bold tracking-tight text-stone-900">
+                  Parking<span className="text-[#FF4C4C]">.</span>
                 </span>
               </Link>
             </div>
@@ -686,14 +649,14 @@ export default function BookingPage() {
             <div className="hidden md:flex items-center gap-8">
               <Link
                 to="/"
-                className="text-sm font-semibold text-slate-300 hover:text-amber-500 transition-colors"
+                className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors"
               >
                 Find Parking
               </Link>
-              <span className="text-sm font-semibold text-amber-500 cursor-pointer">
+              <span className="text-sm font-semibold text-[#FF4C4C] cursor-pointer">
                 Book a Slot
               </span>
-              <span className="text-sm font-semibold text-slate-300 hover:text-amber-500 transition-colors cursor-pointer">
+              <span className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
                 Support & Feedback
               </span>
             </div>
@@ -705,25 +668,25 @@ export default function BookingPage() {
                   <button
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-2.5 bg-white/5 border border-white/10 rounded-full py-1.5 pl-2 pr-3 hover:bg-white/10 transition-all"
+                    className="flex items-center gap-2.5 bg-gray-100 border border-gray-200/50 rounded-full py-1.5 pl-2 pr-3 hover:bg-gray-200 transition-all focus:outline-none"
                   >
-                    <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-black font-bold text-xs shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/25">
                       {initials}
                     </div>
-                    <span className="text-sm text-slate-200 font-semibold hidden sm:block">
+                    <span className="text-sm text-stone-800 font-semibold hidden sm:block">
                       {user.fullName}
                     </span>
                     <ChevronDown
                       size={13}
-                      className={`text-slate-400 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                      className={`text-stone-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
                     />
                   </button>
                   {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-44 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl py-2 z-[9999]">
+                    <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-[9999]">
                       <button
                         type="button"
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-slate-300 hover:text-red-500 hover:bg-red-500/10 transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
                       >
                         <LogOut size={15} />
                         <span>Log Out</span>
@@ -734,7 +697,7 @@ export default function BookingPage() {
               ) : (
                 <Link
                   to="/auth"
-                  className="bg-amber-500 hover:bg-amber-400 text-black font-bold px-5 py-2 rounded-full text-sm transition-all"
+                  className="bg-stone-900 hover:bg-stone-800 text-white font-bold px-5 py-2 rounded-full text-sm transition-all"
                 >
                   Log In
                 </Link>
@@ -745,26 +708,27 @@ export default function BookingPage() {
       </nav>
 
       {/* ===== Filter Bar ===== */}
-      <div className="flex-shrink-0 z-40 bg-[#0E0E10]/90 border-b border-white/5 px-4 sm:px-6 lg:px-8 py-3">
+      <div className="flex-shrink-0 z-40 bg-white/80 border-b border-gray-200/50 px-4 sm:px-6 lg:px-8 py-3 backdrop-blur-md">
         <div className="flex items-center gap-3 flex-wrap">
+          
           {/* Vehicle type filters */}
           {(
             [
-              { key: 'all', label: 'All', icon: Filter },
+              { key: 'all', label: 'All Vehicles', icon: Car },
               { key: 'motorbike', label: 'Motorbike', icon: Bike },
               { key: 'car', label: 'Car', icon: Car },
-              { key: 'ev', label: 'EV', icon: Zap },
+              { key: 'ev', label: 'EV Charger', icon: Zap },
             ] as { key: VehicleFilter; label: string; icon: any }[]
           ).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setVehicleFilter(key)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${vehicleFilter === key
-                  ? 'bg-amber-500 text-black border-amber-500'
-                  : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${vehicleFilter === key
+                  ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/15'
+                  : 'bg-gray-100 text-stone-600 border-gray-200 hover:bg-gray-200/60 hover:text-stone-900'
                 }`}
             >
-              <Icon size={14} />
+              <Icon size={13} />
               {label}
             </button>
           ))}
@@ -773,20 +737,20 @@ export default function BookingPage() {
           <div className="relative ml-auto" ref={sortRef}>
             <button
               onClick={() => setIsSortOpen(!isSortOpen)}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white transition-all"
+              className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-gray-100 border border-gray-200 text-stone-700 hover:bg-gray-200/60 transition-all"
             >
-              Sort by: <span className="text-amber-500">{SORT_LABELS[sortBy]}</span>
-              <ChevronDown size={14} className={`transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
+              Sort by: <span className="text-[#FF4C4C]">{SORT_LABELS[sortBy]}</span>
+              <ChevronDown size={13} className={`transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
             </button>
             {isSortOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-[#121214] border border-white/10 rounded-2xl shadow-2xl py-2 z-50">
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50">
                 {(Object.keys(SORT_LABELS) as SortOption[]).map((opt) => (
                   <button
                     key={opt}
                     onClick={() => { setSortBy(opt); setIsSortOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${sortBy === opt
-                        ? 'text-amber-500 bg-amber-500/10'
-                        : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors ${sortBy === opt
+                        ? 'text-[#FF4C4C] bg-[#FF4C4C]/5'
+                        : 'text-stone-600 hover:text-stone-900 hover:bg-gray-50'
                       }`}
                   >
                     {SORT_LABELS[opt]}
@@ -800,48 +764,50 @@ export default function BookingPage() {
 
       {/* ===== Main Content: Sidebar + Map ===== */}
       <div className="flex flex-1 overflow-hidden">
+        
         {/* ----- Sidebar ----- */}
-        <aside className="w-80 flex-shrink-0 bg-[#0E0E10] border-r border-white/5 flex flex-col overflow-hidden">
+        <aside className="w-80 flex-shrink-0 bg-[#F8F8FA] border-r border-gray-200/60 flex flex-col overflow-hidden">
+          
           {/* Search + count */}
           <div className="px-4 pt-4 pb-3 space-y-3">
             <div className="relative">
               <Search
                 size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
               />
               <input
                 type="text"
                 placeholder="Search parking lots..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-amber-500/60 transition-colors"
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-stone-800 placeholder-stone-400 outline-none focus:border-[#FF4C4C]/60 transition-colors"
               />
             </div>
 
             {/* Banner trạng thái */}
             {userLocation ? (
-              <div className="flex items-center gap-2 bg-blue-500/10 border border-blue-500/25 rounded-xl px-3 py-2">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${isLoadingOsm ? 'bg-blue-400' : 'bg-emerald-400 animate-pulse'}`} />
+              <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
+                <div className={`w-2 h-2 rounded-full shrink-0 ${isLoadingOsm ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
                 <div className="flex-1 min-w-0">
                   {isLoadingOsm ? (
-                    <p className="text-xs font-bold text-blue-300 flex items-center gap-1.5">
+                    <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5">
                       <Loader2 size={10} className="animate-spin" />
-                      Loading parking lots from OpenStreetMap...
+                      Loading lots from OpenStreetMap...
                     </p>
                   ) : osmError ? (
-                    <p className="text-xs font-bold text-red-400">{osmError}</p>
+                    <p className="text-xs font-bold text-red-500">{osmError}</p>
                   ) : (
                     <>
-                      <p className="text-xs font-bold text-emerald-300">
+                      <p className="text-xs font-bold text-emerald-600">
                         {osmFiltered.length} real lots within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
                       </p>
-                      <p className="text-[10px] text-blue-400/70 truncate">from OpenStreetMap data</p>
+                      <p className="text-[10px] text-blue-500/80 truncate">from OpenStreetMap data</p>
                     </>
                   )}
                 </div>
                 <button
                   onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); }}
-                  className="shrink-0 text-blue-400/60 hover:text-white transition-colors text-xs font-bold leading-none"
+                  className="shrink-0 text-blue-500/60 hover:text-blue-800 transition-colors text-xs font-bold leading-none"
                   title="Turn off near me mode"
                 >
                   ✕
@@ -851,22 +817,22 @@ export default function BookingPage() {
           </div>
 
           {/* Lot list */}
-          <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2 scrollbar-thin">
+          <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2.5 scrollbar-thin">
 
             {/* Chưa định vị: hiển invite state */}
             {!userLocation ? (
               <div className="flex flex-col items-center justify-center h-full py-10 text-center px-4">
-                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-blue-500/20 to-emerald-500/10 border border-blue-500/20 flex items-center justify-center mb-5 shadow-lg shadow-blue-500/10">
-                  <Navigation size={32} className="text-blue-400" />
+                <div className="w-20 h-20 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-5 shadow-sm">
+                  <Navigation size={32} className="text-blue-500" />
                 </div>
-                <h3 className="text-base font-bold text-white mb-2">Find Parking Near You</h3>
-                <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                <h3 className="text-base font-bold text-stone-850 mb-2">Find Parking Near You</h3>
+                <p className="text-xs text-stone-500 leading-relaxed mb-6">
                   Allow location access to show the closest real parking lots from OpenStreetMap data.
                 </p>
                 <button
                   onClick={handleLocateMe}
                   disabled={locatingUser}
-                  className="flex items-center gap-2.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:opacity-60 text-white font-bold px-6 py-3 rounded-2xl text-sm transition-all shadow-lg shadow-blue-500/25 active:scale-95"
+                  className="flex items-center gap-2.5 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-white font-bold px-6 py-3 rounded-2xl text-sm transition-all shadow-md active:scale-95 w-full justify-center"
                 >
                   {locatingUser ? (
                     <Loader2 size={16} className="animate-spin" />
@@ -876,18 +842,18 @@ export default function BookingPage() {
                   {locatingUser ? 'Locating...' : 'Find Near Me'}
                 </button>
                 {locationError && (
-                  <p className="text-xs text-red-400 mt-3">{locationError}</p>
+                  <p className="text-xs text-red-500 mt-3">{locationError}</p>
                 )}
-                <div className="mt-6 pt-5 border-t border-white/5 w-full">
-                  <p className="text-[10px] text-slate-600 mb-3 uppercase tracking-wider font-semibold">Or select search radius</p>
+                <div className="mt-6 pt-5 border-t border-gray-200/50 w-full">
+                  <p className="text-[10px] text-stone-400 mb-3 uppercase tracking-wider font-bold">Or select search radius</p>
                   <div className="flex gap-2 justify-center">
                     {RADIUS_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
                         onClick={() => { setNearbyRadius(opt.value); handleLocateMe(); }}
                         className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${nearbyRadius === opt.value
-                            ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
-                            : 'text-slate-500 border-white/10 hover:text-white hover:border-white/20'
+                            ? 'bg-blue-50 text-blue-600 border-blue-200'
+                            : 'text-stone-500 border-gray-200 hover:text-stone-800 hover:border-gray-300'
                           }`}
                       >
                         {opt.label}
@@ -902,8 +868,8 @@ export default function BookingPage() {
                 {/* Loading OSM */}
                 {isLoadingOsm && (
                   <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <Loader2 size={28} className="text-blue-400 animate-spin" />
-                    <p className="text-sm text-slate-400">Matching parking lots near you from OSM...</p>
+                    <Loader2 size={24} className="text-blue-500 animate-spin" />
+                    <p className="text-xs text-stone-500">Matching parking lots near you...</p>
                   </div>
                 )}
 
@@ -911,10 +877,10 @@ export default function BookingPage() {
                 {!isLoadingOsm && osmError && (
                   <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
                     <MapPin size={28} className="text-red-400 opacity-60" />
-                    <p className="text-sm text-red-400">{osmError}</p>
+                    <p className="text-xs text-red-500">{osmError}</p>
                     <button
                       onClick={() => setUserLocation({ ...userLocation })}
-                      className="text-xs text-blue-400 border border-blue-500/30 px-3 py-1.5 rounded-full hover:bg-blue-500/10 transition-all"
+                      className="text-xs text-blue-500 border border-blue-200 px-3 py-1.5 rounded-full hover:bg-blue-50 transition-all font-semibold"
                     >
                       Retry
                     </button>
@@ -932,27 +898,27 @@ export default function BookingPage() {
                       mapInstance?.flyTo([lot.lat, lot.lng], 17, { duration: 1.2 });
                     }}
                     className={`w-full text-left rounded-2xl border p-4 transition-all group ${selectedOsmLot?.id === lot.id
-                        ? 'bg-emerald-500/10 border-emerald-500/40'
-                        : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.07] hover:border-emerald-500/20'
+                        ? 'bg-emerald-50/80 border-emerald-500/40 shadow-sm'
+                        : 'bg-white border-gray-200/80 hover:border-emerald-500/30 hover:shadow-md hover:shadow-gray-200/10'
                       }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className={`text-sm font-bold leading-tight ${selectedOsmLot?.id === lot.id ? 'text-emerald-400' : 'text-slate-100 group-hover:text-white'
+                      <span className={`text-sm font-extrabold leading-tight ${selectedOsmLot?.id === lot.id ? 'text-emerald-600' : 'text-stone-800 group-hover:text-stone-950'
                         }`}>
-                        {lot.name}
+                      {lot.name}
                       </span>
-                      <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${lot.access === 'private'
-                          ? 'bg-sky-500/15 text-sky-400 border border-sky-500/20'
-                          : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                      <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${lot.access === 'private'
+                          ? 'bg-sky-50 text-sky-600 border border-sky-200/50'
+                          : 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
                         }`}>
                         {lot.access === 'private' ? 'PRIVATE' : 'PUBLIC'}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-1.5 mb-3">
-                      <MapPin size={11} className="text-slate-500 shrink-0" />
-                      <span className="text-xs text-slate-500 truncate flex-1">{lot.address}</span>
-                      <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                      <MapPin size={11} className="text-stone-400 shrink-0" />
+                      <span className="text-xs text-stone-400 truncate flex-1">{lot.address}</span>
+                      <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
                         <Navigation2 size={9} />
                         {getOsmDistance(lot)}
                       </span>
@@ -961,14 +927,14 @@ export default function BookingPage() {
                     <div className="flex items-center gap-3 text-xs">
                       {/* Sức chứa */}
                       {lot.capacity && (
-                        <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                          <span className="text-slate-400">≤ <span className="font-semibold text-slate-200">{lot.capacity}</span> spots</span>
+                        <div className="flex items-center gap-1.5 text-stone-500">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                          <span>Max <span className="font-bold text-stone-700">{lot.capacity}</span> spots</span>
                         </div>
                       )}
                       {/* Badge OSM */}
-                      <span className="text-[10px] text-slate-600 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />OSM
+                      <span className="text-[10px] text-stone-400 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />OSM
                       </span>
                       {/* Mở Google Maps */}
                       <a
@@ -976,15 +942,15 @@ export default function BookingPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
-                        className="ml-auto text-[10px] font-semibold text-blue-400 hover:text-blue-300 underline transition-colors"
+                        className="ml-auto text-[10px] font-bold text-blue-500 hover:text-blue-700 underline transition-colors"
                       >
                         Directions
                       </a>
                     </div>
 
-                    <div className={`mt-3 text-center text-xs font-semibold py-1.5 rounded-lg border transition-all ${selectedOsmLot?.id === lot.id
-                        ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
-                        : 'border-white/10 text-slate-400 bg-white/5 group-hover:text-emerald-400 group-hover:border-emerald-500/20'
+                    <div className={`mt-3 text-center text-xs font-bold py-1.5 rounded-lg border transition-all ${selectedOsmLot?.id === lot.id
+                        ? 'border-emerald-500/40 text-emerald-600 bg-emerald-50'
+                        : 'border-gray-200 text-stone-500 bg-gray-50 group-hover:text-emerald-600 group-hover:border-emerald-500/20 group-hover:bg-emerald-50/30'
                       }`}>
                       📍 View on Map
                     </div>
@@ -994,14 +960,14 @@ export default function BookingPage() {
                 {/* Trống */}
                 {!isLoadingOsm && !osmError && osmFiltered.length === 0 && (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-3">
-                      <Navigation size={24} className="text-blue-400" />
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-3">
+                      <Navigation size={24} className="text-blue-500" />
                     </div>
-                    <p className="text-sm font-bold text-slate-300 mb-1">No parking lots found near you</p>
-                    <p className="text-xs text-slate-600 mb-3">within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}</p>
+                    <p className="text-sm font-bold text-stone-850 mb-1">No parking lots found</p>
+                    <p className="text-xs text-stone-500 mb-3">within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}</p>
                     <button
                       onClick={() => setNearbyRadius(Math.min(nearbyRadius * 2, 5000))}
-                      className="text-xs font-semibold text-blue-400 hover:text-blue-300 border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 rounded-full transition-all"
+                      className="text-xs font-bold text-blue-500 hover:text-blue-700 border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-full transition-all"
                     >
                       Expand search radius
                     </button>
@@ -1019,12 +985,12 @@ export default function BookingPage() {
             center={[16.047, 108.206]}
             zoom={6}
             className="w-full h-full"
-            style={{ background: '#0A0A0C' }}
+            style={{ background: '#F3F3F5' }}
             zoomControl={false}
           >
-            {/* Dark-style tile layer */}
+            {/* Light CartoDB theme tiles matching our design */}
             <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
               maxZoom={20}
             />
@@ -1032,7 +998,6 @@ export default function BookingPage() {
             {/* Capture map instance */}
             <MapRefCapture onMap={handleMapRef} />
 
-            {/* Markers hardcoded: ẨN — chỉ hiển khi có userLocation (không dùng ở chế độ mới) */}
             {/* Markers OSM thực tế (khi đã định vị) */}
             {userLocation && !isLoadingOsm && osmFiltered.map((lot) => (
               <Marker
@@ -1047,26 +1012,26 @@ export default function BookingPage() {
                   },
                 }}
               >
-                <Popup className="parking-popup" minWidth={220}>
-                  <div className="bg-[#0E0E12] rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{ minWidth: 220 }}>
+                <Popup className="parking-popup" minWidth={240}>
+                  <div className="bg-white rounded-2xl overflow-hidden shadow-xl" style={{ minWidth: 220 }}>
                     {/* Header */}
-                    <div className="px-4 pt-4 pb-3 border-b border-white/[0.06]">
+                    <div className="px-4 pt-4 pb-3 border-b border-gray-100">
                       <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="font-bold text-emerald-300 text-sm leading-tight flex-1">{lot.name}</p>
-                        <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${lot.access === 'private'
-                            ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
-                            : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        <p className="font-extrabold text-[#FF4C4C] text-sm leading-tight flex-1">{lot.name}</p>
+                        <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${lot.access === 'private'
+                            ? 'bg-sky-50 text-sky-600 border border-sky-200'
+                            : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                           }`}>
                           {lot.access === 'private' ? 'PRIVATE' : 'PUBLIC'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 leading-snug">{lot.address}</p>
+                      <p className="text-[11px] text-stone-400 leading-snug">{lot.address}</p>
                       <div className="flex items-center gap-3 mt-2 text-[11px]">
-                        <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                        <span className="flex items-center gap-1 text-emerald-600 font-bold">
                           <Navigation2 size={10} />{getOsmDistance(lot)}
                         </span>
                         {lot.capacity && (
-                          <span className="text-slate-400">≤ {lot.capacity} spots</span>
+                          <span className="text-stone-500 font-medium">Max {lot.capacity} spots</span>
                         )}
                       </div>
                     </div>
@@ -1075,14 +1040,14 @@ export default function BookingPage() {
                       <button
                         onClick={() => handleGetDirections(lot.lat, lot.lng)}
                         disabled={isLoadingRoute}
-                        className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-blue-500/20"
+                        className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm shadow-blue-500/10"
                       >
                         {isLoadingRoute ? <Loader2 size={13} className="animate-spin" /> : <Route size={13} />}
                         Get Directions
                       </button>
                       <button
                         onClick={() => handleBookOsm(lot)}
-                        className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-2.5 rounded-xl text-xs transition-all shadow-md shadow-emerald-500/20"
+                        className="w-full flex items-center justify-center gap-2 bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm shadow-[#FF4C4C]/10"
                       >
                         <CalendarCheck size={13} />
                         Book Now
@@ -1113,16 +1078,16 @@ export default function BookingPage() {
                 <Circle
                   center={[userLocation.lat, userLocation.lng]}
                   radius={nearbyRadius}
-                  pathOptions={{ color: '#3B82F6', fillColor: '#3B82F6', fillOpacity: 0.06, weight: 1.5, dashArray: '5,5' }}
+                  pathOptions={{ color: '#3B82F6', fillColor: '#3B82F6', fillOpacity: 0.04, weight: 1.5, dashArray: '5,5' }}
                 />
                 <Marker
                   position={[userLocation.lat, userLocation.lng]}
                   icon={createUserIcon()}
                 >
                   <Popup className="parking-popup">
-                    <div className="bg-[#121214] rounded-xl p-3 min-w-[160px] border border-white/10">
-                      <p className="font-bold text-blue-400 text-sm">📍 Your Location</p>
-                      <p className="text-xs text-slate-400 mt-1">Showing nearby parking lots</p>
+                    <div className="bg-white rounded-xl p-3 min-w-[160px] border border-gray-200">
+                      <p className="font-bold text-blue-600 text-sm">📍 Your Location</p>
+                      <p className="text-xs text-stone-500 mt-1 font-medium">Searching nearby lots</p>
                     </div>
                   </Popup>
                 </Marker>
@@ -1142,16 +1107,16 @@ export default function BookingPage() {
           </MapContainer>
 
           {/* Zoom + Locate Me buttons overlay */}
-          <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-1">
+          <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-1.5">
             <button
               onClick={() => mapInstance?.zoomIn()}
-              className="w-9 h-9 bg-[#121214] border border-white/10 rounded-xl text-white text-xl font-bold hover:bg-white/10 transition-all flex items-center justify-center shadow-lg"
+              className="w-9 h-9 bg-white border border-gray-200/80 rounded-xl text-stone-850 text-xl font-bold hover:bg-gray-100 transition-all flex items-center justify-center shadow-md"
             >
               +
             </button>
             <button
               onClick={() => mapInstance?.zoomOut()}
-              className="w-9 h-9 bg-[#121214] border border-white/10 rounded-xl text-white text-xl font-bold hover:bg-white/10 transition-all flex items-center justify-center shadow-lg"
+              className="w-9 h-9 bg-white border border-gray-200/80 rounded-xl text-stone-850 text-xl font-bold hover:bg-gray-100 transition-all flex items-center justify-center shadow-md"
             >
               −
             </button>
@@ -1162,9 +1127,9 @@ export default function BookingPage() {
                 onClick={handleLocateMe}
                 disabled={locatingUser}
                 title="Tìm bãi đỗ gần tôi"
-                className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-lg transition-all ${userLocation
-                    ? 'bg-blue-500 border-blue-400 text-white hover:bg-blue-400'
-                    : 'bg-[#121214] border-white/10 text-slate-300 hover:bg-white/10 hover:text-blue-400 hover:border-blue-500/40'
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-md transition-all ${userLocation
+                    ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500'
+                    : 'bg-white border-gray-200 text-stone-600 hover:bg-gray-100 hover:text-blue-500 hover:border-blue-200'
                   } ${locatingUser ? 'cursor-wait opacity-70' : ''}`}
               >
                 {locatingUser
@@ -1174,7 +1139,7 @@ export default function BookingPage() {
               </button>
               {/* Tooltip nhỏ bên cạnh */}
               {locationError && (
-                <div className="absolute left-11 top-0 bg-red-900/90 border border-red-500/30 text-red-300 text-[10px] px-2 py-1 rounded-lg shadow-lg whitespace-nowrap max-w-[180px]">
+                <div className="absolute left-11 top-0 bg-red-50 border border-red-200 text-red-600 text-[10px] px-2 py-1.5 rounded-lg shadow-lg whitespace-nowrap max-w-[180px] font-bold">
                   {locationError}
                 </div>
               )}
@@ -1191,7 +1156,7 @@ export default function BookingPage() {
                   <button
                     onClick={handleLocateMe}
                     disabled={locatingUser}
-                    className="relative w-[72px] h-[72px] rounded-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 disabled:opacity-70 text-white shadow-2xl shadow-blue-500/40 flex items-center justify-center transition-all active:scale-95 border-4 border-blue-400/30"
+                    className="relative w-[72px] h-[72px] rounded-full bg-stone-900 hover:bg-stone-850 disabled:opacity-70 text-white shadow-xl flex items-center justify-center transition-all active:scale-95 border-4 border-stone-800/20"
                   >
                     {locatingUser
                       ? <Loader2 size={28} className="animate-spin" />
@@ -1199,11 +1164,11 @@ export default function BookingPage() {
                     }
                   </button>
                 </div>
-                <div className="bg-[#0E0E10]/90 backdrop-blur-md border border-white/10 rounded-2xl px-5 py-3 text-center shadow-xl">
-                  <p className="text-sm font-bold text-white mb-0.5">
+                <div className="bg-white/95 backdrop-blur-md border border-gray-200/80 rounded-2xl px-5 py-3 text-center shadow-lg">
+                  <p className="text-sm font-bold text-stone-900 mb-0.5">
                     {locatingUser ? 'Locating...' : 'Find Parking Near Me'}
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-stone-400">
                     {locatingUser ? 'Please wait a moment' : 'Click to find parking near you'}
                   </p>
                 </div>
@@ -1215,47 +1180,47 @@ export default function BookingPage() {
           {userLocation && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
               {/* Bộ chọn bán kính */}
-              <div className="flex items-center gap-1 bg-[#0E0E10]/95 backdrop-blur-md border border-blue-500/30 rounded-full px-2 py-1.5 shadow-xl">
-                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse mx-1 shrink-0" />
-                <span className="text-[11px] font-semibold text-blue-300 mr-1 whitespace-nowrap">Radius:</span>
+              <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg rounded-full px-2 py-1.5">
+                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse mx-1 shrink-0" />
+                <span className="text-[11px] font-bold text-stone-500 mr-1 whitespace-nowrap">Radius:</span>
                 {RADIUS_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
                     onClick={() => setNearbyRadius(opt.value)}
                     className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${nearbyRadius === opt.value
-                        ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30'
-                        : 'text-slate-400 hover:text-blue-300 hover:bg-blue-500/10'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-stone-500 hover:text-blue-600 hover:bg-blue-50'
                       }`}
                   >
                     {opt.label}
                   </button>
                 ))}
-                <div className="w-px h-4 bg-white/10 mx-1" />
+                <div className="w-px h-4 bg-gray-200 mx-1" />
                 <button
                   onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); handleCancelRoute(); }}
-                  className="text-slate-500 hover:text-white transition-colors text-[11px] px-1.5 font-bold"
+                  className="text-stone-400 hover:text-stone-900 transition-colors text-[11px] px-1.5 font-bold"
                   title="Turn off Near Me"
                 >
                   ✕
                 </button>
               </div>
               {/* Số bãi tìm thấy */}
-              <div className="text-[10px] text-blue-400/70 font-medium">
-                Found <span className="text-blue-300 font-bold">{osmFiltered.length}</span> parking lots within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
+              <div className="text-[10px] text-blue-600 font-bold bg-blue-50/80 px-3 py-1 rounded-full border border-blue-100 shadow-sm">
+                Found <span className="text-blue-700">{osmFiltered.length}</span> parking lots within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
               </div>
             </div>
           )}
 
           {/* Route info bar */}
           {routeCoords && routeInfo && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-3 bg-[#0E0E10]/95 backdrop-blur-md border border-blue-500/30 rounded-full px-4 py-2.5 shadow-xl">
-              <Route size={14} className="text-blue-400 shrink-0" />
-              <span className="text-sm font-bold text-white">{routeInfo.distKm}</span>
-              <span className="text-slate-400 text-xs">•</span>
-              <span className="text-sm text-slate-300">{routeInfo.mins} mins driving</span>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-3 bg-white border border-blue-200 rounded-full px-4 py-2.5 shadow-lg">
+              <Route size={14} className="text-blue-500 shrink-0" />
+              <span className="text-sm font-bold text-stone-900">{routeInfo.distKm}</span>
+              <span className="text-gray-300 text-xs">•</span>
+              <span className="text-sm text-stone-600">{routeInfo.mins} mins driving</span>
               <button
                 onClick={handleCancelRoute}
-                className="ml-2 flex items-center gap-1.5 bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 px-3 py-1 rounded-full text-xs font-bold transition-all"
+                className="ml-2 flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 px-3 py-1 rounded-full text-xs font-bold transition-all"
               >
                 <X size={11} /> Cancel Directions
               </button>
@@ -1264,21 +1229,21 @@ export default function BookingPage() {
 
           {/* Loading route */}
           {isLoadingRoute && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 bg-[#0E0E10]/95 backdrop-blur-md border border-blue-500/30 rounded-full px-4 py-2.5 shadow-xl">
-              <Loader2 size={14} className="text-blue-400 animate-spin" />
-              <span className="text-sm text-slate-300">Calculating route...</span>
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 bg-white border border-blue-100 rounded-full px-4 py-2.5 shadow-lg">
+              <Loader2 size={14} className="text-blue-500 animate-spin" />
+              <span className="text-sm text-stone-500 font-semibold">Calculating route...</span>
             </div>
           )}
 
           {/* ===== Detail Panel (slides in from right) ===== */}
           {showDetailPanel && selectedLot && (
-            <div className="absolute top-0 right-0 h-full w-80 bg-[#0E0E10]/95 backdrop-blur-xl border-l border-white/10 z-[500] flex flex-col shadow-2xl animate-slide-in-right overflow-y-auto">
+            <div className="absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-md border-l border-gray-200 z-[500] flex flex-col shadow-2xl animate-slide-in-right overflow-y-auto">
               {/* Close */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-                <h3 className="text-sm font-bold text-white">Parking Lot Details</h3>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <h3 className="text-sm font-bold text-stone-800">Parking Lot Details</h3>
                 <button
                   onClick={() => { setShowDetailPanel(false); setSelectedLot(null); }}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-all"
+                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-900 hover:bg-gray-100 transition-all"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -1288,39 +1253,39 @@ export default function BookingPage() {
                 {/* Name + type */}
                 <div>
                   <div className="flex items-start gap-2 mb-2">
-                    <h2 className="text-base font-bold text-white leading-tight flex-1">
+                    <h2 className="text-base font-extrabold text-stone-900 leading-tight flex-1">
                       {selectedLot.name}
                     </h2>
                     <span
-                      className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${selectedLot.type === 'PUBLIC'
-                          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-sky-500/15 text-sky-400 border border-sky-500/20'
+                      className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedLot.type === 'PUBLIC'
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                          : 'bg-sky-50 text-sky-600 border border-sky-200'
                         }`}
                     >
                       {selectedLot.type}
                     </span>
                   </div>
                   <div className="flex items-start gap-1.5">
-                    <MapPin size={13} className="text-slate-500 shrink-0 mt-0.5" />
-                    <p className="text-xs text-slate-400 leading-relaxed">{selectedLot.address}</p>
+                    <MapPin size={13} className="text-stone-400 shrink-0 mt-0.5" />
+                    <p className="text-xs text-stone-500 leading-relaxed">{selectedLot.address}</p>
                   </div>
                 </div>
 
                 {/* Stats grid */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Available Spots</p>
+                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Available Spots</p>
                     <div className="flex items-end gap-1">
                       <span
-                        className="text-xl font-black"
+                        className="text-xl font-extrabold"
                         style={{ color: availabilityColor(selectedLot) }}
                       >
                         {selectedLot.availableSpots}
                       </span>
-                      <span className="text-xs text-slate-500 mb-0.5">/ {selectedLot.totalSpots}</span>
+                      <span className="text-xs text-stone-400 mb-0.5">/ {selectedLot.totalSpots}</span>
                     </div>
                     {/* Progress bar */}
-                    <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all"
                         style={{
@@ -1331,32 +1296,32 @@ export default function BookingPage() {
                     </div>
                   </div>
 
-                  <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Rating</p>
+                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Rating</p>
                     <div className="flex items-center gap-1.5">
-                      <Star size={14} className="text-amber-400 fill-amber-400" />
-                      <span className="text-xl font-black text-white">{selectedLot.rating}</span>
+                      <Star size={14} className="text-amber-500 fill-amber-500" />
+                      <span className="text-xl font-extrabold text-stone-900">{selectedLot.rating}</span>
                     </div>
-                    <p className="text-[10px] text-slate-600">/ 5.0</p>
+                    <p className="text-[10px] text-stone-400 font-medium">/ 5.0</p>
                   </div>
 
-                  <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Hourly Rate</p>
-                    <p className="text-base font-black text-amber-400">
+                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Hourly Rate</p>
+                    <p className="text-base font-extrabold text-[#FF4C4C]">
                       {selectedLot.pricePerHour.toLocaleString('vi-VN')}đ
                     </p>
-                    <p className="text-[10px] text-slate-600">per hour</p>
+                    <p className="text-[10px] text-stone-400 font-medium">per hour</p>
                   </div>
 
-                  <div className="bg-white/[0.04] border border-white/[0.06] rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wider">Open Hours</p>
-                    <p className="text-sm font-bold text-white">{selectedLot.openHours}</p>
+                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Open Hours</p>
+                    <p className="text-xs font-bold text-stone-800">{selectedLot.openHours}</p>
                   </div>
                 </div>
 
-                {/* Vehicle types */}
+                {/* Allowed vehicles */}
                 <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
+                  <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2">
                     Allowed Vehicles
                   </p>
                   <div className="flex gap-2 flex-wrap">
@@ -1371,15 +1336,15 @@ export default function BookingPage() {
                         const labels: Record<string, string> = {
                           motorbike: 'Motorbike',
                           car: 'Car',
-                          ev: 'EV',
+                          ev: 'EV Charger',
                         };
                         const Icon = icons[v] || Car;
                         return (
                           <span
                             key={v}
-                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-slate-300"
+                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-gray-50 border border-gray-200/60 rounded-full text-stone-600"
                           >
-                            <Icon size={12} className="text-amber-500" />
+                            <Icon size={12} className="text-[#FF4C4C]" />
                             {labels[v]}
                           </span>
                         );
@@ -1389,14 +1354,14 @@ export default function BookingPage() {
 
                 {/* Features */}
                 <div>
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">
+                  <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2">
                     Amenities
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {selectedLot.features.map((f) => (
                       <span
                         key={f}
-                        className="text-xs px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-full text-amber-400 font-semibold"
+                        className="text-xs px-3 py-1.5 bg-[#FF4C4C]/5 border border-[#FF4C4C]/10 rounded-full text-[#FF4C4C] font-semibold"
                       >
                         {f}
                       </span>
@@ -1407,16 +1372,16 @@ export default function BookingPage() {
                 {/* CTA buttons */}
                 <div className="space-y-3 pt-2">
                   <button
-                    className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-3.5 rounded-2xl text-sm tracking-wide transition-all shadow-lg shadow-amber-500/20"
+                    className="w-full bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold py-3.5 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-md shadow-[#FF4C4C]/10"
                     onClick={() => setShowWizard(true)}
                   >
                     BOOK NOW
                   </button>
                   <button
-                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white font-semibold py-3 rounded-2xl text-sm transition-all"
-                    onClick={() => alert('Directions feature will be integrated!')}
+                    className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 rounded-2xl text-xs uppercase tracking-widest transition-all"
+                    onClick={() => handleGetDirections(selectedLot.lat, selectedLot.lng)}
                   >
-                    🗺️ Directions to here
+                    🗺️ Directions
                   </button>
                 </div>
               </div>
