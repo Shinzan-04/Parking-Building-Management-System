@@ -100,6 +100,8 @@ else
     // Trong thực tế, AI phải có file model.
 }
 
+builder.Services.AddMemoryCache(); // Register IMemoryCache for PlateCacheService
+
 builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IOpenCvPreprocessor, ParkingSystem.Infrastructure.Services.Lpr.OpenCvPreprocessor>();
 builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPaddleOcrReader, ParkingSystem.Infrastructure.Services.Lpr.PaddleOcrReader>();
 builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPlatePostProcessor, ParkingSystem.Infrastructure.Services.Lpr.PlatePostProcessor>();
@@ -171,49 +173,8 @@ using (var scope = app.Services.CreateScope())
         var dbServer = dbContext.Database.GetDbConnection().DataSource;
         logger.LogInformation("📊 Database: {DbName} | Server: {Server}", dbName, dbServer);
 
-        // ===== SEED DATA: Đảm bảo 4 tài khoản mẫu luôn tồn tại =====
-        var seedAccounts = new[]
-        {
-            ("admin", "Quản trị viên hệ thống", ParkingSystem.Domain.Enums.Role.Admin, "admin@parking.vn", "0901000001"),
-            ("manager", "Quản lý bãi xe", ParkingSystem.Domain.Enums.Role.Manager, "manager@parking.vn", "0901000002"),
-            ("staff", "Nhân viên trực bãi", ParkingSystem.Domain.Enums.Role.Staff, "staff@parking.vn", "0901000003"),
-            ("driver", "Khách gửi xe", ParkingSystem.Domain.Enums.Role.Driver, "driver@parking.vn", "0901000004")
-        };
-
-        var seedCount = 0;
-        foreach (var (username, fullName, role, email, phone) in seedAccounts)
-        {
-            var existing = await dbContext.Users.FirstOrDefaultAsync(u => u.Username == username);
-            if (existing == null)
-            {
-                // Tạo mới
-                dbContext.Users.Add(new ParkingSystem.Domain.Entities.User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = username,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("123123"),
-                    FullName = fullName,
-                    Role = role,
-                    Email = email,
-                    PhoneNumber = phone,
-                    DriverCode = "DRV-" + Guid.NewGuid().ToString("N")[..5],
-                    CreatedAt = DateTime.UtcNow
-                });
-                seedCount++;
-            }
-            else
-            {
-                // Cập nhật password nếu đã tồn tại
-                existing.PasswordHash = BCrypt.Net.BCrypt.HashPassword("123123");
-                seedCount++;
-            }
-        }
-
-        if (seedCount > 0)
-        {
-            await dbContext.SaveChangesAsync();
-            logger.LogInformation("✅ Đã cập nhật {Count} tài khoản mẫu (password: 123123)", seedCount);
-        }
+        // Bỏ đoạn Seed Data tự động theo yêu cầu của User vì Database đã có dữ liệu.
+        // Bạn có thể chạy lại file seed.sql thủ công nếu muốn Reset Database.
     }
     catch (Exception ex)
     {
@@ -223,6 +184,8 @@ using (var scope = app.Services.CreateScope())
 
 // Configure the HTTP request pipeline.
 app.UseCors("AllowAll");
+
+
 
 // Allow CORS preflight OPTIONS requests to pass through before auth
 app.Use(async (context, next) =>
