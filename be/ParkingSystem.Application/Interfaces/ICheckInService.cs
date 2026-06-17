@@ -5,9 +5,14 @@ namespace ParkingSystem.Application.Interfaces;
 public interface ICheckInService
 {
     /// <summary>
-    /// NHÁNH 1: Check-in với mã QR Booking (đã đặt trước)
+    /// NHÁNH 1A: Check-in với mã QR Booking (đã đặt trước)
     /// </summary>
     Task<object> CheckInWithBookingAsync(CheckInBookingRequest request);
+
+    /// <summary>
+    /// NHÁNH 1B: Check-in với QR Driver cố định (quét QR app → JWT → DriverId → Reservation)
+    /// </summary>
+    Task<object> CheckInWithDriverQrAsync(CheckInDriverQrRequest request);
 
     /// <summary>
     /// NHÁNH 2: Check-in trực tiếp (khách vãng lai)

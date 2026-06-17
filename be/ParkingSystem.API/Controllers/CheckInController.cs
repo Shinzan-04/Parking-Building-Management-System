@@ -38,6 +38,25 @@ public class CheckInController : ControllerBase
     }
 
     /// <summary>
+    /// NHÁNH 1B: Check-in bằng QR Driver cố định
+    /// Quét QR trên app Driver → JWT → DriverId → tìm Reservation Confirmed → đối chiếu OCR
+    /// </summary>
+    [HttpPost("driver-qr")]
+    [Authorize(Roles = "Staff,Manager,Admin")]
+    public async Task<IActionResult> CheckInWithDriverQr([FromBody] CheckInDriverQrRequest request)
+    {
+        try
+        {
+            var result = await _checkInService.CheckInWithDriverQrAsync(request);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// NHÁNH 2: Check-in trực tiếp (khách vãng lai)
     /// Nếu SlotId = null → AI tự động gán slot tốt nhất
     /// Nếu SlotId có giá trị → Staff chọn thủ công

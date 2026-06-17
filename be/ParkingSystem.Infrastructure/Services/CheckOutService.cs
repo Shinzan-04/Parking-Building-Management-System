@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ParkingSystem.Application.DTOs.CheckOut;
 using ParkingSystem.Application.Interfaces;
+using ParkingSystem.Application.Interfaces.Lpr;
 using ParkingSystem.Domain.Entities;
 using ParkingSystem.Domain.Enums;
 using ParkingSystem.Infrastructure.Data;
@@ -10,12 +11,12 @@ namespace ParkingSystem.Infrastructure.Services;
 public class CheckOutService : ICheckOutService
 {
     private readonly ApplicationDbContext _context;
-    private readonly ILicensePlateOcrService _ocrService;
+    private readonly ILicensePlateRecognizer _lprService;
 
-    public CheckOutService(ApplicationDbContext context, ILicensePlateOcrService ocrService)
+    public CheckOutService(ApplicationDbContext context, ILicensePlateRecognizer lprService)
     {
         _context = context;
-        _ocrService = ocrService;
+        _lprService = lprService;
     }
 
     public async Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate)
@@ -144,7 +145,7 @@ public class CheckOutService : ICheckOutService
 
     public async Task<OcrCheckOutResult> ProcessOcrCheckOutAsync(OcrCheckOutRequest request)
     {
-        var ocrResult = await _ocrService.DetectPlateAsync(request.ImageBase64);
+        var ocrResult = await _lprService.RecognizeFrameAsync(request.ImageBase64);
 
         if (!ocrResult.IsDetected || string.IsNullOrWhiteSpace(ocrResult.LicensePlate))
         {

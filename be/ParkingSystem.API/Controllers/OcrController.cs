@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using ParkingSystem.Application.Interfaces;
+using ParkingSystem.Application.Interfaces.Lpr;
 
 namespace ParkingSystem.API.Controllers;
 
@@ -8,11 +8,11 @@ namespace ParkingSystem.API.Controllers;
 [Route("api/[controller]")]
 public class OcrController : ControllerBase
 {
-    private readonly ILicensePlateOcrService _ocrService;
+    private readonly ILicensePlateRecognizer _lprService;
 
-    public OcrController(ILicensePlateOcrService ocrService)
+    public OcrController(ILicensePlateRecognizer lprService)
     {
-        _ocrService = ocrService;
+        _lprService = lprService;
     }
 
     /// <summary>
@@ -25,7 +25,7 @@ public class OcrController : ControllerBase
         if (string.IsNullOrEmpty(request.ImageBase64))
             return BadRequest(new { message = "Ảnh không được để trống." });
 
-        var result = await _ocrService.DetectPlateAsync(request.ImageBase64);
+        var result = await _lprService.RecognizeFrameAsync(request.ImageBase64);
         return Ok(result);
     }
 
@@ -40,7 +40,7 @@ public class OcrController : ControllerBase
             return BadRequest(new { message = "Ảnh không được để trống." });
 
         // Bước 1: Scan biển số
-        var ocrResult = await _ocrService.DetectPlateAsync(request.ImageBase64);
+        var ocrResult = await _lprService.RecognizeFrameAsync(request.ImageBase64);
 
         if (!ocrResult.IsDetected)
             return BadRequest(new { message = "Không phát hiện được biển số xe.", ocrResult });
@@ -50,6 +50,7 @@ public class OcrController : ControllerBase
         {
             ocrResult.LicensePlate,
             ocrResult.Confidence,
+            ocrResult.NeedManualReview,
             ocrResult.CroppedPlateBase64,
             ocrResult.Message,
             vehicleTypeId = request.VehicleTypeId,

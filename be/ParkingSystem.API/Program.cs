@@ -86,20 +86,26 @@ builder.Services.AddScoped<INotificationService, ParkingSystem.Infrastructure.Se
 // Background Service: Tự động hủy reservation hết hạn (quét mỗi 5 phút)
 builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.ReservationCleanupService>();
 
-// Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
-// Sử dụng model license_plate_detector.onnx đã train riêng cho biển số xe Việt Nam
+// Register LPR Services (Clean Architecture)
 var modelPath = Path.Combine(builder.Environment.ContentRootPath, "Models", "license_plate_detector.onnx");
+
 if (File.Exists(modelPath))
 {
-    builder.Services.AddSingleton<ILicensePlateOcrService>(
-        new ParkingSystem.Infrastructure.Services.LicensePlateOcrService(modelPath));
+    builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IYoloDetector>(
+        new ParkingSystem.Infrastructure.Services.Lpr.YoloDetector(modelPath));
 }
 else
 {
-    // Nếu chưa có model, dùng service giả trả về thông báo
-    builder.Services.AddSingleton<ILicensePlateOcrService>(
-        new ParkingSystem.Infrastructure.Services.FallbackOcrService());
+    // Tạm thời nếu ko có file, khởi tạo dummy hoặc ném lỗi tuỳ policy.
+    // Trong thực tế, AI phải có file model.
 }
+
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IOpenCvPreprocessor, ParkingSystem.Infrastructure.Services.Lpr.OpenCvPreprocessor>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPaddleOcrReader, ParkingSystem.Infrastructure.Services.Lpr.PaddleOcrReader>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPlatePostProcessor, ParkingSystem.Infrastructure.Services.Lpr.PlatePostProcessor>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPlateCacheService, ParkingSystem.Infrastructure.Services.Lpr.PlateCacheService>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IMultiFrameVotingService, ParkingSystem.Infrastructure.Services.Lpr.MultiFrameVotingService>();
+builder.Services.AddScoped<ParkingSystem.Application.Interfaces.Lpr.ILicensePlateRecognizer, ParkingSystem.Infrastructure.Services.Lpr.LicensePlateRecognizer>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key is missing in configuration.");
@@ -190,7 +196,7 @@ using (var scope = app.Services.CreateScope())
                     Role = role,
                     Email = email,
                     PhoneNumber = phone,
-                    QrCode = Guid.NewGuid().ToString("N")[..8],
+                    DriverCode = "DRV-" + Guid.NewGuid().ToString("N")[..5],
                     CreatedAt = DateTime.UtcNow
                 });
                 seedCount++;
