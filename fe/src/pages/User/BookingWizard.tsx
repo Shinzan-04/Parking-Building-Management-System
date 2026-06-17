@@ -140,44 +140,40 @@ function StepVehicleType({
       <div className="grid grid-cols-2 gap-4">
         {vehicles.map((v) => {
           const selected = state.vehicleType === v.id;
-          const isMotorbike = v.name.toLowerCase().includes('moto') || 
-                              v.name.toLowerCase().includes('xe máy') ||
-                              v.name.toLowerCase().includes('bike') ||
-                              v.name.toLowerCase().includes('xe hai bánh');
+          const isMotorbike = v.name.toLowerCase().includes('moto') ||
+            v.name.toLowerCase().includes('xe máy') ||
+            v.name.toLowerCase().includes('bike') ||
+            v.name.toLowerCase().includes('xe hai bánh');
           const Icon = isMotorbike ? Bike : Car;
 
           return (
             <button
               key={v.id}
               onClick={() => setState((s) => ({ ...s, vehicleType: v.id }))}
-              className={`flex-1 flex flex-col items-center gap-5 py-10 rounded-2xl border-2 transition-all duration-200 group ${
-                selected
+              className={`flex-1 flex flex-col items-center gap-5 py-10 rounded-2xl border-2 transition-all duration-200 group ${selected
                   ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
                   : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20'
-              }`}
+                }`}
             >
               {/* Icon container – outline icon màu amber trên nền tròn mờ */}
               <div
-                className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-200 ${
-                  selected
+                className={`w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-200 ${selected
                     ? 'bg-amber-500/20 border-2 border-amber-500/40'
                     : 'bg-white/[0.06] border-2 border-white/10 group-hover:bg-amber-500/10 group-hover:border-amber-500/20'
-                }`}
+                  }`}
               >
                 <Icon
                   size={44}
                   strokeWidth={1.5}
-                  className={`transition-colors duration-200 ${
-                    selected ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-400'
-                  }`}
+                  className={`transition-colors duration-200 ${selected ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-400'
+                    }`}
                 />
               </div>
 
               <div className="text-center px-4">
                 <p
-                  className={`font-bold text-base ${
-                    selected ? 'text-amber-400' : 'text-slate-200'
-                  }`}
+                  className={`font-bold text-base ${selected ? 'text-amber-400' : 'text-slate-200'
+                    }`}
                 >
                   {v.name}
                 </p>
@@ -216,11 +212,11 @@ function StepLicensePlate({
   vehicles: ApiVehicleType[];
 }) {
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
-  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') || 
-                      selectedVehicle?.name.toLowerCase().includes('xe máy') ||
-                      selectedVehicle?.name.toLowerCase().includes('bike') ||
-                      selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
-                      false;
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
+    selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+    selectedVehicle?.name.toLowerCase().includes('bike') ||
+    selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+    false;
   const VehicleIcon = isMotorbike ? Bike : Car;
   const vehicleLabel = selectedVehicle?.name || 'Car';
   const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
@@ -373,11 +369,10 @@ function StepDateTime({
             <button
               key={d}
               onClick={() => setState((s) => ({ ...s, duration: d }))}
-              className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${
-                state.duration === d
+              className={`px-4 py-2 rounded-xl text-sm font-bold border transition-all ${state.duration === d
                   ? 'bg-amber-500 text-black border-amber-500 shadow-lg shadow-amber-500/25'
                   : 'bg-white/[0.04] text-slate-400 border-white/10 hover:bg-white/[0.08] hover:text-white hover:border-white/20'
-              }`}
+                }`}
             >
               {d}h
             </button>
@@ -497,25 +492,22 @@ function StepSelectFloor({
             <button
               key={floor.id}
               onClick={() => setState((s) => ({ ...s, floor: floor.id, zone: null, slot: null, slotId: null }))}
-              className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all group ${
-                selected
+              className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all group ${selected
                   ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
                   : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-amber-500/20'
-              }`}
+                }`}
             >
               <div
-                className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all ${
-                  selected
+                className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all ${selected
                     ? 'bg-amber-500/20 border-2 border-amber-500/40'
                     : 'bg-white/[0.06] border-2 border-white/10 group-hover:bg-amber-500/10 group-hover:border-amber-500/20'
-                }`}
+                  }`}
               >
                 <FloorIcon
                   size={28}
                   strokeWidth={1.5}
-                  className={`transition-colors ${
-                    selected ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-400'
-                  }`}
+                  className={`transition-colors ${selected ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-400'
+                    }`}
                 />
               </div>
               <div className="text-center">
@@ -610,11 +602,10 @@ function StepSelectZone({
             <button
               key={zone}
               onClick={() => setState((s) => ({ ...s, zone, slot: null, slotId: null }))}
-              className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all ${
-                selected
+              className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all ${selected
                   ? 'border-amber-500 shadow-lg shadow-amber-500/10'
                   : 'bg-white/[0.03] border-white/10 hover:bg-white/[0.07] hover:border-white/20'
-              }`}
+                }`}
               style={
                 selected
                   ? { background: `${color}18` }
@@ -660,11 +651,11 @@ function StepSelectSlot({
   vehicles: ApiVehicleType[];
 }) {
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
-  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') || 
-                      selectedVehicle?.name.toLowerCase().includes('xe máy') ||
-                      selectedVehicle?.name.toLowerCase().includes('bike') ||
-                      selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
-                      false;
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
+    selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+    selectedVehicle?.name.toLowerCase().includes('bike') ||
+    selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+    false;
   const VehicleIcon = isMotorbike ? Bike : Car;
 
   // Lọc slots theo zone đã chọn và loại xe đã chọn
@@ -717,13 +708,12 @@ function StepSelectSlot({
                 key={slot.id}
                 disabled={!isAvailable}
                 onClick={() => isAvailable && setState((s) => ({ ...s, slot: slot.slotNumber, slotId: slot.id }))}
-                className={`aspect-square rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center justify-center gap-1 ${
-                  !isAvailable
+                className={`aspect-square rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center justify-center gap-1 ${!isAvailable
                     ? 'bg-red-500/10 border-red-500/30 text-red-500/40 cursor-not-allowed'
                     : selected
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/20 scale-105'
-                    : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 hover:scale-105'
-                }`}
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/20 scale-105'
+                      : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 hover:scale-105'
+                  }`}
               >
                 <VehicleIcon size={14} />
                 <span className="text-[10px] leading-none">{slot.slotNumber}</span>
@@ -754,11 +744,11 @@ function BookingSummary({
   const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
   const total = pricePerHour * state.duration;
 
-  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') || 
-                      selectedVehicle?.name.toLowerCase().includes('xe máy') ||
-                      selectedVehicle?.name.toLowerCase().includes('bike') ||
-                      selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
-                      false;
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
+    selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+    selectedVehicle?.name.toLowerCase().includes('bike') ||
+    selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+    false;
 
   const rows: { label: string; value: string; muted?: boolean }[] = [
     { label: 'Facility', value: lot.name },
@@ -815,9 +805,8 @@ function BookingSummary({
           <div key={label} className="flex items-start justify-between gap-3">
             <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
             <span
-              className={`text-xs font-semibold text-right leading-snug ${
-                muted ? 'text-slate-600 italic' : 'text-slate-200'
-              }`}
+              className={`text-xs font-semibold text-right leading-snug ${muted ? 'text-slate-600 italic' : 'text-slate-200'
+                }`}
             >
               {value}
             </span>
@@ -856,10 +845,10 @@ import { QRCodeSVG } from 'qrcode.react';
 type PopupPhase = 'confirm' | 'payment' | 'qr';
 
 const PAYMENT_METHODS = [
-  { key: 'cash',  label: 'Cash',         icon: '💵' },
-  { key: 'card',  label: 'Credit Card',  icon: '💳' },
-  { key: 'momo',  label: 'MoMo',         icon: '🟣' },
-  { key: 'vnpay', label: 'VNPay',        icon: '🔵' },
+  { key: 'cash', label: 'Cash', icon: '💵' },
+  { key: 'card', label: 'Credit Card', icon: '💳' },
+  { key: 'momo', label: 'MoMo', icon: '🟣' },
+  { key: 'vnpay', label: 'VNPay', icon: '🔵' },
 ];
 
 function ConfirmationPopup({
@@ -887,11 +876,11 @@ function ConfirmationPopup({
   const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
   const total = pricePerHour * state.duration;
 
-  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') || 
-                      selectedVehicle?.name.toLowerCase().includes('xe máy') ||
-                      selectedVehicle?.name.toLowerCase().includes('bike') ||
-                      selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
-                      false;
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
+    selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+    selectedVehicle?.name.toLowerCase().includes('bike') ||
+    selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+    false;
 
   // Mã đặt chỗ hardcode fallback
   const bookingRef = `PKG-${Date.now().toString(36).toUpperCase().slice(-8)}`;
@@ -967,12 +956,12 @@ function ConfirmationPopup({
 
   const rows = [
     { label: 'Parking Lot', value: lot.name },
-    { label: 'License Plate',   value: state.licensePlate },
-    { label: 'Vehicle Type',   value: selectedVehicle ? `${isMotorbike ? '🏍️' : '🚗'} ${selectedVehicle.name}` : 'Not selected' },
-    { label: 'Entry Date',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
+    { label: 'License Plate', value: state.licensePlate },
+    { label: 'Vehicle Type', value: selectedVehicle ? `${isMotorbike ? '🏍️' : '🚗'} ${selectedVehicle.name}` : 'Not selected' },
+    { label: 'Entry Date', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
     { label: 'Estimated Exit', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
     { label: 'Duration', value: `${state.duration}h` },
-    { label: 'Location',   value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
+    { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
   ];
 
   // ─── Header config according to phase ───
@@ -1038,9 +1027,8 @@ function ConfirmationPopup({
                 {rows.map(({ label, value }, i) => (
                   <div
                     key={label}
-                    className={`flex items-start justify-between gap-4 px-4 py-3 ${
-                      i < rows.length - 1 ? 'border-b border-white/[0.05]' : ''
-                    }`}
+                    className={`flex items-start justify-between gap-4 px-4 py-3 ${i < rows.length - 1 ? 'border-b border-white/[0.05]' : ''
+                      }`}
                   >
                     <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
                     <span className="text-xs font-semibold text-slate-200 text-right">{value}</span>
@@ -1079,11 +1067,10 @@ function ConfirmationPopup({
                     <button
                       key={key}
                       onClick={() => setPayMethod(key)}
-                      className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${
-                        payMethod === key
+                      className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${payMethod === key
                           ? 'bg-amber-500/10 border-amber-500 text-white'
                           : 'bg-white/[0.03] border-white/10 text-slate-400 hover:border-white/20 hover:text-white'
-                      }`}
+                        }`}
                     >
                       <span className="text-xl">{icon}</span>
                       <span className="text-xs font-semibold">{label}</span>
@@ -1152,16 +1139,15 @@ function ConfirmationPopup({
               <div className="w-full bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden">
                 {[
                   { label: 'Parking Lot', value: lot.name },
-                  { label: 'License Plate',   value: state.licensePlate },
-                  { label: 'Location',   value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
-                  { label: 'Entry Time',  value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
+                  { label: 'License Plate', value: state.licensePlate },
+                  { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
+                  { label: 'Entry Time', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
                   { label: 'Est. Exit Time', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
                 ].map(({ label, value }, i, arr) => (
                   <div
                     key={label}
-                    className={`flex items-center justify-between gap-3 px-4 py-2.5 ${
-                      i < arr.length - 1 ? 'border-b border-white/[0.05]' : ''
-                    }`}
+                    className={`flex items-center justify-between gap-3 px-4 py-2.5 ${i < arr.length - 1 ? 'border-b border-white/[0.05]' : ''
+                      }`}
                   >
                     <span className="text-xs text-slate-500 flex-shrink-0">{label}</span>
                     <span className="text-xs font-semibold text-slate-200 text-right">{value}</span>
@@ -1256,20 +1242,18 @@ function StepperBar({ currentStep }: { currentStep: number }) {
             {/* Circle */}
             <div className="flex flex-col items-center gap-1.5">
               <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black border-2 transition-all duration-300 ${
-                  done
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black border-2 transition-all duration-300 ${done
                     ? 'bg-amber-500 border-amber-500 text-black'
                     : active
-                    ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/30'
-                    : 'bg-white/[0.03] border-white/10 text-slate-600'
-                }`}
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-lg shadow-amber-500/30'
+                      : 'bg-white/[0.03] border-white/10 text-slate-600'
+                  }`}
               >
                 {done ? <CheckCircle2 size={16} /> : step.id}
               </div>
               <span
-                className={`text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${
-                  active ? 'text-amber-400' : done ? 'text-amber-500/60' : 'text-slate-600'
-                }`}
+                className={`text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${active ? 'text-amber-400' : done ? 'text-amber-500/60' : 'text-slate-600'
+                  }`}
               >
                 {step.short}
               </span>
@@ -1278,9 +1262,8 @@ function StepperBar({ currentStep }: { currentStep: number }) {
             {/* Connector line */}
             {idx < STEPS.length - 1 && (
               <div
-                className={`w-12 sm:w-16 h-0.5 mb-5 mx-1 rounded-full transition-all duration-300 ${
-                  done ? 'bg-amber-500' : 'bg-white/[0.06]'
-                }`}
+                className={`w-12 sm:w-16 h-0.5 mb-5 mx-1 rounded-full transition-all duration-300 ${done ? 'bg-amber-500' : 'bg-white/[0.06]'
+                  }`}
               />
             )}
           </div>
@@ -1324,7 +1307,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           getVehicleTypes(),
           getAllPolicies()
         ]);
-        
+
         const mapped = types.map(t => {
           const policy = policies.find(p => p.vehicleTypeId === t.id);
           let rate = policy?.hourlyRate ?? 0;
@@ -1361,11 +1344,11 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     async function loadFloors() {
       try {
         setLoadingFloors(true);
-        
+
         let buildingId = lot.id;
         // Kiểm tra xem lot.id có phải dạng GUID hợp lệ không (xxxxx-xxxx...)
         const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lot.id);
-        
+
         if (!isGuid) {
           // Nếu là bãi đỗ xe từ OSM (không có trong database), ta lấy building đầu tiên trong DB để demo tầng & slot thật
           const buildings = await getBuildings();
@@ -1510,11 +1493,10 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
               <button
                 onClick={handleNext}
                 disabled={!canAdvance()}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  canAdvance()
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
                     ? 'bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20'
                     : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 Continue
                 <ChevronRight size={16} />
@@ -1523,11 +1505,10 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
               <button
                 onClick={handleConfirm}
                 disabled={!canAdvance()}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  canAdvance()
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
                     ? 'bg-emerald-500 hover:bg-emerald-400 text-black shadow-lg shadow-emerald-500/20'
                     : 'bg-white/5 text-slate-600 border border-white/10 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 <CheckCircle2 size={16} />
                 Confirm Booking

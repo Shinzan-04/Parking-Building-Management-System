@@ -70,8 +70,8 @@ function calcDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number):
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -448,7 +448,7 @@ export default function BookingPage() {
     { label: '500m', value: 500 },
     { label: '1 km', value: 1000 },
     { label: '2 km', value: 2000 },
-    { label: '5 km', value: 5000  },
+    { label: '5 km', value: 5000 },
   ];
 
   // ── Route (OSRM) state ── (phải khai báo SAU userLocation)
@@ -750,20 +750,19 @@ export default function BookingPage() {
           {/* Vehicle type filters */}
           {(
             [
-               { key: 'all', label: 'All', icon: Filter },
-               { key: 'motorbike', label: 'Motorbike', icon: Bike },
-               { key: 'car', label: 'Car', icon: Car },
-               { key: 'ev', label: 'EV', icon: Zap },
+              { key: 'all', label: 'All', icon: Filter },
+              { key: 'motorbike', label: 'Motorbike', icon: Bike },
+              { key: 'car', label: 'Car', icon: Car },
+              { key: 'ev', label: 'EV', icon: Zap },
             ] as { key: VehicleFilter; label: string; icon: any }[]
           ).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
               onClick={() => setVehicleFilter(key)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
-                vehicleFilter === key
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${vehicleFilter === key
                   ? 'bg-amber-500 text-black border-amber-500'
                   : 'bg-white/5 text-slate-300 border-white/10 hover:bg-white/10 hover:text-white'
-              }`}
+                }`}
             >
               <Icon size={14} />
               {label}
@@ -785,11 +784,10 @@ export default function BookingPage() {
                   <button
                     key={opt}
                     onClick={() => { setSortBy(opt); setIsSortOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                      sortBy === opt
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${sortBy === opt
                         ? 'text-amber-500 bg-amber-500/10'
                         : 'text-slate-300 hover:text-white hover:bg-white/5'
-                    }`}
+                      }`}
                   >
                     {SORT_LABELS[opt]}
                   </button>
@@ -887,11 +885,10 @@ export default function BookingPage() {
                       <button
                         key={opt.value}
                         onClick={() => { setNearbyRadius(opt.value); handleLocateMe(); }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                          nearbyRadius === opt.value
+                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${nearbyRadius === opt.value
                             ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
                             : 'text-slate-500 border-white/10 hover:text-white hover:border-white/20'
-                        }`}
+                          }`}
                       >
                         {opt.label}
                       </button>
@@ -934,23 +931,20 @@ export default function BookingPage() {
                       setShowDetailPanel(false);
                       mapInstance?.flyTo([lot.lat, lot.lng], 17, { duration: 1.2 });
                     }}
-                    className={`w-full text-left rounded-2xl border p-4 transition-all group ${
-                      selectedOsmLot?.id === lot.id
+                    className={`w-full text-left rounded-2xl border p-4 transition-all group ${selectedOsmLot?.id === lot.id
                         ? 'bg-emerald-500/10 border-emerald-500/40'
                         : 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.07] hover:border-emerald-500/20'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className={`text-sm font-bold leading-tight ${
-                        selectedOsmLot?.id === lot.id ? 'text-emerald-400' : 'text-slate-100 group-hover:text-white'
-                      }`}>
+                      <span className={`text-sm font-bold leading-tight ${selectedOsmLot?.id === lot.id ? 'text-emerald-400' : 'text-slate-100 group-hover:text-white'
+                        }`}>
                         {lot.name}
                       </span>
-                      <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${
-                        lot.access === 'private'
+                      <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${lot.access === 'private'
                           ? 'bg-sky-500/15 text-sky-400 border border-sky-500/20'
                           : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                      }`}>
+                        }`}>
                         {lot.access === 'private' ? 'PRIVATE' : 'PUBLIC'}
                       </span>
                     </div>
@@ -988,11 +982,10 @@ export default function BookingPage() {
                       </a>
                     </div>
 
-                    <div className={`mt-3 text-center text-xs font-semibold py-1.5 rounded-lg border transition-all ${
-                      selectedOsmLot?.id === lot.id
+                    <div className={`mt-3 text-center text-xs font-semibold py-1.5 rounded-lg border transition-all ${selectedOsmLot?.id === lot.id
                         ? 'border-emerald-500/40 text-emerald-400 bg-emerald-500/10'
                         : 'border-white/10 text-slate-400 bg-white/5 group-hover:text-emerald-400 group-hover:border-emerald-500/20'
-                    }`}>
+                      }`}>
                       📍 View on Map
                     </div>
                   </button>
@@ -1055,16 +1048,15 @@ export default function BookingPage() {
                 }}
               >
                 <Popup className="parking-popup" minWidth={220}>
-                  <div className="bg-[#0E0E12] rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{minWidth: 220}}>
+                  <div className="bg-[#0E0E12] rounded-2xl overflow-hidden border border-white/10 shadow-2xl" style={{ minWidth: 220 }}>
                     {/* Header */}
                     <div className="px-4 pt-4 pb-3 border-b border-white/[0.06]">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <p className="font-bold text-emerald-300 text-sm leading-tight flex-1">{lot.name}</p>
-                        <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${
-                          lot.access === 'private'
+                        <span className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${lot.access === 'private'
                             ? 'bg-sky-500/20 text-sky-400 border border-sky-500/30'
                             : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                        }`}>
+                          }`}>
                           {lot.access === 'private' ? 'PRIVATE' : 'PUBLIC'}
                         </span>
                       </div>
@@ -1170,11 +1162,10 @@ export default function BookingPage() {
                 onClick={handleLocateMe}
                 disabled={locatingUser}
                 title="Tìm bãi đỗ gần tôi"
-                className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-lg transition-all ${
-                  userLocation
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-lg transition-all ${userLocation
                     ? 'bg-blue-500 border-blue-400 text-white hover:bg-blue-400'
                     : 'bg-[#121214] border-white/10 text-slate-300 hover:bg-white/10 hover:text-blue-400 hover:border-blue-500/40'
-                } ${locatingUser ? 'cursor-wait opacity-70' : ''}`}
+                  } ${locatingUser ? 'cursor-wait opacity-70' : ''}`}
               >
                 {locatingUser
                   ? <Loader2 size={16} className="animate-spin" />
@@ -1196,7 +1187,7 @@ export default function BookingPage() {
               <div className="pointer-events-auto flex flex-col items-center gap-4">
                 {/* Vòng sóng nền */}
                 <div className="relative">
-                  <div className="absolute inset-0 rounded-full bg-blue-500/10 animate-ping" style={{width: 120, height: 120, margin: 'auto', top: 0, left: 0, right: 0, bottom: 0}} />
+                  <div className="absolute inset-0 rounded-full bg-blue-500/10 animate-ping" style={{ width: 120, height: 120, margin: 'auto', top: 0, left: 0, right: 0, bottom: 0 }} />
                   <button
                     onClick={handleLocateMe}
                     disabled={locatingUser}
@@ -1231,11 +1222,10 @@ export default function BookingPage() {
                   <button
                     key={opt.value}
                     onClick={() => setNearbyRadius(opt.value)}
-                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
-                      nearbyRadius === opt.value
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${nearbyRadius === opt.value
                         ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30'
                         : 'text-slate-400 hover:text-blue-300 hover:bg-blue-500/10'
-                    }`}
+                      }`}
                   >
                     {opt.label}
                   </button>
@@ -1302,11 +1292,10 @@ export default function BookingPage() {
                       {selectedLot.name}
                     </h2>
                     <span
-                      className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${
-                        selectedLot.type === 'PUBLIC'
+                      className={`shrink-0 text-[10px] font-black px-2 py-0.5 rounded-full ${selectedLot.type === 'PUBLIC'
                           ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
                           : 'bg-sky-500/15 text-sky-400 border border-sky-500/20'
-                      }`}
+                        }`}
                     >
                       {selectedLot.type}
                     </span>
