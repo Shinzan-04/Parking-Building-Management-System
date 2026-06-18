@@ -31,6 +31,29 @@ public class DashboardService : IDashboardService
         };
     }
 
+    public async Task<DashboardStatsResponse> GetRealtimeStatsByBuildingAsync(Guid buildingId)
+    {
+        var totalSlots = await _context.ParkingSlots
+            .CountAsync(s => s.Floor != null && s.Floor.BuildingId == buildingId);
+        var availableSlots = await _context.ParkingSlots
+            .CountAsync(s => s.Floor != null && s.Floor.BuildingId == buildingId && s.Status == SlotStatus.Available);
+        var occupiedSlots = await _context.ParkingSlots
+            .CountAsync(s => s.Floor != null && s.Floor.BuildingId == buildingId && s.Status == SlotStatus.Occupied);
+        var activeSessions = await _context.ParkingSessions
+            .CountAsync(s => s.Status == SessionStatus.Active
+                          && s.ParkingSlot != null
+                          && s.ParkingSlot.Floor != null
+                          && s.ParkingSlot.Floor.BuildingId == buildingId);
+
+        return new DashboardStatsResponse
+        {
+            TotalSlots = totalSlots,
+            AvailableSlots = availableSlots,
+            OccupiedSlots = occupiedSlots,
+            ActiveSessions = activeSessions
+        };
+    }
+
     public async Task<TrafficStatsResponse> GetTrafficStatsAsync(DateTime? fromDate = null, DateTime? toDate = null)
     {
         var start = fromDate ?? DateTime.UtcNow.Date; // Mặc định đầu ngày hôm nay (UTC)

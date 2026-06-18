@@ -516,9 +516,13 @@ export default function GateControlPage() {
 
         {/* Bottom Actions */}
         <div className="px-3 space-y-2">
-          {user && (user.role === 'Manager' || user.role === 1 || user.role === 'Admin' || user.role === 0) && (
+          {user && (
             <Link
-              to={user.role === 'Admin' || user.role === 0 ? '/admin' : '/manager'}
+              to={
+                user.role === 'Admin'    || user.role === 0 ? '/admin'   :
+                user.role === 'Manager'  || user.role === 1 ? '/manager' :
+                user.role === 'Staff'    || user.role === 2 ? '/staff'   : '/'
+              }
               className="w-full flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-stone-600 hover:text-stone-900 font-bold py-2.5 rounded-xl text-xs transition-colors"
             >
               <ArrowLeft size={14} />
@@ -544,7 +548,9 @@ export default function GateControlPage() {
         {/* Sub Header */}
         <header className="bg-white border-b border-gray-200/60 px-6 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-stone-900">Gate Station #01</h2>
+            <h2 className="text-lg font-bold text-stone-900">
+              {buildingName ? `Trạm kiểm soát — ${buildingName}` : 'Gate Station'}
+            </h2>
             <p className="text-2xs text-stone-400 font-bold uppercase tracking-wider mt-0.5">Live barrier and security check</p>
           </div>
           <div className="flex items-center gap-2">
