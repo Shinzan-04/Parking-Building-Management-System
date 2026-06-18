@@ -683,11 +683,13 @@ function StepSelectFloor({
   setState,
   floors,
   loading,
+  allBuildingSlots,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   floors: FloorResponse[];
   loading: boolean;
+  allBuildingSlots: ParkingSlotDetail[];
 }) {
   const floorIconComponents = [ParkingSquare, Car, Layers, Building2];
 
@@ -752,7 +754,16 @@ function StepSelectFloor({
                 <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-850'}`}>
                   {floor.name}
                 </p>
-                <p className="text-xs text-stone-400 mt-0.5">{floor.slotCount} spots</p>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  {(() => {
+                    const availableSpots = allBuildingSlots.filter(
+                      (s) => s.floorId === floor.id &&
+                             s.vehicleTypeId === state.vehicleType &&
+                             (s.status === 'Available' || String(s.status) === '0')
+                    ).length;
+                    return `${availableSpots} spots available`;
+                  })()}
+                </p>
               </div>
               {selected && (
                 <CheckCircle2 size={16} className="text-[#FF4C4C]" />
@@ -1525,6 +1536,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [floors, setFloors] = useState<FloorResponse[]>([]);
   const [loadingFloors, setLoadingFloors] = useState(true);
+  const [allBuildingSlots, setAllBuildingSlots] = useState<ParkingSlotDetail[]>([]);
   const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [policy, setPolicy] = useState<PricingPolicyResponse | null>(null);
@@ -1661,6 +1673,13 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
         const data = await getFloorsByBuilding(buildingId);
         const sorted = data.sort((a, b) => a.floorIndex - b.floorIndex);
         setFloors(sorted);
+
+        // Fetch all slots for these floors in parallel
+        const slotsArrays = await Promise.all(
+          sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
+        );
+        const flatSlots = slotsArrays.flat();
+        setAllBuildingSlots(flatSlots);
       } catch (err) {
         console.error('Lỗi khi tải tầng:', err);
       } finally {
@@ -1742,7 +1761,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
         />
       );
       case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} policy={policy} />;
-      case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} />;
+      case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} allBuildingSlots={allBuildingSlots} />;
       case 5: return <StepSelectSlot state={state} setState={setState} slots={slots} vehicles={vehicles} />;
       default: return null;
     }
