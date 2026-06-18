@@ -8,6 +8,7 @@ public class PriceSetting : BaseEntity
     public decimal DailyMaxPrice { get; set; }
     public int DayStartHour { get; set; } = 6;
     public int NightStartHour { get; set; } = 18;
+    public int GracePeriodMinutes { get; set; } = 10;
     public Guid? UpdatedBy { get; set; }
     public new DateTime? UpdatedAt { get; set; }
 

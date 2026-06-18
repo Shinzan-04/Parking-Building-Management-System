@@ -8,6 +8,7 @@ public class CreatePriceSettingRequest
     public decimal DailyMaxPrice { get; set; }
     public int DayStartHour { get; set; } = 6;
     public int NightStartHour { get; set; } = 18;
+    public int GracePeriodMinutes { get; set; } = 10;
 }
 
 public class UpdatePriceSettingRequest
@@ -17,6 +18,7 @@ public class UpdatePriceSettingRequest
     public decimal DailyMaxPrice { get; set; }
     public int DayStartHour { get; set; } = 6;
     public int NightStartHour { get; set; } = 18;
+    public int GracePeriodMinutes { get; set; } = 10;
 }
 
 public class PriceSettingResponse
@@ -29,6 +31,7 @@ public class PriceSettingResponse
     public decimal DailyMaxPrice { get; set; }
     public int DayStartHour { get; set; }
     public int NightStartHour { get; set; }
+    public int GracePeriodMinutes { get; set; }
     public Guid? UpdatedBy { get; set; }
     public string? UpdatedByName { get; set; }
     public DateTime? UpdatedAt { get; set; }

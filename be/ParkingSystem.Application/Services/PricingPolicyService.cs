@@ -42,7 +42,8 @@ public class PricingPolicyService : IPricingPolicyService
             BlockPrice = request.BlockPrice,
             BlockMinutes = request.BlockMinutes,
             HourlyRate = request.HourlyRate,
-            DailyMaxRate = request.DailyMaxRate
+            DailyMaxRate = request.DailyMaxRate,
+            GracePeriodMinutes = request.GracePeriodMinutes
         };
 
         await _repository.AddAsync(policy);
@@ -58,6 +59,7 @@ public class PricingPolicyService : IPricingPolicyService
         policy.BlockMinutes = request.BlockMinutes;
         policy.HourlyRate = request.HourlyRate;
         policy.DailyMaxRate = request.DailyMaxRate;
+        policy.GracePeriodMinutes = request.GracePeriodMinutes;
         policy.UpdatedAt = DateTime.UtcNow;
 
         await _repository.UpdateAsync(policy);
@@ -82,6 +84,7 @@ public class PricingPolicyService : IPricingPolicyService
         BlockMinutes = p.BlockMinutes,
         HourlyRate = p.HourlyRate,
         DailyMaxRate = p.DailyMaxRate,
+        GracePeriodMinutes = p.GracePeriodMinutes,
         CreatedAt = p.CreatedAt
     };
 }
