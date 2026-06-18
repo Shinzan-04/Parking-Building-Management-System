@@ -22,6 +22,23 @@ public class User : BaseEntity
     /// </summary>
     public DateTime? LockoutEnd { get; set; }
 
+    /// <summary>
+    /// Tòa nhà được phân công quản lý (dành riêng cho role Staff)
+    /// </summary>
+    public Guid? AssignedBuildingId { get; set; }
+
+    public Building? AssignedBuilding { get; set; }
+
+    /// <summary>
+    /// Cài đặt: Có nhận thông báo in-app không (dành cho Manager/Staff muốn tắt)
+    /// </summary>
+    public bool IsNotificationEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Cài đặt: Tự động phê duyệt các đặt chỗ mới đã thanh toán
+    /// </summary>
+    public bool IsAutoApproveReservations { get; set; } = false;
+
     public ICollection<ParkingSession> DriverSessions { get; set; } = new List<ParkingSession>();
     public ICollection<ParkingSession> HandledSessions { get; set; } = new List<ParkingSession>();
     public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();

@@ -74,7 +74,11 @@ public class ReservationsController : ControllerBase
     [Authorize(Roles = "Staff,Manager,Admin")]
     public async Task<IActionResult> GetPendingReservations()
     {
-        var result = await _reservationService.GetPendingReservationsAsync();
+        var staffIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(staffIdClaim)) return Unauthorized();
+
+        var staffId = Guid.Parse(staffIdClaim);
+        var result = await _reservationService.GetPendingReservationsAsync(staffId);
         return Ok(result);
     }
 
