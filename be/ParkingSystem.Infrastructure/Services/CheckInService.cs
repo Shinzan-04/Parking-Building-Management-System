@@ -163,7 +163,7 @@ public class CheckInService : ICheckInService
         // 1. SMART CHECK-IN: Kiểm tra xem biển số này có Booking hợp lệ đang chờ không?
         var now = DateTime.UtcNow;
         var searchPlate = request.LicensePlate.Trim().ToLower();
-        var validStatuses = new[] { ReservationStatus.Confirmed, ReservationStatus.PendingReview, ReservationStatus.Paid };
+        var validStatuses = new[] { ReservationStatus.Confirmed, ReservationStatus.Paid };
         var validReservation = await _context.Reservations
             .Include(r => r.ParkingSlot)
                 .ThenInclude(s => s.Floor)
