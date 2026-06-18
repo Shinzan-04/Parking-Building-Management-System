@@ -31,6 +31,7 @@ export interface BaseAuthResponse {
   email?: string;
   qrCode?: string;
   qrCodeImageBase64?: string;
+  assignedBuildingId?: string;
 }
 
 export type AuthResponse = BaseAuthResponse;

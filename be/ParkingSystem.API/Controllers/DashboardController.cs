@@ -23,6 +23,14 @@ public class DashboardController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("realtime-stats/building/{buildingId}")]
+    [Authorize(Roles = "Admin,Manager,Staff")]
+    public async Task<IActionResult> GetRealtimeStatsByBuilding(Guid buildingId)
+    {
+        var result = await _dashboardService.GetRealtimeStatsByBuildingAsync(buildingId);
+        return Ok(result);
+    }
+
     [HttpGet("traffic")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> GetTrafficStats([FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate)

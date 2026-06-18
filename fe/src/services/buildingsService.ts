@@ -136,6 +136,9 @@ export const createParkingSlot = (payload: CreateParkingSlotRequest, token: stri
 export const getParkingSlots = (): Promise<ParkingSlotSummary[]> =>
   apiFetch('/api/parkingslots');
 
+export const getParkingSlotsByBuilding = (buildingId: string): Promise<ParkingSlotSummary[]> =>
+  apiFetch(`/api/parkingslots/building/${buildingId}`);
+
 export interface StaffResponse {
   id: string;
   username: string;

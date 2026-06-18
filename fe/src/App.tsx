@@ -26,6 +26,9 @@ const ManagerReservations = lazy(() => import('./pages/Manager/Reservations'));
 const ManagerStaff        = lazy(() => import('./pages/Manager/Staff'));
 
 const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
+const StaffLayout      = lazy(() => import('./pages/Staff/StaffLayout'));
+const StaffDashboard   = lazy(() => import('./pages/Staff/Dashboard'));
+const StaffSlotList    = lazy(() => import('./pages/Staff/SlotList'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
 const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
 const MyTicketPage     = lazy(() => import('./pages/User/MyTicketPage'));
@@ -76,7 +79,16 @@ export default function App() {
             <Route path="reports"       element={<ManagerReports />} />
           </Route>
 
-          {/* Gate Control - chỉ Staff (standalone) */}
+          {/* Staff Portal */}
+          <Route
+            path="/staff"
+            element={<ProtectedRoute element={<StaffLayout />} requiredRoles={["Staff"]} />}
+          >
+            <Route index element={<StaffDashboard />} />
+            <Route path="slots" element={<StaffSlotList />} />
+          </Route>
+
+          {/* Gate Control - Staff standalone */}
           <Route
             path="/gate-control"
             element={<ProtectedRoute element={<GateControlPage />} requiredRoles={["Staff"]} />}
