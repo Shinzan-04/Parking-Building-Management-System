@@ -75,14 +75,13 @@ builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Service
 builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
 builder.Services.AddScoped<ISessionService, ParkingSystem.Infrastructure.Services.SessionService>();
+builder.Services.AddScoped<IDashboardService, ParkingSystem.Infrastructure.Services.DashboardService>();
 builder.Services.AddScoped<ICheckOutService, ParkingSystem.Infrastructure.Services.CheckOutService>();
 builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
 
 // Register PayOS options from appsettings.json section "PayOS"
 builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(
     builder.Configuration.GetSection("PayOS"));
-
-// Register SignalR và RealtimeService (từ nhánh dev)
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IRealtimeService, ParkingSystem.API.Services.RealtimeService>();
 
