@@ -32,11 +32,11 @@ export default function AdminLayout() {
         {/* Logo */}
         <div className="px-6 py-5 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
-              <Car size={18} className="text-black" />
+            <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30">
+              <Car size={18} className="text-white" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white leading-tight">PARKING BUILDING</p>
+              <p className="text-sm font-bold text-white leading-tight">PARKING<span className="text-[#FF4C4C]">.</span></p>
               <p className="text-xs text-white/40">Admin Panel</p>
             </div>
           </div>
@@ -52,7 +52,7 @@ export default function AdminLayout() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? 'bg-amber-500/10 text-amber-500'
+                    ? 'bg-[#FF4C4C]/10 text-[#FF4C4C] border border-[#FF4C4C]/20'
                     : 'text-white/50 hover:text-white hover:bg-white/5'
                 }`
               }
@@ -62,7 +62,7 @@ export default function AdminLayout() {
                   <Icon size={17} />
                   {label}
                   {isActive && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#FF4C4C]" />
                   )}
                 </>
               )}
@@ -73,7 +73,7 @@ export default function AdminLayout() {
         {/* User info + logout */}
         <div className="px-3 py-4 border-t border-white/5 space-y-1">
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5">
-            <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center text-black font-bold text-sm shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-sm shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
@@ -102,10 +102,10 @@ export default function AdminLayout() {
           <div className="flex items-center gap-3">
             <button className="relative p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
               <Bell size={17} className="text-white/60" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full ring-2 ring-[#0A0A0C]" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FF4C4C] rounded-full ring-2 ring-[#0A0A0C]" />
             </button>
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
-              <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-black font-bold text-xs">
+              <div className="w-7 h-7 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs">
                 {initials}
               </div>
               <span className="text-sm text-white/80 font-medium">{user?.fullName ?? 'Admin'}</span>

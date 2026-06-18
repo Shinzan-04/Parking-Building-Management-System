@@ -60,7 +60,7 @@ function loadSettings(): SystemSettings {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SectionCard({ title, icon: Icon, children, accent = '#F59E0B' }: {
+function SectionCard({ title, icon: Icon, children, accent = '#FF4C4C' }: {
   title: string; icon: React.ElementType; children: React.ReactNode; accent?: string;
 }) {
   return (
@@ -96,7 +96,7 @@ function TextInput({ value, onChange, placeholder, type = 'text' }: {
       value={value}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#F59E0B]/50 transition-colors"
+      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
     />
   );
 }
@@ -160,7 +160,7 @@ export default function AdminSettings() {
             <RefreshCw size={14} /> Reset
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-[#F59E0B] to-[#F97316] hover:opacity-90 transition-opacity disabled:opacity-60">
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-[#FF4C4C] to-[#FF4C4C] hover:opacity-90 transition-opacity disabled:opacity-60">
             {saving ? <Loader2 size={14} className="animate-spin" /> : saved ? <CheckCircle2 size={14} /> : <Save size={14} />}
             {saving ? 'Đang lưu...' : saved ? 'Đã lưu!' : 'Lưu thay đổi'}
           </button>
@@ -168,22 +168,22 @@ export default function AdminSettings() {
       </div>
 
       {saved && (
-        <div className="flex items-center gap-3 px-4 py-3 bg-[#F97316]/10 border border-[#F97316]/20 rounded-xl">
-          <CheckCircle2 size={15} className="text-[#F97316] shrink-0" />
-          <p className="text-sm text-[#F97316]">Đã lưu cài đặt thành công vào localStorage.</p>
+        <div className="flex items-center gap-3 px-4 py-3 bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 rounded-xl">
+          <CheckCircle2 size={15} className="text-[#FF4C4C] shrink-0" />
+          <p className="text-sm text-[#FF4C4C]">Đã lưu cài đặt thành công vào localStorage.</p>
         </div>
       )}
 
       {/* Info notice */}
-      <div className="flex items-start gap-2.5 px-4 py-3 bg-[#F59E0B]/10 border border-[#F59E0B]/20 rounded-xl">
-        <Info size={14} className="text-[#F59E0B] shrink-0 mt-0.5" />
-        <p className="text-xs text-[#F59E0B]/80">
+      <div className="flex items-start gap-2.5 px-4 py-3 bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 rounded-xl">
+        <Info size={14} className="text-[#FF4C4C] shrink-0 mt-0.5" />
+        <p className="text-xs text-[#FF4C4C]/80">
           Các cài đặt này được lưu cục bộ trên trình duyệt. Để cấu hình backend, vui lòng chỉnh sửa file <span className="font-mono font-semibold">.env</span> trên server.
         </p>
       </div>
 
       {/* Parking Info */}
-      <SectionCard title="Thông tin bãi đỗ xe" icon={Building2} accent="#F97316">
+      <SectionCard title="Thông tin bãi đỗ xe" icon={Building2} accent="#FF4C4C">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Tên bãi đỗ xe">
             <TextInput value={settings.parkingName} onChange={set('parkingName')} placeholder="Tên hệ thống" />
@@ -200,21 +200,21 @@ export default function AdminSettings() {
             <div className="relative">
               <Phone size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
               <input value={settings.phone} onChange={e => set('phone')(e.target.value)} placeholder="028 ..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#F97316]/50 transition-colors" />
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors" />
             </div>
           </Field>
           <Field label="Email liên hệ">
             <div className="relative">
               <Mail size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
               <input type="email" value={settings.email} onChange={e => set('email')(e.target.value)} placeholder="admin@..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#F97316]/50 transition-colors" />
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors" />
             </div>
           </Field>
         </div>
       </SectionCard>
 
       {/* Operating Hours */}
-      <SectionCard title="Giờ hoạt động & Đơn vị" icon={Clock} accent="#F59E0B">
+      <SectionCard title="Giờ hoạt động & Đơn vị" icon={Clock} accent="#FF4C4C">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Field label="Giờ mở cửa (h)">
             <TextInput type="number" value={settings.openingHour} onChange={set('openingHour')} placeholder="6" />
@@ -228,7 +228,7 @@ export default function AdminSettings() {
           <Field label="Đơn vị tiền tệ">
             <select value={settings.currency}
               onChange={e => set('currency')(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#F59E0B]/50 transition-colors appearance-none">
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none">
               {['VND', 'USD', 'EUR'].map(c => (
                 <option key={c} value={c} className="bg-[#121214]">{c}</option>
               ))}
@@ -238,7 +238,7 @@ export default function AdminSettings() {
         <Field label="Múi giờ">
           <select value={settings.timezone}
             onChange={e => set('timezone')(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#F59E0B]/50 transition-colors appearance-none">
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none">
             {['Asia/Ho_Chi_Minh', 'UTC', 'Asia/Bangkok', 'Asia/Singapore'].map(tz => (
               <option key={tz} value={tz} className="bg-[#121214]">{tz}</option>
             ))}
