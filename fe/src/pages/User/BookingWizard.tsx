@@ -16,7 +16,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { getVehicleTypes } from '../../services/vehicleTypesService';
-import { getAllPolicies } from '../../services/pricingService';
+import { getAllPolicies, getPolicyByVehicleType } from '../../services/pricingService';
+import type { PricingPolicyResponse } from '../../services/pricingService';
 import { getFloorsByBuilding, getBuildings } from '../../services/buildingsService';
 import type { FloorResponse } from '../../services/buildingsService';
 import { getSlotsByFloor } from '../../services/parkingService';
@@ -60,8 +61,7 @@ const STEPS = [
   { id: 2, label: 'License Plate', short: 'Plate' },
   { id: 3, label: 'Date & Time', short: 'Time' },
   { id: 4, label: 'Select Floor', short: 'Floor' },
-  { id: 5, label: 'Select Zone', short: 'Zone' },
-  { id: 6, label: 'Select Slot', short: 'Slot' },
+  { id: 5, label: 'Select Slot', short: 'Slot' },
 ];
 
 // ─────────────────────────────────────────────
@@ -412,14 +412,16 @@ function StepDateTime({
   state,
   setState,
   vehicles,
+  policy,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   vehicles: ApiVehicleType[];
+  policy: PricingPolicyResponse | null;
 }) {
   const durations = [1, 2, 3, 4, 6, 8, 12, 24];
 
-  // Tính giờ ra dựa trên giờ vào + duration
+  // ── Tính giờ ra dựa trên giờ vào + duration ──
   const computeExitTime = (): { time: string; date: string } => {
     if (!state.entryDate || !state.entryTime) return { time: '--:--', date: '--/--/----' };
     const [h, m] = state.entryTime.split(':').map(Number);
@@ -437,27 +439,62 @@ function StepDateTime({
     return `${d}/${mo}/${y}`;
   };
 
-  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
-  const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
-  const total = pricePerHour * state.duration;
+  // ── Tính chi phí ước tính theo đúng logic PricingPolicy ──
+  // Logic: block đầu tiên (blockPrice) + các giờ tiếp theo (hourlyRate/giờ)
+  // Tổng chi phí bị giới hạn bởi dailyMaxRate
+  const computeEstimatedCost = (): { total: number; isCapped: boolean; breakdown: string } => {
+    const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+    if (!selectedVehicle) return { total: 0, isCapped: false, breakdown: '' };
+
+    // Nếu có PricingPolicy đầy đủ → dùng logic block
+    if (policy && policy.blockPrice > 0 && policy.blockMinutes > 0) {
+      const blocksPerHour = 60 / policy.blockMinutes;
+      const firstBlockCost = policy.blockPrice; // Chi phí block đầu
+      const additionalHours = Math.max(0, state.duration - 1);
+      const additionalCost = additionalHours * policy.hourlyRate;
+      const raw = firstBlockCost + additionalCost;
+      const capped = policy.dailyMaxRate > 0 ? Math.min(raw, policy.dailyMaxRate) : raw;
+      const isCapped = policy.dailyMaxRate > 0 && raw > policy.dailyMaxRate;
+      const perBlock = `${policy.blockPrice.toLocaleString('vi-VN')}đ/${policy.blockMinutes}ph`;
+      const perHour = `${policy.hourlyRate.toLocaleString('vi-VN')}đ/h`;
+      const bd = state.duration <= 1
+        ? `1 block (${perBlock})`
+        : `1 block (${perBlock}) + ${additionalHours}h × ${perHour}`;
+      return { total: capped, isCapped, breakdown: bd };
+    }
+
+    // Fallback: dùng hourlyRate từ vehicle data
+    const rate = selectedVehicle.hourlyRate;
+    const raw = rate * state.duration;
+    const dailyMax = policy?.dailyMaxRate ?? 0;
+    const capped = dailyMax > 0 ? Math.min(raw, dailyMax) : raw;
+    const isCapped = dailyMax > 0 && raw > dailyMax;
+    return {
+      total: capped,
+      isCapped,
+      breakdown: `${state.duration}h × ${rate.toLocaleString('vi-VN')}đ/h`,
+    };
+  };
+
   const exitInfo = computeExitTime();
+  const costResult = computeEstimatedCost();
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Step header */}
+      {/* ── Step header ── */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
           <Calendar size={20} className="text-[#FF4C4C]" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-stone-900">Date & Time</h2>
-          <p className="text-xs text-stone-500">Step 3 of 6 — When do you plan to park?</p>
+          <p className="text-xs text-stone-500">Step 3 of 5 — When do you plan to park?</p>
         </div>
       </div>
 
-      {/* Inputs grid */}
+      {/* ── Inputs grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* ── Booking Date ── */}
+        {/* Booking Date */}
         <div>
           <label className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
             <Calendar size={12} className="text-[#FF4C4C]" />
@@ -472,7 +509,7 @@ function StepDateTime({
           />
         </div>
 
-        {/* ── Arrival Time ── */}
+        {/* Arrival Time */}
         <div>
           <label className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
             <Clock size={12} className="text-[#FF4C4C]" />
@@ -509,9 +546,67 @@ function StepDateTime({
         </div>
       </div>
 
+      {/* ── Pricing Structure Card ── */}
+      {policy && (
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/60 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-5 h-5 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-[9px] font-black">₫</span>
+            </div>
+            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">
+              Pricing Structure
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {/* Grace Period */}
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+              <span className="text-[10px] text-stone-500 font-semibold">Grace Period</span>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 text-right">
+              {policy.gracePeriodMinutes} phút miễn phí
+            </span>
+
+            {/* Block Price */}
+            {policy.blockPrice > 0 && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                  <span className="text-[10px] text-stone-500 font-semibold">Block đầu tiên</span>
+                </div>
+                <span className="text-[10px] font-bold text-blue-600 text-right">
+                  {policy.blockPrice.toLocaleString('vi-VN')}đ / {policy.blockMinutes}ph
+                </span>
+              </>
+            )}
+
+            {/* Hourly Rate */}
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C] flex-shrink-0" />
+              <span className="text-[10px] text-stone-500 font-semibold">Giá theo giờ</span>
+            </div>
+            <span className="text-[10px] font-bold text-[#FF4C4C] text-right">
+              {policy.hourlyRate.toLocaleString('vi-VN')}đ / giờ
+            </span>
+
+            {/* Daily Max Rate */}
+            {policy.dailyMaxRate > 0 && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />
+                  <span className="text-[10px] text-stone-500 font-semibold">Tối đa / ngày</span>
+                </div>
+                <span className="text-[10px] font-bold text-purple-600 text-right">
+                  {policy.dailyMaxRate.toLocaleString('vi-VN')}đ
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Parking Summary Card ── */}
-      <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-5 mt-1">
-        {/* Label */}
+      <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-5">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center">
             <span className="text-white text-[10px] font-bold">P</span>
@@ -522,9 +617,8 @@ function StepDateTime({
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          {/* Left: times */}
+          {/* Left: Entry → Exit times */}
           <div className="flex items-center gap-4">
-            {/* Entry time */}
             <div className="flex flex-col gap-0.5">
               <span className="text-2xl font-black text-blue-600 leading-none">
                 {state.entryTime || '--:--'}
@@ -533,16 +627,12 @@ function StepDateTime({
                 {formatDateDisplay(state.entryDate)}
               </span>
             </div>
-
-            {/* Duration badge */}
             <div className="flex flex-col items-center gap-1">
               <span className="text-[10px] font-bold text-stone-500 bg-white border border-gray-200 px-2 py-0.5 rounded-full">
                 {state.duration}h
               </span>
               <div className="w-8 h-px bg-blue-300" />
             </div>
-
-            {/* Exit time */}
             <div className="flex flex-col gap-0.5">
               <span className="text-2xl font-black text-emerald-600 leading-none">
                 {exitInfo.time}
@@ -551,16 +641,37 @@ function StepDateTime({
             </div>
           </div>
 
-          {/* Right: Est. Cost */}
+          {/* Right: Estimated Cost */}
           <div className="text-right flex-shrink-0">
             <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">
               Est. Cost
             </p>
-            <p className="text-xl font-black text-[#FF4C4C]">
-              {pricePerHour > 0 ? `${total.toLocaleString('vi-VN')}đ` : '--'}
-            </p>
+            {costResult.total > 0 ? (
+              <>
+                <p className="text-xl font-black text-[#FF4C4C]">
+                  {costResult.total.toLocaleString('vi-VN')}đ
+                </p>
+                {costResult.isCapped && (
+                  <span className="text-[9px] font-bold text-purple-500 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded-full">
+                    Giá trần/ngày
+                  </span>
+                )}
+              </>
+            ) : (
+              <p className="text-xl font-black text-stone-300">--</p>
+            )}
           </div>
         </div>
+
+        {/* ── Chi phí breakdown ── */}
+        {costResult.breakdown && costResult.total > 0 && (
+          <div className="mt-3 pt-3 border-t border-blue-100">
+            <p className="text-[10px] text-stone-400 font-semibold">
+              <span className="text-stone-500 font-bold">Cách tính: </span>
+              {costResult.breakdown}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -670,102 +781,7 @@ const getZoneName = (slotNo: string): string => {
   return 'Zone A';
 };
 
-// Step 5 – Select Zone
-function StepSelectZone({
-  state,
-  setState,
-  slots,
-  loading,
-}: {
-  state: WizardState;
-  setState: React.Dispatch<React.SetStateAction<WizardState>>;
-  slots: ParkingSlotDetail[];
-  loading: boolean;
-}) {
-  const zoneColors = ['#FF4C4C', '#3B82F6', '#10B981', '#8B5CF6'];
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 size={32} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-stone-500">Loading zones...</p>
-      </div>
-    );
-  }
-
-  // Lấy các zone độc nhất từ slots của tầng này
-  const zones = Array.from(new Set(slots.map(s => getZoneName(s.slotNumber)))).sort();
-
-  if (zones.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <LayoutGrid size={48} className="text-stone-300 mb-3" />
-        <p className="text-sm text-stone-500 font-bold">No zones found</p>
-        <p className="text-xs text-stone-400">This floor has no parking spots created.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
-          <LayoutGrid size={20} className="text-[#FF4C4C]" />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-stone-900">Select Zone</h2>
-          <p className="text-xs text-stone-500">
-            Step 5 of 6 — Zones available on this floor
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {zones.map((zone, idx) => {
-          const selected = state.zone === zone;
-          const color = zoneColors[idx % zoneColors.length];
-          const zoneSlotsCount = slots.filter(s => getZoneName(s.slotNumber) === zone).length;
-          return (
-            <button
-              key={zone}
-              onClick={() => setState((s) => ({ ...s, zone, slot: null, slotId: null }))}
-              className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all ${selected
-                  ? 'border-[#FF4C4C] shadow-sm'
-                  : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
-                }`}
-              style={
-                selected
-                  ? { background: `${color}0C` }
-                  : {}
-              }
-            >
-              {/* Zone letter badge */}
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black"
-                style={{
-                  background: selected ? `${color}1A` : '#F3F3F5',
-                  color: selected ? color : '#78716c',
-                  border: `2px solid ${selected ? color + '40' : 'rgba(0,0,0,0.06)'}`,
-                }}
-              >
-                {zone.replace('Zone ', '')}
-              </div>
-              <div className="text-center">
-                <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-800'}`}>
-                  {zone}
-                </p>
-                <p className="text-xs text-stone-400 mt-0.5">{zoneSlotsCount} spots</p>
-              </div>
-              {selected && <CheckCircle2 size={16} className="text-[#FF4C4C]" />}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// Step 6 – Select Slot
+// Step 5 – Select Slot
 function StepSelectSlot({
   state,
   setState,
@@ -785,9 +801,9 @@ function StepSelectSlot({
     false;
   const VehicleIcon = isMotorbike ? Bike : Car;
 
-  // Lọc slots theo zone đã chọn và loại xe đã chọn
-  const zoneSlots = slots.filter(
-    (s) => getZoneName(s.slotNumber) === state.zone && s.vehicleTypeId === state.vehicleType
+  // Lọc slots theo loại xe đã chọn
+  const filteredSlots = slots.filter(
+    (s) => s.vehicleTypeId === state.vehicleType
   );
 
   return (
@@ -799,7 +815,7 @@ function StepSelectSlot({
         <div>
           <h2 className="text-lg font-bold text-stone-900">Select Slot</h2>
           <p className="text-xs text-stone-500">
-            Step 6 of 6 — Pick an available parking spot
+            Step 5 of 5 — Pick an available parking spot
           </p>
         </div>
       </div>
@@ -820,21 +836,21 @@ function StepSelectSlot({
         </div>
       </div>
 
-      {zoneSlots.length === 0 ? (
+      {filteredSlots.length === 0 ? (
         <div className="py-10 text-center bg-gray-50 rounded-2xl border border-gray-150 p-4">
-          <p className="text-sm text-stone-400 font-medium">No suitable slots found for your vehicle type in this zone.</p>
+          <p className="text-sm text-stone-400 font-medium">No suitable slots found for your vehicle type on this floor.</p>
         </div>
       ) : (
         /* Slot grid */
         <div className="grid grid-cols-5 gap-2">
-          {zoneSlots.map((slot) => {
+          {filteredSlots.map((slot) => {
             const isAvailable = slot.status === 'Available' || slot.status === '0' || (slot.status as unknown as number) === 0;
             const selected = state.slot === slot.slotNumber;
             return (
               <button
                 key={slot.id}
                 disabled={!isAvailable}
-                onClick={() => isAvailable && setState((s) => ({ ...s, slot: slot.slotNumber, slotId: slot.id }))}
+                onClick={() => isAvailable && setState((s) => ({ ...s, slot: slot.slotNumber, slotId: slot.id, zone: getZoneName(slot.slotNumber) }))}
                 className={`aspect-square rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center justify-center gap-1 ${!isAvailable
                     ? 'bg-red-50 border-red-200/60 text-red-400/50 cursor-not-allowed'
                     : selected
@@ -1390,6 +1406,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   const [loadingFloors, setLoadingFloors] = useState(true);
   const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [policy, setPolicy] = useState<PricingPolicyResponse | null>(null);
 
   const [myVehicles, setMyVehicles] = useState<VehicleResponse[]>([]);
   const [loadingMyVehicles, setLoadingMyVehicles] = useState(false);
@@ -1485,6 +1502,24 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     loadVehicleTypes();
   }, []);
 
+  // Load PricingPolicy khi vehicleType thay đổi
+  useEffect(() => {
+    if (!state.vehicleType) {
+      setPolicy(null);
+      return;
+    }
+    async function loadPolicy() {
+      try {
+        const data = await getPolicyByVehicleType(state.vehicleType!);
+        setPolicy(data);
+      } catch {
+        // Không có policy → giữ null, fallback sang hourlyRate từ vehicle
+        setPolicy(null);
+      }
+    }
+    loadPolicy();
+  }, [state.vehicleType]);
+
   // Load floors by building
   useEffect(() => {
     if (!lot.id) return;
@@ -1547,14 +1582,13 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
       case 2: return state.licensePlate.trim().length >= 4;
       case 3: return !!state.entryDate && !!state.entryTime;
       case 4: return !!state.floor;
-      case 5: return !!state.zone;
-      case 6: return !!state.slot;
+      case 5: return !!state.slot;
       default: return false;
     }
   };
 
   const handleNext = () => {
-    if (step < 6 && canAdvance()) setStep((s) => s + 1);
+    if (step < 5 && canAdvance()) setStep((s) => s + 1);
   };
   const handleBack = () => {
     if (step > 1) setStep((s) => s - 1);
@@ -1586,10 +1620,9 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           loadingMyVehicles={loadingMyVehicles}
         />
       );
-      case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} />;
+      case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} policy={policy} />;
       case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} />;
-      case 5: return <StepSelectZone state={state} setState={setState} slots={slots} loading={loadingSlots} />;
-      case 6: return <StepSelectSlot state={state} setState={setState} slots={slots} vehicles={vehicles} />;
+      case 5: return <StepSelectSlot state={state} setState={setState} slots={slots} vehicles={vehicles} />;
       default: return null;
     }
   };
@@ -1642,7 +1675,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
               {step} / {STEPS.length}
             </span>
 
-            {step < 6 ? (
+            {step < 5 ? (
               <button
                 onClick={handleNext}
                 disabled={!canAdvance()}
