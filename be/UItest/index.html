@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Check-In / Check-Out Test UI</title>
+  <style>
+    :root {
+      --bg: #0a0f1e;
+      --card: #111827;
+      --border: rgba(255,255,255,0.1);
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --sky: #0ea5e9;
+      --sky-dim: rgba(14,165,233,0.15);
+      --emerald: #10b981;
+      --emerald-dim: rgba(16,185,129,0.15);
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,0.15);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245,158,11,0.15);
+      --purple: #8b5cf6;
+      --purple-dim: rgba(139,92,246,0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+
+    header { border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); padding: 16px 24px; }
+    header h1 { font-size: 1.25rem; font-weight: 700; }
+    header p { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    /* Tab bar */
+    .tab-bar { display: flex; gap: 4px; padding: 16px 16px 0; }
+    .tab { flex: 1; padding: 10px 16px; border-radius: 12px 12px 0 0; font-size: 0.875rem; font-weight: 700; cursor: pointer; border: 1px solid var(--border); border-bottom: none; text-align: center; transition: all 0.15s; background: rgba(255,255,255,0.04); color: var(--muted); text-decoration: none; }
+    .tab.active-checkin { background: var(--sky-dim); color: var(--sky); border-color: rgba(14,165,233,0.4); }
+    .tab.active-checkout { background: var(--amber-dim); color: var(--amber); border-color: rgba(245,158,11,0.4); }
+    .tab.active-pricing { background: var(--purple-dim); color: var(--purple); border-color: rgba(139,92,246,0.4); }
+
+    .container { max-width: 720px; margin: 0 auto; padding: 20px 16px 32px; }
+
+    /* Config bar */
+    .config-bar { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 20px; }
+    .config-bar label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .config-bar input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 0.875rem; outline: none; transition: border-color 0.2s; }
+    .config-bar input:focus { border-color: var(--sky); }
+
+    /* Alert */
+    .alert { padding: 14px 16px; border-radius: 14px; font-size: 0.875rem; margin-bottom: 16px; display: none; align-items: flex-start; gap: 10px; }
+    .alert.show { display: flex; }
+    .alert-error { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5; }
+    .alert-success { background: var(--emerald-dim); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; }
+    .alert-info { background: var(--sky-dim); border: 1px solid rgba(14,165,233,0.4); color: #7dd3fc; }
+
+    /* Card */
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; margin-bottom: 16px; }
+    .card-title { font-size: 1.125rem; font-weight: 700; margin-bottom: 4px; }
+    .card-sub { font-size: 0.8rem; color: var(--muted); margin-bottom: 20px; }
+
+    /* Step badge */
+    .step-badge { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; }
+    .step-ocr { background: var(--sky-dim); color: var(--sky); border: 1px solid rgba(14,165,233,0.3); }
+    .step-search { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+    .step-confirm { background: rgba(168,85,247,0.15); color: #c084fc; border: 1px solid rgba(168,85,247,0.3); }
+    .step-done { background: var(--emerald-dim); color: var(--emerald); border: 1px solid rgba(16,185,129,0.3); }
+
+    /* Form */
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+    .form-group select { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text); font-size: 1rem; outline: none; transition: border-color 0.2s; cursor: pointer; }
+    .form-group select option { background: #1f2937; }
+    .form-group input[type="text"],
+    .form-group input[type="number"] { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; color: var(--text); font-size: 1rem; outline: none; transition: border-color 0.2s; }
+    .form-group input:focus { border-color: var(--sky); }
+    .form-group input.plate { text-align: center; font-size: 1.5rem; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; }
+
+    /* Grid info */
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .info-card { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+    .info-card .label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+    .info-card .value { font-size: 1.125rem; font-weight: 700; }
+    .info-card .sub { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+
+    /* Fee breakdown */
+    .fee-box { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-top: 14px; }
+    .fee-row { display: flex; justify-content: space-between; font-size: 0.875rem; padding: 4px 0; }
+    .fee-row.total { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 10px; font-size: 1.1rem; font-weight: 700; }
+    .fee-row .amount { font-weight: 600; }
+    .fee-row.total .amount { color: var(--emerald); }
+
+    /* Payment method */
+    .pm-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+    .pm-btn { background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 12px; padding: 12px 4px; cursor: pointer; color: var(--muted); font-size: 0.75rem; font-weight: 600; text-align: center; transition: all 0.15s; }
+    .pm-btn:hover { border-color: rgba(255,255,255,0.2); color: var(--text); }
+    .pm-btn.active { background: var(--sky-dim); border-color: var(--sky); color: #7dd3fc; }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 10px; }
+    .btn { padding: 14px 20px; border-radius: 14px; border: none; cursor: pointer; font-size: 0.875rem; font-weight: 700; transition: all 0.15s; flex: 1; }
+    .btn-primary { background: var(--emerald); color: #fff; }
+    .btn-primary:hover { background: #059669; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-outline { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--muted); }
+    .btn-outline:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+    .btn-search { background: var(--sky); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0; }
+    .btn-search:hover { background: #0284c7; }
+    .btn-search:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ocr { background: var(--amber); color: #fff; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0; }
+    .btn-ocr:hover { background: #d97706; }
+    .btn-ocr:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .input-row { display: flex; gap: 10px; }
+    .input-row > input { flex: 1; }
+
+    /* Receipt */
+    .receipt { background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-top: 16px; }
+    .receipt-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.875rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .receipt-row:last-child { border-bottom: none; }
+    .receipt-row .label { color: var(--muted); }
+    .receipt-row .value { font-weight: 600; text-align: right; }
+    /* PayOS status badge */
+    @keyframes paypulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.6;transform:scale(0.9)} }
+    .payos-badge { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 12px 18px; border-radius: 14px; font-size: 0.875rem; font-weight: 700; margin-bottom: 14px; }
+    .payos-badge .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .payos-badge.pending { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: #fcd34d; }
+    .payos-badge.pending .dot { background: #f59e0b; animation: paypulse 1.5s infinite; }
+    .payos-badge.success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
+    .payos-badge.success .dot { background: #10b981; }
+    .payos-badge.failed { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+    .payos-badge.failed .dot { background: #ef4444; }
+
+    .receipt-row.highlight { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .receipt-row.highlight .value { color: var(--emerald); font-size: 1.1rem; }
+
+    /* Success */
+    .success-box { text-align: center; padding: 32px 24px; }
+    .success-icon { font-size: 3rem; margin-bottom: 12px; }
+    .success-title { font-size: 1.5rem; font-weight: 700; color: var(--emerald); margin-bottom: 6px; }
+    .success-msg { font-size: 0.875rem; color: var(--muted); }
+
+    /* Camera / OCR */
+    .camera-box { position: relative; background: #000; border-radius: 16px; overflow: hidden; margin-bottom: 16px; aspect-ratio: 16/9; }
+    .camera-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .camera-box canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    .camera-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); font-size: 0.875rem; pointer-events: none; }
+    .camera-overlay .cam-icon { font-size: 3rem; opacity: 0.5; }
+    .ocr-badge { position: absolute; top: 12px; left: 12px; background: rgba(245,158,11,0.9); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .ocr-result { position: absolute; bottom: 0; left: 0; width: 100%; background: linear-gradient(transparent, rgba(0,0,0,0.85)); padding: 20px 16px 16px; }
+    .ocr-result-text { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.3em; text-align: center; color: #fff; }
+    .ocr-confidence { font-size: 0.7rem; color: var(--muted); text-align: center; margin-top: 4px; }
+    .camera-controls { display: flex; gap: 10px; margin-bottom: 16px; }
+
+    /* Scan line animation */
+    @keyframes scanline { 0% { top: 0; } 100% { top: 100%; } }
+    .scan-line { position: absolute; left: 0; width: 100%; height: 2px; background: linear-gradient(90deg, transparent, var(--amber), transparent); animation: scanline 2s linear infinite; pointer-events: none; }
+    .corner-tl, .corner-tr, .corner-bl, .corner-br { position: absolute; width: 24px; height: 24px; border-color: var(--amber); border-style: solid; }
+    .corner-tl { top: 20px; left: 20px; border-width: 3px 0 0 3px; }
+    .corner-tr { top: 20px; right: 20px; border-width: 3px 3px 0 0; }
+    .corner-bl { bottom: 20px; left: 20px; border-width: 0 0 3px 3px; }
+    .corner-br { bottom: 20px; right: 20px; border-width: 0 3px 3px 0; }
+
+    /* Spinner */
+    .spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Panel switch */
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    /* Slot display */
+    .slot-result { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); border-radius: 14px; padding: 14px; margin-top: 14px; }
+    .slot-result .title { font-size: 0.8rem; font-weight: 700; color: var(--emerald); margin-bottom: 8px; }
+    .slot-result .slot-num { font-size: 2rem; font-weight: 700; color: var(--emerald); }
+    .slot-result .floor-name { font-size: 0.875rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div>
+        <h1>Gate Control Test</h1>
+        <p>Kiểm tra Check-In / Check-Out với OCR camera</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="tab-bar">
+    <a href="#" class="tab active-checkin" id="tabCheckin" onclick="showPanel('checkin')">&#128663; Check-In</a>
+    <a href="#" class="tab active-checkout" id="tabCheckout" onclick="showPanel('checkout')">&#128724; Check-Out</a>
+    <a href="/uitest/pricing.html" class="tab" id="tabPricing">&#128176; Giá cước</a>
+  </div>
+
+<div class="container">
+
+  <!-- API Config + Login -->
+  <div class="config-bar">
+    <label>API Base URL</label>
+    <input type="text" id="apiBase" placeholder="http://localhost:5237" />
+
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <label style="margin:0">Đăng nhập</label>
+        <span id="loginStatus" style="font-size:0.75rem;color:#9ca3af"></span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="loginUsername" placeholder="Username" style="flex:1" />
+        <input type="password" id="loginPassword" placeholder="Password" style="flex:1" />
+        <button class="btn btn-primary" onclick="uiLogin()" style="padding:0 16px">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alert -->
+  <div id="alertBox" class="alert"></div>
+
+
+  <!-- ============================================================ -->
+  <!-- CHECK-IN PANEL                                                -->
+  <!-- ============================================================ -->
+  <div class="panel active" id="panelCheckin">
+
+    <!-- Step 1: OCR Camera -->
+    <div id="ciStepOcr" class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span class="card-title">OCR Biển số xe</span>
+        <span class="step-badge step-ocr">OCR</span>
+      </div>
+      <p class="card-sub">Chụp biển số xe bằng camera hoặc nhập tay</p>
+
+      <div class="camera-box" id="ciCameraBox">
+        <video id="ciVideo" autoplay playsinline muted></video>
+        <canvas id="ciCanvas"></canvas>
+        <div class="corner-tl"></div>
+        <div class="corner-tr"></div>
+        <div class="corner-bl"></div>
+        <div class="corner-br"></div>
+        <div class="scan-line" id="ciScanLine"></div>
+        <div id="ciCameraOverlay" class="camera-overlay">
+          <div class="cam-icon">&#128247;</div>
+          <div>Bật camera để quét biển số</div>
+        </div>
+        <div id="ciOcrBadge" class="ocr-badge" style="display:none">Scanning...</div>
+        <div id="ciOcrResult" class="ocr-result" style="display:none">
+          <div class="ocr-result-text" id="ciOcrText">-</div>
+          <div class="ocr-confidence" id="ciOcrConf">-</div>
+        </div>
+      </div>
+
+      <div class="camera-controls">
+        <button id="btnCiCamera" class="btn btn-ocr" onclick="toggleCiCamera()" style="flex:1">
+          <span id="ciCamIcon">&#128247;</span>
+          <span id="ciCamLabel">Bật Camera</span>
+        </button>
+        <button id="btnCiCapture" class="btn btn-ocr" onclick="captureCiFrame()" disabled style="flex:1">
+          <span id="ciCapIcon" class="spinner" style="display:none"></span>
+          <span id="ciCapLabel">Chụp & OCR</span>
+        </button>
+      </div>
+
+      <div class="input-row">
+        <input id="ciPlateInput" class="plate" type="text" placeholder="ABC-1234" maxlength="20" />
+        <button id="btnCiCheckIn" class="btn btn-primary" onclick="handleCiCheckIn()" style="flex:0 0 auto; padding: 0 20px;">
+          <span id="ciCheckInIcon" class="spinner" style="display:none"></span>
+          <span id="ciCheckInLabel">Check-In</span>
+        </button>
+      </div>
+      <p style="font-size:0.75rem;color:var(--muted);margin-top:8px;text-align:center">Nhập biển số (OCR hoặc tay) rồi nhấn Check-In</p>
+    </div>
+
+    <!-- Step 2: Confirm Check-In -->
+    <div id="ciStepConfirm" style="display:none">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span class="card-title">Xác nhận Check-In</span>
+          <span class="step-badge step-confirm">Bước 2</span>
+        </div>
+        <p class="card-sub">Kiểm tra thông tin và chọn loại xe</p>
+
+        <div class="info-grid">
+          <div class="info-card" style="grid-column:span 2">
+            <div class="label">Biển số</div>
+            <div class="value" id="ciDispPlate" style="font-size:1.5rem;letter-spacing:0.2em">-</div>
+          </div>
+          <div class="info-card">
+            <div class="label">Camera OCR</div>
+            <div class="value" id="ciDispOcr">-</div>
+          </div>
+          <div class="info-card">
+            <div class="label">Nhập tay</div>
+            <div class="value" id="ciDispManual">-</div>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:16px">
+          <label>Loại xe</label>
+          <select id="ciVehicleType">
+            <option value="">-- Đang tải loại xe --</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="resetCi()">Hủy</button>
+        <button id="btnCiConfirm" class="btn btn-primary" onclick="handleCiConfirm()">
+          <span id="ciConfirmIcon" class="spinner" style="display:none"></span>
+          <span id="ciConfirmLabel">XÁC NHẬN CHECK-IN</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div id="ciStepSuccess" style="display:none">
+      <div class="card">
+        <div class="success-box">
+          <div class="success-icon">&#10004;</div>
+          <div class="success-title">Check-In thành công!</div>
+          <div class="success-msg" id="ciSuccessMsg">-</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="success-box">
+          <div class="slot-result">
+            <div class="title">Vị trí đỗ xe</div>
+            <div class="slot-num" id="ciDispSlot">-</div>
+            <div class="floor-name" id="ciDispFloor">-</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:1rem;font-weight:700;margin-bottom:12px">Biên nhận Check-In</div>
+        <div class="receipt" id="ciReceiptData"></div>
+      </div>
+
+      <button class="btn btn-outline" onclick="resetCi()" style="width:100%">Check-In xe tiếp theo</button>
+    </div>
+  </div>
+
+
+  <!-- ============================================================ -->
+  <!-- CHECK-OUT PANEL                                              -->
+  <!-- ============================================================ -->
+  <div class="panel" id="panelCheckout">
+
+    <!-- Step 1: OCR Camera / Search -->
+    <div id="coStepSearch" class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span class="card-title">Tìm xe đang gửi</span>
+        <span class="step-badge step-search">Tìm kiếm</span>
+      </div>
+      <p class="card-sub">Quét biển số bằng camera hoặc nhập tay</p>
+
+      <div class="camera-box" id="coCameraBox">
+        <video id="coVideo" autoplay playsinline muted></video>
+        <canvas id="coCanvas"></canvas>
+        <div class="corner-tl"></div>
+        <div class="corner-tr"></div>
+        <div class="corner-bl"></div>
+        <div class="corner-br"></div>
+        <div class="scan-line" id="coScanLine"></div>
+        <div id="coCameraOverlay" class="camera-overlay">
+          <div class="cam-icon">&#128247;</div>
+          <div>Bật camera để quét biển số</div>
+        </div>
+        <div id="coOcrBadge" class="ocr-badge" style="display:none">Scanning...</div>
+        <div id="coOcrResult" class="ocr-result" style="display:none">
+          <div class="ocr-result-text" id="coOcrText">-</div>
+          <div class="ocr-confidence" id="coOcrConf">-</div>
+        </div>
+      </div>
+
+      <div class="camera-controls">
+        <button id="btnCoCamera" class="btn btn-ocr" onclick="toggleCoCamera()" style="flex:1">
+          <span id="coCamIcon">&#128247;</span>
+          <span id="coCamLabel">Bật Camera</span>
+        </button>
+        <button id="btnCoCapture" class="btn btn-ocr" onclick="captureCoFrame()" disabled style="flex:1">
+          <span id="coCapIcon" class="spinner" style="display:none"></span>
+          <span id="coCapLabel">Chụp & OCR</span>
+        </button>
+      </div>
+
+      <div class="input-row">
+        <input id="coPlateInput" class="plate" type="text" placeholder="ABC-1234" maxlength="20" />
+        <button id="btnCoSearch" class="btn btn-search" onclick="handleCoSearch()" style="flex:0 0 auto; padding: 0 20px;">
+          <span id="coSearchIcon" class="spinner" style="display:none"></span>
+          <span id="coSearchLabel">Tìm</span>
+        </button>
+      </div>
+      <p style="font-size:0.75rem;color:var(--muted);margin-top:8px;text-align:center">Hoặc nhập biển số tay rồi nhấn Tìm</p>
+    </div>
+
+    <!-- Step 2: Confirm -->
+    <div id="coStepConfirm" style="display:none">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span class="card-title">Thông tin phiên gửi xe</span>
+          <span class="step-badge step-confirm">Bước 2</span>
+        </div>
+        <p class="card-sub">Xem thông tin và xác nhận thanh toán</p>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="label">Biển số</div>
+            <div class="value" id="coDispPlate">-</div>
+            <div class="sub" id="coDispVehicleType">-</div>
+          </div>
+          <div class="info-card">
+            <div class="label">Vị trí</div>
+            <div class="value" id="coDispSlot">-</div>
+            <div class="sub" id="coDispFloor">-</div>
+          </div>
+          <div class="info-card">
+            <div class="label">Giờ vào</div>
+            <div class="value" id="coDispEntry">-</div>
+            <div class="sub" id="coDispExit">-</div>
+          </div>
+          <div class="info-card">
+            <div class="label">Thời gian</div>
+            <div class="value" id="coDispDuration">-</div>
+            <div class="sub" id="coDispPricingModel">-</div>
+          </div>
+        </div>
+
+        <div class="fee-box">
+          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#9ca3af;margin-bottom:8px">Chi tiết phí</div>
+          <div id="coFeeDetails"></div>
+          <div class="fee-row total">
+            <span>Tổng phí</span>
+            <span class="amount" id="coDispTotalFee">-</span>
+          </div>
+          <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08)">
+            <label style="display:block;font-size:0.7rem;font-weight:600;color:#9ca3af;margin-bottom:4px">Nhập phí thủ công (bỏ trống = dùng phí hệ thống)</label>
+            <input type="number" id="coManualFeeInput" min="0" step="1000" placeholder="VD: 20000"
+              style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:8px 12px;color:#10b981;font-size:1rem;font-weight:700;outline:none"
+              oninput="handleManualFeeInput()" />
+          </div>
+        </div>
+
+        <p id="coDispMessage" style="margin-top:14px;font-size:0.8rem;color:#9ca3af"></p>
+
+        <!-- PayOS status badge (hidden by default) -->
+        <div id="coPayosBadge" style="display:none"></div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:1rem;font-weight:700;margin-bottom:14px">Phương thức thanh toán</div>
+        <div class="pm-grid">
+          <button class="pm-btn active" data-pm="0" onclick="selectCoPm(0)">Cash</button>
+          <button class="pm-btn" data-pm="1" onclick="selectCoPm(1)">Momo</button>
+          <button class="pm-btn" data-pm="2" onclick="selectCoPm(2)">VNPay</button>
+          <button class="pm-btn" data-pm="3" onclick="selectCoPm(3)">Card</button>
+          <button class="pm-btn" data-pm="4" onclick="selectCoPm(4)">PayOS</button>
+        </div>
+
+        <!-- Nut chuyen QR PayOS (hien khi chon PayOS) -->
+        <button id="btnCoPayosQr" class="btn btn-primary"
+          style="display:none;width:100%;margin-top:12px;background:#10b981"
+          onclick="handleCoPayosQr()">
+          Quet QR thanh toan
+        </button>
+
+        <div id="coCashInput" class="form-group" style="margin-top:16px">
+          <label>Số tiền khách đưa (VND)</label>
+          <input type="number" id="coPaymentAmount" placeholder="0" />
+          <div id="coChangeDisplay" style="margin-top:6px;font-size:0.8rem;color:#9ca3af"></div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline" onclick="resetCo()">Hủy</button>
+        <button id="btnCoConfirm" class="btn btn-primary" onclick="handleCoConfirm()">
+          <span id="coConfirmIcon" class="spinner" style="display:none"></span>
+          <span id="coConfirmLabel">XÁC NHẬN THANH TOÁN</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3: Success -->
+    <div id="coStepSuccess" style="display:none">
+      <div class="card">
+        <div class="success-box">
+          <div class="success-icon">&#10004;</div>
+          <div class="success-title">Thanh toán thành công!</div>
+          <div class="success-msg" id="coSuccessMsg">-</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:1rem;font-weight:700;margin-bottom:12px">Biên nhận</div>
+        <div class="receipt" id="coReceiptData"></div>
+      </div>
+
+      <button class="btn btn-outline" onclick="resetCo()" style="width:100%">Thanh toán xe tiếp theo</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────
+  let ciOcrPlate = '';
+  let ciManualPlate = '';
+  let ciStream = null;
+  let ciCurrentSession = null;
+
+  let coOcrPlate = '';
+  let coStream = null;
+  let coCurrentSession = null;
+  let coSelectedPm = 0;
+  let coManualFee = null;
+  let coPollInterval = null;  // PayOS poll timer
+  let coPayosReady = false;  // PayOS payment succeeded
+  let coPayosPending = false;  // Dang cho thanh toan PayOS, block re-search
+
+  const PM_LABELS = ['Cash', 'Momo', 'VNPay', 'Credit Card', 'PayOS'];
+
+  // ── Init ───────────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('co_api_base');
+    if (saved) document.getElementById('apiBase').value = saved;
+    document.getElementById('apiBase').addEventListener('change', () => {
+      localStorage.setItem('co_api_base', document.getElementById('apiBase').value);
+    });
+
+    // Login form Enter key
+    document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') uiLogin(); });
+    document.getElementById('loginUsername').addEventListener('keydown', e => { if (e.key === 'Enter') uiLogin(); });
+
+    // Load vehicle types on startup
+    loadVehicleTypes();
+    updateLoginStatus();
+
+    // Check if returning from PayOS payment
+    checkPayOSReturn().catch(() => {});
+
+    // Enter key shortcuts per panel
+    document.getElementById('ciPlateInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleCiCheckIn(); });
+    document.getElementById('coPlateInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleCoSearch(); });
+    document.getElementById('coPaymentAmount').addEventListener('input', updateCoChange);
+  });
+
+  // ── UI Login ───────────────────────────────────────────────────
+  async function uiLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    if (!username || !password) { showAlert('error', 'Nhập username và password.'); return; }
+
+    try {
+      const res = await fetch(getBase() + '/api/Auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || `Lỗi ${res.status}`);
+
+      localStorage.setItem('sp_token', data.accessToken || data.token || data.access_token);
+      if (data.refreshToken) localStorage.setItem('sp_refresh_token', data.refreshToken);
+      localStorage.setItem('sp_user', JSON.stringify(data));
+
+      updateLoginStatus();
+      showAlert('success', `Đăng nhập thành công! Xin chào ${data.fullName || data.unique_name || username}.`);
+    } catch (err) {
+      showAlert('error', err.message);
+    }
+  }
+
+  function updateLoginStatus() {
+    const token = localStorage.getItem('sp_token');
+    const status = document.getElementById('loginStatus');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+        const name = payload.unique_name || payload.fullName || payload.sub || 'User';
+        const role = payload.role || '';
+        status.textContent = `✓ ${name}${role ? ' (' + role + ')' : ''}`;
+        status.style.color = '#10b981';
+      } catch {
+        status.textContent = '✓ Token đã set';
+        status.style.color = '#10b981';
+      }
+    } else {
+      status.textContent = 'Chưa đăng nhập';
+      status.style.color = '#9ca3af';
+    }
+  }
+
+  // ── Panel navigation ────────────────────────────────────────────
+  function showPanel(panel) {
+    document.getElementById('panelCheckin').classList.toggle('active', panel === 'checkin');
+    document.getElementById('panelCheckout').classList.toggle('active', panel === 'checkout');
+    document.getElementById('tabCheckin').className = 'tab' + (panel === 'checkin' ? ' active-checkin' : '');
+    document.getElementById('tabCheckout').className = 'tab' + (panel === 'checkout' ? ' active-checkout' : '');
+    event && event.preventDefault();
+  }
+
+  // ── API helpers ─────────────────────────────────────────────────
+  function getBase() {
+    return document.getElementById('apiBase').value.trim() || 'http://localhost:5237';
+  }
+
+  async function apiFetch(path, options = {}) {
+    const token = localStorage.getItem('sp_token');
+    if (!token) { showAlert('error', 'Chưa đăng nhập. Vui lòng đăng nhập trước (token không tìm thấy trong localStorage sp_token).'); return null; }
+
+    const res = await fetch(getBase() + path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(options.headers || {}),
+      },
+    });
+
+    let data;
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+    if (!res.ok) { throw new Error(data.message || `Lỗi ${res.status}`); }
+    return data;
+  }
+
+  // ── Alert ───────────────────────────────────────────────────────
+  function showAlert(type, msg) {
+    const box = document.getElementById('alertBox');
+    box.className = `alert alert-${type} show`;
+    box.innerHTML = `<span>${type === 'error' ? '&#9888;' : type === 'success' ? '&#10004;' : '&#8505;'} ${msg}</span>`;
+    if (type !== 'error') {
+      setTimeout(() => { box.classList.remove('show'); }, 5000);
+    }
+  }
+
+  // ================================================================
+  // CHECK-IN                                                       
+  // ================================================================
+
+  // Toggle camera
+  async function toggleCiCamera() {
+    if (ciStream) {
+      ciStream.getTracks().forEach(t => t.stop());
+      ciStream = null;
+      document.getElementById('ciVideo').srcObject = null;
+      document.getElementById('ciCameraOverlay').style.display = 'flex';
+      document.getElementById('ciScanLine').style.display = 'none';
+      document.getElementById('ciOcrBadge').style.display = 'none';
+      document.getElementById('ciOcrResult').style.display = 'none';
+      document.getElementById('btnCiCapture').disabled = true;
+      document.getElementById('ciCamIcon').textContent = '📷';
+      document.getElementById('ciCamLabel').textContent = 'Bật Camera';
+      return;
+    }
+
+    try {
+      ciStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      document.getElementById('ciVideo').srcObject = ciStream;
+      document.getElementById('ciCameraOverlay').style.display = 'none';
+      document.getElementById('ciScanLine').style.display = 'block';
+      document.getElementById('btnCiCapture').disabled = false;
+      document.getElementById('ciCamIcon').textContent = '⏹';
+      document.getElementById('ciCamLabel').textContent = 'Tắt Camera';
+    } catch (err) {
+      showAlert('error', 'Không thể truy cập camera: ' + err.message);
+    }
+  }
+
+  // Capture frame and send to OCR API
+  async function captureCiFrame() {
+    if (!ciStream) return;
+
+    const video = document.getElementById('ciVideo');
+    const canvas = document.getElementById('ciCanvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+
+    document.getElementById('ciCapIcon').style.display = 'inline-block';
+    document.getElementById('ciCapLabel').textContent = 'Đang xử lý...';
+    document.getElementById('btnCiCapture').disabled = true;
+    document.getElementById('ciOcrBadge').style.display = 'block';
+    document.getElementById('ciOcrBadge').textContent = 'Scanning...';
+    document.getElementById('ciOcrResult').style.display = 'none';
+
+    try {
+      const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+      const token = localStorage.getItem('sp_token');
+      const res = await fetch(getBase() + '/api/ocr/scan-plate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ imageBase64: base64 }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        let msg = text;
+        try { msg = JSON.parse(text).message; } catch {}
+        throw new Error(msg || `Lỗi ${res.status}`);
+      }
+
+      const data = await res.json();
+      const raw = (data.licensePlate || data.LicensePlate || '').trim();
+      const plate = normalizePlate(raw);
+      const conf = data.confidence || data.Confidence || 0;
+
+      ciOcrPlate = plate;
+      if (plate) {
+        document.getElementById('ciOcrBadge').textContent = '✓ Detected';
+        document.getElementById('ciOcrBadge').style.background = 'rgba(16,185,129,0.9)';
+        document.getElementById('ciOcrText').textContent = plate;
+        document.getElementById('ciOcrConf').textContent = `Confidence: ${Math.round(conf * 100)}%`;
+        document.getElementById('ciOcrResult').style.display = 'block';
+        document.getElementById('ciPlateInput').value = plate;
+        document.getElementById('ciPlateInput').style.borderColor = '#10b981';
+      } else {
+        document.getElementById('ciOcrBadge').textContent = 'Không phát hiện';
+        document.getElementById('ciOcrBadge').style.background = 'rgba(239,68,68,0.9)';
+        document.getElementById('ciOcrText').textContent = '-';
+        document.getElementById('ciOcrConf').textContent = 'Thử lại hoặc nhập tay';
+        document.getElementById('ciOcrResult').style.display = 'block';
+      }
+    } catch (err) {
+      document.getElementById('ciOcrBadge').textContent = 'Lỗi';
+      document.getElementById('ciOcrBadge').style.background = 'rgba(239,68,68,0.9)';
+      document.getElementById('ciOcrText').textContent = '-';
+      document.getElementById('ciOcrConf').textContent = err.message;
+      document.getElementById('ciOcrResult').style.display = 'block';
+    } finally {
+      document.getElementById('ciCapIcon').style.display = 'none';
+      document.getElementById('ciCapLabel').textContent = 'Chụp & OCR';
+      document.getElementById('btnCiCapture').disabled = false;
+    }
+  }
+
+  // ── JWT helpers ─────────────────────────────────────────────────
+  function getUserIdFromToken() {
+    try {
+      const token = localStorage.getItem('sp_token');
+      if (!token) return null;
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      return decoded.id || decoded.userId || decoded.sub || null;
+    } catch { return null; }
+  }
+
+  // ── Load VehicleTypes ─────────────────────────────────────────────
+  async function loadVehicleTypes() {
+    try {
+      const data = await apiFetch('/api/VehicleTypes');
+      const vtSelect = document.getElementById('ciVehicleType');
+      if (Array.isArray(data)) {
+        vtSelect.innerHTML = '<option value="">-- Chọn loại xe --</option>' +
+          data.map(vt => `<option value="${vt.id}">${vt.name}</option>`).join('');
+      }
+    } catch {
+      // ignore — user can still check-in without vehicle types loaded
+    }
+  }
+
+  // ── Check-In: OCR & Manual plate → confirm step ──────────────────
+  async function handleCiCheckIn() {
+    const rawPlate = document.getElementById('ciPlateInput').value.trim();
+    if (!rawPlate) { showAlert('error', 'Vui lòng nhập biển số (OCR hoặc tay).'); return; }
+
+    const plate = normalizePlate(rawPlate);
+    ciOcrPlate = plate;
+    document.getElementById('ciPlateInput').value = plate;
+    setCiLoading(true, 'checkin');
+    document.getElementById('alertBox').classList.remove('show');
+
+    try {
+      await loadVehicleTypes();
+      document.getElementById('ciDispPlate').textContent = plate;
+      document.getElementById('ciDispOcr').textContent = ciOcrPlate || 'N/A';
+      showCiStep('confirm');
+    } catch (err) {
+      showAlert('error', err.message);
+    } finally {
+      setCiLoading(false, 'checkin');
+    }
+  }
+
+  // ── Check-In: Confirm → walk-in API ──────────────────────────────
+  async function handleCiConfirm() {
+    const plate = document.getElementById('ciPlateInput').value.trim();
+    if (!plate) { showAlert('error', 'Vui lòng nhập biển số.'); return; }
+    const vehicleTypeId = document.getElementById('ciVehicleType').value;
+    if (!vehicleTypeId) { showAlert('error', 'Vui lòng chọn loại xe.'); return; }
+
+    setCiLoading(true, 'confirm');
+    try {
+      const staffId = getUserIdFromToken();
+      if (!staffId) {
+        showAlert('error', 'Không tìm thấy StaffId. Vui lòng đăng nhập lại và đảm bảo token chứa thông tin user.');
+        return;
+      }
+
+      const data = await apiFetch('/api/CheckIn/walk-in', {
+        method: 'POST',
+        body: JSON.stringify({
+          LicensePlate: plate,
+          VehicleTypeId: vehicleTypeId,
+          StaffId: staffId || null,
+          SlotId: null,
+        }),
+      });
+      if (!data) { setCiLoading(false, 'confirm'); return; }
+
+      ciCurrentSession = data;
+      renderCiReceipt(data);
+      document.getElementById('ciSuccessMsg').textContent = data.message;
+      document.getElementById('ciDispSlot').textContent = data.slotNumber || '-';
+      document.getElementById('ciDispFloor').textContent = data.floorName ? 'Tầng ' + data.floorName : '-';
+      showCiStep('success');
+    } catch (err) {
+      showAlert('error', err.message);
+    } finally {
+      setCiLoading(false, 'confirm');
+    }
+  }
+
+  function renderCiReceipt(r) {
+    const el = document.getElementById('ciReceiptData');
+    el.innerHTML = `
+      <div class="receipt-row"><span class="label">Biển số</span><span class="value">${r.licensePlate || r.LicensePlate || '-'}</span></div>
+      <div class="receipt-row"><span class="label">Loại xe</span><span class="value">${r.vehicleTypeName || r.VehicleTypeName || '-'}</span></div>
+      <div class="receipt-row"><span class="label">Giờ vào</span><span class="value">${fmtDateTime(r.entryTime || r.EntryTime)}</span></div>
+      <div class="receipt-row"><span class="label">Vị trí</span><span class="value">${r.slotNumber || r.SlotNumber || '-'}, Tầng ${r.floorName || r.FloorName || '-'}</span></div>
+      <div class="receipt-row"><span class="label">Mã phiên</span><span class="value">${r.sessionCode || r.SessionCode || '-'}</span></div>
+      ${(r.sessionQrCodeBase64 || r.SessionQrCodeBase64) ? `<div class="receipt-row"><span class="label">QR Code</span><span class="value" style="font-size:0.7rem">Đã tạo</span></div>` : ''}
+    `;
+  }
+
+  function resetCi() {
+    ciOcrPlate = '';
+    ciCurrentSession = null;
+    document.getElementById('ciPlateInput').value = '';
+    document.getElementById('ciPlateInput').style.borderColor = '';
+    document.getElementById('ciOcrBadge').style.display = 'none';
+    document.getElementById('ciOcrResult').style.display = 'none';
+    document.getElementById('alertBox').classList.remove('show');
+    if (ciStream) { ciStream.getTracks().forEach(t => t.stop()); ciStream = null; }
+    document.getElementById('ciVideo').srcObject = null;
+    document.getElementById('ciCameraOverlay').style.display = 'flex';
+    document.getElementById('ciScanLine').style.display = 'none';
+    document.getElementById('btnCiCapture').disabled = true;
+    document.getElementById('ciCamIcon').textContent = '📷';
+    document.getElementById('ciCamLabel').textContent = 'Bật Camera';
+    showCiStep('ocr');
+    showPanel('checkin');
+    document.getElementById('ciPlateInput').focus();
+  }
+
+  function showCiStep(step) {
+    document.getElementById('ciStepOcr').style.display = step === 'ocr' ? 'block' : 'none';
+    document.getElementById('ciStepConfirm').style.display = step === 'confirm' ? 'block' : 'none';
+    document.getElementById('ciStepSuccess').style.display = step === 'success' ? 'block' : 'none';
+  }
+
+  function setCiLoading(on, step) {
+    if (step === 'checkin') {
+      document.getElementById('ciCheckInIcon').style.display = on ? 'inline-block' : 'none';
+      document.getElementById('ciCheckInLabel').textContent = on ? 'Đang xử lý...' : 'Check-In';
+      document.getElementById('btnCiCheckIn').disabled = on;
+    } else {
+      document.getElementById('ciConfirmIcon').style.display = on ? 'inline-block' : 'none';
+      document.getElementById('ciConfirmLabel').textContent = on ? 'Đang xử lý...' : 'XÁC NHẬN CHECK-IN';
+      document.getElementById('btnCiConfirm').disabled = on;
+    }
+  }
+
+  // ================================================================
+  // CHECK-OUT                                                      
+  // ================================================================
+
+  async function toggleCoCamera() {
+    if (coStream) {
+      coStream.getTracks().forEach(t => t.stop());
+      coStream = null;
+      document.getElementById('coVideo').srcObject = null;
+      document.getElementById('coCameraOverlay').style.display = 'flex';
+      document.getElementById('coScanLine').style.display = 'none';
+      document.getElementById('coOcrBadge').style.display = 'none';
+      document.getElementById('coOcrResult').style.display = 'none';
+      document.getElementById('btnCoCapture').disabled = true;
+      document.getElementById('coCamIcon').textContent = '📷';
+      document.getElementById('coCamLabel').textContent = 'Bật Camera';
+      return;
+    }
+
+    try {
+      coStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      document.getElementById('coVideo').srcObject = coStream;
+      document.getElementById('coCameraOverlay').style.display = 'none';
+      document.getElementById('coScanLine').style.display = 'block';
+      document.getElementById('btnCoCapture').disabled = false;
+      document.getElementById('coCamIcon').textContent = '⏹';
+      document.getElementById('coCamLabel').textContent = 'Tắt Camera';
+    } catch (err) {
+      showAlert('error', 'Không thể truy cập camera: ' + err.message);
+    }
+  }
+
+  async function captureCoFrame() {
+    if (!coStream) return;
+
+    const video = document.getElementById('coVideo');
+    const canvas = document.getElementById('coCanvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    canvas.getContext('2d').drawImage(video, 0, 0);
+
+    document.getElementById('coCapIcon').style.display = 'inline-block';
+    document.getElementById('coCapLabel').textContent = 'Đang xử lý...';
+    document.getElementById('btnCoCapture').disabled = true;
+    document.getElementById('coOcrBadge').style.display = 'block';
+    document.getElementById('coOcrBadge').textContent = 'Scanning...';
+    document.getElementById('coOcrResult').style.display = 'none';
+
+    try {
+      const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+
+      const token = localStorage.getItem('sp_token');
+      const res = await fetch(getBase() + '/api/ocr/scan-plate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ imageBase64: base64 }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        let msg = text;
+        try { msg = JSON.parse(text).message; } catch {}
+        throw new Error(msg || `Lỗi ${res.status}`);
+      }
+
+      const data = await res.json();
+      const raw = (data.licensePlate || data.LicensePlate || '').trim();
+      const plate = normalizePlate(raw);
+      const conf = data.confidence || data.Confidence || 0;
+
+      coOcrPlate = plate;
+      if (plate) {
+        document.getElementById('coOcrBadge').textContent = '✓ Detected';
+        document.getElementById('coOcrBadge').style.background = 'rgba(16,185,129,0.9)';
+        document.getElementById('coOcrText').textContent = plate;
+        document.getElementById('coOcrConf').textContent = `Confidence: ${Math.round(conf * 100)}%`;
+        document.getElementById('coOcrResult').style.display = 'block';
+        document.getElementById('coPlateInput').value = plate;
+        document.getElementById('coPlateInput').style.borderColor = '#10b981';
+      } else {
+        document.getElementById('coOcrBadge').textContent = 'Không phát hiện';
+        document.getElementById('coOcrBadge').style.background = 'rgba(239,68,68,0.9)';
+        document.getElementById('coOcrText').textContent = '-';
+        document.getElementById('coOcrConf').textContent = 'Thử lại hoặc nhập tay';
+        document.getElementById('coOcrResult').style.display = 'block';
+      }
+    } catch (err) {
+      document.getElementById('coOcrBadge').textContent = 'Lỗi';
+      document.getElementById('coOcrBadge').style.background = 'rgba(239,68,68,0.9)';
+      document.getElementById('coOcrText').textContent = '-';
+      document.getElementById('coOcrConf').textContent = err.message;
+      document.getElementById('coOcrResult').style.display = 'block';
+    } finally {
+      document.getElementById('coCapIcon').style.display = 'none';
+      document.getElementById('coCapLabel').textContent = 'Chụp & OCR';
+      document.getElementById('btnCoCapture').disabled = false;
+    }
+  }
+
+  // ── Normalize license plate (must match backend CleanLicensePlate) ─
+  function normalizePlate(p) {
+    return (p || '').trim().toUpperCase().replace(/\./g, '').replace(/-/g, '').replace(/ /g, '');
+  }
+
+  async function handleCoSearch() {
+    if (coPayosPending) { showAlert('error', 'Đang chờ thanh toán PayOS. Vui lòng thanh toán trước.'); return; }
+
+    const rawPlate = document.getElementById('coPlateInput').value.trim();
+    if (!rawPlate) { showAlert('error', 'Vui lòng nhập biển số xe.'); return; }
+
+    const plate = normalizePlate(rawPlate);
+    setCoLoading(true, 'search');
+    document.getElementById('alertBox').classList.remove('show');
+
+    try {
+      const data = await apiFetch(`/api/CheckOut/search?licensePlate=${encodeURIComponent(plate)}`);
+      if (!data) { setCoLoading(false, 'search'); return; }
+
+      coCurrentSession = data;
+      renderCoSession(data);
+      showCoStep('confirm');
+    } catch (err) {
+      showAlert('error', err.message);
+    } finally {
+      setCoLoading(false, 'search');
+    }
+  }
+
+  function rk(obj, key, def) {
+    if (obj[key] !== undefined) return obj[key];
+    const lower = key.charAt(0).toLowerCase() + key.slice(1);
+    return obj[lower] !== undefined ? obj[lower] : def;
+  }
+
+  function renderCoSession(s) {
+    coManualFee = null;
+    document.getElementById('coManualFeeInput').value = '';
+    document.getElementById('coDispPlate').textContent = rk(s, 'LicensePlate', '-');
+    document.getElementById('coDispVehicleType').textContent = rk(s, 'VehicleTypeName', '-');
+    document.getElementById('coDispSlot').textContent = rk(s, 'SlotNumber', '-');
+    document.getElementById('coDispFloor').textContent = 'Tầng ' + rk(s, 'FloorName', '-');
+    document.getElementById('coDispEntry').textContent = fmtDateTime(rk(s, 'EntryTime', null));
+    document.getElementById('coDispExit').textContent = 'Ra: ' + fmtDateTime(rk(s, 'EstimatedExitTime', null));
+    document.getElementById('coDispDuration').textContent = fmtDuration(rk(s, 'TotalHours', 0));
+    const pm = rk(s, 'PricingModel', 'Hourly');
+    document.getElementById('coDispPricingModel').textContent = pm === 'DayNight' ? 'Ngày/Đêm' : 'Theo giờ';
+    document.getElementById('coDispMessage').textContent = rk(s, 'Message', '');
+
+    const feeDiv = document.getElementById('coFeeDetails');
+    if (pm === 'DayNight' && rk(s, 'FeeBreakdown', null)) {
+      const fb = rk(s, 'FeeBreakdown', {});
+      feeDiv.innerHTML = `
+        <div class="fee-row"><span class="label">Ngày x${rk(fb, 'DayPassCount', 0)}</span><span class="amount">${fmtMoney(rk(fb, 'DayPassTotal', 0))}</span></div>
+        <div class="fee-row"><span class="label">Đêm x${rk(fb, 'NightPassCount', 0)}</span><span class="amount">${fmtMoney(rk(fb, 'NightPassTotal', 0))}</span></div>
+      `;
+    } else {
+      feeDiv.innerHTML = `<div class="fee-row"><span class="label">Đơn giá</span><span class="amount">${fmtMoney(rk(s, 'HourlyRate', 0))}/giờ</span></div>`;
+    }
+    document.getElementById('coDispTotalFee').textContent = fmtMoney(rk(s, 'EstimatedFee', 0));
+  }
+
+  function selectCoPm(pm) {
+    coSelectedPm = pm;
+    document.querySelectorAll('#panelCheckout .pm-btn').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.pm) === pm);
+    });
+    document.getElementById('coCashInput').style.display = pm === 0 ? 'block' : 'none';
+    const qrBtn = document.getElementById('btnCoPayosQr');
+    if (qrBtn) qrBtn.style.display = pm === 4 ? 'block' : 'none';
+  }
+
+  function handleManualFeeInput() {
+    const val = parseFloat(document.getElementById('coManualFeeInput').value);
+    coManualFee = isNaN(val) || val <= 0 ? null : val;
+    const sysFee = rk(coCurrentSession, 'EstimatedFee', 0);
+    const displayFee = coManualFee ?? sysFee;
+    document.getElementById('coDispTotalFee').textContent = fmtMoney(displayFee);
+    updateCoChange();
+  }
+
+  function updateCoChange() {
+    const amount = parseFloat(document.getElementById('coPaymentAmount').value) || 0;
+    if (coCurrentSession && amount > 0) {
+      const sysFee = rk(coCurrentSession, 'EstimatedFee', 0);
+      const effectiveFee = coManualFee ?? sysFee;
+      const change = amount - effectiveFee;
+      document.getElementById('coChangeDisplay').innerHTML =
+        `Tiền thừa: <strong style="color:#10b981">${fmtMoney(Math.max(0, change))}</strong>`;
+    } else {
+      document.getElementById('coChangeDisplay').textContent = '';
+    }
+  }
+
+  async function handleCoConfirm() {
+    if (!coCurrentSession) { showAlert('error', 'Không có phiên gửi xe.'); return; }
+
+    const staffId = getUserIdFromToken();
+    if (!staffId) {
+      showAlert('error', 'Không tìm thấy StaffId. Vui lòng đăng nhập lại.');
+      return;
+    }
+
+    // PayOS: chi cho phep xac nhan khi da thanh toan xong
+    if (coSelectedPm === 4) {
+      if (!coPayosReady) {
+        // Thu poll 1 lan cuoi xem webhook da cap nhat chua
+        const raw = sessionStorage.getItem('co_payos_session');
+        if (raw) {
+          const saved = JSON.parse(raw);
+          const btnLabel = document.getElementById('coConfirmLabel');
+          const origLabel = btnLabel ? btnLabel.textContent : '';
+          if (btnLabel) btnLabel.textContent = 'Dang kiem tra thanh toan...';
+          try {
+            const res = await fetch(getBase() + '/api/payments/status/' + saved.sessionId, {
+              headers: { Authorization: 'Bearer ' + (localStorage.getItem('sp_token') || '') }
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const status = (data.paymentStatus || '').toLowerCase();
+              if (status === 'success' || status === 'paid') {
+                coPayosReady = true;
+                stopCoPoll();
+                sessionStorage.removeItem('co_payos_session');
+                updateCoPayosBadge('success', 'Da thanh toan - Nhan Xac nhan de cho xe ra');
+                const btn = document.getElementById('btnCoConfirm');
+                if (btn) {
+                  btn.disabled = false;
+                  btn.style.opacity = '1';
+                  btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                  btn.style.boxShadow = '0 4px 20px rgba(16,185,129,0.4)';
+                  document.getElementById('coConfirmLabel').textContent = 'DA THANH TOAN - MO BARRIER';
+                }
+                await doCoConfirm(staffId);
+                return;
+              }
+            }
+          } catch (_) {}
+          if (btnLabel) btnLabel.textContent = origLabel;
+        }
+        showAlert('error', 'Chua xac nhan thanh toan PayOS. Vui long doi badge chuyen thanh "Da thanh toan".');
+        return;
+      }
+      await doCoConfirm(staffId);
+      return;
+    }
+
+    const rawAmount = parseFloat(document.getElementById('coPaymentAmount').value);
+    const paymentAmount = isNaN(rawAmount) ? 0 : rawAmount;
+
+    if (coSelectedPm === 0 && paymentAmount <= 0) {
+      showAlert('error', 'Vui lòng nhập số tiền khách đưa (thanh toán tiền mặt).');
+      return;
+    }
+    const effectiveFee = coManualFee ?? (rk(coCurrentSession, 'EstimatedFee', 0));
+    if (coSelectedPm === 0 && paymentAmount < effectiveFee) {
+      showAlert('error', `Số tiền khách đưa nhỏ hơn phí gửi xe (${fmtMoney(effectiveFee)}).`);
+      return;
+    }
+
+    await doCoConfirm(staffId);
+  }
+
+  // ── PayOS: tao QR thanh toan ─────────────────────────────────
+  function handleCoPayosQr() {
+    if (!coCurrentSession) { showAlert('error', 'Không có phiên gửi xe.'); return; }
+    const sessionId = coCurrentSession.sessionId || coCurrentSession.SessionId;
+
+    coPayosPending = true;
+    fetch(getBase() + '/api/CheckOut/create-payment', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + (localStorage.getItem('sp_token') || ''),
+      },
+      body: JSON.stringify({ sessionId }),
+    }).then(res => res.json()).then(data => {
+      const url = data.checkoutUrl || data.CheckoutUrl;
+      if (url) {
+        sessionStorage.setItem('co_payos_session', JSON.stringify({
+          sessionId,
+          checkoutData: coCurrentSession,
+        }));
+        window.location.href = url;
+      } else {
+        showAlert('error', 'Không lấy được link PayOS.');
+      }
+    }).catch(() => {
+      showAlert('error', 'Lỗi tạo thanh toán PayOS.');
+    });
+  }
+
+  async function doCoConfirm(staffId) {
+    setCoLoading(true, 'confirm');
+    try {
+      const data = await apiFetch('/api/CheckOut/confirm', {
+        method: 'POST',
+        body: JSON.stringify({
+          SessionId: coCurrentSession.sessionId || coCurrentSession.SessionId,
+          StaffId: staffId,
+          PaymentMethod: coSelectedPm,
+          PaymentAmount: coSelectedPm === 0 ? parseFloat(document.getElementById('coPaymentAmount').value) || null : null,
+          ExitLicensePlateOcr: coOcrPlate || null,
+          StaffConfirmed: true,
+          ManualFee: coManualFee,
+        }),
+      });
+      if (!data) { setCoLoading(false, 'confirm'); return; }
+
+      stopCoPoll();
+      renderCoReceipt(data);
+      document.getElementById('coSuccessMsg').textContent = data.message;
+      showCoStep('success');
+    } catch (err) {
+      showAlert('error', err.message);
+    } finally {
+      setCoLoading(false, 'confirm');
+    }
+  }
+
+  // ── PayOS: kiem tra quay ve tu PayOS ─────────────────────────
+  async function checkPayOSReturn() {
+    // Neu co URL params tra ve tu PayOS thi parse ngay
+    const params = new URLSearchParams(window.location.search);
+    const payosStatus = params.get('status');
+    const payosCode = params.get('code');
+    const payosSessionId = params.get('session');
+
+    // Doc sessionStorage truoc khi xoa
+    const raw = sessionStorage.getItem('co_payos_session');
+    if (!raw && !payosSessionId) {
+      // Xoa URL params khoi address bar (khong reload)
+      if (params.toString()) {
+        const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+      return;
+    }
+
+    try {
+      const saved = raw ? JSON.parse(raw) : {};
+      const sessionId = payosSessionId || saved.sessionId;
+      if (!sessionId) return;
+
+      // Xoa URL params khoi address bar (khong reload) - sau khi da doc xong
+      if (params.toString()) {
+        const cleanUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+
+      // Khoi phuc session
+      coCurrentSession = saved.checkoutData;
+      if (!coCurrentSession) {
+        showAlert('error', 'Khong tim thay phien thanh toan. Vui long tim lai.');
+        showCoStep('search');
+        return;
+      }
+
+      coSelectedPm = 4;
+      showCoStep('confirm');
+      selectCoPm(4);
+      showPanel('checkout');
+      renderCoSession(saved.checkoutData || coCurrentSession);
+      coPayosPending = false;
+
+      // Neu URL co status=PAID hoac code=00 thi danh dau ngay, khong can poll
+      if ((payosStatus && payosStatus.toLowerCase() === 'paid') ||
+          (payosCode && payosCode === '00')) {
+        coPayosReady = true;
+        sessionStorage.removeItem('co_payos_session');
+        updateCoPayosBadge('success', 'Da thanh toan - Nhan Xac nhan de cho xe ra');
+        const btn = document.getElementById('btnCoConfirm');
+        if (btn) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+          btn.style.boxShadow = '0 4px 20px rgba(16,185,129,0.4)';
+          document.getElementById('coConfirmLabel').textContent = 'DA THANH TOAN - MO BARRIER';
+        }
+        return;
+      }
+
+      startCoPoll(sessionId);  // Neu chua co paid thi poll nhu cu
+    } catch (_) {}
+  }
+
+  async function startCoPoll(sessionId) {
+    stopCoPoll();
+
+    async function pollOnce() {
+      try {
+        const res = await fetch(getBase() + '/api/payments/status/' + sessionId, {
+          headers: { Authorization: 'Bearer ' + (localStorage.getItem('sp_token') || '') }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const status = (data.paymentStatus || '').toLowerCase();
+        if (status === 'success' || status === 'paid') {
+          coPayosReady = true;
+          stopCoPoll();
+          sessionStorage.removeItem('co_payos_session');
+          updateCoPayosBadge('success', 'Da thanh toan - Nhan Xac nhan de cho xe ra');
+          const btn = document.getElementById('btnCoConfirm');
+          if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            btn.style.boxShadow = '0 4px 20px rgba(16,185,129,0.4)';
+            document.getElementById('coConfirmLabel').textContent = 'DA THANH TOAN - MO BARRIER';
+          }
+        } else if (status === 'failed') {
+          stopCoPoll();
+          updateCoPayosBadge('failed', 'Thanh toan that bai - Lien he ho tro');
+          coPayosReady = false;
+          coPayosPending = false;
+        }
+      } catch (e) { console.error('PayOS poll error:', e); }
+    }
+
+    // Poll ngay lap tuc, tiep tuc cho den khi thanh cong hoac that bai
+    await pollOnce();
+    coPollInterval = setInterval(pollOnce, 2000);
+  }
+
+  function stopCoPoll() {
+    if (coPollInterval) { clearInterval(coPollInterval); coPollInterval = null; }
+  }
+
+  function updateCoPayosBadge(type, text) {
+    const el = document.getElementById('coPayosBadge');
+    el.style.display = 'flex';
+    el.className = 'payos-badge ' + type;
+    el.innerHTML = '<span class="dot"></span><span>' + text + '</span>';
+  }
+
+  function renderCoReceipt(r) {
+    const rk = (k, def) => r[k] ?? r[k.charAt(0).toLowerCase() + k.slice(1)] ?? def;
+    const el = document.getElementById('coReceiptData');
+    el.innerHTML = `
+      <div class="receipt-row"><span class="label">Biển số</span><span class="value">${rk('LicensePlate', '-')}</span></div>
+      <div class="receipt-row"><span class="label">Vị trí</span><span class="value">${rk('SlotNumber', '-')}, Tầng ${rk('FloorName', '-')}</span></div>
+      <div class="receipt-row"><span class="label">Giờ vào</span><span class="value">${fmtDateTime(rk('EntryTime', null))}</span></div>
+      <div class="receipt-row"><span class="label">Giờ ra</span><span class="value">${fmtDateTime(rk('ExitTime', null))}</span></div>
+      <div class="receipt-row"><span class="label">Thời gian</span><span class="value">${fmtDuration(rk('TotalHours', 0))}</span></div>
+      <div class="receipt-row"><span class="label">Thanh toán</span><span class="value">${PM_LABELS[r.PaymentMethod ?? r.paymentMethod] || rk('PaymentMethod', '-')}</span></div>
+      ${rk('PaymentAmount', null) !== null ? `<div class="receipt-row"><span class="label">Tiền khách đưa</span><span class="value">${fmtMoney(rk('PaymentAmount', 0))}</span></div>` : ''}
+      ${rk('ChangeAmount', 0) > 0 ? `<div class="receipt-row"><span class="label">Tiền thừa</span><span class="value" style="color:#10b981">${fmtMoney(rk('ChangeAmount', 0))}</span></div>` : ''}
+      <div class="receipt-row highlight">
+        <span class="label">Tổng phí</span>
+        <span class="value">${fmtMoney(rk('TotalFee', 0))}</span>
+      </div>
+    `;
+  }
+
+  function resetCo() {
+    stopCoPoll();
+    coOcrPlate = '';
+    coCurrentSession = null;
+    coManualFee = null;
+    coPayosReady = false;
+    coPayosPending = false;
+    sessionStorage.removeItem('co_payos_session');
+    sessionStorage.removeItem('co_pending_payos');
+    document.getElementById('coPlateInput').value = '';
+    document.getElementById('coPlateInput').style.borderColor = '';
+    document.getElementById('coPaymentAmount').value = '';
+    document.getElementById('coChangeDisplay').textContent = '';
+    document.getElementById('coManualFeeInput').value = '';
+    document.getElementById('coOcrBadge').style.display = 'none';
+    document.getElementById('coOcrResult').style.display = 'none';
+    document.getElementById('coPayosBadge').style.display = 'none';
+    document.getElementById('alertBox').classList.remove('show');
+    selectCoPm(0);
+    if (coStream) { coStream.getTracks().forEach(t => t.stop()); coStream = null; }
+    document.getElementById('coVideo').srcObject = null;
+    document.getElementById('coCameraOverlay').style.display = 'flex';
+    document.getElementById('coScanLine').style.display = 'none';
+    document.getElementById('btnCoCapture').disabled = true;
+    document.getElementById('coCamIcon').textContent = '📷';
+    document.getElementById('coCamLabel').textContent = 'Bật Camera';
+    showCoStep('search');
+    showPanel('checkout');
+    document.getElementById('coPlateInput').focus();
+  }
+
+  function showCoStep(step) {
+    document.getElementById('coStepSearch').style.display = step === 'search' ? 'block' : 'none';
+    document.getElementById('coStepConfirm').style.display = step === 'confirm' ? 'block' : 'none';
+    document.getElementById('coStepSuccess').style.display = step === 'success' ? 'block' : 'none';
+  }
+
+  function setCoLoading(on, step) {
+    if (step === 'search') {
+      document.getElementById('coSearchIcon').style.display = on ? 'inline-block' : 'none';
+      document.getElementById('coSearchLabel').textContent = on ? 'Đang tìm...' : 'Tìm';
+      document.getElementById('btnCoSearch').disabled = on;
+    } else {
+      // Khong override neu PayOS da thanh toan thanh cong
+      if (coPayosReady) return;
+      document.getElementById('coConfirmIcon').style.display = on ? 'inline-block' : 'none';
+      document.getElementById('coConfirmLabel').textContent = on ? 'Đang xử lý...' : 'XÁC NHẬN THANH TOÁN';
+      document.getElementById('btnCoConfirm').disabled = on;
+      document.getElementById('btnCoConfirm').style.opacity = on ? '0.5' : '1';
+    }
+  }
+
+  // ── Formatters ─────────────────────────────────────────────────
+  function fmtMoney(n) {
+    return new Intl.NumberFormat('vi-VN').format(n) + ' VND';
+  }
+
+  function fmtDateTime(iso) {
+    if (!iso) return '-';
+    return new Date(iso).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  function fmtDuration(h) {
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    if (hh === 0) return `${mm} phút`;
+    if (mm === 0) return `${hh} giờ`;
+    return `${hh} giờ ${mm} phút`;
+  }
+</script>
+
+</body>
+</html>

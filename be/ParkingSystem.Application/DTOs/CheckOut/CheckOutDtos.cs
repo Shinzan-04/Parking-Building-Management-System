@@ -241,3 +241,39 @@ public class FeeBreakdownDto
     /// </summary>
     public decimal TotalFee { get; set; }
 }
+
+/// <summary>
+/// Yeu cau tao thanh toan PayOS khi xe ra.
+/// </summary>
+public class CreateCheckoutPaymentRequest
+{
+    /// <summary>
+    /// Session ID cua phien gui xe.
+    /// </summary>
+    public Guid SessionId { get; set; }
+}
+
+/// <summary>
+/// Ket qua tao thanh toan PayOS khi xe ra.
+/// </summary>
+public class CreateCheckoutPaymentResponse
+{
+    public Guid SessionId { get; set; }
+    public string LicensePlate { get; set; } = string.Empty;
+    public string SlotNumber { get; set; } = string.Empty;
+    public string FloorName { get; set; } = string.Empty;
+    public DateTime EntryTime { get; set; }
+    public DateTime ExitTime { get; set; }
+    public double TotalHours { get; set; }
+    public string VehicleTypeName { get; set; } = string.Empty;
+    public string PricingModel { get; set; } = "Hourly";
+    public decimal TotalFee { get; set; }
+    public decimal HourlyRate { get; set; }
+    public decimal? DayPassPrice { get; set; }
+    public decimal? NightPassPrice { get; set; }
+    public decimal? DailyMaxPrice { get; set; }
+    public FeeBreakdownDto? FeeBreakdown { get; set; }
+    public long PayOSOrderCode { get; set; }
+    public string CheckoutUrl { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+}

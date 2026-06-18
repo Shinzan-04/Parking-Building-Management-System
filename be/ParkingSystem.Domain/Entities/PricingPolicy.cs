@@ -7,6 +7,7 @@ public class PricingPolicy : BaseEntity
     public int BlockMinutes { get; set; }
     public decimal HourlyRate { get; set; }
     public decimal DailyMaxRate { get; set; }
+    public int GracePeriodMinutes { get; set; } = 15;
 
     public VehicleType VehicleType { get; set; } = null!;
 }
