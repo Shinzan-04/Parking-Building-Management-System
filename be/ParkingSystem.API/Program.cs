@@ -74,6 +74,7 @@ builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Service
 builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
 builder.Services.AddScoped<ISessionService, ParkingSystem.Infrastructure.Services.SessionService>();
+builder.Services.AddScoped<IDashboardService, ParkingSystem.Infrastructure.Services.DashboardService>();
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IRealtimeService, ParkingSystem.API.Services.RealtimeService>();
 
