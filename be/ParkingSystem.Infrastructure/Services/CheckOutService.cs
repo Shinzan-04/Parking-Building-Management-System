@@ -41,6 +41,7 @@ public class CheckOutService : ICheckOutService
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
+            .Include(s => s.Reservation)
             .Where(s => s.Status == SessionStatus.Active)
             .ToListAsync();
 
@@ -55,6 +56,21 @@ public class CheckOutService : ICheckOutService
 
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+
+        if (session.ReservationId != null && session.Reservation != null)
+        {
+            if (exitTime <= session.Reservation.EndTime)
+            {
+                priceResult.TotalFee = 0;
+                priceResult.FeeBreakdown = null;
+            }
+            else
+            {
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime);
+                priceResult.TotalFee = overdueResult.TotalFee;
+                priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
+            }
+        }
 
         return new CheckOutSearchResult
         {
@@ -83,6 +99,7 @@ public class CheckOutService : ICheckOutService
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
+            .Include(s => s.Reservation)
             .FirstOrDefaultAsync(s => s.Id == request.SessionId && s.Status == SessionStatus.Active);
 
         if (session == null)
@@ -92,6 +109,21 @@ public class CheckOutService : ICheckOutService
 
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+
+        if (session.ReservationId != null && session.Reservation != null)
+        {
+            if (exitTime <= session.Reservation.EndTime)
+            {
+                priceResult.TotalFee = 0;
+                priceResult.FeeBreakdown = null;
+            }
+            else
+            {
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime);
+                priceResult.TotalFee = overdueResult.TotalFee;
+                priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
+            }
+        }
 
         // Neu la PayOS, kiem tra payment da duoc xu ly chua
         if (request.PaymentMethod == PaymentMethod.PayOS)
@@ -145,6 +177,22 @@ public class CheckOutService : ICheckOutService
             psSlot.Status = SlotStatus.Available;
             psSlot.UpdatedAt = exitTime;
             _context.Entry(psSlot).State = EntityState.Modified;
+
+            if (session.Reservation != null)
+            {
+                session.Reservation.Status = ReservationStatus.Completed;
+                session.Reservation.UpdatedAt = exitTime;
+                
+                _context.ReservationLogs.Add(new ReservationLog
+                {
+                    Id = Guid.NewGuid(),
+                    ReservationId = session.Reservation.Id,
+                    Action = "CheckOut",
+                    StatusSnapshot = ReservationStatus.Completed,
+                    Note = "Tài xế đã hoàn thành chuyến đi và rời bãi",
+                    CreatedAt = exitTime
+                });
+            }
 
             await _context.SaveChangesAsync();
 
@@ -205,6 +253,22 @@ public class CheckOutService : ICheckOutService
         slot.UpdatedAt = exitTime;
         _context.Entry(slot).State = EntityState.Modified;
 
+        if (session.Reservation != null)
+        {
+            session.Reservation.Status = ReservationStatus.Completed;
+            session.Reservation.UpdatedAt = exitTime;
+            
+            _context.ReservationLogs.Add(new ReservationLog
+            {
+                Id = Guid.NewGuid(),
+                ReservationId = session.Reservation.Id,
+                Action = "CheckOut",
+                StatusSnapshot = ReservationStatus.Completed,
+                Note = "Tài xế đã hoàn thành chuyến đi và rời bãi",
+                CreatedAt = exitTime
+            });
+        }
+
         _context.Payments.Add(payment);
         await _context.SaveChangesAsync();
 
@@ -254,6 +318,7 @@ public class CheckOutService : ICheckOutService
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
+            .Include(s => s.Reservation)
             .Where(s => s.Status == SessionStatus.Active)
             .ToListAsync();
 
@@ -271,6 +336,21 @@ public class CheckOutService : ICheckOutService
 
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+
+        if (session.ReservationId != null && session.Reservation != null)
+        {
+            if (exitTime <= session.Reservation.EndTime)
+            {
+                priceResult.TotalFee = 0;
+                priceResult.FeeBreakdown = null;
+            }
+            else
+            {
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime);
+                priceResult.TotalFee = overdueResult.TotalFee;
+                priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
+            }
+        }
 
         var matchStatus = isMatch ? "KHỚP" : "KHÔNG KHỚP";
         var warningMsg = isMatch
@@ -310,6 +390,7 @@ public class CheckOutService : ICheckOutService
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
+            .Include(s => s.Reservation)
             .FirstOrDefaultAsync(s => s.Id == sessionId && s.Status == SessionStatus.Active);
 
         if (session == null)
@@ -319,6 +400,21 @@ public class CheckOutService : ICheckOutService
 
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+
+        if (session.ReservationId != null && session.Reservation != null)
+        {
+            if (exitTime <= session.Reservation.EndTime)
+            {
+                priceResult.TotalFee = 0;
+                priceResult.FeeBreakdown = null;
+            }
+            else
+            {
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime);
+                priceResult.TotalFee = overdueResult.TotalFee;
+                priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
+            }
+        }
 
         return new CheckOutSearchResult
         {

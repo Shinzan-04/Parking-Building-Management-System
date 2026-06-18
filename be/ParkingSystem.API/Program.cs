@@ -79,6 +79,7 @@ builder.Services.AddScoped<ISessionService, ParkingSystem.Infrastructure.Service
 builder.Services.AddScoped<IDashboardService, ParkingSystem.Infrastructure.Services.DashboardService>();
 builder.Services.AddScoped<ICheckOutService, ParkingSystem.Infrastructure.Services.CheckOutService>();
 builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
+builder.Services.AddScoped<IVehicleService, ParkingSystem.Infrastructure.Services.VehicleService>();
 
 // Register PayOS options from appsettings.json section "PayOS"
 builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(

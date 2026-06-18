@@ -430,12 +430,7 @@
             <span>Tổng phí</span>
             <span class="amount" id="coDispTotalFee">-</span>
           </div>
-          <div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.08)">
-            <label style="display:block;font-size:0.7rem;font-weight:600;color:#9ca3af;margin-bottom:4px">Nhập phí thủ công (bỏ trống = dùng phí hệ thống)</label>
-            <input type="number" id="coManualFeeInput" min="0" step="1000" placeholder="VD: 20000"
-              style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:8px 12px;color:#10b981;font-size:1rem;font-weight:700;outline:none"
-              oninput="handleManualFeeInput()" />
-          </div>
+
         </div>
 
         <p id="coDispMessage" style="margin-top:14px;font-size:0.8rem;color:#9ca3af"></p>
@@ -461,11 +456,7 @@
           Quet QR thanh toan
         </button>
 
-        <div id="coCashInput" class="form-group" style="margin-top:16px">
-          <label>Số tiền khách đưa (VND)</label>
-          <input type="number" id="coPaymentAmount" placeholder="0" />
-          <div id="coChangeDisplay" style="margin-top:6px;font-size:0.8rem;color:#9ca3af"></div>
-        </div>
+
       </div>
 
       <div class="btn-row">
@@ -1012,7 +1003,6 @@
 
   function renderCoSession(s) {
     coManualFee = null;
-    document.getElementById('coManualFeeInput').value = '';
     document.getElementById('coDispPlate').textContent = rk(s, 'LicensePlate', '-');
     document.getElementById('coDispVehicleType').textContent = rk(s, 'VehicleTypeName', '-');
     document.getElementById('coDispSlot').textContent = rk(s, 'SlotNumber', '-');
@@ -1042,32 +1032,11 @@
     document.querySelectorAll('#panelCheckout .pm-btn').forEach(b => {
       b.classList.toggle('active', parseInt(b.dataset.pm) === pm);
     });
-    document.getElementById('coCashInput').style.display = pm === 0 ? 'block' : 'none';
+
     const qrBtn = document.getElementById('btnCoPayosQr');
     if (qrBtn) qrBtn.style.display = pm === 4 ? 'block' : 'none';
   }
 
-  function handleManualFeeInput() {
-    const val = parseFloat(document.getElementById('coManualFeeInput').value);
-    coManualFee = isNaN(val) || val <= 0 ? null : val;
-    const sysFee = rk(coCurrentSession, 'EstimatedFee', 0);
-    const displayFee = coManualFee ?? sysFee;
-    document.getElementById('coDispTotalFee').textContent = fmtMoney(displayFee);
-    updateCoChange();
-  }
-
-  function updateCoChange() {
-    const amount = parseFloat(document.getElementById('coPaymentAmount').value) || 0;
-    if (coCurrentSession && amount > 0) {
-      const sysFee = rk(coCurrentSession, 'EstimatedFee', 0);
-      const effectiveFee = coManualFee ?? sysFee;
-      const change = amount - effectiveFee;
-      document.getElementById('coChangeDisplay').innerHTML =
-        `Tiền thừa: <strong style="color:#10b981">${fmtMoney(Math.max(0, change))}</strong>`;
-    } else {
-      document.getElementById('coChangeDisplay').textContent = '';
-    }
-  }
 
   async function handleCoConfirm() {
     if (!coCurrentSession) { showAlert('error', 'Không có phiên gửi xe.'); return; }
@@ -1122,18 +1091,7 @@
       return;
     }
 
-    const rawAmount = parseFloat(document.getElementById('coPaymentAmount').value);
-    const paymentAmount = isNaN(rawAmount) ? 0 : rawAmount;
 
-    if (coSelectedPm === 0 && paymentAmount <= 0) {
-      showAlert('error', 'Vui lòng nhập số tiền khách đưa (thanh toán tiền mặt).');
-      return;
-    }
-    const effectiveFee = coManualFee ?? (rk(coCurrentSession, 'EstimatedFee', 0));
-    if (coSelectedPm === 0 && paymentAmount < effectiveFee) {
-      showAlert('error', `Số tiền khách đưa nhỏ hơn phí gửi xe (${fmtMoney(effectiveFee)}).`);
-      return;
-    }
 
     await doCoConfirm(staffId);
   }
@@ -1176,7 +1134,7 @@
           SessionId: coCurrentSession.sessionId || coCurrentSession.SessionId,
           StaffId: staffId,
           PaymentMethod: coSelectedPm,
-          PaymentAmount: coSelectedPm === 0 ? parseFloat(document.getElementById('coPaymentAmount').value) || null : null,
+          PaymentAmount: null,
           ExitLicensePlateOcr: coOcrPlate || null,
           StaffConfirmed: true,
           ManualFee: coManualFee,
@@ -1388,7 +1346,10 @@
 
   function fmtDateTime(iso) {
     if (!iso) return '-';
-    return new Date(iso).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' });
+    const d = new Date(iso);
+    const time = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const date = d.toLocaleDateString('vi-VN');
+    return `${time} ${date}`;
   }
 
   function fmtDuration(h) {
