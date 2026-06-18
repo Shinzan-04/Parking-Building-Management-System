@@ -5,6 +5,8 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../hooks/useAuth';
+import { getBuildings } from '../../services/buildingsService';
+import type { BuildingResponse } from '../../services/buildingsService';
 import {
   Search,
   MapPin,
@@ -76,87 +78,6 @@ function calcDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number):
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// ---------- Kiểu dữ liệu OSM ----------
-interface OsmParkingLot {
-  id: string; // osm element id
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  access: string; // 'yes' | 'private' | 'customers' ...
-  capacity: string | null;
-  osmType: 'node' | 'way' | 'relation';
-}
-
-// ---------- Hàm fetch Overpass API ----------
-async function fetchOsmParking(lat: number, lng: number, radiusM: number): Promise<OsmParkingLot[]> {
-  const query = `
-    [out:json][timeout:20];
-    (
-      node["amenity"="parking"](around:${radiusM},${lat},${lng});
-      way["amenity"="parking"](around:${radiusM},${lat},${lng});
-    );
-    out center tags;
-  `;
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: query,
-  });
-  if (!res.ok) throw new Error('Overpass API error');
-  const data = await res.json();
-
-  return (data.elements as any[]).map((el: any) => {
-    const lat = el.type === 'node' ? el.lat : el.center?.lat;
-    const lng = el.type === 'node' ? el.lon : el.center?.lon;
-    const tags = el.tags ?? {};
-    const name = tags.name || tags['name:vi'] || tags['name:en'] || 'Parking Lot';
-    const addr = [
-      tags['addr:housenumber'],
-      tags['addr:street'],
-      tags['addr:district'],
-      tags['addr:city'],
-    ].filter(Boolean).join(', ') || 'No address';
-    return {
-      id: `osm-${el.type}-${el.id}`,
-      name,
-      address: addr,
-      lat,
-      lng,
-      access: tags.access ?? 'yes',
-      capacity: tags.capacity ?? null,
-      osmType: el.type,
-    } as OsmParkingLot;
-  }).filter((p) => p.lat && p.lng); // loại bỏ phần tử không có toạ độ
-}
-
-// ---------- Icon OSM bãi đỗ thực (xanh lá hoặc màu san hô chọn) ----------
-const createOsmParkingIcon = (isSelected: boolean = false) =>
-  L.divIcon({
-    className: '',
-    html: `
-      <div style="
-        width: 32px; height: 32px;
-        background: ${isSelected ? '#FF4C4C' : '#10B981'};
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-        border: 3px solid #ffffff;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-        display: flex; align-items: center; justify-content: center;
-      ">
-        <span style="
-          transform: rotate(45deg);
-          color: #ffffff;
-          font-weight: 850;
-          font-size: 13px;
-          line-height: 1;
-        ">P</span>
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -36],
-  });
-
 // ---------- Types ----------
 type VehicleFilter = 'all' | 'motorbike' | 'car' | 'ev';
 type SortOption = 'relevance' | 'price' | 'distance' | 'rating';
@@ -177,177 +98,43 @@ interface ParkingLot {
   features: string[];
 }
 
-// ---------- Hardcoded data ----------
-const PARKING_LOTS: ParkingLot[] = [
-  {
-    id: '1',
-    name: 'Gửi xe A5 - Công viên Thống Nhất',
-    address: 'Đường Lê Duẩn, Đống Đa, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.0285,
-    lng: 105.8542,
-    availableSpots: 34,
-    totalSpots: 80,
-    pricePerHour: 5000,
-    rating: 4.2,
-    openHours: '06:00 – 22:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['Camera 24/7', 'Có mái che'],
-  },
-  {
-    id: '2',
-    name: 'Building / Sidewalk Parking – Trần Hưng Đạo',
-    address: '45 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.032,
-    lng: 105.8493,
-    availableSpots: 12,
-    totalSpots: 50,
-    pricePerHour: 8000,
-    rating: 3.8,
-    openHours: '07:00 – 23:00',
-    vehicleTypes: ['all', 'motorbike', 'car', 'ev'],
-    features: ['Sạc EV', 'Bảo vệ 24/7'],
-  },
-  {
-    id: '3',
-    name: 'SmartPark – Vincom Center',
-    address: '191 Bà Triệu, Hai Bà Trưng, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0231,
-    lng: 105.8452,
-    availableSpots: 68,
-    totalSpots: 150,
-    pricePerHour: 15000,
-    rating: 4.7,
-    openHours: '24/7',
-    vehicleTypes: ['all', 'car', 'ev'],
-    features: ['Sạc EV', 'Camera AI', 'Thang máy', 'Valet'],
-  },
-  {
-    id: '4',
-    name: 'Bãi xe Hoàn Kiếm Xanh',
-    address: '78 Đinh Tiên Hoàng, Hoàn Kiếm, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.0278,
-    lng: 105.852,
-    availableSpots: 5,
-    totalSpots: 30,
-    pricePerHour: 6000,
-    rating: 3.5,
-    openHours: '06:00 – 21:00',
-    vehicleTypes: ['all', 'motorbike'],
-    features: ['Mái che'],
-  },
-  {
-    id: '5',
-    name: 'Landmark 72 Parking',
-    address: 'Keangnam Landmark, Mễ Trì, Nam Từ Liêm, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0073,
-    lng: 105.7825,
-    availableSpots: 120,
-    totalSpots: 300,
-    pricePerHour: 20000,
-    rating: 4.9,
-    openHours: '24/7',
-    vehicleTypes: ['all', 'car', 'ev'],
-    features: ['Sạc EV', 'Camera AI', 'Valet', 'Premium'],
-  },
-  {
-    id: '6',
-    name: 'Bãi đỗ xe Nguyễn Du',
-    address: '25 Nguyễn Du, Hai Bà Trưng, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.025,
-    lng: 105.847,
-    availableSpots: 20,
-    totalSpots: 60,
-    pricePerHour: 5000,
-    rating: 4.0,
-    openHours: '06:00 – 22:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['Bảo vệ 24/7'],
-  },
-  {
-    id: '7',
-    name: 'Bãi xe Hồ Gươm Plaza',
-    address: '110 Trần Phú, Hà Đông, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0408,
-    lng: 105.8393,
-    availableSpots: 45,
-    totalSpots: 100,
-    pricePerHour: 12000,
-    rating: 4.4,
-    openHours: '07:00 – 22:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['Mái che', 'Camera 24/7'],
-  },
-  {
-    id: '8',
-    name: 'Parking – Lotte Center Hà Nội',
-    address: '54 Liễu Giai, Ba Đình, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0351,
-    lng: 105.8182,
-    availableSpots: 90,
-    totalSpots: 200,
-    pricePerHour: 18000,
-    rating: 4.6,
-    openHours: '24/7',
-    vehicleTypes: ['all', 'car', 'ev'],
-    features: ['Sạc EV', 'Valet', 'Camera AI'],
-  },
-  {
-    id: '9',
-    name: 'Bãi xe Cầu Giấy Center',
-    address: '7 Trần Thái Tông, Cầu Giấy, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.0306,
-    lng: 105.7987,
-    availableSpots: 8,
-    totalSpots: 40,
-    pricePerHour: 7000,
-    rating: 3.6,
-    openHours: '06:00 – 23:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['Bảo vệ'],
-  },
-  {
-    id: '10',
-    name: 'SmartPark Mỹ Đình',
-    address: 'Đường Lê Quang Đạo, Nam Từ Liêm, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0232,
-    lng: 105.7764,
-    availableSpots: 55,
-    totalSpots: 120,
-    pricePerHour: 10000,
-    rating: 4.3,
-    openHours: '24/7',
-    vehicleTypes: ['all', 'car', 'ev', 'motorbike'],
-    features: ['Sạc EV', 'Mái che', 'Camera AI'],
-  },
-];
-
-// ---------- Chuyển OsmParkingLot → ParkingLot cho BookingWizard ----------
-function osmToBookingLot(osm: OsmParkingLot): any {
-  const cap = osm.capacity ? parseInt(osm.capacity) : 20;
+// ---------- Hàm sinh toạ độ nhất quán ở Hà Nội ----------
+function getBuildingCoordinates(buildingId: string, address: string): { lat: number; lng: number } {
+  let hash = 0;
+  const str = buildingId + address;
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Hanoi coordinates: lat 21.0285, lng 105.8542
+  // Thêm offset nhất quán trong khoảng [-0.015, 0.015] để các toạ độ không bị trùng và tập trung gần khu trung tâm
+  const latOffset = ((Math.abs(hash) % 300) / 10000) - 0.015;
+  const lngOffset = ((Math.abs(hash >> 3) % 300) / 10000) - 0.015;
+  
   return {
-    id: osm.id,
-    name: osm.name,
-    address: osm.address,
-    type: osm.access === 'private' ? 'PRIVATE' : 'PUBLIC',
-    lat: osm.lat,
-    lng: osm.lng,
-    availableSpots: Math.max(1, Math.floor(cap * 0.6)),
-    totalSpots: cap,
-    pricePerHour: 5000,
-    rating: 4.0,
-    openHours: '06:00 – 22:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['OSM Data'],
+    lat: 21.0285 + latOffset,
+    lng: 105.8542 + lngOffset,
+  };
+}
+
+// ---------- Ánh xạ dữ liệu BuildingResponse sang ParkingLot ----------
+function mapBuildingToParkingLot(b: BuildingResponse): ParkingLot {
+  const coords = getBuildingCoordinates(b.id, b.address);
+  // Giả định 70% số chỗ là còn trống
+  const available = Math.max(1, Math.floor(b.totalCapacity * 0.7));
+  return {
+    id: b.id,
+    name: b.name,
+    address: b.address,
+    type: 'PUBLIC',
+    lat: coords.lat,
+    lng: coords.lng,
+    availableSpots: available,
+    totalSpots: b.totalCapacity,
+    pricePerHour: 10000, // Giá mặc định
+    rating: 4.5,
+    openHours: '24/7',
+    vehicleTypes: ['all', 'motorbike', 'car', 'ev'],
+    features: ['Camera 24/7', 'Bảo vệ', 'Có mái che'],
   };
 }
 
@@ -476,46 +263,32 @@ export default function BookingPage() {
     setRouteInfo(null);
   }, []);
 
-  // ── Wizard cho OSM lot ──
-  const [showOsmWizard, setShowOsmWizard] = useState(false);
-  const [osmWizardLot, setOsmWizardLot] = useState<any>(null);
+  // ── API Buildings state ──
+  const [buildingsList, setBuildingsList] = useState<ParkingLot[]>([]);
+  const [isLoadingBuildings, setIsLoadingBuildings] = useState(false);
+  const [buildingsError, setBuildingsError] = useState<string | null>(null);
 
-  const handleBookOsm = useCallback((osm: OsmParkingLot) => {
-    setOsmWizardLot(osmToBookingLot(osm));
-    setShowOsmWizard(true);
-  }, []);
-
-  // ── OSM (Overpass API) state ──
-  const [osmLots, setOsmLots] = useState<OsmParkingLot[]>([]);
-  const [isLoadingOsm, setIsLoadingOsm] = useState(false);
-  const [osmError, setOsmError] = useState<string | null>(null);
-  const [selectedOsmLot, setSelectedOsmLot] = useState<OsmParkingLot | null>(null);
-
-  // Tự động fetch OSM khi có vị trí hoặc thay đổi bán kính
+  // Fetch buildings khi mount
   useEffect(() => {
-    if (!userLocation) {
-      setOsmLots([]);
-      setSelectedOsmLot(null);
-      return;
-    }
     let cancelled = false;
-    setIsLoadingOsm(true);
-    setOsmError(null);
-    fetchOsmParking(userLocation.lat, userLocation.lng, nearbyRadius)
-      .then((lots) => {
+    setIsLoadingBuildings(true);
+    setBuildingsError(null);
+    getBuildings()
+      .then((data) => {
         if (!cancelled) {
-          setOsmLots(lots);
-          setIsLoadingOsm(false);
+          const mapped = data.map(mapBuildingToParkingLot);
+          setBuildingsList(mapped);
+          setIsLoadingBuildings(false);
         }
       })
-      .catch(() => {
+      .catch((err) => {
         if (!cancelled) {
-          setOsmError('Failed to load parking lot data. Check your internet connection.');
-          setIsLoadingOsm(false);
+          setBuildingsError(err.message || 'Failed to load buildings from database.');
+          setIsLoadingBuildings(false);
         }
       });
     return () => { cancelled = true; };
-  }, [userLocation, nearbyRadius]);
+  }, []);
 
   // Hàm lấy vị trí người dùng
   const handleLocateMe = useCallback(() => {
@@ -564,8 +337,8 @@ export default function BookingPage() {
 
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
 
-  // Filter & sort
-  const filtered = PARKING_LOTS.filter((lot) => {
+  // Filter & sort dựa trên danh sách tòa nhà lấy từ API
+  const filtered = buildingsList.filter((lot) => {
     const matchType =
       vehicleFilter === 'all' || lot.vehicleTypes.includes(vehicleFilter);
     const matchSearch =
@@ -587,24 +360,11 @@ export default function BookingPage() {
     return 0;
   });
 
-  const getOsmDistance = (lot: OsmParkingLot): string => {
+  const getDistanceStr = (lot: ParkingLot): string => {
     if (!userLocation) return '';
     const d = calcDistanceKm(userLocation.lat, userLocation.lng, lot.lat, lot.lng);
     return d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
   };
-
-  // Lọc OSM lots theo search text
-  const osmFiltered = osmLots.filter((lot) =>
-    !searchText ||
-    lot.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    lot.address.toLowerCase().includes(searchText.toLowerCase())
-  ).sort((a, b) => {
-    if (!userLocation) return 0;
-    return (
-      calcDistanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng) -
-      calcDistanceKm(userLocation.lat, userLocation.lng, b.lat, b.lng)
-    );
-  });
 
   const SORT_LABELS: Record<SortOption, string> = {
     relevance: 'Relevance',
@@ -814,195 +574,121 @@ export default function BookingPage() {
             </div>
 
             {/* Banner trạng thái */}
-            {userLocation ? (
-              <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${isLoadingOsm ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
-                <div className="flex-1 min-w-0">
-                  {isLoadingOsm ? (
-                    <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5">
-                      <Loader2 size={10} className="animate-spin" />
-                      Loading lots from OpenStreetMap...
+            <div className="flex items-center gap-2 bg-[#FF4C4C]/5 border border-[#FF4C4C]/10 rounded-xl px-3 py-2">
+              <div className={`w-2 h-2 rounded-full shrink-0 ${isLoadingBuildings ? 'bg-amber-400' : 'bg-emerald-500 animate-pulse'}`} />
+              <div className="flex-1 min-w-0">
+                {isLoadingBuildings ? (
+                  <p className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
+                    <Loader2 size={10} className="animate-spin" />
+                    Loading buildings from database...
+                  </p>
+                ) : buildingsError ? (
+                  <p className="text-xs font-bold text-red-500">{buildingsError}</p>
+                ) : (
+                  <>
+                    <p className="text-xs font-bold text-emerald-600">
+                      {filtered.length} building(s) managed
                     </p>
-                  ) : osmError ? (
-                    <p className="text-xs font-bold text-red-500">{osmError}</p>
-                  ) : (
-                    <>
-                      <p className="text-xs font-bold text-emerald-600">
-                        {osmFiltered.length} real lots within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
-                      </p>
-                      <p className="text-[10px] text-blue-500/80 truncate">from OpenStreetMap data</p>
-                    </>
-                  )}
-                </div>
+                    <p className="text-[10px] text-[#FF4C4C] font-semibold truncate">Active Building Network</p>
+                  </>
+                )}
+              </div>
+              {userLocation && (
                 <button
-                  onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); }}
-                  className="shrink-0 text-blue-500/60 hover:text-blue-800 transition-colors text-xs font-bold leading-none"
+                  onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); handleCancelRoute(); }}
+                  className="shrink-0 text-blue-500 hover:text-blue-800 transition-colors text-xs font-bold leading-none"
                   title="Turn off near me mode"
                 >
                   ✕
                 </button>
-              </div>
-            ) : null}
+              )}
+            </div>
           </div>
 
           {/* Lot list */}
           <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2.5 scrollbar-thin">
-
-            {/* Chưa định vị: hiển invite state */}
-            {!userLocation ? (
-              <div className="flex flex-col items-center justify-center h-full py-10 text-center px-4">
-                <div className="w-20 h-20 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-5 shadow-sm">
-                  <Navigation size={32} className="text-blue-500" />
-                </div>
-                <h3 className="text-base font-bold text-stone-850 mb-2">Find Parking Near You</h3>
-                <p className="text-xs text-stone-500 leading-relaxed mb-6">
-                  Allow location access to show the closest real parking lots from OpenStreetMap data.
-                </p>
-                <button
-                  onClick={handleLocateMe}
-                  disabled={locatingUser}
-                  className="flex items-center gap-2.5 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-white font-bold px-6 py-3 rounded-2xl text-sm transition-all shadow-md active:scale-95 w-full justify-center"
-                >
-                  {locatingUser ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Navigation size={16} />
-                  )}
-                  {locatingUser ? 'Locating...' : 'Find Near Me'}
-                </button>
-                {locationError && (
-                  <p className="text-xs text-red-500 mt-3">{locationError}</p>
-                )}
-                <div className="mt-6 pt-5 border-t border-gray-200/50 w-full">
-                  <p className="text-[10px] text-stone-400 mb-3 uppercase tracking-wider font-bold">Or select search radius</p>
-                  <div className="flex gap-2 justify-center">
-                    {RADIUS_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => { setNearbyRadius(opt.value); handleLocateMe(); }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${nearbyRadius === opt.value
-                            ? 'bg-blue-50 text-blue-600 border-blue-200'
-                            : 'text-stone-500 border-gray-200 hover:text-stone-800 hover:border-gray-300'
-                          }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            {isLoadingBuildings && (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <Loader2 size={24} className="text-[#FF4C4C] animate-spin" />
+                <p className="text-xs text-stone-500">Loading building data...</p>
               </div>
-            ) : (
-              /* Đã định vị: hiển kết quả OSM */
-              <>
-                {/* Loading OSM */}
-                {isLoadingOsm && (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <Loader2 size={24} className="text-blue-500 animate-spin" />
-                    <p className="text-xs text-stone-500">Matching parking lots near you...</p>
-                  </div>
-                )}
+            )}
 
-                {/* Lỗi OSM */}
-                {!isLoadingOsm && osmError && (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-                    <MapPin size={28} className="text-red-400 opacity-60" />
-                    <p className="text-xs text-red-500">{osmError}</p>
-                    <button
-                      onClick={() => setUserLocation({ ...userLocation })}
-                      className="text-xs text-blue-500 border border-blue-200 px-3 py-1.5 rounded-full hover:bg-blue-50 transition-all font-semibold"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )}
+            {!isLoadingBuildings && buildingsError && (
+              <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+                <MapPin size={28} className="text-red-400 opacity-60" />
+                <p className="text-xs text-red-500">{buildingsError}</p>
+              </div>
+            )}
 
-                {/* Kết quả OSM */}
-                {!isLoadingOsm && !osmError && osmFiltered.map((lot) => (
-                  <button
-                    key={lot.id}
-                    onClick={() => {
-                      setSelectedOsmLot(lot);
-                      setSelectedLot(null);
-                      setShowDetailPanel(false);
-                      mapInstance?.flyTo([lot.lat, lot.lng], 17, { duration: 1.2 });
-                    }}
-                    className={`w-full text-left rounded-2xl border p-4 transition-all group ${selectedOsmLot?.id === lot.id
-                        ? 'bg-emerald-50/80 border-emerald-500/40 shadow-sm'
-                        : 'bg-white border-gray-200/80 hover:border-emerald-500/30 hover:shadow-md hover:shadow-gray-200/10'
-                      }`}
+            {!isLoadingBuildings && !buildingsError && filtered.map((lot) => (
+              <button
+                key={lot.id}
+                onClick={() => {
+                  setSelectedLot(lot);
+                  setShowDetailPanel(true);
+                  mapInstance?.flyTo([lot.lat, lot.lng], 16, { duration: 1.2 });
+                }}
+                className={`w-full text-left rounded-2xl border p-4 transition-all group ${selectedLot?.id === lot.id
+                    ? 'bg-red-50/80 border-[#FF4C4C]/40 shadow-sm'
+                    : 'bg-white border-gray-205/80 hover:border-[#FF4C4C]/30 hover:shadow-md hover:shadow-gray-200/10'
+                  }`}
+              >
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <span className={`text-sm font-extrabold leading-tight ${selectedLot?.id === lot.id ? 'text-[#FF4C4C]' : 'text-stone-800 group-hover:text-stone-950'
+                    }`}>
+                    {lot.name}
+                  </span>
+                  <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200/50">
+                    {lot.type}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5 mb-3">
+                  <MapPin size={11} className="text-stone-400 shrink-0" />
+                  <span className="text-xs text-stone-400 truncate flex-1">{lot.address}</span>
+                  {userLocation && (
+                    <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-[#FF4C4C] bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">
+                      <Navigation2 size={9} />
+                      {getDistanceStr(lot)}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3 text-xs">
+                  <div className="flex items-center gap-1.5 text-stone-500">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C]" />
+                    <span>Spots: <span className="font-bold text-stone-700">{lot.availableSpots} / {lot.totalSpots}</span></span>
+                  </div>
+                  {/* Google Maps link */}
+                  <a
+                    href={`https://www.google.com/maps/dir/?api=1&destination=${lot.lat},${lot.lng}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="ml-auto text-[10px] font-bold text-blue-500 hover:text-blue-700 underline transition-colors"
                   >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className={`text-sm font-extrabold leading-tight ${selectedOsmLot?.id === lot.id ? 'text-emerald-600' : 'text-stone-800 group-hover:text-stone-950'
-                        }`}>
-                      {lot.name}
-                      </span>
-                      <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${lot.access === 'private'
-                          ? 'bg-sky-50 text-sky-600 border border-sky-200/50'
-                          : 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
-                        }`}>
-                        {lot.access === 'private' ? 'PRIVATE' : 'PUBLIC'}
-                      </span>
-                    </div>
+                    Directions
+                  </a>
+                </div>
 
-                    <div className="flex items-center gap-1.5 mb-3">
-                      <MapPin size={11} className="text-stone-400 shrink-0" />
-                      <span className="text-xs text-stone-400 truncate flex-1">{lot.address}</span>
-                      <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-                        <Navigation2 size={9} />
-                        {getOsmDistance(lot)}
-                      </span>
-                    </div>
+                <div className={`mt-3 text-center text-xs font-bold py-1.5 rounded-lg border transition-all ${selectedLot?.id === lot.id
+                    ? 'border-[#FF4C4C]/40 text-[#FF4C4C] bg-red-50'
+                    : 'border-gray-200 text-stone-500 bg-gray-50 group-hover:text-[#FF4C4C] group-hover:border-[#FF4C4C]/20 group-hover:bg-red-50/30'
+                  }`}>
+                  📍 View Details
+                </div>
+              </button>
+            ))}
 
-                    <div className="flex items-center gap-3 text-xs">
-                      {/* Sức chứa */}
-                      {lot.capacity && (
-                        <div className="flex items-center gap-1.5 text-stone-500">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          <span>Max <span className="font-bold text-stone-700">{lot.capacity}</span> spots</span>
-                        </div>
-                      )}
-                      {/* Badge OSM */}
-                      <span className="text-[10px] text-stone-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />OSM
-                      </span>
-                      {/* Mở Google Maps */}
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${lot.lat},${lot.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="ml-auto text-[10px] font-bold text-blue-500 hover:text-blue-700 underline transition-colors"
-                      >
-                        Directions
-                      </a>
-                    </div>
-
-                    <div className={`mt-3 text-center text-xs font-bold py-1.5 rounded-lg border transition-all ${selectedOsmLot?.id === lot.id
-                        ? 'border-emerald-500/40 text-emerald-600 bg-emerald-50'
-                        : 'border-gray-200 text-stone-500 bg-gray-50 group-hover:text-emerald-600 group-hover:border-emerald-500/20 group-hover:bg-emerald-50/30'
-                      }`}>
-                      📍 View on Map
-                    </div>
-                  </button>
-                ))}
-
-                {/* Trống */}
-                {!isLoadingOsm && !osmError && osmFiltered.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-3">
-                      <Navigation size={24} className="text-blue-500" />
-                    </div>
-                    <p className="text-sm font-bold text-stone-850 mb-1">No parking lots found</p>
-                    <p className="text-xs text-stone-500 mb-3">within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}</p>
-                    <button
-                      onClick={() => setNearbyRadius(Math.min(nearbyRadius * 2, 5000))}
-                      className="text-xs font-bold text-blue-500 hover:text-blue-700 border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-full transition-all"
-                    >
-                      Expand search radius
-                    </button>
-                  </div>
-                )}
-              </>
+            {!isLoadingBuildings && !buildingsError && filtered.length === 0 && (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mb-3">
+                  <MapPin size={24} className="text-[#FF4C4C]" />
+                </div>
+                <p className="text-sm font-bold text-stone-850 mb-1">No buildings found</p>
+                <p className="text-xs text-stone-500 mb-3">Try adjusting your search criteria</p>
+              </div>
             )}
           </div>
         </aside>
@@ -1011,8 +697,8 @@ export default function BookingPage() {
         <div className="flex-1 relative overflow-hidden">
           {/* Leaflet Map */}
           <MapContainer
-            center={[16.047, 108.206]}
-            zoom={6}
+            center={[21.0285, 105.8542]}
+            zoom={13}
             className="w-full h-full"
             style={{ background: '#F3F3F5' }}
             zoomControl={false}
@@ -1027,17 +713,16 @@ export default function BookingPage() {
             {/* Capture map instance */}
             <MapRefCapture onMap={handleMapRef} />
 
-            {/* Markers OSM thực tế (khi đã định vị) */}
-            {userLocation && !isLoadingOsm && osmFiltered.map((lot) => (
+            {/* Markers của các tòa nhà trong hệ thống */}
+            {filtered.map((lot) => (
               <Marker
                 key={lot.id}
                 position={[lot.lat, lot.lng]}
-                icon={createOsmParkingIcon(selectedOsmLot?.id === lot.id)}
+                icon={createParkingIcon(selectedLot?.id === lot.id ? '#FF4C4C' : '#3B82F6')}
                 eventHandlers={{
                   click: () => {
-                    setSelectedOsmLot(lot);
-                    setSelectedLot(null);
-                    setShowDetailPanel(false);
+                    setSelectedLot(lot);
+                    setShowDetailPanel(true);
                   },
                 }}
               >
@@ -1047,35 +732,34 @@ export default function BookingPage() {
                     <div className="px-4 pt-4 pb-3 border-b border-gray-100">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <p className="font-extrabold text-[#FF4C4C] text-sm leading-tight flex-1">{lot.name}</p>
-                        <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${lot.access === 'private'
-                            ? 'bg-sky-50 text-sky-600 border border-sky-200'
-                            : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                          }`}>
-                          {lot.access === 'private' ? 'PRIVATE' : 'PUBLIC'}
+                        <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
+                          {lot.type}
                         </span>
                       </div>
                       <p className="text-[11px] text-stone-400 leading-snug">{lot.address}</p>
                       <div className="flex items-center gap-3 mt-2 text-[11px]">
-                        <span className="flex items-center gap-1 text-emerald-600 font-bold">
-                          <Navigation2 size={10} />{getOsmDistance(lot)}
-                        </span>
-                        {lot.capacity && (
-                          <span className="text-stone-500 font-medium">Max {lot.capacity} spots</span>
+                        {userLocation && (
+                          <span className="flex items-center gap-1 text-blue-600 font-bold">
+                            <Navigation2 size={10} />{getDistanceStr(lot)}
+                          </span>
                         )}
+                        <span className="text-stone-500 font-medium">Spots: {lot.availableSpots} / {lot.totalSpots}</span>
                       </div>
                     </div>
                     {/* Action buttons */}
                     <div className="p-3 space-y-2">
+                      {userLocation && (
+                        <button
+                          onClick={() => handleGetDirections(lot.lat, lot.lng)}
+                          disabled={isLoadingRoute}
+                          className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm shadow-blue-500/10"
+                        >
+                          {isLoadingRoute ? <Loader2 size={13} className="animate-spin" /> : <Route size={13} />}
+                          Get Directions
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleGetDirections(lot.lat, lot.lng)}
-                        disabled={isLoadingRoute}
-                        className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm shadow-blue-500/10"
-                      >
-                        {isLoadingRoute ? <Loader2 size={13} className="animate-spin" /> : <Route size={13} />}
-                        Get Directions
-                      </button>
-                      <button
-                        onClick={() => handleBookOsm(lot)}
+                        onClick={() => { setSelectedLot(lot); setShowWizard(true); }}
                         className="w-full flex items-center justify-center gap-2 bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm shadow-[#FF4C4C]/10"
                       >
                         <CalendarCheck size={13} />
@@ -1175,36 +859,6 @@ export default function BookingPage() {
             </div>
           </div>
 
-          {/* ===== Overlay "Find Parking" khi chưa định vị ===== */}
-          {!userLocation && (
-            <div className="absolute inset-0 z-[999] flex items-center justify-center pointer-events-none">
-              <div className="pointer-events-auto flex flex-col items-center gap-4">
-                {/* Vòng sóng nền */}
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-full bg-blue-500/10 animate-ping" style={{ width: 120, height: 120, margin: 'auto', top: 0, left: 0, right: 0, bottom: 0 }} />
-                  <button
-                    onClick={handleLocateMe}
-                    disabled={locatingUser}
-                    className="relative w-[72px] h-[72px] rounded-full bg-stone-900 hover:bg-stone-850 disabled:opacity-70 text-white shadow-xl flex items-center justify-center transition-all active:scale-95 border-4 border-stone-800/20"
-                  >
-                    {locatingUser
-                      ? <Loader2 size={28} className="animate-spin" />
-                      : <Navigation size={28} />
-                    }
-                  </button>
-                </div>
-                <div className="bg-white/95 backdrop-blur-md border border-gray-200/80 rounded-2xl px-5 py-3 text-center shadow-lg">
-                  <p className="text-sm font-bold text-stone-900 mb-0.5">
-                    {locatingUser ? 'Locating...' : 'Find Parking Near Me'}
-                  </p>
-                  <p className="text-[11px] text-stone-400">
-                    {locatingUser ? 'Please wait a moment' : 'Click to find parking near you'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Panel chọn bán kính "Gần tôi" khi đã có vị trí */}
           {userLocation && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
@@ -1235,7 +889,7 @@ export default function BookingPage() {
               </div>
               {/* Số bãi tìm thấy */}
               <div className="text-[10px] text-blue-600 font-bold bg-blue-50/80 px-3 py-1 rounded-full border border-blue-100 shadow-sm">
-                Found <span className="text-blue-700">{osmFiltered.length}</span> parking lots within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
+                Found <span className="text-blue-700">{filtered.length}</span> building(s) within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
               </div>
             </div>
           )}
@@ -1419,19 +1073,11 @@ export default function BookingPage() {
         </div>
       </div>
 
-      {/* ===== Booking Wizard (hardcoded lot) ===== */}
+      {/* ===== Booking Wizard ===== */}
       {showWizard && selectedLot && (
         <BookingWizard
           lot={selectedLot}
           onClose={() => setShowWizard(false)}
-        />
-      )}
-
-      {/* ===== Booking Wizard (OSM lot) ===== */}
-      {showOsmWizard && osmWizardLot && (
-        <BookingWizard
-          lot={osmWizardLot}
-          onClose={() => { setShowOsmWizard(false); setOsmWizardLot(null); }}
         />
       )}
     </div>

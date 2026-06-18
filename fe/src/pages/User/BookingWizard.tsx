@@ -1282,8 +1282,13 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           getAllPolicies()
         ]);
 
+        // Sắp xếp các chính sách theo thời gian tạo giảm dần để lấy chính sách mới nhất
+        const sortedPolicies = [...policies].sort((a, b) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
         const mapped = types.map(t => {
-          const policy = policies.find(p => p.vehicleTypeId === t.id);
+          const policy = sortedPolicies.find(p => p.vehicleTypeId === t.id);
           let rate = policy?.hourlyRate ?? 0;
           if (rate === 0) {
             const lowerName = t.name.toLowerCase();

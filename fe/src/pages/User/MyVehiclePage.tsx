@@ -53,7 +53,7 @@ export default function MyVehiclePage() {
     try {
       setLoading(true);
       setError(null);
-      
+
       const [vehiclesData, typesData] = await Promise.all([
         getMyVehicles(token),
         getVehicleTypes(),
@@ -232,9 +232,8 @@ export default function MyVehiclePage() {
                     </span>
                     <ChevronDown
                       size={14}
-                      className={`text-stone-500 transition-transform duration-200 ${
-                        isDropdownOpen ? 'rotate-180' : ''
-                      }`}
+                      className={`text-stone-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''
+                        }`}
                     />
                   </button>
 
@@ -292,13 +291,13 @@ export default function MyVehiclePage() {
 
       {/* Main Container */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 w-full flex flex-col gap-6">
-        
+
         {/* Header Card ( Teal / Cyan Gradient ) */}
         <div className="bg-gradient-to-r from-teal-600 to-cyan-700 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
           {/* Decorative shapes */}
           <div className="absolute right-0 bottom-0 translate-x-1/4 translate-y-1/4 w-64 h-64 bg-white/10 rounded-full blur-2xl" />
           <div className="absolute left-1/3 top-0 -translate-y-1/2 w-48 h-48 bg-teal-500/30 rounded-full blur-xl" />
-          
+
           <div className="relative z-10">
             <button
               onClick={() => navigate('/')}
@@ -369,7 +368,7 @@ export default function MyVehiclePage() {
                       <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-stone-550 border border-gray-150 shadow-inner shrink-0">
                         <Car size={22} />
                       </div>
-                      
+
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-lg font-black tracking-wide text-stone-900">
@@ -425,7 +424,7 @@ export default function MyVehiclePage() {
       {isModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
           <div className="w-full max-w-md bg-white border border-gray-200 rounded-[2rem] shadow-2xl overflow-hidden animate-fade-in-up">
-            
+
             {/* Header */}
             <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex items-center justify-between">
               <h3 className="text-lg font-black text-stone-900">
@@ -442,7 +441,7 @@ export default function MyVehiclePage() {
             <form onSubmit={handleSubmit}>
               {/* Form body */}
               <div className="p-6 space-y-5">
-                
+
                 {modalError && (
                   <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-bold flex items-center gap-2">
                     <AlertTriangle size={14} className="shrink-0" />
