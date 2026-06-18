@@ -832,7 +832,7 @@ export default function ParkingLots() {
       {/* ── DETAIL MODAL ── */}
       {modalType === 'detail' && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="border border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
@@ -950,7 +950,7 @@ export default function ParkingLots() {
       {/* ── ADD / EDIT MODAL ── */}
       {(modalType === 'add' || modalType === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-[#0A0A0C] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]" style={{ backgroundColor: 'var(--admin-bg-base)' }}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
@@ -1313,8 +1313,9 @@ export default function ParkingLots() {
       {toast && (
         <div className={`fixed top-5 right-5 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl text-sm font-medium max-w-sm
           ${toast.type === 'success'
-            ? 'bg-[#121214] border-[#FF4C4C]/40 text-[#FF4C4C]'
-            : 'bg-[#121214] border-red-400/40 text-red-400'}`}
+            ? 'border-[#FF4C4C]/40 text-[#FF4C4C]'
+            : 'border-red-400/40 text-red-400'}`}
+          style={{ backgroundColor: 'var(--admin-bg-surface)' }}
         >
           {toast.type === 'success' ? <CircleCheck size={16} className="shrink-0" /> : <AlertTriangle size={16} className="shrink-0" />}
           <span className="flex-1">{toast.msg}</span>
@@ -1327,7 +1328,7 @@ export default function ParkingLots() {
       {/* ── DELETE CONFIRM MODAL ── */}
       {modalType === 'delete' && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl">
+          <div className="border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="px-6 pt-6 pb-4 text-center">
               <div className="w-14 h-14 rounded-2xl bg-red-400/10 flex items-center justify-center mx-auto mb-4">
                 <Trash2 size={24} className="text-red-400" />

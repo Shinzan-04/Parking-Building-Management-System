@@ -396,7 +396,7 @@ export default function UsersPage() {
                             <ChevronDown size={12} className="text-white/30 ml-0.5" />
                           </button>
                           {showRoleDropdown === u.id && (
-                            <div className="absolute top-8 left-0 z-20 bg-[#121214] border border-white/10 rounded-xl py-1 shadow-2xl min-w-[150px]">
+                            <div className="absolute top-8 left-0 z-20 border border-white/10 rounded-xl py-1 shadow-2xl min-w-[150px]" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
                               {allRoles.map(r => (
                                 <button
                                   key={r}
@@ -508,7 +508,7 @@ export default function UsersPage() {
       {/* ── ADD / EDIT MODAL ── */}
       {(modalType === 'add' || modalType === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-semibold text-white">
                 {modalType === 'add' ? 'Thêm người dùng mới' : `Chỉnh sửa · ${selected?.fullName}`}
@@ -604,7 +604,7 @@ export default function UsersPage() {
       {/* ── DELETE MODAL ── */}
       {modalType === 'delete' && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl">
+          <div className="border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="px-6 pt-6 pb-4 text-center">
               <div className="flex justify-center mb-4">
                 <AvatarIcon name={selected.fullName} role={selected.role} />

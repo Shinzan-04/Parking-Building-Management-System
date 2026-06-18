@@ -52,7 +52,7 @@ function ChartTooltip({ active, payload, label, color, formatter }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#121214] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
+    <div className="bg-[var(--admin-bg-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
       <p className="text-white/60 mb-1">{label}</p>
       <p className="font-semibold" style={{ color }}>{formatter(payload[0].value)}</p>
     </div>
