@@ -107,16 +107,16 @@ function SessionDetailModal({
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
+      <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg shadow-2xl bg-white dark:bg-[#0E0E10]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
           <div className="flex items-center gap-2.5">
             <ClipboardList size={16} className="text-[#FF4C4C]" />
-            <h3 className="text-base font-semibold text-white">
+            <h3 className="text-base font-semibold text-gray-800 dark:text-white">
               Chi tiết phiên đỗ xe
             </h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
+          <button onClick={onClose} className="p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
             <X size={16} />
           </button>
         </div>
@@ -124,7 +124,7 @@ function SessionDetailModal({
         {/* Body */}
         <div className="px-6 py-5">
           {loading && (
-            <div className="flex items-center justify-center py-12 gap-2 text-white/40">
+            <div className="flex items-center justify-center py-12 gap-2 text-gray-400 dark:text-white/40">
               <Loader2 size={18} className="animate-spin" />
               <span className="text-sm">Đang tải...</span>
             </div>
@@ -135,10 +135,10 @@ function SessionDetailModal({
               {/* License plate + status */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-2xl font-bold font-mono text-white tracking-wider">
+                  <p className="text-2xl font-bold font-mono text-gray-800 dark:text-white tracking-wider">
                     {session.licensePlate}
                   </p>
-                  <p className="text-xs text-white/40 mt-0.5">{session.sessionCode}</p>
+                  <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">{session.sessionCode}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   <StatusBadge status={session.status} />
@@ -156,16 +156,16 @@ function SessionDetailModal({
                   { label: 'Thời gian',  value: session.duration || '—' },
                   { label: 'Nhân viên',  value: session.staffName ?? '—' },
                 ].map(row => (
-                  <div key={row.label} className="bg-white/[0.04] rounded-xl px-3.5 py-3">
-                    <p className="text-[10px] text-white/40 uppercase tracking-wider mb-0.5">{row.label}</p>
-                    <p className="text-sm text-white font-medium">{row.value}</p>
+                  <div key={row.label} className="bg-gray-50 dark:bg-white/[0.04] rounded-xl px-3.5 py-3">
+                    <p className="text-[10px] text-gray-400 dark:text-white/40 uppercase tracking-wider mb-0.5">{row.label}</p>
+                    <p className="text-sm text-gray-800 dark:text-white font-medium">{row.value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Fee */}
               <div className="flex items-center justify-between px-4 py-3.5 bg-[#FF4C4C]/5 border border-[#FF4C4C]/20 rounded-xl">
-                <div className="flex items-center gap-2 text-sm text-white/60">
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/60">
                   <Banknote size={15} className="text-[#FF4C4C]" />
                   Phí gửi xe
                 </div>
@@ -174,8 +174,8 @@ function SessionDetailModal({
 
               {/* Entry image */}
               {session.entryImageUrl && (
-                <div className="rounded-xl overflow-hidden border border-white/10">
-                  <p className="text-[10px] text-white/40 px-3 py-2 bg-white/5 uppercase tracking-wider">Ảnh xe vào</p>
+                <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-white/10">
+                  <p className="text-[10px] text-gray-400 dark:text-white/40 px-3 py-2 bg-gray-50 dark:bg-white/5 uppercase tracking-wider">Ảnh xe vào</p>
                   <img src={session.entryImageUrl} alt="entry" className="w-full object-cover max-h-48" />
                 </div>
               )}
@@ -183,8 +183,8 @@ function SessionDetailModal({
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-white/10">
-          <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10">
+          <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
             Đóng
           </button>
         </div>
