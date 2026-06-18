@@ -39,12 +39,16 @@ function fmtDateTime(iso: string) {
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, string> = {
-  Pending:   'bg-amber-400/10 text-amber-400',
+  PaymentPending: 'bg-amber-400/10 text-amber-400',
+  Paid: 'bg-emerald-400/10 text-emerald-400',
+  PendingReview: 'bg-amber-400/10 text-amber-400',
   Confirmed: 'bg-[#FF4C4C]/10 text-[#FF4C4C]',
   CheckedIn: 'bg-amber-500/10 text-amber-500',
   Cancelled: 'bg-white/10 text-white/50',
   Completed: 'bg-white/10 text-white/40',
   Rejected:  'bg-red-400/10 text-red-400',
+  NoShow: 'bg-white/10 text-white/50',
+  PaymentFailed: 'bg-red-400/10 text-red-400',
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -68,7 +72,7 @@ function ReservationCard({
   onReject:  (r: ReservationResponse) => void;
 }) {
   const status = normalizeReservationStatus(r.status);
-  const isPending = status === 'Pending';
+  const isPending = status === 'PendingReview';
 
   return (
     <div className="glass-card p-5 rounded-2xl space-y-4 hover:border-white/20 transition-all">

@@ -103,13 +103,12 @@ export default function MyTicketPage() {
 
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
 
-  // Định nghĩa các trạng thái hoạt động và lịch sử
-  // Active: Pending (0), Confirmed (1), CheckedIn (2)
-  // History: Cancelled (3), Completed (4), Rejected (5)
+  // Active: PaymentPending, Paid, PendingReview, Confirmed, CheckedIn
+  // History: Cancelled, Completed, Rejected, NoShow, PaymentFailed
   const filterTickets = () => {
     return reservations.filter((ticket) => {
       const status = normalizeReservationStatus(ticket.status);
-      const isActiveStatus = status === 'Pending' || status === 'Confirmed' || status === 'CheckedIn';
+      const isActiveStatus = ['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(status);
       
       if (activeTab === 'active') {
         return isActiveStatus;
@@ -156,17 +155,21 @@ export default function MyTicketPage() {
   const getStatusBadgeStyle = (status: string | number) => {
     const normalized = normalizeReservationStatus(status);
     switch (normalized) {
-      case 'Pending':
+      case 'PaymentPending':
+      case 'PendingReview':
         return 'bg-amber-50 text-amber-600 border border-amber-200';
+      case 'Paid':
       case 'Confirmed':
         return 'bg-emerald-50 text-emerald-600 border border-emerald-200';
       case 'CheckedIn':
         return 'bg-blue-50 text-blue-600 border border-blue-200';
       case 'Cancelled':
+      case 'NoShow':
         return 'bg-stone-50 text-stone-500 border border-stone-200';
       case 'Completed':
         return 'bg-stone-100 text-stone-600 border border-stone-200';
       case 'Rejected':
+      case 'PaymentFailed':
         return 'bg-red-50 text-red-600 border border-red-200';
       default:
         return 'bg-gray-50 text-gray-500 border border-gray-200';
@@ -309,7 +312,7 @@ export default function MyTicketPage() {
           >
             Vé đang hoạt động ({reservations.filter(r => {
               const s = normalizeReservationStatus(r.status);
-              return s === 'Pending' || s === 'Confirmed' || s === 'CheckedIn';
+              return ['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(s);
             }).length})
           </button>
           <button
@@ -322,7 +325,7 @@ export default function MyTicketPage() {
           >
             Lịch sử đỗ xe ({reservations.filter(r => {
               const s = normalizeReservationStatus(r.status);
-              return !(s === 'Pending' || s === 'Confirmed' || s === 'CheckedIn');
+              return !['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(s);
             }).length})
           </button>
         </div>
@@ -361,7 +364,7 @@ export default function MyTicketPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTickets.map((ticket) => {
               const status = normalizeReservationStatus(ticket.status);
-              const isPendingOrConfirmed = status === 'Pending' || status === 'Confirmed';
+              const isActive = ['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(status);
               
               return (
                 <div
@@ -415,7 +418,7 @@ export default function MyTicketPage() {
                   {/* Actions buttons */}
                   <div className="flex items-center gap-2">
                     {/* Nút xem QR Code */}
-                    {(status === 'Pending' || status === 'Confirmed' || status === 'CheckedIn') && (
+                    {['Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(status) && (
                       <button
                         onClick={() => setSelectedTicketForQr(ticket)}
                         className="flex-1 flex items-center justify-center gap-2 bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold py-3 rounded-2xl text-xs uppercase tracking-wider shadow-sm transition-all"
@@ -424,9 +427,16 @@ export default function MyTicketPage() {
                         Vé QR Code
                       </button>
                     )}
+                    
+                    {/* Nút thông báo chưa thanh toán */}
+                    {status === 'PaymentPending' && (
+                      <div className="flex-1 text-center py-3 rounded-2xl text-xs uppercase tracking-wider font-bold bg-amber-50 text-amber-600 border border-amber-200">
+                        Chưa thanh toán
+                      </div>
+                    )}
 
                     {/* Nút Hủy (Chỉ hiện khi chưa CheckedIn và Chưa Hủy) */}
-                    {isPendingOrConfirmed && (
+                    {['PaymentPending', 'Paid', 'PendingReview', 'Confirmed'].includes(status) && (
                       <button
                         disabled={submittingCancel && cancellingId === ticket.id}
                         onClick={() => handleCancelBooking(ticket.id)}
