@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import {
   Search,
@@ -9,7 +9,8 @@ import {
   LogOut,
   Activity,
   ChevronDown,
-  Ticket
+  Ticket,
+  LayoutDashboard,
 } from 'lucide-react';
 
 function getDashboardPath(role: string | number): string | null {
@@ -21,17 +22,18 @@ function getDashboardPath(role: string | number): string | null {
 
 export default function UserLandingPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, token, logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Redirect admin/manager/staff ra khỏi trang chủ về đúng dashboard
+  // Redirect admin/manager/staff về dashboard, trừ khi họ chủ động vào trang chủ
   useEffect(() => {
-    if (user) {
+    if (user && !(location.state as { fromDashboard?: boolean })?.fromDashboard) {
       const path = getDashboardPath(user.role);
       if (path) navigate(path, { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, location.state]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -106,7 +108,20 @@ export default function UserLandingPage() {
 
                   {/* Dropdown Menu */}
                   {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
+                    <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
+                      {getDashboardPath(user.role) && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => { setIsDropdownOpen(false); navigate(getDashboardPath(user.role)!); }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                          >
+                            <LayoutDashboard size={16} />
+                            <span>Trang quản lý</span>
+                          </button>
+                          <div className="border-t border-gray-100 my-1" />
+                        </>
+                      )}
                       <button
                         type="button"
                         onClick={() => { setIsDropdownOpen(false); navigate('/myticket'); }}

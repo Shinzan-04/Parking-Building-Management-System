@@ -1,9 +1,10 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Car, MapPin, BarChart3, LogOut, Bell, ChevronDown,
-  DollarSign, ClipboardList, CalendarCheck,
+  LayoutDashboard, Car, MapPin, BarChart3, LogOut, Bell,
+  DollarSign, ClipboardList, CalendarCheck, Sun, Moon, Home,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 
 const navItems = [
   { to: '/manager',                  label: 'Dashboard',      icon: LayoutDashboard, end: true  },
@@ -18,6 +19,7 @@ const navItems = [
 export default function ManagerLayout() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = () => {
     logout();
@@ -27,18 +29,29 @@ export default function ManagerLayout() {
   const initials = user?.fullName?.charAt(0)?.toUpperCase() ?? 'M';
 
   return (
-    <div className="flex min-h-screen bg-[#0A0A0C]">
+    <div
+      className="admin-portal flex min-h-screen"
+      style={{ backgroundColor: 'var(--admin-bg-base)', color: 'var(--admin-text-primary)' }}
+    >
       {/* Sidebar */}
-      <aside className="fixed top-0 left-0 h-screen w-64 bg-[#0E0E10] border-r border-white/5 flex flex-col z-30">
+      <aside
+        className="fixed top-0 left-0 h-screen w-64 flex flex-col z-30 border-r"
+        style={{
+          backgroundColor: 'var(--admin-bg-surface)',
+          borderColor: 'var(--admin-border)',
+        }}
+      >
         {/* Logo */}
-        <div className="px-6 py-5 border-b border-white/5">
+        <div className="px-6 py-5 border-b" style={{ borderColor: 'var(--admin-border)' }}>
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30">
               <Car size={18} className="text-white" />
             </div>
             <div>
-              <p className="text-sm font-bold text-white leading-tight">PARKING<span className="text-[#FF4C4C]">.</span></p>
-              <p className="text-xs text-white/40">Manager Panel</p>
+              <p className="text-sm font-bold leading-tight" style={{ color: 'var(--admin-text-primary)' }}>
+                PARKING<span className="text-[#FF4C4C]">.</span>
+              </p>
+              <p className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>Manager Panel</p>
             </div>
           </div>
         </div>
@@ -54,9 +67,10 @@ export default function ManagerLayout() {
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
                     ? 'bg-[#FF4C4C]/10 text-[#FF4C4C] border border-[#FF4C4C]/20'
-                    : 'text-white/50 hover:text-white hover:bg-white/5'
+                    : 'hover:bg-[var(--admin-bg-card)]'
                 }`
               }
+              style={({ isActive }) => isActive ? {} : { color: 'var(--admin-text-muted)' }}
             >
               {({ isActive }) => (
                 <>
@@ -70,19 +84,33 @@ export default function ManagerLayout() {
         </nav>
 
         {/* User info + logout */}
-        <div className="px-3 py-4 border-t border-white/5 space-y-1">
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-white/5">
+        <div className="px-3 py-4 border-t space-y-1" style={{ borderColor: 'var(--admin-border)' }}>
+          <div
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+            style={{ backgroundColor: 'var(--admin-bg-card)' }}
+          >
             <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-sm shrink-0">
               {initials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user?.fullName ?? 'Manager'}</p>
-              <p className="text-xs text-white/40 truncate">Manager</p>
+              <p className="text-sm font-medium truncate" style={{ color: 'var(--admin-text-primary)' }}>
+                {user?.fullName ?? 'Manager'}
+              </p>
+              <p className="text-xs truncate" style={{ color: 'var(--admin-text-faint)' }}>Manager</p>
             </div>
           </div>
           <button
+            onClick={() => navigate('/', { state: { fromDashboard: true } })}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-[var(--admin-bg-card)] transition-all"
+            style={{ color: 'var(--admin-text-muted)' }}
+          >
+            <Home size={17} />
+            Trang chủ
+          </button>
+          <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-white/50 hover:text-red-400 hover:bg-red-400/10 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium hover:text-red-500 hover:bg-red-400/10 transition-all"
+            style={{ color: 'var(--admin-text-muted)' }}
           >
             <LogOut size={17} />
             Đăng xuất
@@ -93,23 +121,43 @@ export default function ManagerLayout() {
       {/* Main area */}
       <div className="ml-64 flex-1 flex flex-col min-h-screen">
         {/* Top header */}
-        <header className="sticky top-0 z-20 bg-[#0A0A0C]/80 backdrop-blur-md border-b border-white/5 px-8 py-4 flex items-center justify-between">
+        <header
+          className="sticky top-0 z-20 backdrop-blur-md border-b px-8 py-4 flex items-center justify-between"
+          style={{
+            backgroundColor: `color-mix(in srgb, var(--admin-bg-base) 85%, transparent)`,
+            borderColor: 'var(--admin-border)',
+          }}
+        >
           <div>
-            <h1 className="text-base font-semibold text-white">Bảng điều khiển Manager</h1>
-            <p className="text-xs text-white/40">Hệ thống quản lý bãi đỗ xe thông minh</p>
+            <h1 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
+              Bảng điều khiển Manager
+            </h1>
+            <p className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>
+              Hệ thống quản lý bãi đỗ xe thông minh
+            </p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="relative p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
-              <Bell size={17} className="text-white/60" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FF4C4C] rounded-full ring-2 ring-[#0A0A0C]" />
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl transition-colors"
+              style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
+              title={theme === 'dark' ? 'Chuyển Light mode' : 'Chuyển Dark mode'}
+            >
+              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 cursor-pointer hover:bg-white/10 transition-colors">
-              <div className="w-7 h-7 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs">
-                {initials}
-              </div>
-              <span className="text-sm text-white/80 font-medium">{user?.fullName ?? 'Manager'}</span>
-              <ChevronDown size={14} className="text-white/40" />
-            </div>
+
+            <button
+              className="relative p-2 rounded-xl transition-colors"
+              style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
+            >
+              <Bell size={17} />
+              <span
+                className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FF4C4C] rounded-full"
+                style={{ boxShadow: '0 0 0 2px var(--admin-bg-base)' }}
+              />
+            </button>
+
           </div>
         </header>
 
