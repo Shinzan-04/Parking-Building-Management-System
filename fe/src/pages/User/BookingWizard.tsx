@@ -14,6 +14,7 @@ import {
   ClipboardList,
   Building2,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { getVehicleTypes } from '../../services/vehicleTypesService';
 import { getAllPolicies, getPolicyByVehicleType } from '../../services/pricingService';
@@ -22,7 +23,7 @@ import { getFloorsByBuilding, getBuildings } from '../../services/buildingsServi
 import type { FloorResponse } from '../../services/buildingsService';
 import { getSlotsByFloor } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
-import { createReservation } from '../../services/reservationsService';
+import { createReservation, confirmPayment, getAiSuggestions } from '../../services/reservationsService';
 import { getMyVehicles } from '../../services/vehiclesService';
 import type { VehicleResponse } from '../../services/vehiclesService';
 
@@ -43,9 +44,10 @@ interface WizardState {
   entryTime: string;
   duration: number; // hours
   floor: string | null;
-  zone: string | null;
   slot: string | null;
   slotId: string | null;
+  zone: string | null;
+  bookingMethod: number; // 0 = Manual, 1 = AIRecommended
 }
 
 interface BookingWizardProps {
@@ -804,6 +806,7 @@ function StepSelectSlot({
   slots: ParkingSlotDetail[];
   vehicles: ApiVehicleType[];
 }) {
+  const [loadingAi, setLoadingAi] = useState(false);
   const COLS = 8; // Số cột trong lưới (A → H)
 
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
@@ -855,16 +858,49 @@ function StepSelectSlot({
   return (
     <div className="flex flex-col gap-5">
       {/* ── Step header ── */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
-          <ParkingSquare size={20} className="text-[#FF4C4C]" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+            <ParkingSquare size={20} className="text-[#FF4C4C]" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-stone-900">Select Slot</h2>
+            <p className="text-xs text-stone-500">
+              Step 5 of 5 — Pick an available parking spot
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-stone-900">Select Slot</h2>
-          <p className="text-xs text-stone-500">
-            Step 5 of 5 — Pick an available parking spot
-          </p>
-        </div>
+        <button
+          onClick={async () => {
+            try {
+              setLoadingAi(true);
+              const token = localStorage.getItem('sp_token') || '';
+              const suggestions = await getAiSuggestions(state.vehicleType!, undefined, 1, token);
+              if (suggestions.length > 0) {
+                const best = suggestions[0];
+                setState(s => ({
+                  ...s,
+                  floor: best.floorId,
+                  slotId: best.slotId,
+                  slot: best.slotNumber,
+                  zone: getZoneName(best.slotNumber),
+                  bookingMethod: 1 // Mark as AI Recommended
+                }));
+              } else {
+                alert('Không có chỗ đỗ nào khả dụng theo gợi ý của AI.');
+              }
+            } catch (err: any) {
+              alert('AI Suggest error: ' + err.message);
+            } finally {
+              setLoadingAi(false);
+            }
+          }}
+          disabled={loadingAi}
+          className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
+        >
+          {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          {loadingAi ? 'AI Thinking...' : 'AI Suggest'}
+        </button>
       </div>
 
       {/* ── Stats Thống kê nhanh ── */}
@@ -946,6 +982,7 @@ function StepSelectSlot({
                             slot: slot.slotNumber,
                             slotId: slot.id,
                             zone: getZoneName(slot.slotNumber),
+                            bookingMethod: 0 // Mark as Manual
                           }));
                         }}
                         className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 border-2 text-[9px] font-bold transition-all select-none ${getSlotStyle(slot)}`}
@@ -1186,9 +1223,16 @@ function ConfirmationPopup({
         licensePlate: state.licensePlate,
         startTime: entry.toISOString(),
         endTime: exit.toISOString(),
+        buildingId: lot.id,
+        bookingMethod: state.bookingMethod
       };
 
       const res = await createReservation(payload, token);
+      
+      // Simulate successful payment instantly by calling confirmPayment API
+      await confirmPayment(res.id, token);
+      res.status = 'PendingReview'; // update locally so UI reflects it
+      
       setCreatedReservation(res);
       setPhase('qr');
     } catch (err: any) {
@@ -1551,9 +1595,10 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     entryTime: nowTimeStr(),
     duration: 2,
     floor: null,
-    zone: null,
     slot: null,
     slotId: null,
+    zone: null,
+    bookingMethod: 0
   });
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
