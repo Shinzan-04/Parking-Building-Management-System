@@ -48,6 +48,14 @@ public class ReservationResponse
     public string? AIReason { get; set; }
     public string? RejectReason { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    // ===== THÔNG TIN THANH TOÁN PAYOS =====
+    /// <summary>Link QR PayOS để thanh toán tiền đặt chỗ. Null nếu miễn phí.</summary>
+    public string? PayOSCheckoutUrl { get; set; }
+    /// <summary>Phí đặt chỗ cần thanh toán (VND)</summary>
+    public decimal? BookingFee { get; set; }
+    /// <summary>Mã đơn hàng PayOS để tra cứu trạng thái</summary>
+    public long? PayOSOrderCode { get; set; }
 }
 
 // ===== STAFF DUYỆT =====

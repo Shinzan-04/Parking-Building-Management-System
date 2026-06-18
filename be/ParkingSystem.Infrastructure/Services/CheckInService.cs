@@ -160,6 +160,27 @@ public class CheckInService : ICheckInService
     /// </summary>
     public async Task<CheckInResponse> CheckInWalkInAsync(CheckInWalkInRequest request)
     {
+        // 1. SMART CHECK-IN: Kiểm tra xem biển số này có Booking hợp lệ đang chờ không?
+        var now = DateTime.UtcNow;
+        var searchPlate = request.LicensePlate.Trim().ToLower();
+        var validStatuses = new[] { ReservationStatus.Confirmed, ReservationStatus.PendingReview, ReservationStatus.Paid };
+        var validReservation = await _context.Reservations
+            .Include(r => r.ParkingSlot)
+                .ThenInclude(s => s.Floor)
+                    .ThenInclude(f => f.Building)
+            .Include(r => r.VehicleType)
+            .FirstOrDefaultAsync(r => r.LicensePlate.ToLower() == searchPlate
+                                   && validStatuses.Contains(r.Status)
+                                   && now >= r.StartTime.AddMinutes(-30)
+                                   && now <= r.EndTime);
+
+        if (validReservation != null)
+        {
+            // Tự động chuyển hướng sang luồng Check-in bằng Booking!
+            return await ProcessBookingCheckIn(validReservation, request.LicensePlate, request.StaffId, request.EntryImageBase64);
+        }
+
+        // 2. KHÁCH VÃNG LAI: Nếu không có Booking thì chạy logic Walk-in bình thường
         // Kiểm tra loại xe có tồn tại không
         var vehicleType = await _context.VehicleTypes.FindAsync(request.VehicleTypeId);
         if (vehicleType == null)
