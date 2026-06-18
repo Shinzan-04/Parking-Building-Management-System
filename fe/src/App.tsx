@@ -29,6 +29,9 @@ const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
 const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
 const MyTicketPage     = lazy(() => import('./pages/User/MyTicketPage'));
+const ProfilePage      = lazy(() => import('./pages/User/ProfilePage'));
+const MyVehiclePage    = lazy(() => import('./pages/User/MyVehiclePage'));
+const PaymentResultPage= lazy(() => import('./pages/User/PaymentResult'));
 
 export default function App() {
   return (
@@ -38,6 +41,9 @@ export default function App() {
           <Route path="/" element={<UserLandingPage />} />
           <Route path="/booking" element={<BookingPage />} />
           <Route path="/myticket" element={<ProtectedRoute element={<MyTicketPage />} />} />
+          <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
+          <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
+          <Route path="/payment-result" element={<PaymentResultPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

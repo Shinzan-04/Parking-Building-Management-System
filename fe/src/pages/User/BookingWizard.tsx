@@ -14,14 +14,19 @@ import {
   ClipboardList,
   Building2,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
 import { getVehicleTypes } from '../../services/vehicleTypesService';
-import { getAllPolicies } from '../../services/pricingService';
+import { getAllPolicies, getPolicyByVehicleType } from '../../services/pricingService';
+import type { PricingPolicyResponse } from '../../services/pricingService';
 import { getFloorsByBuilding, getBuildings } from '../../services/buildingsService';
 import type { FloorResponse } from '../../services/buildingsService';
 import { getSlotsByFloor } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
-import { createReservation } from '../../services/reservationsService';
+import { createReservation, getAiSuggestions } from '../../services/reservationsService';
+import { createPayOSPayment } from '../../services/paymentService';
+import { getMyVehicles, createVehicle } from '../../services/vehiclesService';
+import type { VehicleResponse } from '../../services/vehiclesService';
 
 // ─────────────────────────────────────────────
 // Types
@@ -40,9 +45,10 @@ interface WizardState {
   entryTime: string;
   duration: number; // hours
   floor: string | null;
-  zone: string | null;
   slot: string | null;
   slotId: string | null;
+  zone: string | null;
+  bookingMethod: number; // 0 = Manual, 1 = AIRecommended
 }
 
 interface BookingWizardProps {
@@ -58,8 +64,7 @@ const STEPS = [
   { id: 2, label: 'License Plate', short: 'Plate' },
   { id: 3, label: 'Date & Time', short: 'Time' },
   { id: 4, label: 'Select Floor', short: 'Floor' },
-  { id: 5, label: 'Select Zone', short: 'Zone' },
-  { id: 6, label: 'Select Slot', short: 'Slot' },
+  { id: 5, label: 'Select Slot', short: 'Slot' },
 ];
 
 // ─────────────────────────────────────────────
@@ -200,10 +205,14 @@ function StepLicensePlate({
   state,
   setState,
   vehicles,
+  myVehicles,
+  loadingMyVehicles,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   vehicles: ApiVehicleType[];
+  myVehicles: VehicleResponse[];
+  loadingMyVehicles: boolean;
 }) {
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
@@ -214,6 +223,17 @@ function StepLicensePlate({
   const VehicleIcon = isMotorbike ? Bike : Car;
   const vehicleLabel = selectedVehicle?.name || 'Car';
   const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
+
+  const [activeTab, setActiveTab] = useState<'saved' | 'manual'>(
+    myVehicles.length > 0 ? 'saved' : 'manual'
+  );
+
+  // Tự động chuyển sang tab "Xe đã lưu" nếu load xong và có xe, và chưa nhập biển số
+  useEffect(() => {
+    if (myVehicles.length > 0 && !state.licensePlate) {
+      setActiveTab('saved');
+    }
+  }, [myVehicles, state.licensePlate]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -230,47 +250,162 @@ function StepLicensePlate({
         </div>
       </div>
 
-      {/* Vehicle type display */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-20 h-20 rounded-2xl bg-gray-100 border-2 border-gray-200/60 flex items-center justify-center">
-          <VehicleIcon
-            size={40}
-            strokeWidth={1.5}
-            className="text-[#FF4C4C]"
-          />
+      {/* Tabs Switcher - Chỉ hiển thị nếu người dùng đã đăng ký xe */}
+      {myVehicles.length > 0 && (
+        <div className="flex bg-stone-105/80 p-1 rounded-2xl w-fit mx-auto mb-2 border border-stone-200/50">
+          <button
+            type="button"
+            onClick={() => setActiveTab('saved')}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 ${
+              activeTab === 'saved'
+                ? 'bg-white text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/5 border border-stone-200/10'
+                : 'text-stone-500 hover:text-stone-850'
+            }`}
+          >
+            <Car size={14} />
+            Xe đã lưu
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('manual')}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 ${
+              activeTab === 'manual'
+                ? 'bg-white text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/5 border border-stone-200/10'
+                : 'text-stone-500 hover:text-stone-850'
+            }`}
+          >
+            <ParkingSquare size={14} />
+            Nhập thủ công
+          </button>
         </div>
-        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">{vehicleLabel}</span>
-      </div>
+      )}
 
-      {/* License plate input */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-full max-w-sm">
-          <input
-            type="text"
-            placeholder={placeholder}
-            value={state.licensePlate}
-            onChange={(e) =>
-              setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
-            }
-            maxLength={12}
-            className="w-full bg-gray-50 border-2 border-gray-200/80 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-850 text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
-          />
+      {/* Loading state for vehicles */}
+      {loadingMyVehicles && myVehicles.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 gap-2">
+          <Loader2 size={24} className="text-[#FF4C4C] animate-spin" />
+          <p className="text-xs text-stone-400 font-semibold">Đang tải danh sách xe...</p>
         </div>
+      )}
 
-        {/* Format hint */}
-        <div className="text-center space-y-1">
-          <p className="text-xs text-stone-500">
-            Format:{' '}
-            <span className="text-stone-700 font-bold">51A-12345</span>{' '}
-            (car) or{' '}
-            <span className="text-stone-700 font-bold">59T1-12345</span>{' '}
-            (motorcycle)
-          </p>
-          <p className="text-xs text-stone-400">
-            This will be linked to your parking session.
-          </p>
+      {/* Tab content: Saved Vehicles */}
+      {activeTab === 'saved' && myVehicles.length > 0 && !loadingMyVehicles && (
+        <div className="flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-1 scrollbar-thin">
+          {myVehicles.map((v) => {
+            const isSelected = state.licensePlate === v.plateNumber;
+            const lowerName = v.vehicleTypeName?.toLowerCase() || '';
+            const isMotor = lowerName.includes('moto') ||
+              lowerName.includes('xe máy') ||
+              lowerName.includes('bike') ||
+              lowerName.includes('xe hai bánh');
+            const Icon = isMotor ? Bike : Car;
+
+            return (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => {
+                  setState((s) => ({
+                    ...s,
+                    licensePlate: v.plateNumber,
+                    vehicleType: v.vehicleTypeId,
+                  }));
+                }}
+                className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 text-left group ${
+                  isSelected
+                    ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                    : 'bg-white border-gray-200/80 hover:bg-stone-50 hover:border-stone-300'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]'
+                        : 'bg-gray-100 text-stone-400 group-hover:bg-[#FF4C4C]/5'
+                    }`}
+                  >
+                    <Icon size={24} strokeWidth={1.5} />
+                  </div>
+
+                  <div>
+                    <p
+                      className={`text-base font-black tracking-wider leading-none mb-1.5 ${
+                        isSelected ? 'text-[#FF4C4C]' : 'text-stone-800'
+                      }`}
+                    >
+                      {v.plateNumber}
+                    </p>
+                    <p className="text-[10px] text-stone-450 font-bold uppercase tracking-wider">
+                      {v.vehicleTypeName || 'Phương tiện'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {v.isPrimary && (
+                    <span className="bg-amber-500/10 text-amber-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/20">
+                      Mặc định
+                    </span>
+                  )}
+                  {isSelected && (
+                    <div className="w-5 h-5 rounded-full bg-[#FF4C4C] flex items-center justify-center shadow-sm shadow-[#FF4C4C]/20">
+                      <CheckCircle2 size={12} className="text-white" />
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
-      </div>
+      )}
+
+      {/* Tab content: Manual Entry */}
+      {(activeTab === 'manual' || myVehicles.length === 0) && !loadingMyVehicles && (
+        <>
+          {/* Vehicle type display */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-20 h-20 rounded-2xl bg-gray-100 border-2 border-gray-200/60 flex items-center justify-center">
+              <VehicleIcon
+                size={40}
+                strokeWidth={1.5}
+                className="text-[#FF4C4C]"
+              />
+            </div>
+            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">{vehicleLabel}</span>
+          </div>
+
+          {/* License plate input */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-full max-w-sm">
+              <input
+                type="text"
+                placeholder={placeholder}
+                value={state.licensePlate}
+                onChange={(e) =>
+                  setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
+                }
+                maxLength={12}
+                className="w-full bg-gray-50 border-2 border-gray-200/80 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-850 text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
+              />
+            </div>
+
+            {/* Format hint */}
+            <div className="text-center space-y-1">
+              <p className="text-xs text-stone-500">
+                Format:{' '}
+                <span className="text-stone-700 font-bold">51A-12345</span>{' '}
+                (car) or{' '}
+                <span className="text-stone-700 font-bold">59T1-12345</span>{' '}
+                (motorcycle)
+              </p>
+              <p className="text-xs text-stone-400">
+                This will be linked to your parking session.
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -280,14 +415,16 @@ function StepDateTime({
   state,
   setState,
   vehicles,
+  policy,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   vehicles: ApiVehicleType[];
+  policy: PricingPolicyResponse | null;
 }) {
   const durations = [1, 2, 3, 4, 6, 8, 12, 24];
 
-  // Tính giờ ra dựa trên giờ vào + duration
+  // ── Tính giờ ra dựa trên giờ vào + duration ──
   const computeExitTime = (): { time: string; date: string } => {
     if (!state.entryDate || !state.entryTime) return { time: '--:--', date: '--/--/----' };
     const [h, m] = state.entryTime.split(':').map(Number);
@@ -305,27 +442,62 @@ function StepDateTime({
     return `${d}/${mo}/${y}`;
   };
 
-  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
-  const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
-  const total = pricePerHour * state.duration;
+  // ── Tính chi phí ước tính theo đúng logic PricingPolicy ──
+  // Logic: block đầu tiên (blockPrice) + các giờ tiếp theo (hourlyRate/giờ)
+  // Tổng chi phí bị giới hạn bởi dailyMaxRate
+  const computeEstimatedCost = (): { total: number; isCapped: boolean; breakdown: string } => {
+    const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+    if (!selectedVehicle) return { total: 0, isCapped: false, breakdown: '' };
+
+    // Nếu có PricingPolicy đầy đủ → dùng logic block
+    if (policy && policy.blockPrice > 0 && policy.blockMinutes > 0) {
+      const blocksPerHour = 60 / policy.blockMinutes;
+      const firstBlockCost = policy.blockPrice; // Chi phí block đầu
+      const additionalHours = Math.max(0, state.duration - 1);
+      const additionalCost = additionalHours * policy.hourlyRate;
+      const raw = firstBlockCost + additionalCost;
+      const capped = policy.dailyMaxRate > 0 ? Math.min(raw, policy.dailyMaxRate) : raw;
+      const isCapped = policy.dailyMaxRate > 0 && raw > policy.dailyMaxRate;
+      const perBlock = `${policy.blockPrice.toLocaleString('vi-VN')}đ/${policy.blockMinutes}ph`;
+      const perHour = `${policy.hourlyRate.toLocaleString('vi-VN')}đ/h`;
+      const bd = state.duration <= 1
+        ? `1 block (${perBlock})`
+        : `1 block (${perBlock}) + ${additionalHours}h × ${perHour}`;
+      return { total: capped, isCapped, breakdown: bd };
+    }
+
+    // Fallback: dùng hourlyRate từ vehicle data
+    const rate = selectedVehicle.hourlyRate;
+    const raw = rate * state.duration;
+    const dailyMax = policy?.dailyMaxRate ?? 0;
+    const capped = dailyMax > 0 ? Math.min(raw, dailyMax) : raw;
+    const isCapped = dailyMax > 0 && raw > dailyMax;
+    return {
+      total: capped,
+      isCapped,
+      breakdown: `${state.duration}h × ${rate.toLocaleString('vi-VN')}đ/h`,
+    };
+  };
+
   const exitInfo = computeExitTime();
+  const costResult = computeEstimatedCost();
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Step header */}
+      {/* ── Step header ── */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
           <Calendar size={20} className="text-[#FF4C4C]" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-stone-900">Date & Time</h2>
-          <p className="text-xs text-stone-500">Step 3 of 6 — When do you plan to park?</p>
+          <p className="text-xs text-stone-500">Step 3 of 5 — When do you plan to park?</p>
         </div>
       </div>
 
-      {/* Inputs grid */}
+      {/* ── Inputs grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* ── Booking Date ── */}
+        {/* Booking Date */}
         <div>
           <label className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
             <Calendar size={12} className="text-[#FF4C4C]" />
@@ -340,7 +512,7 @@ function StepDateTime({
           />
         </div>
 
-        {/* ── Arrival Time ── */}
+        {/* Arrival Time */}
         <div>
           <label className="flex items-center gap-1.5 text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">
             <Clock size={12} className="text-[#FF4C4C]" />
@@ -377,9 +549,67 @@ function StepDateTime({
         </div>
       </div>
 
+      {/* ── Pricing Structure Card ── */}
+      {policy && (
+        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/60 p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-5 h-5 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+              <span className="text-white text-[9px] font-black">₫</span>
+            </div>
+            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">
+              Pricing Structure
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            {/* Grace Period */}
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+              <span className="text-[10px] text-stone-500 font-semibold">Grace Period</span>
+            </div>
+            <span className="text-[10px] font-bold text-emerald-600 text-right">
+              {policy.gracePeriodMinutes} phút miễn phí
+            </span>
+
+            {/* Block Price */}
+            {policy.blockPrice > 0 && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+                  <span className="text-[10px] text-stone-500 font-semibold">Block đầu tiên</span>
+                </div>
+                <span className="text-[10px] font-bold text-blue-600 text-right">
+                  {policy.blockPrice.toLocaleString('vi-VN')}đ / {policy.blockMinutes}ph
+                </span>
+              </>
+            )}
+
+            {/* Hourly Rate */}
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C] flex-shrink-0" />
+              <span className="text-[10px] text-stone-500 font-semibold">Giá theo giờ</span>
+            </div>
+            <span className="text-[10px] font-bold text-[#FF4C4C] text-right">
+              {policy.hourlyRate.toLocaleString('vi-VN')}đ / giờ
+            </span>
+
+            {/* Daily Max Rate */}
+            {policy.dailyMaxRate > 0 && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />
+                  <span className="text-[10px] text-stone-500 font-semibold">Tối đa / ngày</span>
+                </div>
+                <span className="text-[10px] font-bold text-purple-600 text-right">
+                  {policy.dailyMaxRate.toLocaleString('vi-VN')}đ
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Parking Summary Card ── */}
-      <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-5 mt-1">
-        {/* Label */}
+      <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-5">
         <div className="flex items-center gap-2 mb-4">
           <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center">
             <span className="text-white text-[10px] font-bold">P</span>
@@ -390,9 +620,8 @@ function StepDateTime({
         </div>
 
         <div className="flex items-center justify-between gap-4">
-          {/* Left: times */}
+          {/* Left: Entry → Exit times */}
           <div className="flex items-center gap-4">
-            {/* Entry time */}
             <div className="flex flex-col gap-0.5">
               <span className="text-2xl font-black text-blue-600 leading-none">
                 {state.entryTime || '--:--'}
@@ -401,16 +630,12 @@ function StepDateTime({
                 {formatDateDisplay(state.entryDate)}
               </span>
             </div>
-
-            {/* Duration badge */}
             <div className="flex flex-col items-center gap-1">
               <span className="text-[10px] font-bold text-stone-500 bg-white border border-gray-200 px-2 py-0.5 rounded-full">
                 {state.duration}h
               </span>
               <div className="w-8 h-px bg-blue-300" />
             </div>
-
-            {/* Exit time */}
             <div className="flex flex-col gap-0.5">
               <span className="text-2xl font-black text-emerald-600 leading-none">
                 {exitInfo.time}
@@ -419,16 +644,37 @@ function StepDateTime({
             </div>
           </div>
 
-          {/* Right: Est. Cost */}
+          {/* Right: Estimated Cost */}
           <div className="text-right flex-shrink-0">
             <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mb-1">
               Est. Cost
             </p>
-            <p className="text-xl font-black text-[#FF4C4C]">
-              {pricePerHour > 0 ? `${total.toLocaleString('vi-VN')}đ` : '--'}
-            </p>
+            {costResult.total > 0 ? (
+              <>
+                <p className="text-xl font-black text-[#FF4C4C]">
+                  {costResult.total.toLocaleString('vi-VN')}đ
+                </p>
+                {costResult.isCapped && (
+                  <span className="text-[9px] font-bold text-purple-500 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded-full">
+                    Giá trần/ngày
+                  </span>
+                )}
+              </>
+            ) : (
+              <p className="text-xl font-black text-stone-300">--</p>
+            )}
           </div>
         </div>
+
+        {/* ── Chi phí breakdown ── */}
+        {costResult.breakdown && costResult.total > 0 && (
+          <div className="mt-3 pt-3 border-t border-blue-100">
+            <p className="text-[10px] text-stone-400 font-semibold">
+              <span className="text-stone-500 font-bold">Cách tính: </span>
+              {costResult.breakdown}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -440,11 +686,13 @@ function StepSelectFloor({
   setState,
   floors,
   loading,
+  allBuildingSlots,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   floors: FloorResponse[];
   loading: boolean;
+  allBuildingSlots: ParkingSlotDetail[];
 }) {
   const floorIconComponents = [ParkingSquare, Car, Layers, Building2];
 
@@ -509,7 +757,16 @@ function StepSelectFloor({
                 <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-850'}`}>
                   {floor.name}
                 </p>
-                <p className="text-xs text-stone-400 mt-0.5">{floor.slotCount} spots</p>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  {(() => {
+                    const availableSpots = allBuildingSlots.filter(
+                      (s) => s.floorId === floor.id &&
+                             s.vehicleTypeId === state.vehicleType &&
+                             (s.status === 'Available' || String(s.status) === '0')
+                    ).length;
+                    return `${availableSpots} spots available`;
+                  })()}
+                </p>
               </div>
               {selected && (
                 <CheckCircle2 size={16} className="text-[#FF4C4C]" />
@@ -538,102 +795,7 @@ const getZoneName = (slotNo: string): string => {
   return 'Zone A';
 };
 
-// Step 5 – Select Zone
-function StepSelectZone({
-  state,
-  setState,
-  slots,
-  loading,
-}: {
-  state: WizardState;
-  setState: React.Dispatch<React.SetStateAction<WizardState>>;
-  slots: ParkingSlotDetail[];
-  loading: boolean;
-}) {
-  const zoneColors = ['#FF4C4C', '#3B82F6', '#10B981', '#8B5CF6'];
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Loader2 size={32} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-stone-500">Loading zones...</p>
-      </div>
-    );
-  }
-
-  // Lấy các zone độc nhất từ slots của tầng này
-  const zones = Array.from(new Set(slots.map(s => getZoneName(s.slotNumber)))).sort();
-
-  if (zones.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <LayoutGrid size={48} className="text-stone-300 mb-3" />
-        <p className="text-sm text-stone-500 font-bold">No zones found</p>
-        <p className="text-xs text-stone-400">This floor has no parking spots created.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
-          <LayoutGrid size={20} className="text-[#FF4C4C]" />
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-stone-900">Select Zone</h2>
-          <p className="text-xs text-stone-500">
-            Step 5 of 6 — Zones available on this floor
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        {zones.map((zone, idx) => {
-          const selected = state.zone === zone;
-          const color = zoneColors[idx % zoneColors.length];
-          const zoneSlotsCount = slots.filter(s => getZoneName(s.slotNumber) === zone).length;
-          return (
-            <button
-              key={zone}
-              onClick={() => setState((s) => ({ ...s, zone, slot: null, slotId: null }))}
-              className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all ${selected
-                  ? 'border-[#FF4C4C] shadow-sm'
-                  : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
-                }`}
-              style={
-                selected
-                  ? { background: `${color}0C` }
-                  : {}
-              }
-            >
-              {/* Zone letter badge */}
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black"
-                style={{
-                  background: selected ? `${color}1A` : '#F3F3F5',
-                  color: selected ? color : '#78716c',
-                  border: `2px solid ${selected ? color + '40' : 'rgba(0,0,0,0.06)'}`,
-                }}
-              >
-                {zone.replace('Zone ', '')}
-              </div>
-              <div className="text-center">
-                <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-800'}`}>
-                  {zone}
-                </p>
-                <p className="text-xs text-stone-400 mt-0.5">{zoneSlotsCount} spots</p>
-              </div>
-              {selected && <CheckCircle2 size={16} className="text-[#FF4C4C]" />}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// Step 6 – Select Slot
+// Step 5 – Select Slot
 function StepSelectSlot({
   state,
   setState,
@@ -645,6 +807,9 @@ function StepSelectSlot({
   slots: ParkingSlotDetail[];
   vehicles: ApiVehicleType[];
 }) {
+  const [loadingAi, setLoadingAi] = useState(false);
+  const COLS = 8; // Số cột trong lưới (A → H)
+
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
     selectedVehicle?.name.toLowerCase().includes('xe máy') ||
@@ -653,70 +818,223 @@ function StepSelectSlot({
     false;
   const VehicleIcon = isMotorbike ? Bike : Car;
 
-  // Lọc slots theo zone đã chọn và loại xe đã chọn
-  const zoneSlots = slots.filter(
-    (s) => getZoneName(s.slotNumber) === state.zone && s.vehicleTypeId === state.vehicleType
+  // Lọc slots theo loại xe đã chọn (không hiển thị slots bảo trì)
+  const filteredSlots = slots.filter(
+    (s) => s.vehicleTypeId === state.vehicleType && s.status !== 'Maintenance'
   );
 
+  // Nhóm các slots thành từng hàng (COLS ô mỗi hàng)
+  const rows: ParkingSlotDetail[][] = [];
+  for (let i = 0; i < filteredSlots.length; i += COLS) {
+    rows.push(filteredSlots.slice(i, i + COLS));
+  }
+
+  const availableCount = filteredSlots.filter(s => s.status === 'Available' || String(s.status) === '0').length;
+  const occupiedCount  = filteredSlots.filter(s => s.status === 'Occupied' || String(s.status) === '1').length;
+  const reservedCount  = filteredSlots.filter(s => s.status === 'Reserved' || String(s.status) === '2').length;
+
+  // Helper hàm để xác định màu hiển thị cho mỗi Slot
+  const getSlotStyle = (slot: ParkingSlotDetail): string => {
+    const isSelected = state.slotId === slot.id;
+    if (isSelected) {
+      return 'bg-[#FF4C4C] border-[#FF4C4C] text-white shadow-md shadow-[#FF4C4C]/30 scale-105 z-10';
+    }
+    
+    // Một số backend serialize enum thành integer string, cần kiểm tra cả hai
+    const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
+    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '1';
+    const isReserved = slot.status === 'Reserved' || String(slot.status) === '2';
+
+    if (isAvailable) {
+      return 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-105 cursor-pointer';
+    } else if (isOccupied) {
+      return 'bg-red-50 border-red-200/60 text-red-400/60 cursor-not-allowed';
+    } else if (isReserved) {
+      return 'bg-amber-50 border-amber-200/60 text-amber-500/70 cursor-not-allowed';
+    } else {
+      return 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed';
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
-          <ParkingSquare size={20} className="text-[#FF4C4C]" />
+    <div className="flex flex-col gap-5">
+      {/* ── Step header ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+            <ParkingSquare size={20} className="text-[#FF4C4C]" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-stone-900">Select Slot</h2>
+            <p className="text-xs text-stone-500">
+              Step 5 of 5 — Pick an available parking spot
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-stone-900">Select Slot</h2>
-          <p className="text-xs text-stone-500">
-            Step 6 of 6 — Pick an available parking spot
+        <button
+          onClick={async () => {
+            try {
+              setLoadingAi(true);
+              const token = localStorage.getItem('sp_token') || '';
+              const suggestions = await getAiSuggestions(state.vehicleType!, undefined, 1, token);
+              if (suggestions.length > 0) {
+                const best = suggestions[0];
+                setState(s => ({
+                  ...s,
+                  floor: best.floorId,
+                  slotId: best.slotId,
+                  slot: best.slotNumber,
+                  zone: getZoneName(best.slotNumber),
+                  bookingMethod: 1 // Mark as AI Recommended
+                }));
+              } else {
+                alert('Không có chỗ đỗ nào khả dụng theo gợi ý của AI.');
+              }
+            } catch (err: any) {
+              alert('AI Suggest error: ' + err.message);
+            } finally {
+              setLoadingAi(false);
+            }
+          }}
+          disabled={loadingAi}
+          className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
+        >
+          {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          {loadingAi ? 'AI Thinking...' : 'AI Suggest'}
+        </button>
+      </div>
+
+      {/* ── Stats Thống kê nhanh ── */}
+      <div className="flex items-center gap-4 flex-wrap">
+        {[
+          { label: 'Còn trống',  count: availableCount, dot: 'bg-emerald-400' },
+          { label: 'Đang dùng',  count: occupiedCount,  dot: 'bg-red-400' },
+          { label: 'Đặt trước', count: reservedCount,   dot: 'bg-amber-400' },
+          { label: 'Tổng',       count: filteredSlots.length, dot: 'bg-stone-400' },
+        ].map(({ label, count, dot }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full ${dot}`} />
+            <span className="text-[11px] text-stone-500 font-semibold">{label}</span>
+            <span className="text-[11px] font-bold text-stone-700">{count}</span>
+          </div>
+        ))}
+      </div>
+
+      {filteredSlots.length === 0 ? (
+        <div className="py-14 text-center bg-gray-50 rounded-2xl border border-gray-200">
+          <ParkingSquare size={36} className="text-stone-300 mx-auto mb-3" />
+          <p className="text-sm text-stone-500 font-bold">Không có chỗ đỗ</p>
+          <p className="text-xs text-stone-400 mt-1">
+            Tầng này chưa có ô đỗ phù hợp với loại xe của bạn.
           </p>
         </div>
-      </div>
-
-      {/* Legend */}
-      <div className="flex items-center gap-6 text-xs font-medium">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-emerald-50 border border-emerald-200" />
-          <span className="text-stone-500">Available</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]" />
-          <span className="text-stone-500">Selected</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-red-50 border border-red-200" />
-          <span className="text-stone-500">Occupied</span>
-        </div>
-      </div>
-
-      {zoneSlots.length === 0 ? (
-        <div className="py-10 text-center bg-gray-50 rounded-2xl border border-gray-150 p-4">
-          <p className="text-sm text-stone-400 font-medium">No suitable slots found for your vehicle type in this zone.</p>
-        </div>
       ) : (
-        /* Slot grid */
-        <div className="grid grid-cols-5 gap-2">
-          {zoneSlots.map((slot) => {
-            const isAvailable = slot.status === 'Available' || slot.status === '0' || (slot.status as unknown as number) === 0;
-            const selected = state.slot === slot.slotNumber;
-            return (
-              <button
-                key={slot.id}
-                disabled={!isAvailable}
-                onClick={() => isAvailable && setState((s) => ({ ...s, slot: slot.slotNumber, slotId: slot.id }))}
-                className={`aspect-square rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center justify-center gap-1 ${!isAvailable
-                    ? 'bg-red-50 border-red-200/60 text-red-400/50 cursor-not-allowed'
-                    : selected
-                      ? 'bg-[#FF4C4C]/10 border-[#FF4C4C] text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10 scale-105'
-                      : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-105'
-                  }`}
-              >
-                <VehicleIcon size={14} />
-                <span className="text-[10px] leading-none">{slot.slotNumber}</span>
-              </button>
-            );
-          })}
+        /* ── Slot Grid View ── */
+        <div className="overflow-x-auto pb-1">
+          <div className="min-w-max">
+            {/* Column headers (A, B, C...) */}
+            <div
+              className="grid gap-1.5 mb-1"
+              style={{ gridTemplateColumns: `1.75rem repeat(${Math.min(COLS, filteredSlots.length)}, minmax(0,1fr))` }}
+            >
+              <div /> {/* Gốc rỗng */}
+              {Array.from({ length: Math.min(COLS, filteredSlots.length) }, (_, c) => (
+                <div
+                  key={c}
+                  className="text-center text-[10px] font-bold text-stone-400 tracking-wider"
+                >
+                  {String.fromCharCode(65 + c)}
+                </div>
+              ))}
+            </div>
+
+            {/* Rows */}
+            <div className="space-y-1.5">
+              {rows.map((row, rowIdx) => (
+                <div
+                  key={rowIdx}
+                  className="grid gap-1.5 items-center"
+                  style={{ gridTemplateColumns: `1.75rem repeat(${COLS}, minmax(0,1fr))` }}
+                >
+                  {/* Row number label */}
+                  <div className="text-center text-[10px] font-bold text-stone-400">
+                    {rowIdx + 1}
+                  </div>
+
+                  {/* Slot cells */}
+                  {row.map((slot) => {
+                    const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
+                    const isSelected = state.slotId === slot.id;
+                    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '1';
+
+                    const colIdx = filteredSlots.indexOf(slot) % COLS;
+                    const colLetter = String.fromCharCode(65 + colIdx);
+                    const rowNum = Math.floor(filteredSlots.indexOf(slot) / COLS) + 1;
+
+                    return (
+                      <button
+                        key={slot.id}
+                        disabled={!isAvailable}
+                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}`}
+                        onClick={() => {
+                          if (!isAvailable) return;
+                          setState((s) => ({
+                            ...s,
+                            slot: slot.slotNumber,
+                            slotId: slot.id,
+                            zone: getZoneName(slot.slotNumber),
+                            bookingMethod: 0 // Mark as Manual
+                          }));
+                        }}
+                        className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 border-2 text-[9px] font-bold transition-all select-none ${getSlotStyle(slot)}`}
+                      >
+                        {isSelected ? (
+                          <CheckCircle2 size={12} />
+                        ) : isOccupied ? (
+                          <VehicleIcon size={11} />
+                        ) : (
+                          <VehicleIcon size={11} className="opacity-60" />
+                        )}
+                        <span className="leading-none">{slot.slotNumber}</span>
+                      </button>
+                    );
+                  })}
+
+                  {/* Padding empty cells if row < COLS */}
+                  {row.length < COLS && Array.from({ length: COLS - row.length }, (_, k) => (
+                    <div key={`pad-${k}`} className="h-11" />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
+
+      {/* ── Legend ── */}
+      <div className="flex items-center flex-wrap gap-4 pt-3 border-t border-gray-100 text-[11px] text-stone-500">
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-emerald-50 border-2 border-emerald-300 flex-shrink-0" />
+          Còn trống
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-[#FF4C4C] border-2 border-[#FF4C4C] flex-shrink-0" />
+          Đã chọn
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-red-50 border-2 border-red-200 flex-shrink-0" />
+          Đang dùng
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
+          Đặt trước
+        </div>
+        {state.slot && (
+          <span className="ml-auto text-[#FF4C4C] font-bold">
+            Đã chọn: {state.slot}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -829,14 +1147,7 @@ function BookingSummary({
 // ─────────────────────────────────────────────
 import { QRCodeSVG } from 'qrcode.react';
 
-type PopupPhase = 'confirm' | 'payment' | 'qr';
-
-const PAYMENT_METHODS = [
-  { key: 'cash', label: 'Cash', icon: '💵' },
-  { key: 'card', label: 'Credit Card', icon: '💳' },
-  { key: 'momo', label: 'MoMo', icon: '🟣' },
-  { key: 'vnpay', label: 'VNPay', icon: '🔵' },
-];
+type PopupPhase = 'confirm' | 'payment' | 'checkout' | 'qr';
 
 function ConfirmationPopup({
   lot,
@@ -845,6 +1156,7 @@ function ConfirmationPopup({
   onDone,
   vehicles,
   floorLabel,
+  myVehicles,
 }: {
   lot: ParkingLot;
   state: WizardState;
@@ -852,12 +1164,28 @@ function ConfirmationPopup({
   onDone: () => void;
   vehicles: ApiVehicleType[];
   floorLabel: string;
+  myVehicles: VehicleResponse[];
 }) {
   const [phase, setPhase] = useState<PopupPhase>('confirm');
-  const [payMethod, setPayMethod] = useState<string>('cash');
   const [createdReservation, setCreatedReservation] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PAYOS_RESULT') {
+        if (event.data.status === 'success') {
+          setPhase('qr');
+        } else {
+          setError('Thanh toán thất bại hoặc đã bị hủy.');
+          setPhase('payment');
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
@@ -880,7 +1208,7 @@ function ConfirmationPopup({
     lot: lot.name,
     plate: state.licensePlate,
     vehicle: selectedVehicle?.name ?? '',
-    slot: `${floorLabel}/${state.zone}/${state.slot}`,
+    slot: `${floorLabel} / Slot ${state.slot}`,
     date: state.entryDate,
     entry: state.entryTime,
     duration: state.duration,
@@ -900,21 +1228,49 @@ function ConfirmationPopup({
       entry.setHours(h, m, 0, 0);
       const exit = new Date(entry.getTime() + state.duration * 3600000);
 
+      // Resolve vehicleId
+      let vehicleIdToUse: string;
+      const matchedVehicle = myVehicles.find(
+        (v) => v.plateNumber === state.licensePlate && v.vehicleTypeId === state.vehicleType
+      );
+
+      if (matchedVehicle) {
+        vehicleIdToUse = matchedVehicle.id;
+      } else {
+        // Auto-create vehicle for the user silently
+        const newVehicle = await createVehicle({
+          plateNumber: state.licensePlate,
+          vehicleTypeId: state.vehicleType!
+        }, token);
+        vehicleIdToUse = newVehicle.id;
+      }
+
       const payload = {
+        vehicleId: vehicleIdToUse,
         parkingSlotId: state.slotId!,
-        vehicleTypeId: state.vehicleType!,
-        licensePlate: state.licensePlate,
+        buildingId: lot.id,
         startTime: entry.toISOString(),
         endTime: exit.toISOString(),
+        bookingMethod: state.bookingMethod
       };
 
       const res = await createReservation(payload, token);
-      setCreatedReservation(res);
-      setPhase('qr');
+      
+      const paymentPayload = {
+        amount: total,
+        description: `Thanh toan don dat cho`,
+        reservationId: res.id
+      };
+
+      const payOSRes = await createPayOSPayment(paymentPayload, token);
+      
+      // Thay vì chuyển trang, mở iframe PayOS ngay trong popup
+      setCheckoutUrl(payOSRes.checkoutUrl);
+      setPhase('checkout');
+      
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Reservation failed. Please check your information.');
-    } finally {
       setSubmitting(false);
     }
   };
@@ -947,7 +1303,7 @@ function ConfirmationPopup({
     { label: 'Entry Date', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
     { label: 'Estimated Exit', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
     { label: 'Duration', value: `${state.duration}h` },
-    { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
+    { label: 'Location', value: `${floorLabel} › Slot ${state.slot}` },
   ];
 
   const headerConfig = {
@@ -964,6 +1320,13 @@ function ConfirmationPopup({
       headerBg: 'bg-emerald-50/30',
       title: 'Payment',
       subtitle: 'Select payment method',
+    },
+    checkout: {
+      icon: <CheckCircle2 size={18} className="text-[#FF4C4C]" />,
+      iconBg: 'bg-[#FF4C4C]/10 border border-[#FF4C4C]/30',
+      headerBg: '',
+      title: 'Secure Checkout',
+      subtitle: 'Quét mã VietQR trên PayOS',
     },
     qr: {
       icon: <CheckCircle2 size={18} className="text-blue-500" />,
@@ -1045,21 +1408,12 @@ function ConfirmationPopup({
               </div>
 
               <div>
-                <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Payment Method</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {PAYMENT_METHODS.map(({ key, label, icon }) => (
-                    <button
-                      key={key}
-                      onClick={() => setPayMethod(key)}
-                      className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${payMethod === key
-                          ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] text-stone-800'
-                          : 'bg-white border-gray-200/80 text-stone-500 hover:border-gray-300 hover:text-stone-855'
-                        }`}
-                    >
-                      <span className="text-xl">{icon}</span>
-                      <span className="text-xs font-bold">{label}</span>
-                    </button>
-                  ))}
+                <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Thanh Toán</p>
+                <div className="bg-white border-2 border-[#FF4C4C] rounded-xl p-4 text-center">
+                  <p className="text-sm font-bold text-stone-800 mb-2">Thanh toán qua Ngân hàng (VietQR)</p>
+                  <p className="text-xs text-stone-500">
+                    Bạn sẽ được chuyển hướng tới cổng thanh toán an toàn của PayOS. Vui lòng sử dụng ứng dụng Ngân hàng để quét mã QR và hoàn tất thanh toán.
+                  </p>
                 </div>
               </div>
 
@@ -1070,8 +1424,21 @@ function ConfirmationPopup({
               )}
 
               <p className="text-xs text-stone-400 font-medium text-center">
-                By confirming, you agree to the terms of service.
+                Bằng việc xác nhận, bạn đồng ý với Điều khoản và Dịch vụ.
               </p>
+            </div>
+          )}
+
+          {/* ── Phase: Checkout (Iframe) ── */}
+          {phase === 'checkout' && checkoutUrl && (
+            <div className="w-full flex flex-col items-center justify-center">
+              <div className="w-full h-[550px] relative overflow-hidden rounded-2xl border border-gray-200">
+                <iframe 
+                  src={checkoutUrl} 
+                  className="w-full h-full border-0 absolute top-0 left-0" 
+                  title="PayOS Checkout" 
+                />
+              </div>
             </div>
           )}
 
@@ -1187,6 +1554,18 @@ function ConfirmationPopup({
             </>
           )}
 
+          {phase === 'checkout' && (
+            <button
+              onClick={() => {
+                setPhase('payment');
+                setCheckoutUrl(null);
+              }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all"
+            >
+              Hủy Thanh Toán
+            </button>
+          )}
+
           {phase === 'qr' && (
             <button
               onClick={onDone}
@@ -1256,8 +1635,13 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   const [loadingVehicles, setLoadingVehicles] = useState(true);
   const [floors, setFloors] = useState<FloorResponse[]>([]);
   const [loadingFloors, setLoadingFloors] = useState(true);
+  const [allBuildingSlots, setAllBuildingSlots] = useState<ParkingSlotDetail[]>([]);
   const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [policy, setPolicy] = useState<PricingPolicyResponse | null>(null);
+
+  const [myVehicles, setMyVehicles] = useState<VehicleResponse[]>([]);
+  const [loadingMyVehicles, setLoadingMyVehicles] = useState(false);
 
   const [state, setState] = useState<WizardState>({
     vehicleType: null,
@@ -1266,11 +1650,45 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     entryTime: nowTimeStr(),
     duration: 2,
     floor: null,
-    zone: null,
     slot: null,
     slotId: null,
+    zone: null,
+    bookingMethod: 0
   });
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+
+  // Tải danh sách xe đã đăng ký của Driver
+  useEffect(() => {
+    const token = localStorage.getItem('sp_token') || '';
+    if (!token) return;
+    async function loadMyVehicles() {
+      try {
+        setLoadingMyVehicles(true);
+        const data = await getMyVehicles(token);
+        setMyVehicles(data);
+
+        // Tự động điền xe mặc định (isPrimary) hoặc xe đầu tiên nếu người dùng chưa nhập biển số
+        if (data.length > 0) {
+          const primary = data.find(v => v.isPrimary) || data[0];
+          setState(s => {
+            if (!s.licensePlate) {
+              return {
+                ...s,
+                licensePlate: primary.plateNumber,
+                vehicleType: primary.vehicleTypeId,
+              };
+            }
+            return s;
+          });
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách xe của tôi:', err);
+      } finally {
+        setLoadingMyVehicles(false);
+      }
+    }
+    loadMyVehicles();
+  }, []);
 
   // Load vehicle types & policies
   useEffect(() => {
@@ -1282,8 +1700,13 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           getAllPolicies()
         ]);
 
+        // Sắp xếp các chính sách theo thời gian tạo giảm dần để lấy chính sách mới nhất
+        const sortedPolicies = [...policies].sort((a, b) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
         const mapped = types.map(t => {
-          const policy = policies.find(p => p.vehicleTypeId === t.id);
+          const policy = sortedPolicies.find(p => p.vehicleTypeId === t.id);
           let rate = policy?.hourlyRate ?? 0;
           if (rate === 0) {
             const lowerName = t.name.toLowerCase();
@@ -1312,6 +1735,24 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     loadVehicleTypes();
   }, []);
 
+  // Load PricingPolicy khi vehicleType thay đổi
+  useEffect(() => {
+    if (!state.vehicleType) {
+      setPolicy(null);
+      return;
+    }
+    async function loadPolicy() {
+      try {
+        const data = await getPolicyByVehicleType(state.vehicleType!);
+        setPolicy(data);
+      } catch {
+        // Không có policy → giữ null, fallback sang hourlyRate từ vehicle
+        setPolicy(null);
+      }
+    }
+    loadPolicy();
+  }, [state.vehicleType]);
+
   // Load floors by building
   useEffect(() => {
     if (!lot.id) return;
@@ -1332,6 +1773,13 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
         const data = await getFloorsByBuilding(buildingId);
         const sorted = data.sort((a, b) => a.floorIndex - b.floorIndex);
         setFloors(sorted);
+
+        // Fetch all slots for these floors in parallel
+        const slotsArrays = await Promise.all(
+          sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
+        );
+        const flatSlots = slotsArrays.flat();
+        setAllBuildingSlots(flatSlots);
       } catch (err) {
         console.error('Lỗi khi tải tầng:', err);
       } finally {
@@ -1374,14 +1822,13 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
       case 2: return state.licensePlate.trim().length >= 4;
       case 3: return !!state.entryDate && !!state.entryTime;
       case 4: return !!state.floor;
-      case 5: return !!state.zone;
-      case 6: return !!state.slot;
+      case 5: return !!state.slot;
       default: return false;
     }
   };
 
   const handleNext = () => {
-    if (step < 6 && canAdvance()) setStep((s) => s + 1);
+    if (step < 5 && canAdvance()) setStep((s) => s + 1);
   };
   const handleBack = () => {
     if (step > 1) setStep((s) => s - 1);
@@ -1404,11 +1851,18 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   const renderStep = () => {
     switch (step) {
       case 1: return <StepVehicleType state={state} setState={setState} vehicles={vehicles} loading={loadingVehicles} />;
-      case 2: return <StepLicensePlate state={state} setState={setState} vehicles={vehicles} />;
-      case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} />;
-      case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} />;
-      case 5: return <StepSelectZone state={state} setState={setState} slots={slots} loading={loadingSlots} />;
-      case 6: return <StepSelectSlot state={state} setState={setState} slots={slots} vehicles={vehicles} />;
+      case 2: return (
+        <StepLicensePlate
+          state={state}
+          setState={setState}
+          vehicles={vehicles}
+          myVehicles={myVehicles}
+          loadingMyVehicles={loadingMyVehicles}
+        />
+      );
+      case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} policy={policy} />;
+      case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} allBuildingSlots={allBuildingSlots} />;
+      case 5: return <StepSelectSlot state={state} setState={setState} slots={slots} vehicles={vehicles} />;
       default: return null;
     }
   };
@@ -1461,7 +1915,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
               {step} / {STEPS.length}
             </span>
 
-            {step < 6 ? (
+            {step < 5 ? (
               <button
                 onClick={handleNext}
                 disabled={!canAdvance()}
@@ -1499,6 +1953,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           onDone={handlePaymentDone}
           vehicles={vehicles}
           floorLabel={floorLabel}
+          myVehicles={myVehicles}
         />
       )}
     </>

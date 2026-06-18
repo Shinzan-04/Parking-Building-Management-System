@@ -1,15 +1,15 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
-// ReservationStatus: Pending=0, Confirmed=1, CheckedIn=2, Cancelled=3, Completed=4, Rejected=5
 export type ReservationStatus =
-  | 'Pending' | 'Confirmed' | 'CheckedIn' | 'Cancelled' | 'Completed' | 'Rejected';
+  | 'PaymentPending' | 'Paid' | 'PendingReview' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'Cancelled' | 'Rejected' | 'NoShow' | 'PaymentFailed';
 
 const STATUS_NUM_MAP: Record<number, ReservationStatus> = {
-  0: 'Pending', 1: 'Confirmed', 2: 'CheckedIn', 3: 'Cancelled', 4: 'Completed', 5: 'Rejected',
+  0: 'PaymentPending', 1: 'Paid', 2: 'PendingReview', 3: 'Confirmed', 4: 'CheckedIn', 
+  5: 'Completed', 6: 'Cancelled', 7: 'Rejected', 8: 'NoShow', 9: 'PaymentFailed'
 };
 
 export function normalizeReservationStatus(status: ReservationStatus | number): ReservationStatus {
-  if (typeof status === 'number') return STATUS_NUM_MAP[status] ?? 'Pending';
+  if (typeof status === 'number') return STATUS_NUM_MAP[status] ?? 'PaymentPending';
   return status;
 }
 
@@ -60,11 +60,12 @@ async function authFetch<T>(path: string, token: string, options?: RequestInit):
 }
 
 export interface CreateReservationRequest {
-  parkingSlotId: string;
-  vehicleTypeId: string;
-  licensePlate: string;
+  vehicleId: string;
+  parkingSlotId?: string;
+  buildingId?: string;
   startTime: string;
   endTime: string;
+  bookingMethod?: number; // 0 = Manual, 1 = AIRecommended
 }
 
 export const getMyReservations = (token: string): Promise<ReservationResponse[]> =>
@@ -76,15 +77,44 @@ export const cancelReservation = (id: string, token: string): Promise<void> =>
 export const createReservation = (payload: CreateReservationRequest, token: string): Promise<ReservationResponse> =>
   authFetch('/api/reservations', token, { method: 'POST', body: JSON.stringify(payload) });
 
+export const confirmPayment = (id: string, token: string): Promise<{ message: string }> =>
+  authFetch(`/api/reservations/${id}/payment-success`, token, { method: 'PUT' });
+
+export const failPayment = (id: string, token: string): Promise<{ message: string }> =>
+  authFetch(`/api/reservations/${id}/payment-failed`, token, { method: 'PUT' });
+
+export interface AiSuggestionResponse {
+  slotId: string;
+  slotNumber: string;
+  floorId: string;
+  floorName: string;
+  score: number;
+  reason: string;
+}
+
+export const getAiSuggestions = (vehicleTypeId: string, buildingId?: string, topN: number = 5, token?: string): Promise<AiSuggestionResponse[]> => {
+  const params = new URLSearchParams();
+  params.append('vehicleTypeId', vehicleTypeId);
+  if (buildingId) params.append('buildingId', buildingId);
+  params.append('topN', topN.toString());
+  
+  // ai-suggest can be public or authenticated, assuming authenticated if token is provided
+  return authFetch(`/api/reservations/ai-suggest?${params.toString()}`, token || '');
+}
+
 // ─── Manager / Staff endpoints ────────────────────────────────────────────────
 
 export const RESERVATION_STATUS_LABELS: Record<string, string> = {
-  Pending:   'Chờ duyệt',
+  PaymentPending: 'Chờ thanh toán',
+  Paid: 'Đã thanh toán',
+  PendingReview: 'Chờ duyệt',
   Confirmed: 'Đã duyệt',
   CheckedIn: 'Đã vào bãi',
-  Cancelled: 'Đã hủy',
   Completed: 'Hoàn thành',
-  Rejected:  'Đã từ chối',
+  Cancelled: 'Đã hủy',
+  Rejected: 'Đã từ chối',
+  NoShow: 'Quá hạn',
+  PaymentFailed: 'Thanh toán lỗi'
 };
 
 export interface ReviewReservationRequest {

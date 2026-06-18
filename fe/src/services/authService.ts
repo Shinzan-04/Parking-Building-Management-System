@@ -144,3 +144,58 @@ export async function logoutApi(payload: LogoutRequest): Promise<{ message: stri
   return post<LogoutRequest, { message: string }>('/api/auth/logout', payload);
 }
 
+export interface UpdateProfileRequest {
+  fullName?: string;
+  phoneNumber?: string | null;
+  email?: string | null;
+}
+
+export interface ProfileResponse {
+  userId: string;
+  username: string;
+  fullName: string;
+  role: UserRole;
+  email?: string;
+  phoneNumber?: string;
+  driverCode: string;
+  qrCodeImageBase64?: string;
+  createdAt: string;
+}
+
+/**
+ * Lấy thông tin profile từ JWT token hiện tại
+ */
+export async function getProfileApi(token: string): Promise<ProfileResponse> {
+  const res = await fetch(`${BASE_URL}/api/auth/me`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message ?? 'Không thể tải thông tin cá nhân.');
+  }
+  return data as ProfileResponse;
+}
+
+/**
+ * Cập nhật thông tin profile
+ */
+export async function updateProfileApi(payload: UpdateProfileRequest, token: string): Promise<ProfileResponse> {
+  const res = await fetch(`${BASE_URL}/api/auth/profile`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message ?? 'Cập nhật thông tin thất bại.');
+  }
+  return data as ProfileResponse;
+}
+
+
