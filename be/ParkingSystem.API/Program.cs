@@ -71,6 +71,7 @@ builder.Services.AddScoped<IParkingSlotService, ParkingSlotService>();
 builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
 builder.Services.AddScoped<IPriceSettingService, PriceSettingService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IVehicleService, ParkingSystem.Infrastructure.Services.VehicleService>();
 builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
 builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
@@ -161,36 +162,15 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// ===== Khởi tạo Database: Migrate + Seed dữ liệu mẫu =====
+// ===== Khởi tạo Database: Tự động chạy Migration (Silent) =====
 using (var scope = app.Services.CreateScope())
 {
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
-    
-    // Ẩn password trong log
-    var safeConnStr = System.Text.RegularExpressions.Regex.Replace(
-        connStr ?? "", @"Password=[^;]*", "Password=***");
-    
-    logger.LogInformation("🔌 Connection String: {ConnStr}", safeConnStr);
-    
     try
     {
-        // Tự động apply migration (tạo bảng nếu chưa có trên Neon)
         await dbContext.Database.MigrateAsync();
-        logger.LogInformation("✅ Database migration thành công!");
-        
-        var dbName = dbContext.Database.GetDbConnection().Database;
-        var dbServer = dbContext.Database.GetDbConnection().DataSource;
-        logger.LogInformation("📊 Database: {DbName} | Server: {Server}", dbName, dbServer);
-
-        // Bỏ đoạn Seed Data tự động theo yêu cầu của User vì Database đã có dữ liệu.
-        // Bạn có thể chạy lại file seed.sql thủ công nếu muốn Reset Database.
     }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "❌ Database khởi tạo THẤT BẠI — {Message}", ex.Message);
-    }
+    catch { /* Ignore */ }
 }
 
 // Configure the HTTP request pipeline.
