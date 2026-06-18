@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Car, MapPin, BarChart3, LogOut, Bell,
+  LayoutDashboard, Car, MapPin, BarChart3, LogOut,
   DollarSign, ClipboardList, CalendarCheck, Sun, Moon, Home, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
+import NotificationBell from '../../components/NotificationBell';
 
 const navItems = [
   { to: '/manager',                  label: 'Dashboard',    icon: LayoutDashboard, end: true  },
@@ -145,7 +146,7 @@ export default function ManagerLayout() {
       <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${ML}`}>
         {/* Top header */}
         <header
-          className="sticky top-0 z-20 backdrop-blur-md border-b px-8 py-4 flex items-center justify-between"
+          className="sticky top-0 z-20 backdrop-blur-md border-b px-8 py-4 flex items-center justify-between overflow-visible"
           style={{
             backgroundColor: `color-mix(in srgb, var(--admin-bg-base) 85%, transparent)`,
             borderColor: 'var(--admin-border)',
@@ -168,16 +169,7 @@ export default function ManagerLayout() {
             >
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
             </button>
-            <button
-              className="relative p-2 rounded-xl transition-colors"
-              style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
-            >
-              <Bell size={17} />
-              <span
-                className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#FF4C4C] rounded-full"
-                style={{ boxShadow: '0 0 0 2px var(--admin-bg-base)' }}
-              />
-            </button>
+            <NotificationBell token={user?.accessToken ?? null} />
           </div>
         </header>
 
