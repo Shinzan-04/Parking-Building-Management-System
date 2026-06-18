@@ -138,6 +138,7 @@ public class CheckOutService : ICheckOutService
             var psSlot = session.ParkingSlot;
             psSlot.Status = SlotStatus.Available;
             psSlot.UpdatedAt = exitTime;
+            _context.Entry(psSlot).State = EntityState.Modified;
 
             await _context.SaveChangesAsync();
 
@@ -196,6 +197,7 @@ public class CheckOutService : ICheckOutService
         var slot = session.ParkingSlot;
         slot.Status = SlotStatus.Available;
         slot.UpdatedAt = exitTime;
+        _context.Entry(slot).State = EntityState.Modified;
 
         _context.Payments.Add(payment);
         await _context.SaveChangesAsync();
@@ -343,11 +345,40 @@ public class CheckOutService : ICheckOutService
 
         if (priceSetting != null)
         {
+            if ((exitTime - entryTime).TotalMinutes <= priceSetting.GracePeriodMinutes)
+            {
+                return new PriceCalculationResult
+                {
+                    TotalHours = (exitTime - entryTime).TotalHours,
+                    TotalFee = 0,
+                    PricingModel = "GracePeriod",
+                    HourlyRate = 0,
+                    DayPassPrice = priceSetting.DayPassPrice,
+                    NightPassPrice = priceSetting.NightPassPrice,
+                    DailyMaxPrice = priceSetting.DailyMaxPrice,
+                    FeeBreakdown = null
+                };
+            }
             return CalculateDayNightFee(priceSetting, entryTime, exitTime);
         }
 
         if (pricingPolicy != null)
         {
+            if ((exitTime - entryTime).TotalMinutes <= pricingPolicy.GracePeriodMinutes)
+            {
+                return new PriceCalculationResult
+                {
+                    TotalHours = (exitTime - entryTime).TotalHours,
+                    TotalFee = 0,
+                    PricingModel = "GracePeriod",
+                    HourlyRate = pricingPolicy.HourlyRate,
+                    DayPassPrice = null,
+                    NightPassPrice = null,
+                    DailyMaxPrice = pricingPolicy.DailyMaxRate,
+                    FeeBreakdown = null
+                };
+            }
+
             // Bỏ qua phần giây lẻ (Floor) để tránh lỗi làm tròn sai (VD: 120 phút 5 giây bị tính thành 3 tiếng)
             var totalMinutes = Math.Floor((exitTime - entryTime).TotalMinutes);
             var totalHours = totalMinutes / 60.0;

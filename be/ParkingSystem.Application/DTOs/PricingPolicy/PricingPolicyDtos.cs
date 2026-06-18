@@ -7,6 +7,7 @@ public class CreatePricingPolicyRequest
     public int BlockMinutes { get; set; }
     public decimal HourlyRate { get; set; }
     public decimal DailyMaxRate { get; set; }
+    public int GracePeriodMinutes { get; set; } = 15;
 }
 
 public class UpdatePricingPolicyRequest
@@ -15,6 +16,7 @@ public class UpdatePricingPolicyRequest
     public int BlockMinutes { get; set; }
     public decimal HourlyRate { get; set; }
     public decimal DailyMaxRate { get; set; }
+    public int GracePeriodMinutes { get; set; } = 15;
 }
 
 public class PricingPolicyResponse
@@ -26,5 +28,6 @@ public class PricingPolicyResponse
     public int BlockMinutes { get; set; }
     public decimal HourlyRate { get; set; }
     public decimal DailyMaxRate { get; set; }
+    public int GracePeriodMinutes { get; set; }
     public DateTime CreatedAt { get; set; }
 }
