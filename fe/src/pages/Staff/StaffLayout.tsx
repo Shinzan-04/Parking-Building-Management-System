@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Car, MapPin, LogOut, Sun, Moon, DoorOpen } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
+import NotificationBell from '../../components/NotificationBell';
 
 const navItems = [
   { to: '/staff',         label: 'Dashboard',       icon: LayoutDashboard, end: true  },
@@ -98,7 +99,7 @@ export default function StaffLayout() {
       {/* Main area */}
       <div className="flex-1 flex flex-col min-h-screen ml-64">
         <header
-          className="sticky top-0 z-20 backdrop-blur-md border-b px-8 py-4 flex items-center justify-between"
+          className="sticky top-0 z-20 backdrop-blur-md border-b px-8 py-4 flex items-center justify-between overflow-visible"
           style={{
             backgroundColor: `color-mix(in srgb, var(--admin-bg-base) 85%, transparent)`,
             borderColor: 'var(--admin-border)',
@@ -112,14 +113,17 @@ export default function StaffLayout() {
               Hệ thống quản lý bãi đỗ xe
             </p>
           </div>
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-xl transition-colors"
-            style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
-            title={theme === 'dark' ? 'Chuyển Light mode' : 'Chuyển Dark mode'}
-          >
-            {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl transition-colors"
+              style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
+              title={theme === 'dark' ? 'Chuyển Light mode' : 'Chuyển Dark mode'}
+            >
+              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+            <NotificationBell token={user?.accessToken ?? null} />
+          </div>
         </header>
 
         <main className="flex-1 p-8 overflow-y-auto overflow-x-hidden">
