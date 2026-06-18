@@ -19,18 +19,23 @@ export default function PaymentResult() {
     // Fake brief loading just for UI smoothness
     setTimeout(() => {
       setLoading(false);
+      
+      let finalStatus: 'success' | 'failed' | 'cancelled' = 'success';
       if (isCancel || payosStatus === 'CANCELLED') {
-        setStatus('cancelled');
+        finalStatus = 'cancelled';
       } else if (payosStatus === 'PAID' || payosStatus == null) {
-        // If it's not cancelled and not explicitly FAILED, we assume success
-        // since PayOS only redirects to ReturnUrl on success normally.
-        setStatus('success');
-        
-        // Retrieve the QR data that we saved just before redirecting (optional fallback)
+        finalStatus = 'success';
         const savedQr = localStorage.getItem('latest_booking_qr');
         if (savedQr) setQrData(savedQr);
       } else {
-        setStatus('failed');
+        finalStatus = 'failed';
+      }
+      
+      setStatus(finalStatus);
+
+      // Nếu đang chạy trong iframe, báo kết quả về cho parent window (BookingWizard)
+      if (window !== window.parent) {
+        window.parent.postMessage({ type: 'PAYOS_RESULT', status: finalStatus }, '*');
       }
     }, 1000);
   }, [searchParams]);

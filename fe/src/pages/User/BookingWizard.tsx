@@ -1147,7 +1147,7 @@ function BookingSummary({
 // ─────────────────────────────────────────────
 import { QRCodeSVG } from 'qrcode.react';
 
-type PopupPhase = 'confirm' | 'payment' | 'qr';
+type PopupPhase = 'confirm' | 'payment' | 'checkout' | 'qr';
 
 function ConfirmationPopup({
   lot,
@@ -1170,6 +1170,22 @@ function ConfirmationPopup({
   const [createdReservation, setCreatedReservation] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'PAYOS_RESULT') {
+        if (event.data.status === 'success') {
+          setPhase('qr');
+        } else {
+          setError('Thanh toán thất bại hoặc đã bị hủy.');
+          setPhase('payment');
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
@@ -1248,8 +1264,9 @@ function ConfirmationPopup({
 
       const payOSRes = await createPayOSPayment(paymentPayload, token);
       
-      // Chuyển hướng người dùng qua trang thanh toán của PayOS
-      window.location.href = payOSRes.checkoutUrl;
+      // Thay vì chuyển trang, mở iframe PayOS ngay trong popup
+      setCheckoutUrl(payOSRes.checkoutUrl);
+      setPhase('checkout');
       
     } catch (err: any) {
       console.error(err);
@@ -1303,6 +1320,13 @@ function ConfirmationPopup({
       headerBg: 'bg-emerald-50/30',
       title: 'Payment',
       subtitle: 'Select payment method',
+    },
+    checkout: {
+      icon: <CheckCircle2 size={18} className="text-[#FF4C4C]" />,
+      iconBg: 'bg-[#FF4C4C]/10 border border-[#FF4C4C]/30',
+      headerBg: '',
+      title: 'Secure Checkout',
+      subtitle: 'Quét mã VietQR trên PayOS',
     },
     qr: {
       icon: <CheckCircle2 size={18} className="text-blue-500" />,
@@ -1402,6 +1426,19 @@ function ConfirmationPopup({
               <p className="text-xs text-stone-400 font-medium text-center">
                 Bằng việc xác nhận, bạn đồng ý với Điều khoản và Dịch vụ.
               </p>
+            </div>
+          )}
+
+          {/* ── Phase: Checkout (Iframe) ── */}
+          {phase === 'checkout' && checkoutUrl && (
+            <div className="w-full flex flex-col items-center justify-center">
+              <div className="w-full h-[550px] relative overflow-hidden rounded-2xl border border-gray-200">
+                <iframe 
+                  src={checkoutUrl} 
+                  className="w-full h-full border-0 absolute top-0 left-0" 
+                  title="PayOS Checkout" 
+                />
+              </div>
             </div>
           )}
 
@@ -1515,6 +1552,18 @@ function ConfirmationPopup({
                 )}
               </button>
             </>
+          )}
+
+          {phase === 'checkout' && (
+            <button
+              onClick={() => {
+                setPhase('payment');
+                setCheckoutUrl(null);
+              }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all"
+            >
+              Hủy Thanh Toán
+            </button>
           )}
 
           {phase === 'qr' && (
