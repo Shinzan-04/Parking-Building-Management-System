@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
-  getUsers, createUser, updateUser, deleteUser, normalizeRole,
+  getUsers, createUser, updateUser, deleteUser, assignRole, normalizeRole,
   type ApiRole, type UserResponse,
 } from '../../services/usersService';
 
@@ -144,15 +144,8 @@ export default function UsersPage() {
 
   const quickChangeRole = async (userId: string, role: Role) => {
     if (!token) return;
-    const user = users.find(u => u.id === userId);
-    if (!user) return;
     try {
-      await updateUser(userId, {
-        fullName: user.fullName,
-        role: UI_TO_API[role],
-        phoneNumber: user.phone || null,
-        email: user.email || null,
-      }, token);
+      await assignRole(userId, { role: UI_TO_API[role] }, token);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
     } catch {
       // silently revert — dropdown closes below

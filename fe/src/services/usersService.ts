@@ -89,3 +89,10 @@ export const updateUser = (id: string, payload: UpdateUserRequest, token: string
 
 export const deleteUser = (id: string, token: string): Promise<void> =>
   authFetch(`/api/users/${id}`, token, { method: 'DELETE' });
+
+export interface AssignRoleRequest {
+  role: ApiRole;
+}
+
+export const assignRole = (id: string, payload: AssignRoleRequest, token: string): Promise<void> =>
+  authFetch(`/api/users/${id}/role`, token, { method: 'PATCH', body: JSON.stringify(payload) });
