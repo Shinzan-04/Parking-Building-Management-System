@@ -1,9 +1,11 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Building2, ParkingSquare, CircleCheck, Wrench,
   Plus, Search, Pencil, Trash2, MapPin,
   X, AlertTriangle, Eye, Loader2, Car, Save, Info, RefreshCw,
+  Users, UserMinus, UserPlus,
 } from 'lucide-react';
 import { FaMotorcycle } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
@@ -12,10 +14,12 @@ import {
   createBuilding, updateBuilding, deleteBuilding,
   createFloor, deleteFloor, getFloorsByBuilding,
   getVehicleTypes, createParkingSlot, updateFloor,
+  getBuildingStaff, assignStaffToBuilding, unassignStaffFromBuilding,
 } from '../../services/buildingsService';
-import type { FloorResponse, ParkingSlotSummary, VehicleTypeResponse } from '../../services/buildingsService';
+import type { FloorResponse, ParkingSlotSummary, VehicleTypeResponse, StaffResponse } from '../../services/buildingsService';
 import { getSlotsByFloor, updateSlotStatus } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
+import { getUsers } from '../../services/usersService';
 
 interface ParkingLot {
   id: string;
@@ -441,7 +445,7 @@ export default function ParkingLots() {
   const [refreshing, setRefreshing] = useState(false);
   const [apiError, setApiError]   = useState('');
   const [search, setSearch]       = useState('');
-  const [modalType, setModalType] = useState<'add' | 'detail' | 'edit' | 'delete' | null>(null);
+  const [modalType, setModalType] = useState<'add' | 'detail' | 'edit' | 'delete' | 'staff' | null>(null);
   const [selected, setSelected]   = useState<ParkingLot | null>(null);
   const [form, setForm]           = useState(emptyForm);
   const [formError, setFormError] = useState('');
@@ -461,6 +465,11 @@ export default function ParkingLots() {
   const [editFloorActualCount, setEditFloorActualCount] = useState<number | null>(null);
   const [editFloorError, setEditFloorError] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [buildingStaff, setBuildingStaff] = useState<StaffResponse[]>([]);
+  const [allStaffList, setAllStaffList]   = useState<StaffResponse[]>([]);
+  const [staffLoading, setStaffLoading]   = useState(false);
+  const [assigningStaffId, setAssigningStaffId] = useState('');
+  const [staffActionLoading, setStaffActionLoading] = useState(false);
 
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
@@ -525,7 +534,50 @@ export default function ParkingLots() {
   }, []);
 
   const openAdd    = () => { setForm(emptyForm); setFormError(''); setModalType('add'); };
-  const openDetail = (lot: ParkingLot) => { setSelected(lot); setSelectedSlotId(null); setModalType('detail'); };
+  const openDetail = (lot: ParkingLot) => {
+    setSelected(lot);
+    setSelectedSlotId(null);
+    setAssigningStaffId('');
+    setModalType('detail');
+    const activeToken = getActiveToken(token);
+    if (!activeToken) return;
+    setStaffLoading(true);
+    Promise.all([
+      getBuildingStaff(lot.id, activeToken),
+      getUsers(activeToken),
+    ]).then(([assigned, allUsers]) => {
+      console.log('[Staff] assigned:', assigned, 'allUsers:', allUsers);
+      setBuildingStaff(assigned);
+      setAllStaffList(
+        allUsers.map(u => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email ?? null, phoneNumber: u.phoneNumber ?? null, createdAt: u.createdAt }))
+      );
+    }).catch((err) => {
+      console.error('[Staff] load error:', err);
+      setBuildingStaff([]);
+      setAllStaffList([]);
+    }).finally(() => setStaffLoading(false));
+  };
+
+  const openStaff = (lot: ParkingLot) => {
+    setSelected(lot);
+    setAssigningStaffId('');
+    setModalType('staff');
+    const activeToken = getActiveToken(token);
+    if (!activeToken) return;
+    setStaffLoading(true);
+    Promise.all([
+      getBuildingStaff(lot.id, activeToken),
+      getUsers(activeToken),
+    ]).then(([assigned, allUsers]) => {
+      setBuildingStaff(assigned);
+      setAllStaffList(allUsers.map(u => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email ?? null, phoneNumber: u.phoneNumber ?? null, createdAt: u.createdAt })));
+    }).catch((err) => {
+      console.error('[Staff] load error:', err);
+      setBuildingStaff([]);
+      setAllStaffList([]);
+    }).finally(() => setStaffLoading(false));
+  };
+
   const openEdit   = (lot: ParkingLot) => {
     setSelected(lot);
     setForm({ name: lot.name, address: lot.address, totalSpots: String(lot.totalSpots), status: lot.status });
@@ -978,11 +1030,18 @@ export default function ParkingLots() {
                   Chi tiết
                 </button>
                 <button
+                  onClick={() => openStaff(lot)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-blue-400/70 hover:text-blue-400 hover:bg-blue-400/10 transition-all"
+                >
+                  <Users size={13} />
+                  Nhân viên
+                </button>
+                <button
                   onClick={() => openEdit(lot)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-[#FF4C4C]/70 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all"
                 >
                   <Pencil size={13} />
-                  Chỉnh sửa
+                  Sửa
                 </button>
                 {isAdmin && (
                   <button
@@ -999,9 +1058,138 @@ export default function ParkingLots() {
         })}
       </div>
 
+      {/* ── STAFF MODAL ── */}
+      {modalType === 'staff' && selected && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh] bg-white dark:bg-[#0E0E10]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <Users size={15} className="text-blue-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Nhân viên phụ trách</h3>
+                  <p className="text-[11px] text-gray-400 dark:text-white/35 mt-0.5">{selected.name}</p>
+                </div>
+              </div>
+              <button onClick={closeModal} className="p-1.5 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/10 transition-all">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+              {staffLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 size={20} className="animate-spin text-gray-300 dark:text-white/30" />
+                </div>
+              ) : (
+                <>
+                  {buildingStaff.length === 0 ? (
+                    <div className="flex items-center justify-center py-6 bg-gray-50 dark:bg-white/[0.03] rounded-xl border border-gray-100 dark:border-white/5">
+                      <p className="text-xs text-gray-400 dark:text-white/30">Chưa có nhân viên nào được phân công</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {buildingStaff.map(s => (
+                        <div key={s.id} className="flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-white/[0.04] rounded-xl border border-gray-100 dark:border-white/[0.08]">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center shrink-0">
+                              <span className="text-xs font-semibold text-blue-500">{s.fullName.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-800 dark:text-white truncate">{s.fullName}</p>
+                              <p className="text-[10px] text-gray-400 dark:text-white/35 truncate">@{s.username}</p>
+                            </div>
+                          </div>
+                          <button
+                            disabled={staffActionLoading}
+                            onClick={async () => {
+                              const activeToken = getActiveToken(token);
+                              if (!activeToken) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
+                              setStaffActionLoading(true);
+                              try {
+                                await unassignStaffFromBuilding(selected.id, s.id, activeToken);
+                                setBuildingStaff(prev => prev.filter(x => x.id !== s.id));
+                                showToast('success', `Đã gỡ ${s.fullName} khỏi tòa nhà.`);
+                              } catch (e) {
+                                showToast('error', e instanceof Error ? e.message : 'Không thể gỡ nhân viên.');
+                              } finally {
+                                setStaffActionLoading(false);
+                              }
+                            }}
+                            className="shrink-0 p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 dark:text-white/25 dark:hover:text-red-400 dark:hover:bg-red-400/10 transition-all disabled:opacity-40"
+                            title="Gỡ khỏi tòa nhà"
+                          >
+                            <UserMinus size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Assign row */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <select
+                      value={assigningStaffId}
+                      onChange={e => setAssigningStaffId(e.target.value)}
+                      disabled={allStaffList.filter(s => !buildingStaff.find(b => b.id === s.id)).length === 0}
+                      className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-gray-700 dark:text-white focus:outline-none focus:border-blue-400 transition-colors disabled:opacity-40"
+                    >
+                      <option value="">
+                        {allStaffList.filter(s => !buildingStaff.find(b => b.id === s.id)).length === 0
+                          ? '-- Không có nhân viên khả dụng --'
+                          : '-- Chọn nhân viên --'}
+                      </option>
+                      {allStaffList
+                        .filter(s => !buildingStaff.find(b => b.id === s.id))
+                        .map(s => (
+                          <option key={s.id} value={s.id}>{s.fullName} (@{s.username})</option>
+                        ))}
+                    </select>
+                    <button
+                      disabled={!assigningStaffId || staffActionLoading}
+                      onClick={async () => {
+                        if (!assigningStaffId) return;
+                        const activeToken = getActiveToken(token);
+                        if (!activeToken) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
+                        setStaffActionLoading(true);
+                        try {
+                          await assignStaffToBuilding(selected.id, assigningStaffId, activeToken);
+                          const staffMember = allStaffList.find(s => s.id === assigningStaffId);
+                          if (staffMember) setBuildingStaff(prev => [...prev, staffMember]);
+                          setAssigningStaffId('');
+                          showToast('success', 'Đã phân công nhân viên thành công!');
+                        } catch (e) {
+                          showToast('error', e instanceof Error ? e.message : 'Không thể phân công nhân viên.');
+                        } finally {
+                          setStaffActionLoading(false);
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-white bg-blue-500 hover:bg-blue-400 transition-colors disabled:opacity-40 shrink-0"
+                    >
+                      {staffActionLoading ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
+                      Phân công
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-gray-100 dark:border-white/10 flex justify-end">
+              <button onClick={closeModal} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 dark:text-white/60 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+
       {/* ── DETAIL MODAL ── */}
-      {modalType === 'detail' && selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {modalType === 'detail' && selected && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="border border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <div className="flex items-center gap-3">
@@ -1059,6 +1247,108 @@ export default function ParkingLots() {
               </div>
 
               <OccupancyBar used={selected.usedSpots} total={selected.actualSlots} />
+
+              {/* ── Staff Assignment ── */}
+              <div>
+                <p className="text-sm font-medium text-white mb-3 flex items-center gap-2">
+                  <Users size={15} className="text-[#FF4C4C]" />
+                  Nhân viên phụ trách
+                </p>
+                {staffLoading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 size={18} className="animate-spin text-white/30" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {buildingStaff.length === 0 ? (
+                      <div className="flex items-center justify-center py-4 bg-white/[0.03] rounded-xl border border-white/5">
+                        <p className="text-xs text-white/30">Chưa có nhân viên nào được phân công</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {buildingStaff.map(s => (
+                          <div key={s.id} className="flex items-center justify-between px-3 py-2.5 bg-white/[0.04] rounded-xl border border-white/[0.08]">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-7 h-7 rounded-lg bg-[#FF4C4C]/15 flex items-center justify-center shrink-0">
+                                <span className="text-xs font-semibold text-[#FF4C4C]">{s.fullName.charAt(0).toUpperCase()}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-medium text-white truncate">{s.fullName}</p>
+                                <p className="text-[10px] text-white/35 truncate">@{s.username}</p>
+                              </div>
+                            </div>
+                            <button
+                              disabled={staffActionLoading}
+                              onClick={async () => {
+                                if (!selected) return;
+                                const activeToken = getActiveToken(token);
+                                if (!activeToken) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
+                                setStaffActionLoading(true);
+                                try {
+                                  await unassignStaffFromBuilding(selected.id, s.id, activeToken);
+                                  setBuildingStaff(prev => prev.filter(x => x.id !== s.id));
+                                  showToast('success', `Đã gỡ ${s.fullName} khỏi tòa nhà.`);
+                                } catch (e) {
+                                  showToast('error', e instanceof Error ? e.message : 'Không thể gỡ nhân viên.');
+                                } finally {
+                                  setStaffActionLoading(false);
+                                }
+                              }}
+                              className="shrink-0 p-1.5 rounded-lg text-white/25 hover:text-red-400 hover:bg-red-400/10 transition-all disabled:opacity-40"
+                              title="Gỡ khỏi tòa nhà"
+                            >
+                              <UserMinus size={13} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {(() => {
+                      const assignedIds = new Set(buildingStaff.map(s => s.id));
+                      const available = allStaffList.filter(s => !assignedIds.has(s.id));
+                      return (
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={assigningStaffId}
+                            onChange={e => setAssigningStaffId(e.target.value)}
+                            disabled={available.length === 0}
+                            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors disabled:opacity-40"
+                          >
+                            <option value="">{available.length === 0 ? '-- Không có nhân viên khả dụng --' : '-- Chọn nhân viên --'}</option>
+                            {available.map(s => (
+                              <option key={s.id} value={s.id}>{s.fullName} (@{s.username})</option>
+                            ))}
+                          </select>
+                          <button
+                            disabled={!assigningStaffId || staffActionLoading || available.length === 0}
+                            onClick={async () => {
+                              if (!selected || !assigningStaffId) return;
+                              const activeToken = getActiveToken(token);
+                              if (!activeToken) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
+                              setStaffActionLoading(true);
+                              try {
+                                await assignStaffToBuilding(selected.id, assigningStaffId, activeToken);
+                                const staffMember = allStaffList.find(s => s.id === assigningStaffId);
+                                if (staffMember) setBuildingStaff(prev => [...prev, staffMember]);
+                                setAssigningStaffId('');
+                                showToast('success', 'Đã phân công nhân viên thành công!');
+                              } catch (e) {
+                                showToast('error', e instanceof Error ? e.message : 'Không thể phân công nhân viên.');
+                              } finally {
+                                setStaffActionLoading(false);
+                              }
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-white bg-[#FF4C4C] hover:bg-[#ff3333] transition-colors disabled:opacity-40 shrink-0"
+                          >
+                            {staffActionLoading ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
+                            Phân công
+                          </button>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
 
               {/* Tip */}
               <div className="flex items-start gap-2.5 px-4 py-3 bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl">
@@ -1139,11 +1429,11 @@ export default function ParkingLots() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ── ADD / EDIT MODAL ── */}
-      {(modalType === 'add' || modalType === 'edit') && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      {(modalType === 'add' || modalType === 'edit') && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]" style={{ backgroundColor: 'var(--admin-bg-base)' }}>
 
             {/* Header */}
@@ -1501,7 +1791,7 @@ export default function ParkingLots() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ── TOAST NOTIFICATION ── */}
       {toast && (
@@ -1520,8 +1810,8 @@ export default function ParkingLots() {
       )}
 
       {/* ── DELETE CONFIRM MODAL ── */}
-      {modalType === 'delete' && selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {modalType === 'delete' && selected && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="px-6 pt-6 pb-4 text-center">
               <div className="w-14 h-14 rounded-2xl bg-red-400/10 flex items-center justify-center mx-auto mb-4">
@@ -1558,7 +1848,7 @@ export default function ParkingLots() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

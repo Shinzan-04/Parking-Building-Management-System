@@ -13,6 +13,7 @@
 
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ClipboardList, Search, RefreshCw, ChevronLeft,
   ChevronRight, Eye, Clock, CheckCircle2, AlertTriangle,
@@ -104,8 +105,8 @@ function SessionDetailModal({
     })();
   }, [sessionId, token]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
@@ -189,7 +190,7 @@ function SessionDetailModal({
         </div>
       </div>
     </div>
-  );
+  , document.body);
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
