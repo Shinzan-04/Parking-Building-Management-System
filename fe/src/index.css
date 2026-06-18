@@ -51,10 +51,12 @@
 
   body {
     @apply bg-[#0A0A0C] text-white font-sans antialiased overflow-x-hidden;
+    background-color: var(--admin-bg-base);
   }
 
   #root {
     @apply min-h-screen;
+    background-color: var(--admin-bg-base);
   }
 
   ul,

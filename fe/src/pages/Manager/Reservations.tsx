@@ -299,7 +299,7 @@ export default function ManagerReservations() {
       {/* ══ APPROVE MODAL ══ */}
       {approveTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-[#FF4C4C]/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+          <div className="border border-[#FF4C4C]/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 flex items-center justify-center shrink-0">
                 <CheckCircle2 size={20} className="text-[#FF4C4C]" />
@@ -350,7 +350,7 @@ export default function ManagerReservations() {
       {/* ══ REJECT MODAL ══ */}
       {rejectTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <XCircle size={20} className="text-red-400" />
