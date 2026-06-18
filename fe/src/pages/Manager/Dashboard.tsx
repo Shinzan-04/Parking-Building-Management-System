@@ -144,16 +144,16 @@ export default function ManagerDashboard() {
   const maxRevenue   = Math.max(...revenueData.map(d => d.revenue), 1);
 
   const stats = [
-    { label: 'Xe đang đỗ',        value: activeCount.toLocaleString('vi-VN'),  unit: 'xe',  icon: Car,        color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5'  },
-    { label: 'Chỗ còn trống',     value: available.toLocaleString('vi-VN'),    unit: 'chỗ', icon: MapPin,     color: '#F97316', bg: 'from-orange-500/20 to-orange-500/5' },
-    { label: 'Doanh thu hôm nay', value: vnd(todayRevenue),                    unit: 'đ',   icon: Banknote,   color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5'  },
+    { label: 'Xe đang đỗ',        value: activeCount.toLocaleString('vi-VN'),  unit: 'xe',  icon: Car,        color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5'  },
+    { label: 'Chỗ còn trống',     value: available.toLocaleString('vi-VN'),    unit: 'chỗ', icon: MapPin,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5'  },
+    { label: 'Doanh thu hôm nay', value: vnd(todayRevenue),                    unit: 'đ',   icon: Banknote,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5'  },
     { label: 'Tỷ lệ lấp đầy',    value: `${occupancyPct}%`,                   unit: '',    icon: TrendingUp, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
   ];
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-amber-500 animate-spin" />
+        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
         <p className="text-sm text-white/40">Đang tải dữ liệu...</p>
       </div>
     );
@@ -240,10 +240,10 @@ export default function ManagerDashboard() {
                   : String(v)
                 }
               />
-              <Tooltip content={<ChartTooltip color="#F59E0B" formatter={v => `${vnd(v)}đ`} />} cursor={{ fill: '#ffffff05' }} />
+              <Tooltip content={<ChartTooltip color="#FF4C4C" formatter={v => `${vnd(v)}đ`} />} cursor={{ fill: '#ffffff05' }} />
               <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
                 {revenueData.map((entry, i) => (
-                  <Cell key={i} fill={entry.revenue === maxRevenue && entry.revenue > 0 ? '#F59E0B' : '#F59E0B66'} />
+                  <Cell key={i} fill={entry.revenue === maxRevenue && entry.revenue > 0 ? '#FF4C4C' : '#FF4C4C55'} />
                 ))}
               </Bar>
             </BarChart>
@@ -260,14 +260,14 @@ export default function ManagerDashboard() {
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-white/60">Tỷ lệ lấp đầy</span>
-              <span className="font-semibold text-amber-500">{occupancyPct}%</span>
+              <span className="font-semibold text-[#FF4C4C]">{occupancyPct}%</span>
             </div>
             <div className="h-3 bg-white/10 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
                   width: `${Math.min(occupancyPct, 100)}%`,
-                  backgroundColor: occupancyPct >= 90 ? '#F87171' : occupancyPct >= 70 ? '#F59E0B' : '#F97316',
+                  backgroundColor: occupancyPct >= 90 ? '#F87171' : occupancyPct >= 70 ? '#FF4C4C' : '#FF4C4C',
                 }}
               />
             </div>
@@ -276,8 +276,8 @@ export default function ManagerDashboard() {
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: 'Tổng chỗ',  value: totalCapacity, color: 'text-white' },
-              { label: 'Đang dùng', value: activeCount,   color: 'text-amber-500' },
-              { label: 'Còn trống', value: available,     color: 'text-orange-400' },
+              { label: 'Đang dùng', value: activeCount,   color: 'text-[#FF4C4C]' },
+              { label: 'Còn trống', value: available,     color: 'text-[#FF4C4C]' },
             ].map(item => (
               <div key={item.label} className="bg-white/5 rounded-xl px-3 py-3 text-center">
                 <p className={`text-xl font-bold ${item.color}`}>{item.value.toLocaleString('vi-VN')}</p>
@@ -364,8 +364,8 @@ export default function ManagerDashboard() {
                           Quá giờ
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500">
-                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FF4C4C]/10 text-[#FF4C4C]">
+                          <span className="w-1.5 h-1.5 bg-[#FF4C4C] rounded-full animate-pulse" />
                           Đang đỗ
                         </span>
                       )}

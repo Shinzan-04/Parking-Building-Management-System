@@ -40,7 +40,7 @@ function fmtDateTime(iso: string) {
 
 const STATUS_STYLE: Record<string, string> = {
   Pending:   'bg-amber-400/10 text-amber-400',
-  Confirmed: 'bg-orange-500/10 text-orange-500',
+  Confirmed: 'bg-[#FF4C4C]/10 text-[#FF4C4C]',
   CheckedIn: 'bg-amber-500/10 text-amber-500',
   Cancelled: 'bg-white/10 text-white/50',
   Completed: 'bg-white/10 text-white/40',
@@ -75,8 +75,8 @@ function ReservationCard({
       {/* Top row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
-            <CalendarCheck size={18} className="text-orange-500" />
+          <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 flex items-center justify-center shrink-0">
+            <CalendarCheck size={18} className="text-[#FF4C4C]" />
           </div>
           <div>
             <p className="font-bold font-mono text-white text-base">{r.licensePlate}</p>
@@ -101,7 +101,7 @@ function ReservationCard({
             </div>
           </div>
           <div className="flex items-start gap-2 px-3 py-2 bg-white/[0.04] rounded-xl">
-            <Clock size={12} className="text-orange-500 shrink-0 mt-0.5" />
+            <Clock size={12} className="text-[#FF4C4C] shrink-0 mt-0.5" />
             <div>
               <p className="text-[10px] text-white/40 uppercase tracking-wider">Kết thúc</p>
               <p className="text-xs text-white font-medium">{fmtDateTime(r.endTime)}</p>
@@ -119,7 +119,7 @@ function ReservationCard({
         <div className="flex gap-2">
           <button
             onClick={() => onApprove(r)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-black bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 transition-opacity"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-black bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity"
           >
             <Check size={14} /> Duyệt
           </button>
@@ -217,7 +217,7 @@ export default function ManagerReservations() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-orange-500 animate-spin" />
+        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
         <p className="text-sm text-white/40">Đang tải danh sách đặt chỗ...</p>
       </div>
     );
@@ -268,7 +268,7 @@ export default function ManagerReservations() {
       {/* Pending section */}
       <div>
         <div className="flex items-center gap-2.5 mb-4">
-          <CalendarCheck size={16} className="text-orange-500" />
+          <CalendarCheck size={16} className="text-[#FF4C4C]" />
           <h3 className="text-base font-semibold text-white">Chờ duyệt</h3>
           {pending.length > 0 && (
             <span className="px-2 py-0.5 text-xs font-bold bg-amber-400 text-black rounded-full">
@@ -299,10 +299,10 @@ export default function ManagerReservations() {
       {/* ══ APPROVE MODAL ══ */}
       {approveTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-orange-500/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+          <div className="bg-[#121214] border border-[#FF4C4C]/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
-                <CheckCircle2 size={20} className="text-orange-500" />
+              <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={20} className="text-[#FF4C4C]" />
               </div>
               <div>
                 <h3 className="text-base font-semibold text-white">Xác nhận duyệt</h3>
@@ -337,7 +337,7 @@ export default function ManagerReservations() {
               <button
                 onClick={handleApprove}
                 disabled={approving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-black bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {approving && <Loader2 size={14} className="animate-spin" />}
                 Xác nhận duyệt
