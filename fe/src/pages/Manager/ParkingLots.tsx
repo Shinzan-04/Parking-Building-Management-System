@@ -21,7 +21,8 @@ interface ParkingLot {
   name: string;
   address: string;
   floorCount: number;
-  totalSpots: number;
+  totalSpots: number;   // totalCapacity from API (registered max)
+  actualSlots: number;  // real active slots created across all floors
   usedSpots: number;
   status: 'active' | 'maintenance' | 'full';
 }
@@ -426,23 +427,31 @@ export default function ParkingLots() {
       floors.forEach(f => { fbMap[f.id] = f.buildingId; });
 
       const occupiedCountPerBuilding: Record<string, number> = {};
-      buildings.forEach(b => { occupiedCountPerBuilding[b.id] = 0; });
+      const actualSlotsPerBuilding: Record<string, number> = {};
+      buildings.forEach(b => { occupiedCountPerBuilding[b.id] = 0; actualSlotsPerBuilding[b.id] = 0; });
       slots
-        .filter(s => isSlotOccupied(s.status))
+        .filter(s => !isSlotMaintenance(s.status))
         .forEach(s => {
           const bid = fbMap[s.floorId];
-          if (bid) occupiedCountPerBuilding[bid] = (occupiedCountPerBuilding[bid] ?? 0) + 1;
+          if (bid) {
+            actualSlotsPerBuilding[bid] = (actualSlotsPerBuilding[bid] ?? 0) + 1;
+            if (isSlotOccupied(s.status)) {
+              occupiedCountPerBuilding[bid] = (occupiedCountPerBuilding[bid] ?? 0) + 1;
+            }
+          }
         });
 
       setLots(buildings.map(b => {
         const used = occupiedCountPerBuilding[b.id] ?? 0;
-        const pct = b.totalCapacity > 0 ? used / b.totalCapacity : 0;
+        const actual = actualSlotsPerBuilding[b.id] ?? 0;
+        const pct = actual > 0 ? used / actual : 0;
         return {
           id: b.id,
           name: b.name,
           address: b.address,
           floorCount: b.floorCount,
           totalSpots: b.totalCapacity,
+          actualSlots: actual,
           usedSpots: used,
           status: pct >= 1 ? 'full' : 'active',
         };
@@ -699,6 +708,7 @@ export default function ParkingLots() {
         address: created.address,
         floorCount: created.floorCount,
         totalSpots: created.totalCapacity,
+        actualSlots: 0,
         usedSpots: 0,
         status: 'active',
       }]);
@@ -751,6 +761,7 @@ export default function ParkingLots() {
   };
 
   const totalSpots    = lots.reduce((s, l) => s + l.totalSpots, 0);
+  const totalActual   = lots.reduce((s, l) => s + l.actualSlots, 0);
   const usedSpots     = lots.reduce((s, l) => s + l.usedSpots, 0);
   const activeLots    = lots.filter(l => l.status === 'active').length;
   const inMaintenance = lots.filter(l => l.status === 'maintenance').length;
@@ -763,7 +774,7 @@ export default function ParkingLots() {
   const summaryStats = [
     { label: 'Tổng số tòa',    value: lots.length,           unit: 'tòa', icon: Building2,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
     { label: 'Tổng sức chứa',  value: totalSpots,             unit: 'chỗ', icon: ParkingSquare, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-    { label: 'Đang còn trống', value: totalSpots - usedSpots, unit: 'chỗ', icon: CircleCheck,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+    { label: 'Đang còn trống', value: totalActual - usedSpots, unit: 'chỗ', icon: CircleCheck,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
     { label: 'Đang bảo trì',   value: inMaintenance,          unit: 'tòa', icon: Wrench,        color: '#F87171', bg: 'from-red-400/20 to-red-400/5' },
   ];
 
@@ -850,7 +861,7 @@ export default function ParkingLots() {
         )}
         {filtered.map((lot) => {
           const cfg = statusConfig[lot.status];
-          const available = lot.totalSpots - lot.usedSpots;
+          const available = lot.actualSlots - lot.usedSpots;
           return (
             <div key={lot.id} className="glass-card p-5 rounded-2xl flex flex-col gap-4 hover:border-white/20 transition-colors">
               <div className="flex items-start justify-between">
@@ -872,19 +883,30 @@ export default function ParkingLots() {
                 </span>
               </div>
 
-              <OccupancyBar used={lot.usedSpots} total={lot.totalSpots} />
+              <OccupancyBar used={lot.usedSpots} total={lot.actualSlots} />
 
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: 'Sức chứa', value: lot.totalSpots, color: 'text-white' },
-                  { label: 'Đã dùng',  value: lot.usedSpots,  color: 'text-[#FF4C4C]' },
-                  { label: 'Trống',    value: available,      color: 'text-[#FF4C4C]' },
-                ].map(item => (
-                  <div key={item.label} className="bg-white/5 rounded-xl px-3 py-2 text-center">
-                    <p className={`text-lg font-bold ${item.color}`}>{item.value}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{item.label}</p>
-                  </div>
-                ))}
+              {/* Slot stats */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 rounded-xl px-3 py-2 text-center col-span-2">
+                  <p className="text-xs text-white/30 mb-1">Sức chứa tối đa</p>
+                  <p className="text-lg font-bold text-white">{lot.totalSpots} <span className="text-xs font-normal text-white/30">chỗ</span></p>
+                </div>
+                <div className="bg-white/5 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đã tạo</p>
+                  <p className="text-lg font-bold text-white/70">{lot.actualSlots}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Chưa tạo</p>
+                  <p className="text-lg font-bold text-white/40">{lot.totalSpots - lot.actualSlots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đang đỗ</p>
+                  <p className="text-lg font-bold text-[#FF4C4C]">{lot.usedSpots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Còn trống</p>
+                  <p className="text-lg font-bold text-[#FF4C4C]">{available}</p>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-1 border-t border-white/5">
@@ -950,20 +972,31 @@ export default function ParkingLots() {
             </div>
 
             <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: 'Sức chứa',  value: selected.totalSpots,                     color: 'text-white' },
-                  { label: 'Đã dùng',   value: selected.usedSpots,                       color: 'text-[#FF4C4C]' },
-                  { label: 'Còn trống', value: selected.totalSpots - selected.usedSpots, color: 'text-[#FF4C4C]' },
-                ].map(item => (
-                  <div key={item.label} className="bg-white/5 rounded-xl p-3 text-center">
-                    <p className={`text-2xl font-bold ${item.color}`}>{item.value}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{item.label}</p>
-                  </div>
-                ))}
+              {/* Capacity summary */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 rounded-xl p-3 text-center col-span-2">
+                  <p className="text-xs text-white/30 mb-1">Sức chứa tối đa đăng ký</p>
+                  <p className="text-2xl font-bold text-white">{selected.totalSpots} <span className="text-sm font-normal text-white/30">chỗ</span></p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đã tạo slot</p>
+                  <p className="text-xl font-bold text-white/70">{selected.actualSlots}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-xs text-white/30 mb-1">Chưa tạo</p>
+                  <p className="text-xl font-bold text-white/40">{selected.totalSpots - selected.actualSlots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl p-3 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đang đỗ</p>
+                  <p className="text-xl font-bold text-[#FF4C4C]">{selected.usedSpots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl p-3 text-center">
+                  <p className="text-xs text-white/30 mb-1">Còn trống</p>
+                  <p className="text-xl font-bold text-[#FF4C4C]">{selected.actualSlots - selected.usedSpots}</p>
+                </div>
               </div>
 
-              <OccupancyBar used={selected.usedSpots} total={selected.totalSpots} />
+              <OccupancyBar used={selected.usedSpots} total={selected.actualSlots} />
 
               {/* Tip */}
               <div className="flex items-start gap-2.5 px-4 py-3 bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl">
@@ -1005,7 +1038,7 @@ export default function ParkingLots() {
                         setLots(prev => prev.map(l => ({
                           ...l,
                           usedSpots: usedByBuilding[l.id] ?? 0,
-                          status: (usedByBuilding[l.id] ?? 0) >= l.totalSpots ? 'full' : l.status === 'full' ? 'active' : l.status,
+                          status: (usedByBuilding[l.id] ?? 0) >= l.actualSlots ? 'full' : l.status === 'full' ? 'active' : l.status,
                         })));
                         if (selected) setSelected(s => s ? { ...s, usedSpots: usedByBuilding[s.id] ?? 0 } : s);
                         showToast('success', action === 'release' ? 'Đã giải phóng chỗ đỗ!' : 'Đã phân bổ chỗ đỗ thành công!');
