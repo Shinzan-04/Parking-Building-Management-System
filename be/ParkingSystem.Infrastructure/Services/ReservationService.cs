@@ -277,19 +277,58 @@ public class ReservationService : IReservationService
             payment.UpdatedAt = DateTime.UtcNow;
         }
 
-        reservation.Status = ReservationStatus.PendingReview;
-        reservation.UpdatedAt = DateTime.UtcNow;
+        var buildingId = reservation.ParkingSlot?.Floor?.BuildingId;
 
-        LogState(reservation, "PaymentSuccess", "Xác nhận thanh toán thành công (đã verify PayOS)");
-        await _context.SaveChangesAsync();
+        // Lấy danh sách Staff phụ trách
+        var assignedStaffs = await _context.Users
+            .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
+            .Where(u => !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingId)
+            .ToListAsync();
 
-        // Gửi thông báo cho Driver
-        await _notificationService.SendAsync(
-            reservation.DriverId,
-            "💳 Thanh toán thành công",
-            $"Đặt chỗ {reservation.BookingCode} đã được thanh toán. Đang chờ Staff duyệt.",
-            "PaymentSuccess",
-            reservation.Id);
+        bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
+
+        if (isAutoApprove)
+        {
+            reservation.Status = ReservationStatus.Confirmed;
+            reservation.UpdatedAt = DateTime.UtcNow;
+            LogState(reservation, "Confirmed", "Tự động duyệt (Auto-Approve)");
+            await _context.SaveChangesAsync();
+
+            // Báo cho Driver
+            await _notificationService.SendAsync(
+                reservation.DriverId,
+                "✅ Đặt chỗ được chấp nhận",
+                $"Yêu cầu đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
+                "ReservationAccepted",
+                reservation.Id);
+        }
+        else
+        {
+            reservation.Status = ReservationStatus.PendingReview;
+            reservation.UpdatedAt = DateTime.UtcNow;
+            LogState(reservation, "PaymentSuccess", "Xác nhận thanh toán thành công. Đang chờ Staff duyệt");
+            await _context.SaveChangesAsync();
+
+            // Báo cho Driver
+            await _notificationService.SendAsync(
+                reservation.DriverId,
+                "💳 Thanh toán thành công",
+                $"Đặt chỗ {reservation.BookingCode} đã thanh toán. Đang chờ Staff duyệt.",
+                "PaymentSuccess",
+                reservation.Id);
+
+            // Gửi Noti cho Staff nào bật nhận thông báo
+            var staffsToNotify = assignedStaffs.Where(u => u.IsNotificationEnabled).ToList();
+            foreach (var staff in staffsToNotify)
+            {
+                await _notificationService.SendAsync(
+                    staff.Id,
+                    "🔔 Đặt chỗ mới",
+                    $"Có yêu cầu đặt chỗ mới ({reservation.BookingCode}) đang chờ duyệt.",
+                    "NewReservation",
+                    reservation.Id);
+            }
+        }
 
         return true;
     }
@@ -393,11 +432,21 @@ public class ReservationService : IReservationService
 
     // --- For Staff ---
 
-    public async Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync()
+    public async Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync(Guid staffId)
     {
-        var reservations = await _context.Reservations
+        var staff = await _context.Users.FindAsync(staffId);
+
+        var query = _context.Reservations
             .Include(r => r.ParkingSlot)
-            .Where(r => r.Status == ReservationStatus.PendingReview) // Chỉ hiện những cái đã thanh toán
+            .ThenInclude(ps => ps.Floor)
+            .Where(r => r.Status == ReservationStatus.PendingReview); // Chỉ hiện những cái đã thanh toán
+
+        if (staff != null && staff.AssignedBuildingId.HasValue)
+        {
+            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == staff.AssignedBuildingId.Value);
+        }
+
+        var reservations = await query
             .OrderBy(r => r.StartTime)
             .ToListAsync();
 
