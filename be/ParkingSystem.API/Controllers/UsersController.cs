@@ -51,4 +51,13 @@ public class UsersController : ControllerBase
         var result = await _userService.DeleteAsync(id);
         return result ? NoContent() : NotFound();
     }
+
+    [HttpPatch("{id}/role")]
+    public async Task<IActionResult> AssignRole(Guid id, [FromBody] AssignRoleRequest request)
+    {
+        var result = await _userService.AssignRoleAsync(id, request);
+        if (!result) return NotFound(new { message = "Không tìm thấy người dùng." });
+
+        return Ok(new { message = $"Cấp quyền {request.Role} thành công." });
+    }
 }

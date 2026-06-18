@@ -30,7 +30,7 @@ public class UserService : IUserService
 
     public async Task<UserResponse> CreateAsync(CreateUserRequest request)
     {
-        var qrCode = _qrCodeService.GenerateUniqueCode(5);
+        var driverCode = "DRV-" + _qrCodeService.GenerateUniqueCode(5);
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -40,7 +40,7 @@ public class UserService : IUserService
             Role = request.Role,
             PhoneNumber = request.PhoneNumber,
             Email = request.Email,
-            QrCode = qrCode
+            DriverCode = driverCode
         };
 
         await _repository.AddAsync(user);
@@ -71,6 +71,18 @@ public class UserService : IUserService
         return true;
     }
 
+    public async Task<bool> AssignRoleAsync(Guid id, AssignRoleRequest request)
+    {
+        var user = await _repository.GetByIdAsync(id);
+        if (user == null) return false;
+
+        user.Role = request.Role;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _repository.UpdateAsync(user);
+        return true;
+    }
+
     private static UserResponse MapToResponse(User u) => new()
     {
         Id = u.Id,
@@ -79,7 +91,7 @@ public class UserService : IUserService
         Role = u.Role,
         PhoneNumber = u.PhoneNumber,
         Email = u.Email,
-        QrCode = u.QrCode,
+        QrCode = u.DriverCode,
         CreatedAt = u.CreatedAt
     };
 }

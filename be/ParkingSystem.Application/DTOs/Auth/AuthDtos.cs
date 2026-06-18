@@ -25,7 +25,7 @@ public class AuthResponse
     public string FullName { get; set; } = string.Empty;
     public Role Role { get; set; }
     public string? Email { get; set; }
-    public string QrCode { get; set; } = string.Empty;
+    public string DriverCode { get; set; } = string.Empty;
     public string? QrCodeImageBase64 { get; set; }
 }
 
@@ -59,7 +59,7 @@ public class ProfileResponse
     public Role Role { get; set; }
     public string? Email { get; set; }
     public string? PhoneNumber { get; set; }
-    public string QrCode { get; set; } = string.Empty;
+    public string DriverCode { get; set; } = string.Empty;
     public string? QrCodeImageBase64 { get; set; }
     public DateTime CreatedAt { get; set; }
 }
@@ -98,6 +98,10 @@ public class VerifyRegisterRequest
     public string Password { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string? PhoneNumber { get; set; }
+    
+    // Thông tin xe mặc định
+    public string PlateNumber { get; set; } = string.Empty;
+    public Guid VehicleTypeId { get; set; }
 }
 
 // ===== OTP: QUÊN MẬT KHẨU — XÁC THỰC =====

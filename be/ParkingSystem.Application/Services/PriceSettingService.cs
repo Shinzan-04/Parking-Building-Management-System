@@ -43,7 +43,8 @@ public class PriceSettingService : IPriceSettingService
             NightPassPrice = request.NightPassPrice,
             DailyMaxPrice = request.DailyMaxPrice,
             DayStartHour = request.DayStartHour,
-            NightStartHour = request.NightStartHour
+            NightStartHour = request.NightStartHour,
+            GracePeriodMinutes = request.GracePeriodMinutes
         };
 
         await _repository.AddAsync(setting);
@@ -69,6 +70,7 @@ public class PriceSettingService : IPriceSettingService
         setting.DailyMaxPrice = request.DailyMaxPrice;
         setting.DayStartHour = request.DayStartHour;
         setting.NightStartHour = request.NightStartHour;
+        setting.GracePeriodMinutes = request.GracePeriodMinutes;
         setting.UpdatedBy = updatedBy;
         setting.UpdatedAt = DateTime.UtcNow;
 
@@ -97,6 +99,7 @@ public class PriceSettingService : IPriceSettingService
         DailyMaxPrice = s.DailyMaxPrice,
         DayStartHour = s.DayStartHour,
         NightStartHour = s.NightStartHour,
+        GracePeriodMinutes = s.GracePeriodMinutes,
         UpdatedBy = s.UpdatedBy,
         UpdatedByName = s.UpdatedByUser?.FullName,
         UpdatedAt = s.UpdatedAt,

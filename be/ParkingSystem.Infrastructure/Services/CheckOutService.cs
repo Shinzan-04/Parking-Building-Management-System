@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ParkingSystem.Application.DTOs.CheckOut;
 using ParkingSystem.Application.Interfaces;
+using ParkingSystem.Application.Interfaces.Lpr;
 using ParkingSystem.Domain.Entities;
 using ParkingSystem.Domain.Enums;
 using ParkingSystem.Infrastructure.Data;
@@ -10,12 +12,25 @@ namespace ParkingSystem.Infrastructure.Services;
 public class CheckOutService : ICheckOutService
 {
     private readonly ApplicationDbContext _context;
-    private readonly ILicensePlateOcrService _ocrService;
+    // Từ nhánh dev: nhận diện biển số bằng AI pipeline
+    private readonly ILicensePlateRecognizer _lprService;
+    private readonly IRealtimeService _realtimeService;
+    // Từ HEAD: xử lý thanh toán PayOS và logging
+    private readonly IPaymentService _paymentService;
+    private readonly ILogger<CheckOutService> _logger;
 
-    public CheckOutService(ApplicationDbContext context, ILicensePlateOcrService ocrService)
+    public CheckOutService(
+        ApplicationDbContext context,
+        ILicensePlateRecognizer lprService,
+        IRealtimeService realtimeService,
+        IPaymentService paymentService,
+        ILogger<CheckOutService> logger)
     {
         _context = context;
-        _ocrService = ocrService;
+        _lprService = lprService;
+        _realtimeService = realtimeService;
+        _paymentService = paymentService;
+        _logger = logger;
     }
 
     public async Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate)
@@ -78,6 +93,86 @@ public class CheckOutService : ICheckOutService
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
 
+        // Neu la PayOS, kiem tra payment da duoc xu ly chua
+        if (request.PaymentMethod == PaymentMethod.PayOS)
+        {
+            var existingPayment = await _context.Payments
+                .Where(p => p.ParkingSessionId == session.Id && p.PaymentMethod == PaymentMethod.PayOS)
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            if (existingPayment == null)
+            {
+                throw new InvalidOperationException("Chua tao thanh toan PayOS. Vui long tao QR thanh toan truoc.");
+            }
+
+            if (existingPayment.Status == PaymentStatus.Pending)
+            {
+                // Thu verify truc tiep voi PayOS API de biet thanh toan that su chua
+                var (verified, payosStatus) = await _paymentService.VerifyPayOSPaymentAsync(existingPayment.PayOSOrderCode);
+                if (verified)
+                {
+                    existingPayment.Status = payosStatus;
+                    existingPayment.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                    _logger.LogInformation(
+                        "PayOS payment verified on confirm. OrderCode={OrderCode}, Status={Status}",
+                        existingPayment.PayOSOrderCode, payosStatus);
+
+                    if (payosStatus != PaymentStatus.Success)
+                    {
+                        throw new InvalidOperationException("Thanh toan PayOS chua hoan tat. Vui long thanh toan QR truoc.");
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException("Thanh toan PayOS chua hoan tat. Vui long thanh toan QR truoc.");
+                }
+            }
+
+            if (existingPayment.Status == PaymentStatus.Failed)
+            {
+                throw new InvalidOperationException("Thanh toan PayOS that bai. Vui long tao QR moi va thu lai.");
+            }
+
+            // PayOS da thanh toan -> chi cap nhat session, khong tao payment moi
+            session.ExitTime = exitTime;
+            session.TotalFee = priceResult.TotalFee;
+            session.Status = SessionStatus.Completed;
+            session.UpdatedAt = exitTime;
+
+            var psSlot = session.ParkingSlot;
+            psSlot.Status = SlotStatus.Available;
+            psSlot.UpdatedAt = exitTime;
+            _context.Entry(psSlot).State = EntityState.Modified;
+
+            await _context.SaveChangesAsync();
+
+            return new CheckOutConfirmResponse
+            {
+                SessionId = session.Id,
+                LicensePlate = session.LicensePlate,
+                SlotNumber = psSlot.SlotNumber,
+                FloorName = psSlot.Floor?.Name ?? string.Empty,
+                EntryTime = session.EntryTime,
+                ExitTime = exitTime,
+                TotalHours = priceResult.TotalHours,
+                HourlyRate = priceResult.HourlyRate,
+                TotalFee = priceResult.TotalFee,
+                PricingModel = priceResult.PricingModel,
+                DayPassPrice = priceResult.DayPassPrice,
+                NightPassPrice = priceResult.NightPassPrice,
+                DailyMaxPrice = priceResult.DailyMaxPrice,
+                FeeBreakdown = priceResult.FeeBreakdown,
+                PaymentAmount = null,
+                ChangeAmount = null,
+                PaymentMethod = PaymentMethod.PayOS,
+                PaymentId = existingPayment.Id,
+                Message = BuildMessage(session, priceResult, isConfirm: true)
+            };
+        }
+
+        // Cash / other methods
         if (request.PaymentMethod == PaymentMethod.Cash && request.PaymentAmount.HasValue)
         {
             if (request.PaymentAmount.Value < priceResult.TotalFee)
@@ -108,6 +203,7 @@ public class CheckOutService : ICheckOutService
         var slot = session.ParkingSlot;
         slot.Status = SlotStatus.Available;
         slot.UpdatedAt = exitTime;
+        _context.Entry(slot).State = EntityState.Modified;
 
         _context.Payments.Add(payment);
         await _context.SaveChangesAsync();
@@ -144,7 +240,7 @@ public class CheckOutService : ICheckOutService
 
     public async Task<OcrCheckOutResult> ProcessOcrCheckOutAsync(OcrCheckOutRequest request)
     {
-        var ocrResult = await _ocrService.DetectPlateAsync(request.ImageBase64);
+        var ocrResult = await _lprService.RecognizeFrameAsync(request.ImageBase64);
 
         if (!ocrResult.IsDetected || string.IsNullOrWhiteSpace(ocrResult.LicensePlate))
         {
@@ -208,6 +304,43 @@ public class CheckOutService : ICheckOutService
         };
     }
 
+    public async Task<CheckOutSearchResult> CalculateFeeBySessionIdAsync(Guid sessionId)
+    {
+        var session = await _context.ParkingSessions
+            .Include(s => s.ParkingSlot)
+                .ThenInclude(ps => ps.Floor)
+            .Include(s => s.VehicleType)
+            .FirstOrDefaultAsync(s => s.Id == sessionId && s.Status == SessionStatus.Active);
+
+        if (session == null)
+        {
+            throw new InvalidOperationException("Khong tim thay phien gui xe hoac xe da thanh toan.");
+        }
+
+        var exitTime = DateTime.UtcNow;
+        var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+
+        return new CheckOutSearchResult
+        {
+            SessionId = session.Id,
+            LicensePlate = session.LicensePlate,
+            SlotNumber = session.ParkingSlot.SlotNumber,
+            FloorName = session.ParkingSlot.Floor?.Name ?? string.Empty,
+            EntryTime = session.EntryTime,
+            EstimatedExitTime = exitTime,
+            TotalHours = priceResult.TotalHours,
+            VehicleTypeName = session.VehicleType.Name,
+            HourlyRate = priceResult.HourlyRate,
+            EstimatedFee = priceResult.TotalFee,
+            PricingModel = priceResult.PricingModel,
+            DayPassPrice = priceResult.DayPassPrice,
+            NightPassPrice = priceResult.NightPassPrice,
+            DailyMaxPrice = priceResult.DailyMaxPrice,
+            FeeBreakdown = priceResult.FeeBreakdown,
+            Message = BuildMessage(session, priceResult)
+        };
+    }
+
     private async Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime)
     {
         var priceSetting = await _context.PriceSettings
@@ -218,11 +351,40 @@ public class CheckOutService : ICheckOutService
 
         if (priceSetting != null)
         {
+            if ((exitTime - entryTime).TotalMinutes <= priceSetting.GracePeriodMinutes)
+            {
+                return new PriceCalculationResult
+                {
+                    TotalHours = (exitTime - entryTime).TotalHours,
+                    TotalFee = 0,
+                    PricingModel = "GracePeriod",
+                    HourlyRate = 0,
+                    DayPassPrice = priceSetting.DayPassPrice,
+                    NightPassPrice = priceSetting.NightPassPrice,
+                    DailyMaxPrice = priceSetting.DailyMaxPrice,
+                    FeeBreakdown = null
+                };
+            }
             return CalculateDayNightFee(priceSetting, entryTime, exitTime);
         }
 
         if (pricingPolicy != null)
         {
+            if ((exitTime - entryTime).TotalMinutes <= pricingPolicy.GracePeriodMinutes)
+            {
+                return new PriceCalculationResult
+                {
+                    TotalHours = (exitTime - entryTime).TotalHours,
+                    TotalFee = 0,
+                    PricingModel = "GracePeriod",
+                    HourlyRate = pricingPolicy.HourlyRate,
+                    DayPassPrice = null,
+                    NightPassPrice = null,
+                    DailyMaxPrice = pricingPolicy.DailyMaxRate,
+                    FeeBreakdown = null
+                };
+            }
+
             // Bỏ qua phần giây lẻ (Floor) để tránh lỗi làm tròn sai (VD: 120 phút 5 giây bị tính thành 3 tiếng)
             var totalMinutes = Math.Floor((exitTime - entryTime).TotalMinutes);
             var totalHours = totalMinutes / 60.0;

@@ -10,7 +10,7 @@ public class User : BaseEntity
     public Role Role { get; set; }
     public string? PhoneNumber { get; set; }
     public string? Email { get; set; }
-    public string QrCode { get; set; } = string.Empty;
+    public string DriverCode { get; set; } = string.Empty;
 
     /// <summary>
     /// Số lần đăng nhập sai liên tiếp (reset về 0 khi login thành công)
@@ -26,4 +26,5 @@ public class User : BaseEntity
     public ICollection<ParkingSession> HandledSessions { get; set; } = new List<ParkingSession>();
     public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 }

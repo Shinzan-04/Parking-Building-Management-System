@@ -16,6 +16,7 @@ public class AuthService : IAuthService
     private readonly IQrCodeService _qrCodeService;
     private readonly IOtpService _otpService;
     private readonly IConfiguration _configuration;
+    private readonly IGenericRepository<Vehicle> _vehicleRepository;
 
     // P2: Số lần đăng nhập sai tối đa trước khi khóa tài khoản
     private const int MaxFailedAttempts = 5;
@@ -25,13 +26,15 @@ public class AuthService : IAuthService
     private const int RefreshTokenDays = 7;
 
     public AuthService(IUserRepository userRepository, ITokenService tokenService,
-        IQrCodeService qrCodeService, IOtpService otpService, IConfiguration configuration)
+        IQrCodeService qrCodeService, IOtpService otpService, IConfiguration configuration,
+        IGenericRepository<Vehicle> vehicleRepository)
     {
         _userRepository = userRepository;
         _tokenService = tokenService;
         _qrCodeService = qrCodeService;
         _otpService = otpService;
         _configuration = configuration;
+        _vehicleRepository = vehicleRepository;
     }
 
     // ===== P0.1: LOGIN =====
@@ -97,7 +100,7 @@ public class AuthService : IAuthService
         var user = await _userRepository.GetByEmailAsync(payload.Email);
         if (user == null)
         {
-            var qrCode = _qrCodeService.GenerateUniqueCode(5);
+            var driverCode = "DRV-" + _qrCodeService.GenerateUniqueCode(5);
             user = new User
             {
                 Id = Guid.NewGuid(),
@@ -106,7 +109,7 @@ public class AuthService : IAuthService
                 FullName = payload.Name,
                 Role = Role.Driver,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
-                QrCode = qrCode
+                DriverCode = driverCode
             };
             await _userRepository.AddAsync(user);
         }
@@ -184,7 +187,7 @@ public class AuthService : IAuthService
                 throw new InvalidOperationException("Email đã được đăng ký.");
         }
 
-        var qrCode = _qrCodeService.GenerateUniqueCode(5);
+        var driverCode = "DRV-" + _qrCodeService.GenerateUniqueCode(5);
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -194,7 +197,7 @@ public class AuthService : IAuthService
             Role = request.Role, // Admin chọn role
             PhoneNumber = request.PhoneNumber,
             Email = request.Email,
-            QrCode = qrCode
+            DriverCode = driverCode
         };
 
         await _userRepository.AddAsync(user);
@@ -257,9 +260,9 @@ public class AuthService : IAuthService
             FullName = user.FullName,
             Role = user.Role,
             Email = user.Email,
-            QrCode = user.QrCode,
-            QrCodeImageBase64 = !string.IsNullOrEmpty(user.QrCode)
-                ? _qrCodeService.GenerateQrCodeBase64(user.QrCode)
+            DriverCode = user.DriverCode,
+            QrCodeImageBase64 = !string.IsNullOrEmpty(user.DriverCode)
+                ? _qrCodeService.GenerateQrCodeBase64(_tokenService.GenerateDriverQrToken(user.Id, user.DriverCode))
                 : null
         };
     }
@@ -295,9 +298,9 @@ public class AuthService : IAuthService
             Role = user.Role,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
-            QrCode = user.QrCode,
-            QrCodeImageBase64 = !string.IsNullOrEmpty(user.QrCode)
-                ? _qrCodeService.GenerateQrCodeBase64(user.QrCode)
+            DriverCode = user.DriverCode,
+            QrCodeImageBase64 = !string.IsNullOrEmpty(user.DriverCode)
+                ? _qrCodeService.GenerateQrCodeBase64(_tokenService.GenerateDriverQrToken(user.Id, user.DriverCode))
                 : null,
             CreatedAt = user.CreatedAt
         };
@@ -351,7 +354,7 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Email đã được đăng ký.");
 
         // Tạo tài khoản mới (email đã được xác thực)
-        var qrCode = _qrCodeService.GenerateUniqueCode(5);
+        var driverCode = "DRV-" + _qrCodeService.GenerateUniqueCode(5);
         var user = new User
         {
             Id = Guid.NewGuid(),
@@ -361,10 +364,25 @@ public class AuthService : IAuthService
             Role = Role.Driver,
             PhoneNumber = request.PhoneNumber,
             Email = request.Email,
-            QrCode = qrCode
+            DriverCode = driverCode
         };
 
         await _userRepository.AddAsync(user);
+
+        // Tạo phương tiện mặc định
+        if (!string.IsNullOrEmpty(request.PlateNumber) && request.VehicleTypeId != Guid.Empty)
+        {
+            var vehicle = new Vehicle
+            {
+                Id = Guid.NewGuid(),
+                DriverId = user.Id,
+                VehicleTypeId = request.VehicleTypeId,
+                PlateNumber = request.PlateNumber,
+                IsPrimary = true
+            };
+            await _vehicleRepository.AddAsync(vehicle);
+        }
+
         return await BuildAuthResponse(user);
     }
 

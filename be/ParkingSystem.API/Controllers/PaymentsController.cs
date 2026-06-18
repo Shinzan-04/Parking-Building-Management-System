@@ -62,4 +62,13 @@ public class PaymentsController : ControllerBase
                 new { message = "Internal server error." });
         }
     }
+
+    [HttpGet("status/{sessionId}")]
+    public async Task<IActionResult> GetPaymentStatus(Guid sessionId)
+    {
+        var result = await _paymentService.GetPaymentStatusBySessionIdAsync(sessionId);
+        if (result == null)
+            return NotFound(new { message = "Khong tim thay thanh toan PayOS cho phien nay." });
+        return Ok(result);
+    }
 }

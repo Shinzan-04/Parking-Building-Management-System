@@ -6,41 +6,43 @@ using ParkingSystem.Application.Interfaces;
 
 namespace ParkingSystem.Infrastructure.Services;
 
-/// <summary>
-/// Service upload ảnh lên Cloudinary.
-/// 
-/// Cloudinary là dịch vụ lưu trữ ảnh trên cloud:
-/// - Ảnh được lưu trên CDN (Content Delivery Network) → truy cập nhanh từ mọi nơi
-/// - Tự động tối ưu định dạng (f_auto) và chất lượng (q_auto)
-/// - Không lo mất ảnh khi deploy lại server
-/// 
-/// Dùng cho: Lưu ảnh biển số khi check-in (bằng chứng tranh chấp)
-/// </summary>
 public class CloudinaryImageService : IImageUploadService
 {
-    private readonly Cloudinary _cloudinary;
+    private readonly Cloudinary? _cloudinary;
     private readonly ILogger<CloudinaryImageService> _logger;
+    private readonly bool _isConfigured;
 
     public CloudinaryImageService(IConfiguration configuration, ILogger<CloudinaryImageService> logger)
     {
         _logger = logger;
 
-        // Đọc credentials từ appsettings.json
         var cloudName = configuration["Cloudinary:CloudName"];
         var apiKey = configuration["Cloudinary:ApiKey"];
         var apiSecret = configuration["Cloudinary:ApiSecret"];
 
-        // Khởi tạo Cloudinary client
+        if (string.IsNullOrWhiteSpace(cloudName) ||
+            string.IsNullOrWhiteSpace(apiKey) ||
+            string.IsNullOrWhiteSpace(apiSecret))
+        {
+            _logger.LogWarning(
+                "⚠️ Cloudinary config missing or incomplete — Image upload DISABLED. " +
+                "CloudName='{CloudName}', ApiKey='{ApiKey}', ApiSecret='{ApiSecret}'",
+                cloudName ?? "(null)",
+                string.IsNullOrWhiteSpace(apiKey) ? "(null)" : "***",
+                string.IsNullOrWhiteSpace(apiSecret) ? "(null)" : "***");
+            _isConfigured = false;
+            return;
+        }
+
         var account = new Account(cloudName, apiKey, apiSecret);
         _cloudinary = new Cloudinary(account);
-
-        // Dùng HTTPS cho URL ảnh
         _cloudinary.Api.Secure = true;
+        _isConfigured = true;
+        _logger.LogInformation("☁️ Cloudinary configured: {CloudName}", cloudName);
     }
 
     /// <summary>
     /// Upload ảnh Base64 lên Cloudinary.
-    /// 
     /// Luồng: Base64 string → decode thành byte[] → MemoryStream → upload lên Cloudinary
     /// Trả về: URL công khai dạng https://res.cloudinary.com/dignpno2i/image/upload/...
     /// </summary>
@@ -49,8 +51,20 @@ public class CloudinaryImageService : IImageUploadService
         if (string.IsNullOrWhiteSpace(base64Image))
             return null;
 
+        if (!_isConfigured || _cloudinary == null)
+        {
+            _logger.LogWarning("⚠️ Cloudinary not configured — skipping upload for: {FileName}", fileName);
+            return null;
+        }
+
         try
         {
+            // Loại bỏ phần prefix "data:image/png;base64," hoặc tương tự nếu FE gửi kèm
+            if (base64Image.Contains(","))
+            {
+                base64Image = base64Image.Substring(base64Image.IndexOf(",") + 1);
+            }
+
             // Decode Base64 → byte[] → MemoryStream
             var imageBytes = Convert.FromBase64String(base64Image);
             using var stream = new MemoryStream(imageBytes);
