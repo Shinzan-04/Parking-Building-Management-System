@@ -29,15 +29,18 @@ public class PayOSPaymentService : IPaymentService
     private readonly PayOSOptions _options;
     private readonly ILogger<PayOSPaymentService> _logger;
     private readonly PayOSClient _payOSClient;
+    private readonly IRealtimeService _realtimeService;
 
     public PayOSPaymentService(
         ApplicationDbContext context,
         IOptions<PayOSOptions> options,
-        ILogger<PayOSPaymentService> logger)
+        ILogger<PayOSPaymentService> logger,
+        IRealtimeService realtimeService)
     {
         _context = context;
         _options = options.Value;
         _logger = logger;
+        _realtimeService = realtimeService;
         _payOSClient = new PayOSClient(_options.ClientId, _options.ApiKey, _options.ChecksumKey);
     }
 
@@ -70,13 +73,21 @@ public class PayOSPaymentService : IPaymentService
         {
             var expiredAt = DateTimeOffset.UtcNow.AddHours(24).ToUnixTimeSeconds();
 
+            var safeDescription = request.Description ?? "THANH TOAN";
+            // Bỏ ký tự đặc biệt, chỉ lấy chữ và số, tối đa 25 ký tự (Theo tài liệu PayOS)
+            safeDescription = new string(safeDescription.Where(c => char.IsLetterOrDigit(c) || char.IsWhiteSpace(c)).ToArray());
+            if (safeDescription.Length > 25) safeDescription = safeDescription.Substring(0, 25);
+
+            var cancelUrl = string.IsNullOrWhiteSpace(_options.CancelUrl) ? "https://baigiuxe.com/payment-cancel" : _options.CancelUrl;
+            var returnUrl = string.IsNullOrWhiteSpace(_options.ReturnUrl) ? "https://baigiuxe.com/payment-success" : _options.ReturnUrl;
+
             var paymentRequest = new CreatePaymentLinkRequest
             {
                 OrderCode = orderCode,
                 Amount = (int)request.Amount,
-                Description = request.Description,
-                ReturnUrl = _options.ReturnUrl,
-                CancelUrl = _options.CancelUrl,
+                Description = safeDescription.Trim(),
+                ReturnUrl = returnUrl,
+                CancelUrl = cancelUrl,
                 ExpiredAt = expiredAt
             };
 
@@ -144,6 +155,9 @@ public class PayOSPaymentService : IPaymentService
                 : PaymentStatus.Failed;
             payment.UpdatedAt = DateTime.UtcNow;
 
+            var shouldNotifyPaymentSuccess = false;
+            var reservationIdToNotify = Guid.Empty;
+
             // Nếu thanh toán cho Reservation và thành công -> Cập nhật Reservation sang PendingReview
             if (payment.Status == PaymentStatus.Success && payment.ReservationId.HasValue)
             {
@@ -162,9 +176,18 @@ public class PayOSPaymentService : IPaymentService
                         CreatedAt = DateTime.UtcNow
                     });
                 }
+                
+                shouldNotifyPaymentSuccess = true;
+                reservationIdToNotify = payment.ReservationId.Value;
             }
 
             await _context.SaveChangesAsync();
+
+            // Bắn thông báo Realtime SignalR cho App Driver SAU KHI đã lưu DB thành công
+            if (shouldNotifyPaymentSuccess)
+            {
+                await _realtimeService.SendPaymentSuccessAsync(reservationIdToNotify);
+            }
 
             _logger.LogInformation(
                 "PayOS webhook processed. OrderCode={OrderCode}, NewStatus={Status}",
