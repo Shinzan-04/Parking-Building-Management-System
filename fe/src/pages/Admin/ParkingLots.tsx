@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Building2, ParkingSquare, CircleCheck, Wrench,
   Plus, Search, Pencil, Trash2, MapPin,
@@ -839,8 +840,8 @@ export default function ParkingLots() {
       </div>
 
       {/* ── DETAIL MODAL ── */}
-      {modalType === 'detail' && selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {modalType === 'detail' && selected && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="border border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <div className="flex items-center gap-3">
@@ -954,11 +955,11 @@ export default function ParkingLots() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ── ADD / EDIT MODAL ── */}
-      {(modalType === 'add' || modalType === 'edit') && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      {(modalType === 'add' || modalType === 'edit') && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]" style={{ backgroundColor: 'var(--admin-bg-base)' }}>
 
             {/* Header */}
@@ -1316,7 +1317,7 @@ export default function ParkingLots() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ── TOAST NOTIFICATION ── */}
       {toast && (
@@ -1335,8 +1336,8 @@ export default function ParkingLots() {
       )}
 
       {/* ── DELETE CONFIRM MODAL ── */}
-      {modalType === 'delete' && selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {modalType === 'delete' && selected && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="px-6 pt-6 pb-4 text-center">
               <div className="w-14 h-14 rounded-2xl bg-red-400/10 flex items-center justify-center mx-auto mb-4">
@@ -1373,7 +1374,7 @@ export default function ParkingLots() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

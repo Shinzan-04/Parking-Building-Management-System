@@ -182,7 +182,7 @@ export default function ManagerLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-8 overflow-auto">
+        <main className="flex-1 p-8 overflow-y-auto overflow-x-hidden">
           <Outlet />
         </main>
       </div>

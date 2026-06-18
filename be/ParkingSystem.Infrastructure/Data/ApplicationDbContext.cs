@@ -179,5 +179,12 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<FavoriteSlot>()
             .HasIndex(f => new { f.DriverId, f.ParkingSlotId })
             .IsUnique();
+
+        // User (Staff) → AssignedBuilding (nhiều Staff → 1 Building)
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.AssignedBuilding)
+            .WithMany(b => b.AssignedStaffs)
+            .HasForeignKey(u => u.AssignedBuildingId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }

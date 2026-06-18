@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   UserCheck, Plus, Search, Pencil, Trash2, X,
   AlertTriangle, Loader2, Phone, Mail, Calendar,
@@ -336,8 +337,8 @@ export default function ManagerStaff() {
       </div>
 
       {/* ── ADD / EDIT MODAL ── */}
-      {(modalType === 'add' || modalType === 'edit') && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {(modalType === 'add' || modalType === 'edit') && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <div className="flex items-center gap-3">
@@ -409,11 +410,11 @@ export default function ManagerStaff() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ── DELETE MODAL ── */}
-      {modalType === 'delete' && selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      {modalType === 'delete' && selected && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="px-6 pt-6 pb-4 text-center">
               <div className="flex justify-center mb-4">
@@ -443,7 +444,7 @@ export default function ManagerStaff() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ── TOAST ── */}
       {toast && (

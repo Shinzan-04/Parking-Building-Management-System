@@ -135,3 +135,21 @@ export const createParkingSlot = (payload: CreateParkingSlotRequest, token: stri
 
 export const getParkingSlots = (): Promise<ParkingSlotSummary[]> =>
   apiFetch('/api/parkingslots');
+
+export interface StaffResponse {
+  id: string;
+  username: string;
+  fullName: string;
+  email?: string | null;
+  phoneNumber?: string | null;
+  createdAt: string;
+}
+
+export const getBuildingStaff = (buildingId: string, token: string): Promise<StaffResponse[]> =>
+  apiFetch(`/api/buildings/${buildingId}/staff`, undefined, token);
+
+export const assignStaffToBuilding = (buildingId: string, staffId: string, token: string): Promise<void> =>
+  apiFetch(`/api/buildings/${buildingId}/staff/${staffId}`, { method: 'POST' }, token);
+
+export const unassignStaffFromBuilding = (buildingId: string, staffId: string, token: string): Promise<void> =>
+  apiFetch(`/api/buildings/${buildingId}/staff/${staffId}`, { method: 'DELETE' }, token);
