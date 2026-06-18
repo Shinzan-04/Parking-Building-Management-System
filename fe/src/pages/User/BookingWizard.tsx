@@ -22,6 +22,8 @@ import type { FloorResponse } from '../../services/buildingsService';
 import { getSlotsByFloor } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
 import { createReservation } from '../../services/reservationsService';
+import { getMyVehicles } from '../../services/vehiclesService';
+import type { VehicleResponse } from '../../services/vehiclesService';
 
 // ─────────────────────────────────────────────
 // Types
@@ -200,10 +202,14 @@ function StepLicensePlate({
   state,
   setState,
   vehicles,
+  myVehicles,
+  loadingMyVehicles,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   vehicles: ApiVehicleType[];
+  myVehicles: VehicleResponse[];
+  loadingMyVehicles: boolean;
 }) {
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
@@ -214,6 +220,17 @@ function StepLicensePlate({
   const VehicleIcon = isMotorbike ? Bike : Car;
   const vehicleLabel = selectedVehicle?.name || 'Car';
   const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
+
+  const [activeTab, setActiveTab] = useState<'saved' | 'manual'>(
+    myVehicles.length > 0 ? 'saved' : 'manual'
+  );
+
+  // Tự động chuyển sang tab "Xe đã lưu" nếu load xong và có xe, và chưa nhập biển số
+  useEffect(() => {
+    if (myVehicles.length > 0 && !state.licensePlate) {
+      setActiveTab('saved');
+    }
+  }, [myVehicles, state.licensePlate]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -230,47 +247,162 @@ function StepLicensePlate({
         </div>
       </div>
 
-      {/* Vehicle type display */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-20 h-20 rounded-2xl bg-gray-100 border-2 border-gray-200/60 flex items-center justify-center">
-          <VehicleIcon
-            size={40}
-            strokeWidth={1.5}
-            className="text-[#FF4C4C]"
-          />
+      {/* Tabs Switcher - Chỉ hiển thị nếu người dùng đã đăng ký xe */}
+      {myVehicles.length > 0 && (
+        <div className="flex bg-stone-105/80 p-1 rounded-2xl w-fit mx-auto mb-2 border border-stone-200/50">
+          <button
+            type="button"
+            onClick={() => setActiveTab('saved')}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 ${
+              activeTab === 'saved'
+                ? 'bg-white text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/5 border border-stone-200/10'
+                : 'text-stone-500 hover:text-stone-850'
+            }`}
+          >
+            <Car size={14} />
+            Xe đã lưu
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('manual')}
+            className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-2 ${
+              activeTab === 'manual'
+                ? 'bg-white text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/5 border border-stone-200/10'
+                : 'text-stone-500 hover:text-stone-850'
+            }`}
+          >
+            <ParkingSquare size={14} />
+            Nhập thủ công
+          </button>
         </div>
-        <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">{vehicleLabel}</span>
-      </div>
+      )}
 
-      {/* License plate input */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-full max-w-sm">
-          <input
-            type="text"
-            placeholder={placeholder}
-            value={state.licensePlate}
-            onChange={(e) =>
-              setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
-            }
-            maxLength={12}
-            className="w-full bg-gray-50 border-2 border-gray-200/80 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-850 text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
-          />
+      {/* Loading state for vehicles */}
+      {loadingMyVehicles && myVehicles.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 gap-2">
+          <Loader2 size={24} className="text-[#FF4C4C] animate-spin" />
+          <p className="text-xs text-stone-400 font-semibold">Đang tải danh sách xe...</p>
         </div>
+      )}
 
-        {/* Format hint */}
-        <div className="text-center space-y-1">
-          <p className="text-xs text-stone-500">
-            Format:{' '}
-            <span className="text-stone-700 font-bold">51A-12345</span>{' '}
-            (car) or{' '}
-            <span className="text-stone-700 font-bold">59T1-12345</span>{' '}
-            (motorcycle)
-          </p>
-          <p className="text-xs text-stone-400">
-            This will be linked to your parking session.
-          </p>
+      {/* Tab content: Saved Vehicles */}
+      {activeTab === 'saved' && myVehicles.length > 0 && !loadingMyVehicles && (
+        <div className="flex flex-col gap-3 max-h-[260px] overflow-y-auto pr-1 scrollbar-thin">
+          {myVehicles.map((v) => {
+            const isSelected = state.licensePlate === v.plateNumber;
+            const lowerName = v.vehicleTypeName?.toLowerCase() || '';
+            const isMotor = lowerName.includes('moto') ||
+              lowerName.includes('xe máy') ||
+              lowerName.includes('bike') ||
+              lowerName.includes('xe hai bánh');
+            const Icon = isMotor ? Bike : Car;
+
+            return (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => {
+                  setState((s) => ({
+                    ...s,
+                    licensePlate: v.plateNumber,
+                    vehicleType: v.vehicleTypeId,
+                  }));
+                }}
+                className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 text-left group ${
+                  isSelected
+                    ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                    : 'bg-white border-gray-200/80 hover:bg-stone-50 hover:border-stone-300'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                      isSelected
+                        ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]'
+                        : 'bg-gray-100 text-stone-400 group-hover:bg-[#FF4C4C]/5'
+                    }`}
+                  >
+                    <Icon size={24} strokeWidth={1.5} />
+                  </div>
+
+                  <div>
+                    <p
+                      className={`text-base font-black tracking-wider leading-none mb-1.5 ${
+                        isSelected ? 'text-[#FF4C4C]' : 'text-stone-800'
+                      }`}
+                    >
+                      {v.plateNumber}
+                    </p>
+                    <p className="text-[10px] text-stone-450 font-bold uppercase tracking-wider">
+                      {v.vehicleTypeName || 'Phương tiện'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {v.isPrimary && (
+                    <span className="bg-amber-500/10 text-amber-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-500/20">
+                      Mặc định
+                    </span>
+                  )}
+                  {isSelected && (
+                    <div className="w-5 h-5 rounded-full bg-[#FF4C4C] flex items-center justify-center shadow-sm shadow-[#FF4C4C]/20">
+                      <CheckCircle2 size={12} className="text-white" />
+                    </div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
-      </div>
+      )}
+
+      {/* Tab content: Manual Entry */}
+      {(activeTab === 'manual' || myVehicles.length === 0) && !loadingMyVehicles && (
+        <>
+          {/* Vehicle type display */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-20 h-20 rounded-2xl bg-gray-100 border-2 border-gray-200/60 flex items-center justify-center">
+              <VehicleIcon
+                size={40}
+                strokeWidth={1.5}
+                className="text-[#FF4C4C]"
+              />
+            </div>
+            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">{vehicleLabel}</span>
+          </div>
+
+          {/* License plate input */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-full max-w-sm">
+              <input
+                type="text"
+                placeholder={placeholder}
+                value={state.licensePlate}
+                onChange={(e) =>
+                  setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
+                }
+                maxLength={12}
+                className="w-full bg-gray-50 border-2 border-gray-200/80 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-850 text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
+              />
+            </div>
+
+            {/* Format hint */}
+            <div className="text-center space-y-1">
+              <p className="text-xs text-stone-500">
+                Format:{' '}
+                <span className="text-stone-700 font-bold">51A-12345</span>{' '}
+                (car) or{' '}
+                <span className="text-stone-700 font-bold">59T1-12345</span>{' '}
+                (motorcycle)
+              </p>
+              <p className="text-xs text-stone-400">
+                This will be linked to your parking session.
+              </p>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1259,6 +1391,9 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
 
+  const [myVehicles, setMyVehicles] = useState<VehicleResponse[]>([]);
+  const [loadingMyVehicles, setLoadingMyVehicles] = useState(false);
+
   const [state, setState] = useState<WizardState>({
     vehicleType: null,
     licensePlate: '',
@@ -1271,6 +1406,39 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
     slotId: null,
   });
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+
+  // Tải danh sách xe đã đăng ký của Driver
+  useEffect(() => {
+    const token = localStorage.getItem('sp_token') || '';
+    if (!token) return;
+    async function loadMyVehicles() {
+      try {
+        setLoadingMyVehicles(true);
+        const data = await getMyVehicles(token);
+        setMyVehicles(data);
+
+        // Tự động điền xe mặc định (isPrimary) hoặc xe đầu tiên nếu người dùng chưa nhập biển số
+        if (data.length > 0) {
+          const primary = data.find(v => v.isPrimary) || data[0];
+          setState(s => {
+            if (!s.licensePlate) {
+              return {
+                ...s,
+                licensePlate: primary.plateNumber,
+                vehicleType: primary.vehicleTypeId,
+              };
+            }
+            return s;
+          });
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách xe của tôi:', err);
+      } finally {
+        setLoadingMyVehicles(false);
+      }
+    }
+    loadMyVehicles();
+  }, []);
 
   // Load vehicle types & policies
   useEffect(() => {
@@ -1409,7 +1577,15 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
   const renderStep = () => {
     switch (step) {
       case 1: return <StepVehicleType state={state} setState={setState} vehicles={vehicles} loading={loadingVehicles} />;
-      case 2: return <StepLicensePlate state={state} setState={setState} vehicles={vehicles} />;
+      case 2: return (
+        <StepLicensePlate
+          state={state}
+          setState={setState}
+          vehicles={vehicles}
+          myVehicles={myVehicles}
+          loadingMyVehicles={loadingMyVehicles}
+        />
+      );
       case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} />;
       case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} />;
       case 5: return <StepSelectZone state={state} setState={setState} slots={slots} loading={loadingSlots} />;
