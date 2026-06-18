@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   X,
   Ticket,
+  User,
 } from 'lucide-react';
 
 export default function MyTicketPage() {
@@ -227,6 +228,15 @@ export default function MyTicketPage() {
                   {/* Dropdown Menu */}
                   {isDropdownOpen && (
                     <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
+                      <button
+                        type="button"
+                        onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                      >
+                        <User size={16} />
+                        <span>Profile</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
                       <button
                         type="button"
                         onClick={() => { setIsDropdownOpen(false); navigate('/myticket'); }}

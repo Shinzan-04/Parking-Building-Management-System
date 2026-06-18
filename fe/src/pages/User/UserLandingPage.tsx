@@ -11,6 +11,7 @@ import {
   ChevronDown,
   Ticket,
   LayoutDashboard,
+  User,
 } from 'lucide-react';
 
 function getDashboardPath(role: string | number): string | null {
@@ -122,6 +123,15 @@ export default function UserLandingPage() {
                           <div className="border-t border-gray-100 my-1" />
                         </>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                      >
+                        <User size={16} />
+                        <span>Profile</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
                       <button
                         type="button"
                         onClick={() => { setIsDropdownOpen(false); navigate('/myticket'); }}
