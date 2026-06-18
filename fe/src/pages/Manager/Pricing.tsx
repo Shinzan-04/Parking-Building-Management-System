@@ -14,7 +14,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   DollarSign, Plus, Pencil, Trash2, X,
   AlertTriangle, Loader2, RefreshCw,
-  Sun, Moon, Clock, TrendingUp, Tag, Info,
+  Sun, Moon, Clock, TrendingUp, Tag,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getVehicleTypes } from '../../services/buildingsService';
@@ -93,29 +93,23 @@ export default function ManagerPricing() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     setApiError('');
-    try {
-      const [vts, allPolicies, allSettings] = await Promise.all([
-        getVehicleTypes(),
-        getAllPolicies(),
-        getAllPriceSettings(token),
-      ]);
-      setVehicleTypes(vts);
-      setPolicies(allPolicies);
-      setSettings(allSettings);
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    const errors: string[] = [];
+    const [vts, allPolicies, allSettings] = await Promise.all([
+      getVehicleTypes().catch(() => { errors.push('loại xe'); return [] as VehicleTypeResponse[]; }),
+      getAllPolicies(token).catch(() => { errors.push('chính sách giá'); return [] as PricingPolicyResponse[]; }),
+      getAllPriceSettings(token).catch(() => { errors.push('bảng giá vé'); return [] as PriceSettingResponse[]; }),
+    ]);
+    setVehicleTypes(vts);
+    setPolicies(allPolicies);
+    setSettings(allSettings);
+    if (errors.length) setApiError(`Không thể tải: ${errors.join(', ')}.`);
+    setLoading(false);
+    setRefreshing(false);
   }, [token]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
   // ─── Vehicle types without policy / setting ────────────────────────────────
-
-  const vtWithoutPolicy  = vehicleTypes.filter(vt => !policies.find(p => p.vehicleTypeId === vt.id));
-  const vtWithoutSetting = vehicleTypes.filter(vt => !settings.find(s => s.vehicleTypeId === vt.id));
 
   // ─── Policy CRUD ───────────────────────────────────────────────────────────
 
@@ -124,8 +118,7 @@ export default function ManagerPricing() {
   };
 
   const openAddPolicy = () => {
-    const firstVt = vtWithoutPolicy[0];
-    setPolicyForm({ ...emptyPolicyForm, vehicleTypeId: firstVt?.id ?? '' });
+    setPolicyForm({ ...emptyPolicyForm, vehicleTypeId: vehicleTypes[0]?.id ?? '' });
     setPolicyError('');
     setPolicyModal('add');
   };
@@ -181,6 +174,7 @@ export default function ManagerPricing() {
     setPolicySubmitting(true);
     try {
       const payload: UpdatePricingPolicyRequest = {
+        vehicleTypeId: policyForm.vehicleTypeId,
         blockPrice:   Number(policyForm.blockPrice),
         blockMinutes: Number(policyForm.blockMinutes),
         hourlyRate:   Number(policyForm.hourlyRate),
@@ -215,8 +209,7 @@ export default function ManagerPricing() {
   };
 
   const openAddSetting = () => {
-    const firstVt = vtWithoutSetting[0];
-    setSettingForm({ ...emptySettingForm, vehicleTypeId: firstVt?.id ?? '' });
+    setSettingForm({ ...emptySettingForm, vehicleTypeId: vehicleTypes[0]?.id ?? '' });
     setSettingError('');
     setSettingModal('add');
   };
@@ -377,23 +370,12 @@ export default function ManagerPricing() {
             </div>
             <button
               onClick={openAddPolicy}
-              disabled={vtWithoutPolicy.length === 0}
+              disabled={vehicleTypes.length === 0}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FF4C4C] hover:bg-[#ff3333] text-black font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
-              title={vtWithoutPolicy.length === 0 ? 'Tất cả loại xe đã có chính sách' : ''}
             >
               <Plus size={15} /> Thêm chính sách
             </button>
           </div>
-
-          {/* Warning: vehicle types without policy */}
-          {vtWithoutPolicy.length > 0 && (
-            <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-400/10 border border-amber-400/20 rounded-xl">
-              <Info size={14} className="text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-400/80">
-                Các loại xe chưa có chính sách giá: <span className="font-semibold text-amber-400">{vtWithoutPolicy.map(v => v.name).join(', ')}</span>
-              </p>
-            </div>
-          )}
 
           {/* Policy cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -409,10 +391,12 @@ export default function ManagerPricing() {
                       <DollarSign size={16} className="text-[#FF4C4C]" />
                     </div>
                     <div>
-                      <p className="font-semibold text-white">{p.vehicleTypeName}</p>
                       <p className="text-xs text-white/40">Chính sách tính phí</p>
                     </div>
                   </div>
+                  <span className="px-2.5 py-1 rounded-lg bg-[#FF4C4C]/15 text-[#FF4C4C] text-xs font-semibold">
+                    {p.vehicleTypeName || vehicleTypes.find(v => v.id === p.vehicleTypeId)?.name || p.vehicleTypeId}
+                  </span>
                 </div>
 
                 {/* Price rows */}
@@ -470,22 +454,12 @@ export default function ManagerPricing() {
             </div>
             <button
               onClick={openAddSetting}
-              disabled={vtWithoutSetting.length === 0}
+              disabled={vehicleTypes.length === 0}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FF4C4C] hover:bg-[#ff3333] text-black font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
-              title={vtWithoutSetting.length === 0 ? 'Tất cả loại xe đã có bảng giá' : ''}
             >
               <Plus size={15} /> Thêm bảng giá
             </button>
           </div>
-
-          {vtWithoutSetting.length > 0 && (
-            <div className="flex items-start gap-2.5 px-4 py-3 bg-amber-400/10 border border-amber-400/20 rounded-xl">
-              <Info size={14} className="text-amber-400 shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-400/80">
-                Chưa có bảng giá: <span className="font-semibold text-amber-400">{vtWithoutSetting.map(v => v.name).join(', ')}</span>
-              </p>
-            </div>
-          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {settings.length === 0 && (
@@ -557,7 +531,7 @@ export default function ManagerPricing() {
           <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-semibold text-white">
-                {policyModal === 'add' ? 'Thêm chính sách giá' : `Sửa chính sách · ${selectedPolicy?.vehicleTypeName}`}
+                {policyModal === 'add' ? 'Thêm chính sách giá' : 'Sửa chính sách giá'}
               </h3>
               <button onClick={closePolicyModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
                 <X size={16} />
@@ -565,21 +539,19 @@ export default function ManagerPricing() {
             </div>
 
             <div className="px-6 py-5 space-y-4">
-              {policyModal === 'add' && (
-                <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Loại xe <span className="text-red-400">*</span></label>
-                  <select
-                    value={policyForm.vehicleTypeId}
-                    onChange={e => setPolicyForm(p => ({ ...p, vehicleTypeId: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
-                  >
-                    <option value="" className="bg-[#121214]">-- Chọn loại xe --</option>
-                    {vtWithoutPolicy.map(vt => (
-                      <option key={vt.id} value={vt.id} className="bg-[#121214]">{vt.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div>
+                <label className="block text-xs font-medium text-white/50 mb-1.5">Loại xe <span className="text-red-400">*</span></label>
+                <select
+                  value={policyForm.vehicleTypeId}
+                  onChange={e => setPolicyForm(p => ({ ...p, vehicleTypeId: e.target.value }))}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
+                >
+                  <option value="" className="bg-[#121214]">-- Chọn loại xe --</option>
+                  {vehicleTypes.map(vt => (
+                    <option key={vt.id} value={vt.id} className="bg-[#121214]">{vt.name}</option>
+                  ))}
+                </select>
+              </div>
 
               {[
                 { key: 'blockMinutes' as const, label: 'Thời lượng block (phút)', placeholder: 'VD: 30', type: 'number' },
@@ -675,7 +647,7 @@ export default function ManagerPricing() {
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                   >
                     <option value="" className="bg-[#121214]">-- Chọn loại xe --</option>
-                    {vtWithoutSetting.map(vt => (
+                    {vehicleTypes.map(vt => (
                       <option key={vt.id} value={vt.id} className="bg-[#121214]">{vt.name}</option>
                     ))}
                   </select>
