@@ -1,7 +1,7 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Car, Users, BarChart3, Settings,
-  LogOut, MapPin, Bell, ChevronDown, Sun, Moon,
+  LogOut, MapPin, Bell, Sun, Moon, Home,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -101,6 +101,14 @@ export default function AdminLayout() {
             </div>
           </div>
           <button
+            onClick={() => navigate('/', { state: { fromDashboard: true } })}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-[var(--admin-bg-card)] transition-all"
+            style={{ color: 'var(--admin-text-muted)' }}
+          >
+            <Home size={17} />
+            Trang chủ
+          </button>
+          <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium hover:text-red-500 hover:bg-red-400/10 transition-all"
             style={{ color: 'var(--admin-text-muted)' }}
@@ -152,19 +160,6 @@ export default function AdminLayout() {
                 style={{ boxShadow: '0 0 0 2px var(--admin-bg-base)' }}
               />
             </button>
-
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-colors"
-              style={{ backgroundColor: 'var(--admin-bg-card)' }}
-            >
-              <div className="w-7 h-7 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs">
-                {initials}
-              </div>
-              <span className="text-sm font-medium" style={{ color: 'var(--admin-text-primary)' }}>
-                {user?.fullName ?? 'Admin'}
-              </span>
-              <ChevronDown size={14} style={{ color: 'var(--admin-text-faint)' }} />
-            </div>
           </div>
         </header>
 

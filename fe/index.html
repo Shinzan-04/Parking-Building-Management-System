@@ -6,6 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SmartPark — Intelligent Parking Management</title>
     <meta name="description" content="SmartPark: AI-powered parking management system with real-time analytics, automated payments, and seamless customer experiences." />
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('admin-theme');
+          if (t !== 'light') document.documentElement.classList.add('dark');
+        } catch(e) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
