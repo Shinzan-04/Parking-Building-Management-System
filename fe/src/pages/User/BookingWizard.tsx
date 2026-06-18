@@ -793,6 +793,8 @@ function StepSelectSlot({
   slots: ParkingSlotDetail[];
   vehicles: ApiVehicleType[];
 }) {
+  const COLS = 8; // Số cột trong lưới (A → H)
+
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
     selectedVehicle?.name.toLowerCase().includes('xe máy') ||
@@ -801,13 +803,47 @@ function StepSelectSlot({
     false;
   const VehicleIcon = isMotorbike ? Bike : Car;
 
-  // Lọc slots theo loại xe đã chọn
+  // Lọc slots theo loại xe đã chọn (không hiển thị slots bảo trì)
   const filteredSlots = slots.filter(
-    (s) => s.vehicleTypeId === state.vehicleType
+    (s) => s.vehicleTypeId === state.vehicleType && s.status !== 'Maintenance'
   );
 
+  // Nhóm các slots thành từng hàng (COLS ô mỗi hàng)
+  const rows: ParkingSlotDetail[][] = [];
+  for (let i = 0; i < filteredSlots.length; i += COLS) {
+    rows.push(filteredSlots.slice(i, i + COLS));
+  }
+
+  const availableCount = filteredSlots.filter(s => s.status === 'Available' || String(s.status) === '0').length;
+  const occupiedCount  = filteredSlots.filter(s => s.status === 'Occupied' || String(s.status) === '1').length;
+  const reservedCount  = filteredSlots.filter(s => s.status === 'Reserved' || String(s.status) === '2').length;
+
+  // Helper hàm để xác định màu hiển thị cho mỗi Slot
+  const getSlotStyle = (slot: ParkingSlotDetail): string => {
+    const isSelected = state.slotId === slot.id;
+    if (isSelected) {
+      return 'bg-[#FF4C4C] border-[#FF4C4C] text-white shadow-md shadow-[#FF4C4C]/30 scale-105 z-10';
+    }
+    
+    // Một số backend serialize enum thành integer string, cần kiểm tra cả hai
+    const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
+    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '1';
+    const isReserved = slot.status === 'Reserved' || String(slot.status) === '2';
+
+    if (isAvailable) {
+      return 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-105 cursor-pointer';
+    } else if (isOccupied) {
+      return 'bg-red-50 border-red-200/60 text-red-400/60 cursor-not-allowed';
+    } else if (isReserved) {
+      return 'bg-amber-50 border-amber-200/60 text-amber-500/70 cursor-not-allowed';
+    } else {
+      return 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed';
+    }
+  };
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
+      {/* ── Step header ── */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
           <ParkingSquare size={20} className="text-[#FF4C4C]" />
@@ -820,51 +856,136 @@ function StepSelectSlot({
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-6 text-xs font-medium">
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-emerald-50 border border-emerald-200" />
-          <span className="text-stone-500">Available</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]" />
-          <span className="text-stone-500">Selected</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-4 h-4 rounded-md bg-red-50 border border-red-200" />
-          <span className="text-stone-500">Occupied</span>
-        </div>
+      {/* ── Stats Thống kê nhanh ── */}
+      <div className="flex items-center gap-4 flex-wrap">
+        {[
+          { label: 'Còn trống',  count: availableCount, dot: 'bg-emerald-400' },
+          { label: 'Đang dùng',  count: occupiedCount,  dot: 'bg-red-400' },
+          { label: 'Đặt trước', count: reservedCount,   dot: 'bg-amber-400' },
+          { label: 'Tổng',       count: filteredSlots.length, dot: 'bg-stone-400' },
+        ].map(({ label, count, dot }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full ${dot}`} />
+            <span className="text-[11px] text-stone-500 font-semibold">{label}</span>
+            <span className="text-[11px] font-bold text-stone-700">{count}</span>
+          </div>
+        ))}
       </div>
 
       {filteredSlots.length === 0 ? (
-        <div className="py-10 text-center bg-gray-50 rounded-2xl border border-gray-150 p-4">
-          <p className="text-sm text-stone-400 font-medium">No suitable slots found for your vehicle type on this floor.</p>
+        <div className="py-14 text-center bg-gray-50 rounded-2xl border border-gray-200">
+          <ParkingSquare size={36} className="text-stone-300 mx-auto mb-3" />
+          <p className="text-sm text-stone-500 font-bold">Không có chỗ đỗ</p>
+          <p className="text-xs text-stone-400 mt-1">
+            Tầng này chưa có ô đỗ phù hợp với loại xe của bạn.
+          </p>
         </div>
       ) : (
-        /* Slot grid */
-        <div className="grid grid-cols-5 gap-2">
-          {filteredSlots.map((slot) => {
-            const isAvailable = slot.status === 'Available' || slot.status === '0' || (slot.status as unknown as number) === 0;
-            const selected = state.slot === slot.slotNumber;
-            return (
-              <button
-                key={slot.id}
-                disabled={!isAvailable}
-                onClick={() => isAvailable && setState((s) => ({ ...s, slot: slot.slotNumber, slotId: slot.id, zone: getZoneName(slot.slotNumber) }))}
-                className={`aspect-square rounded-xl text-xs font-bold border-2 transition-all flex flex-col items-center justify-center gap-1 ${!isAvailable
-                    ? 'bg-red-50 border-red-200/60 text-red-400/50 cursor-not-allowed'
-                    : selected
-                      ? 'bg-[#FF4C4C]/10 border-[#FF4C4C] text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10 scale-105'
-                      : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-105'
-                  }`}
-              >
-                <VehicleIcon size={14} />
-                <span className="text-[10px] leading-none">{slot.slotNumber}</span>
-              </button>
-            );
-          })}
+        /* ── Slot Grid View ── */
+        <div className="overflow-x-auto pb-1">
+          <div className="min-w-max">
+            {/* Column headers (A, B, C...) */}
+            <div
+              className="grid gap-1.5 mb-1"
+              style={{ gridTemplateColumns: `1.75rem repeat(${Math.min(COLS, filteredSlots.length)}, minmax(0,1fr))` }}
+            >
+              <div /> {/* Gốc rỗng */}
+              {Array.from({ length: Math.min(COLS, filteredSlots.length) }, (_, c) => (
+                <div
+                  key={c}
+                  className="text-center text-[10px] font-bold text-stone-400 tracking-wider"
+                >
+                  {String.fromCharCode(65 + c)}
+                </div>
+              ))}
+            </div>
+
+            {/* Rows */}
+            <div className="space-y-1.5">
+              {rows.map((row, rowIdx) => (
+                <div
+                  key={rowIdx}
+                  className="grid gap-1.5 items-center"
+                  style={{ gridTemplateColumns: `1.75rem repeat(${COLS}, minmax(0,1fr))` }}
+                >
+                  {/* Row number label */}
+                  <div className="text-center text-[10px] font-bold text-stone-400">
+                    {rowIdx + 1}
+                  </div>
+
+                  {/* Slot cells */}
+                  {row.map((slot) => {
+                    const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
+                    const isSelected = state.slotId === slot.id;
+                    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '1';
+
+                    const colIdx = filteredSlots.indexOf(slot) % COLS;
+                    const colLetter = String.fromCharCode(65 + colIdx);
+                    const rowNum = Math.floor(filteredSlots.indexOf(slot) / COLS) + 1;
+
+                    return (
+                      <button
+                        key={slot.id}
+                        disabled={!isAvailable}
+                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}`}
+                        onClick={() => {
+                          if (!isAvailable) return;
+                          setState((s) => ({
+                            ...s,
+                            slot: slot.slotNumber,
+                            slotId: slot.id,
+                            zone: getZoneName(slot.slotNumber),
+                          }));
+                        }}
+                        className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 border-2 text-[9px] font-bold transition-all select-none ${getSlotStyle(slot)}`}
+                      >
+                        {isSelected ? (
+                          <CheckCircle2 size={12} />
+                        ) : isOccupied ? (
+                          <VehicleIcon size={11} />
+                        ) : (
+                          <VehicleIcon size={11} className="opacity-60" />
+                        )}
+                        <span className="leading-none">{slot.slotNumber}</span>
+                      </button>
+                    );
+                  })}
+
+                  {/* Padding empty cells if row < COLS */}
+                  {row.length < COLS && Array.from({ length: COLS - row.length }, (_, k) => (
+                    <div key={`pad-${k}`} className="h-11" />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
+
+      {/* ── Legend ── */}
+      <div className="flex items-center flex-wrap gap-4 pt-3 border-t border-gray-100 text-[11px] text-stone-500">
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-emerald-50 border-2 border-emerald-300 flex-shrink-0" />
+          Còn trống
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-[#FF4C4C] border-2 border-[#FF4C4C] flex-shrink-0" />
+          Đã chọn
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-red-50 border-2 border-red-200 flex-shrink-0" />
+          Đang dùng
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
+          Đặt trước
+        </div>
+        {state.slot && (
+          <span className="ml-auto text-[#FF4C4C] font-bold">
+            Đã chọn: {state.slot}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
