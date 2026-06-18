@@ -509,12 +509,12 @@ export default function UsersPage() {
       {/* ── ADD / EDIT MODAL ── */}
       {(modalType === 'add' || modalType === 'edit') && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <h3 className="text-base font-semibold text-white">
+          <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col bg-white dark:bg-[#0E0E10]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white">
                 {modalType === 'add' ? 'Thêm người dùng mới' : `Chỉnh sửa · ${selected?.fullName}`}
               </h3>
-              <button onClick={closeModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
+              <button onClick={closeModal} className="p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
                 <X size={16} />
               </button>
             </div>
@@ -527,19 +527,19 @@ export default function UsersPage() {
                 { key: 'phone',    label: 'Số điện thoại',  placeholder: '0901 234 567',      type: 'text'  },
               ] as const).map(f => (
                 <div key={f.key}>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">{f.label}</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">{f.label}</label>
                   <input
                     type={f.type}
                     placeholder={f.placeholder}
                     value={form[f.key]}
                     onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
               ))}
 
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Vai trò</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Vai trò</label>
                 <div className="grid grid-cols-2 gap-2">
                   {allRoles.map(r => {
                     const cfg = roleConfig[r];
@@ -553,7 +553,7 @@ export default function UsersPage() {
                         className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border text-xs font-medium transition-all ${
                           active
                             ? `${cfg.bg} ${cfg.text} border-current`
-                            : 'bg-white/5 text-white/40 border-white/10 hover:border-white/20 hover:text-white/60'
+                            : 'bg-gray-50 dark:bg-white/5 text-gray-400 dark:text-white/40 border-gray-200 dark:border-white/10 hover:border-gray-200 dark:hover:border-white/20 hover:text-gray-500 dark:hover:text-white/60'
                         }`}
                       >
                         <Icon size={14} />
@@ -566,13 +566,13 @@ export default function UsersPage() {
 
               {modalType === 'add' && (
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Mật khẩu</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Mật khẩu</label>
                   <input
                     type="password"
                     placeholder="Nhập mật khẩu..."
                     value={form.password}
                     onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
               )}
@@ -585,8 +585,8 @@ export default function UsersPage() {
               )}
             </div>
 
-            <div className="flex gap-3 px-6 py-4 border-t border-white/10">
-              <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50">
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-white/10">
+              <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50">
                 Huỷ
               </button>
               <button
@@ -605,18 +605,18 @@ export default function UsersPage() {
       {/* ── DELETE MODAL ── */}
       {modalType === 'delete' && selected && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
+          <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-sm shadow-2xl bg-white dark:bg-[#0E0E10]">
             <div className="px-6 pt-6 pb-4 text-center">
               <div className="flex justify-center mb-4">
                 <AvatarIcon name={selected.fullName} role={selected.role} />
               </div>
-              <h3 className="text-base font-semibold text-white">Xoá người dùng?</h3>
-              <p className="text-sm text-white/50 mt-2 leading-relaxed">
-                Bạn sắp xoá tài khoản <span className="text-white font-medium">{selected.fullName}</span>
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white">Xoá người dùng?</h3>
+              <p className="text-sm text-gray-500 dark:text-white/50 mt-2 leading-relaxed">
+                Bạn sắp xoá tài khoản <span className="text-gray-800 dark:text-white font-medium">{selected.fullName}</span>
                 <br />
-                <span className="text-xs text-white/30">@{selected.username} · {selected.email}</span>
+                <span className="text-xs text-gray-400 dark:text-white/30">@{selected.username} · {selected.email}</span>
               </p>
-              <p className="text-xs text-white/30 mt-2">Hành động này không thể hoàn tác.</p>
+              <p className="text-xs text-gray-400 dark:text-white/30 mt-2">Hành động này không thể hoàn tác.</p>
               {formError && (
                 <p className="text-xs text-red-400 flex items-center justify-center gap-1.5 mt-2">
                   <AlertTriangle size={12} />
@@ -625,7 +625,7 @@ export default function UsersPage() {
               )}
             </div>
             <div className="flex gap-3 px-6 pb-6">
-              <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50">
+              <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50">
                 Huỷ
               </button>
               <button onClick={handleDelete} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">

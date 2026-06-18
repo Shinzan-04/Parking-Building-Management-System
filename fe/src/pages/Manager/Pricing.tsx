@@ -529,27 +529,27 @@ export default function ManagerPricing() {
       {/* Add/Edit Policy */}
       {(policyModal === 'add' || policyModal === 'edit') && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <h3 className="text-base font-semibold text-white">
+          <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-md shadow-2xl bg-white dark:bg-[#0E0E10]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white">
                 {policyModal === 'add' ? 'Thêm chính sách giá' : 'Sửa chính sách giá'}
               </h3>
-              <button onClick={closePolicyModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
+              <button onClick={closePolicyModal} className="p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
                 <X size={16} />
               </button>
             </div>
 
             <div className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Loại xe <span className="text-red-400">*</span></label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Loại xe <span className="text-red-400">*</span></label>
                 <select
                   value={policyForm.vehicleTypeId}
                   onChange={e => setPolicyForm(p => ({ ...p, vehicleTypeId: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
+                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                 >
-                  <option value="" className="bg-[#121214]">-- Chọn loại xe --</option>
+                  <option value="">-- Chọn loại xe --</option>
                   {vehicleTypes.map(vt => (
-                    <option key={vt.id} value={vt.id} className="bg-[#121214]">{vt.name}</option>
+                    <option key={vt.id} value={vt.id}>{vt.name}</option>
                   ))}
                 </select>
               </div>
@@ -561,14 +561,14 @@ export default function ManagerPricing() {
                 { key: 'dailyMaxRate' as const, label: 'Giá tối đa / ngày (đ)',   placeholder: 'VD: 80000', type: 'number' },
               ].map(f => (
                 <div key={f.key}>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">{f.label}</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">{f.label}</label>
                   <input
                     type={f.type}
                     min={0}
                     placeholder={f.placeholder}
                     value={policyForm[f.key]}
                     onChange={e => setPolicyForm(p => ({ ...p, [f.key]: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
               ))}
@@ -581,8 +581,8 @@ export default function ManagerPricing() {
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
-              <button onClick={closePolicyModal} className="px-5 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">Hủy</button>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10 flex justify-end gap-3">
+              <button onClick={closePolicyModal} className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">Hủy</button>
               <button
                 onClick={policyModal === 'add' ? handleAddPolicy : handleEditPolicy}
                 disabled={policySubmitting}
@@ -599,20 +599,20 @@ export default function ManagerPricing() {
       {/* Delete Policy */}
       {policyModal === 'delete' && selectedPolicy && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
+          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5 bg-white dark:bg-[#0E0E10]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Xoá chính sách giá</h3>
-                <p className="text-xs text-white/40 mt-0.5">Hành động không thể hoàn tác</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Xoá chính sách giá</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Hành động không thể hoàn tác</p>
               </div>
             </div>
-            <p className="text-sm text-white/70">Xoá chính sách giá cho <span className="font-semibold text-white">{selectedPolicy.vehicleTypeName}</span>?</p>
+            <p className="text-sm text-gray-700 dark:text-white/70">Xoá chính sách giá cho <span className="font-semibold text-gray-800 dark:text-white">{selectedPolicy.vehicleTypeName}</span>?</p>
             {policyError && <p className="text-xs text-red-400">{policyError}</p>}
             <div className="flex gap-3">
-              <button onClick={closePolicyModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">Hủy</button>
+              <button onClick={closePolicyModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">Hủy</button>
               <button onClick={handleDeletePolicy} disabled={policySubmitting}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50">
                 {policySubmitting && <Loader2 size={14} className="animate-spin" />}
@@ -628,12 +628,12 @@ export default function ManagerPricing() {
       {/* Add/Edit Setting */}
       {(settingModal === 'add' || settingModal === 'edit') && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <h3 className="text-base font-semibold text-white">
+          <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-md shadow-2xl bg-white dark:bg-[#0E0E10]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white">
                 {settingModal === 'add' ? 'Thêm bảng giá vé' : `Sửa bảng giá · ${selectedSetting?.vehicleTypeName}`}
               </h3>
-              <button onClick={closeSettingModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
+              <button onClick={closeSettingModal} className="p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
                 <X size={16} />
               </button>
             </div>
@@ -641,15 +641,15 @@ export default function ManagerPricing() {
             <div className="px-6 py-5 space-y-4">
               {settingModal === 'add' && (
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Loại xe <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Loại xe <span className="text-red-400">*</span></label>
                   <select
                     value={settingForm.vehicleTypeId}
                     onChange={e => setSettingForm(p => ({ ...p, vehicleTypeId: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                   >
-                    <option value="" className="bg-[#121214]">-- Chọn loại xe --</option>
+                    <option value="">-- Chọn loại xe --</option>
                     {vehicleTypes.map(vt => (
-                      <option key={vt.id} value={vt.id} className="bg-[#121214]">{vt.name}</option>
+                      <option key={vt.id} value={vt.id}>{vt.name}</option>
                     ))}
                   </select>
                 </div>
@@ -657,23 +657,23 @@ export default function ManagerPricing() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
                     <Sun size={11} className="inline mr-1 text-amber-400" />Giờ bắt đầu ngày
                   </label>
                   <input type="number" min={0} max={23} placeholder="6"
                     value={settingForm.dayStartHour}
                     onChange={e => setSettingForm(p => ({ ...p, dayStartHour: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
                     <Moon size={11} className="inline mr-1 text-violet-400" />Giờ bắt đầu đêm
                   </label>
                   <input type="number" min={0} max={23} placeholder="18"
                     value={settingForm.nightStartHour}
                     onChange={e => setSettingForm(p => ({ ...p, nightStartHour: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
               </div>
@@ -686,14 +686,14 @@ export default function ManagerPricing() {
                 const Icon = f.icon;
                 return (
                   <div key={f.key}>
-                    <label className="flex items-center gap-1.5 text-xs font-medium text-white/50 mb-1.5">
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
                       <Icon size={11} className={f.color} />
                       {f.label}
                     </label>
                     <input type="number" min={0} placeholder={f.placeholder}
                       value={settingForm[f.key]}
                       onChange={e => setSettingForm(p => ({ ...p, [f.key]: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                     />
                   </div>
                 );
@@ -707,8 +707,8 @@ export default function ManagerPricing() {
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
-              <button onClick={closeSettingModal} className="px-5 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">Hủy</button>
+            <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10 flex justify-end gap-3">
+              <button onClick={closeSettingModal} className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">Hủy</button>
               <button
                 onClick={settingModal === 'add' ? handleAddSetting : handleEditSetting}
                 disabled={settingSubmitting}
@@ -725,20 +725,20 @@ export default function ManagerPricing() {
       {/* Delete Setting */}
       {settingModal === 'delete' && selectedSetting && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
+          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5 bg-white dark:bg-[#0E0E10]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Xoá bảng giá</h3>
-                <p className="text-xs text-white/40 mt-0.5">Hành động không thể hoàn tác</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Xoá bảng giá</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Hành động không thể hoàn tác</p>
               </div>
             </div>
-            <p className="text-sm text-white/70">Xoá bảng giá vé cho <span className="font-semibold text-white">{selectedSetting.vehicleTypeName}</span>?</p>
+            <p className="text-sm text-gray-700 dark:text-white/70">Xoá bảng giá vé cho <span className="font-semibold text-gray-800 dark:text-white">{selectedSetting.vehicleTypeName}</span>?</p>
             {settingError && <p className="text-xs text-red-400">{settingError}</p>}
             <div className="flex gap-3">
-              <button onClick={closeSettingModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">Hủy</button>
+              <button onClick={closeSettingModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">Hủy</button>
               <button onClick={handleDeleteSetting} disabled={settingSubmitting}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50">
                 {settingSubmitting && <Loader2 size={14} className="animate-spin" />}

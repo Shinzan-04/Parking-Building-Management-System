@@ -304,24 +304,24 @@ export default function ManagerReservations() {
       {/* ══ APPROVE MODAL ══ */}
       {approveTarget && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="border border-[#FF4C4C]/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
+          <div className="border border-[#FF4C4C]/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5 bg-white dark:bg-[#0E0E10]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 flex items-center justify-center shrink-0">
                 <CheckCircle2 size={20} className="text-[#FF4C4C]" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Xác nhận duyệt</h3>
-                <p className="text-xs text-white/40 mt-0.5">Đặt chỗ sẽ được chấp nhận</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Xác nhận duyệt</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Đặt chỗ sẽ được chấp nhận</p>
               </div>
             </div>
 
-            <p className="text-sm text-white/70">
+            <p className="text-sm text-gray-700 dark:text-white/70">
               Duyệt yêu cầu đặt chỗ cho biển số{' '}
-              <span className="font-bold font-mono text-white">{approveTarget.licensePlate}</span>{' '}
-              tại slot <span className="font-semibold text-white">{approveTarget.slotNumber}</span>?
+              <span className="font-bold font-mono text-gray-800 dark:text-white">{approveTarget.licensePlate}</span>{' '}
+              tại slot <span className="font-semibold text-gray-800 dark:text-white">{approveTarget.slotNumber}</span>?
             </p>
 
-            <div className="text-xs text-white/40 space-y-1 px-3 py-2.5 bg-white/5 rounded-xl">
+            <div className="text-xs text-gray-400 dark:text-white/40 space-y-1 px-3 py-2.5 bg-gray-50 dark:bg-white/5 rounded-xl">
               <p>📅 Từ: {fmtDateTime(approveTarget.startTime)}</p>
               <p>📅 Đến: {fmtDateTime(approveTarget.endTime)}</p>
             </div>
@@ -335,7 +335,7 @@ export default function ManagerReservations() {
             <div className="flex gap-3">
               <button
                 onClick={() => setApproveTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
                 Hủy
               </button>
@@ -355,19 +355,19 @@ export default function ManagerReservations() {
       {/* ══ REJECT MODAL ══ */}
       {rejectTarget && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
+          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5 bg-white dark:bg-[#0E0E10]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <XCircle size={20} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Từ chối đặt chỗ</h3>
-                <p className="text-xs text-white/40 mt-0.5">Biển số: {rejectTarget.licensePlate}</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Từ chối đặt chỗ</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Biển số: {rejectTarget.licensePlate}</p>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">
+              <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
                 <FileText size={11} className="inline mr-1" />
                 Lý do từ chối <span className="text-red-400">*</span>
               </label>
@@ -376,7 +376,7 @@ export default function ManagerReservations() {
                 placeholder="Nhập lý do từ chối yêu cầu đặt chỗ này..."
                 value={rejectReason}
                 onChange={e => setRejectReason(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-400/50 transition-colors resize-none"
+                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-red-400/50 transition-colors resize-none"
               />
             </div>
 
@@ -389,7 +389,7 @@ export default function ManagerReservations() {
             <div className="flex gap-3">
               <button
                 onClick={() => setRejectTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
                 Hủy
               </button>
