@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Car, MapPin, BarChart3, LogOut, Bell,
-  DollarSign, ClipboardList, CalendarCheck, Sun, Moon, Home,
+  DollarSign, ClipboardList, CalendarCheck, Sun, Moon, Home, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -10,6 +10,7 @@ import { useTheme } from '../../hooks/useTheme';
 const navItems = [
   { to: '/manager',                  label: 'Dashboard',    icon: LayoutDashboard, end: true  },
   { to: '/manager/parking-lots',     label: 'Bãi đỗ xe',    icon: MapPin,          end: false },
+  { to: '/manager/staff',            label: 'Nhân viên',    icon: UserCheck,       end: false },
   { to: '/manager/vehicles',         label: 'Phương tiện',  icon: Car,             end: false },
   { to: '/manager/pricing',          label: 'Bảng giá',     icon: DollarSign,      end: false },
   { to: '/manager/sessions',         label: 'Phiên đỗ xe',  icon: ClipboardList,   end: false },
