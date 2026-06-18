@@ -31,3 +31,8 @@ public class UserResponse
     public string QrCode { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
 }
+
+public class AssignRoleRequest
+{
+    public Role Role { get; set; }
+}

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ParkingSystem.Application.DTOs.CheckOut;
 using ParkingSystem.Application.Interfaces;
+using ParkingSystem.Application.Interfaces.Lpr;
 using ParkingSystem.Domain.Entities;
 using ParkingSystem.Domain.Enums;
 using ParkingSystem.Infrastructure.Data;
@@ -11,18 +12,23 @@ namespace ParkingSystem.Infrastructure.Services;
 public class CheckOutService : ICheckOutService
 {
     private readonly ApplicationDbContext _context;
-    private readonly ILicensePlateOcrService _ocrService;
+    // Từ nhánh dev: nhận diện biển số bằng AI pipeline
+    private readonly ILicensePlateRecognizer _lprService;
+    private readonly IRealtimeService _realtimeService;
+    // Từ HEAD: xử lý thanh toán PayOS và logging
     private readonly IPaymentService _paymentService;
     private readonly ILogger<CheckOutService> _logger;
 
     public CheckOutService(
         ApplicationDbContext context,
-        ILicensePlateOcrService ocrService,
+        ILicensePlateRecognizer lprService,
+        IRealtimeService realtimeService,
         IPaymentService paymentService,
         ILogger<CheckOutService> logger)
     {
         _context = context;
-        _ocrService = ocrService;
+        _lprService = lprService;
+        _realtimeService = realtimeService;
         _paymentService = paymentService;
         _logger = logger;
     }
@@ -234,7 +240,7 @@ public class CheckOutService : ICheckOutService
 
     public async Task<OcrCheckOutResult> ProcessOcrCheckOutAsync(OcrCheckOutRequest request)
     {
-        var ocrResult = await _ocrService.DetectPlateAsync(request.ImageBase64);
+        var ocrResult = await _lprService.RecognizeFrameAsync(request.ImageBase64);
 
         if (!ocrResult.IsDetected || string.IsNullOrWhiteSpace(ocrResult.LicensePlate))
         {

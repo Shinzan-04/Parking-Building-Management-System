@@ -18,6 +18,30 @@ public class CheckInBookingRequest
 }
 
 /// <summary>
+/// NHÁNH 1B: Check-in bằng QR Driver cố định (quét QR trên app → JWT → DriverId)
+/// Hệ thống tự tra Reservation Confirmed khớp với biển số OCR
+/// </summary>
+public class CheckInDriverQrRequest
+{
+    /// <summary>
+    /// Chuỗi JWT từ QR Driver (payload chứa sub=DriverId, driverCode, type=driver)
+    /// </summary>
+    public string DriverQrToken { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Biển số xe đọc từ Camera OCR
+    /// </summary>
+    public string LicensePlateOcr { get; set; } = string.Empty;
+
+    public Guid? StaffId { get; set; }
+
+    /// <summary>
+    /// Ảnh biển số chụp từ camera (Base64) — lưu làm bằng chứng
+    /// </summary>
+    public string? EntryImageBase64 { get; set; }
+}
+
+/// <summary>
 /// NHÁNH 2: Check-in trực tiếp (khách vãng lai)
 /// Nếu SlotId = null → Hệ thống AI tự chọn slot tốt nhất
 /// Nếu SlotId có giá trị → Staff chọn thủ công
@@ -104,4 +128,9 @@ public class StaffOverrideRequest
     public Guid ReservationId { get; set; }
     public string ActualLicensePlate { get; set; } = string.Empty;
     public Guid StaffId { get; set; }
+    
+    /// <summary>
+    /// Ảnh biển số chụp từ camera (Base64) — lưu làm bằng chứng
+    /// </summary>
+    public string? EntryImageBase64 { get; set; }
 }

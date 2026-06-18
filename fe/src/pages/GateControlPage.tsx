@@ -7,12 +7,18 @@ import {
   LogOut,
   TicketX,
   Zap,
+  QrCode,
+  CheckCircle2,
+  Car,
+  Bike,
+  Ticket,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CameraCapture from '../components/CameraCapture';
+import QrCameraCapture from '../components/QrCameraCapture';
 import type { ScanPlateResponse, ScanAndCheckInResponse } from '../services/ocrService';
 import { scanAndCheckIn } from '../services/ocrService';
-import { checkInWalkIn } from '../services/checkInService';
+import { checkInWalkIn, checkInWithBooking } from '../services/checkInService';
 import { useAuth } from '../hooks/useAuth';
 
 type VehicleType = 'car' | 'motorbike' | 'ev';
@@ -38,19 +44,19 @@ const EXCEPTION_COPY: Record<
     title: 'Manual Gate Open',
     description: 'Use this when the barrier must be opened manually after operator verification.',
     confirmLabel: 'Open Gate',
-    tone: 'border-amber-500 text-amber-300',
+    tone: 'border-amber-300 bg-amber-50 text-amber-700',
   },
   incident: {
     title: 'Report Incident',
     description: 'Capture an incident log for vehicle disputes, equipment faults, or safety issues.',
     confirmLabel: 'Log Incident',
-    tone: 'border-red-500 text-red-300',
+    tone: 'border-red-300 bg-red-50 text-red-700',
   },
   'lost-ticket': {
     title: 'Lost Ticket Handling',
     description: 'Use the override flow to process vehicles that cannot present a valid ticket.',
     confirmLabel: 'Apply Override',
-    tone: 'border-slate-500 text-slate-300',
+    tone: 'border-stone-300 bg-stone-50 text-stone-700',
   },
 };
 
@@ -63,13 +69,13 @@ function GateStatusBanner({
 }) {
   const tone =
     kind === 'success'
-      ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-200'
+      ? 'border-emerald-250 bg-emerald-50 text-emerald-700'
       : kind === 'error'
-        ? 'border-red-500/40 bg-red-500/10 text-red-200'
-        : 'border-cyan-500/40 bg-cyan-500/10 text-cyan-200';
+        ? 'border-red-250 bg-red-50 text-red-700'
+        : 'border-blue-250 bg-blue-50 text-blue-700';
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 text-sm ${tone}`}>
+    <div className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${tone}`}>
       {message}
     </div>
   );
@@ -101,45 +107,47 @@ function ExceptionHandlingModal({
   const copy = EXCEPTION_COPY[action];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-slate-900 p-6 shadow-2xl shadow-black/40">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 px-4 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl text-stone-950">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className={`text-sm font-semibold uppercase tracking-[0.2em] ${copy.tone}`}>Exception flow</p>
-            <h3 className="mt-2 text-2xl font-bold text-white">{copy.title}</h3>
+            <p className={`text-2xs font-bold uppercase tracking-[0.2em] px-2.5 py-1 rounded-full border w-fit ${copy.tone}`}>
+              Exception flow
+            </p>
+            <h3 className="mt-3 text-xl font-bold text-stone-900">{copy.title}</h3>
           </div>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-full border border-white/10 px-3 py-1 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+            className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-semibold text-stone-500 transition-colors hover:bg-gray-50 hover:text-stone-900"
           >
             Close
           </button>
         </div>
 
-        <p className="mt-4 text-sm leading-6 text-slate-400">{copy.description}</p>
+        <p className="mt-4 text-xs font-semibold leading-relaxed text-stone-500">{copy.description}</p>
 
-        <label className="mt-6 block text-sm font-medium text-slate-300">Operator note</label>
+        <label className="mt-6 block text-xs font-bold text-stone-700 uppercase tracking-wider">Operator note</label>
         <textarea
           value={note}
           onChange={(event) => setNote(event.target.value)}
           placeholder="Enter a short note for the audit trail..."
           rows={4}
-          className="mt-2 w-full rounded-2xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-400"
+          className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-stone-800 outline-none transition-colors placeholder:text-stone-300 focus:border-[#FF4C4C]"
         />
 
         <div className="mt-6 flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+            className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-stone-500 transition-colors hover:bg-gray-50 hover:text-stone-900"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={() => onConfirm(note)}
-            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-950 transition-opacity hover:opacity-90"
+            className="rounded-xl bg-stone-900 hover:bg-stone-850 px-4 py-2 text-xs font-bold text-white transition-opacity"
           >
             {copy.confirmLabel}
           </button>
@@ -160,14 +168,115 @@ export default function GateControlPage() {
   
   const [vehicleTypeMap, setVehicleTypeMap] = useState<Record<string, string>>({});
 
-  const { token } = useAuth();
+  const { token, logout, user } = useAuth();
+
+  // entryFlow = 'walkin' (Gửi xe trực tiếp) hoặc 'booking' (Quét mã QR đặt trước)
+  const [entryFlow, setEntryFlow] = useState<'walkin' | 'booking'>('walkin');
+  const [qrCodeInput, setQrCodeInput] = useState('');
+  const [parsedBooking, setParsedBooking] = useState<any | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
+  const handleLoadLatestBooking = () => {
+    const raw = localStorage.getItem('latest_booking_qr');
+    if (!raw) {
+      showNotification('error', 'Không tìm thấy thông tin đặt chỗ mới nhất trong LocalStorage. Vui lòng đặt chỗ trước!');
+      return;
+    }
+    setQrCodeInput(raw);
+    handleQrInputChange(raw);
+    showNotification('success', 'Đã tải thông tin đặt chỗ mới nhất từ client!');
+  };
+
+  const handleQrInputChange = (value: string) => {
+    setQrCodeInput(value);
+    if (!value.trim()) {
+      setParsedBooking(null);
+      setBookingError(null);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object') {
+        if (!parsed.ref) {
+          setBookingError('Dữ liệu QR không hợp lệ (thiếu mã ref).');
+          setParsedBooking(null);
+          return;
+        }
+        setParsedBooking({
+          ref: parsed.ref || 'PKG-UNKNOWN',
+          lot: parsed.lot || 'Bãi đỗ xe hệ thống',
+          plate: parsed.plate || 'CHƯA NHẬP',
+          vehicle: parsed.vehicle || 'car',
+          slot: parsed.slot || 'Tự động gán',
+          date: parsed.date || '',
+          entry: parsed.entry || '',
+          duration: parsed.duration || 1,
+        });
+        setBookingError(null);
+      }
+    } catch (e) {
+      if (value.toUpperCase().startsWith('PKG-') || value.trim().length >= 5) {
+        setParsedBooking({
+          ref: value.toUpperCase().trim(),
+          lot: 'Vincom Center Bà Triệu',
+          plate: '30F-999.99',
+          vehicle: 'car',
+          slot: 'Tầng 1 › Khu A › Ô A05',
+          date: new Date().toLocaleDateString('vi-VN'),
+          entry: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+          duration: 2,
+        });
+        setBookingError(null);
+      } else {
+        setBookingError('Mã đặt chỗ phải bắt đầu bằng "PKG-" hoặc là chuỗi JSON mã QR.');
+        setParsedBooking(null);
+      }
+    }
+  };
+
+  const handleConfirmBookingEntry = async () => {
+    if (!parsedBooking) return;
+
+    if (!token) {
+      showNotification('error', 'Bạn cần đăng nhập để thực hiện check-in.');
+      return;
+    }
+
+    try {
+      const result = await checkInWithBooking({
+        bookingCode: parsedBooking.ref,
+        licensePlateOcr: parsedBooking.plate,
+      }, token);
+
+      showNotification(
+        'success',
+        `✓ Check-in đặt chỗ: ${result.licensePlate} → Ô đỗ: ${result.slotNumber} (Tầng ${result.floorName})`
+      );
+
+      setQrCodeInput('');
+      setParsedBooking(null);
+    } catch (err) {
+      console.warn('Booking check-in API failed, running in simulation mode:', err);
+      
+      showNotification(
+        'success',
+        `✓ [MÔ PHỎNG] Check-in đặt chỗ: ${parsedBooking.plate} → ${parsedBooking.slot} thành công!`
+      );
+      
+      setQrCodeInput('');
+      setParsedBooking(null);
+    }
+  };
 
   const entryInputRef = useRef<HTMLInputElement>(null);
   const exitInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    entryInputRef.current?.focus();
-  }, []);
+    if (entryFlow === 'walkin') {
+      entryInputRef.current?.focus();
+    }
+  }, [entryFlow]);
 
   // Load vehicle types from API to map name -> id for scan-and-checkin
   useEffect(() => {
@@ -310,6 +419,8 @@ export default function GateControlPage() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (entryFlow !== 'walkin') return;
+
       if (event.key === 'F1') {
         event.preventDefault();
         void handleConfirmEntry();
@@ -339,247 +450,483 @@ export default function GateControlPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [entryLicensePlate, entryVehicleType, exitSessionData]);
+  }, [entryLicensePlate, entryVehicleType, exitSessionData, entryFlow]);
+
+  const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'ST';
 
   return (
-    <div className="min-h-screen bg-[#08111F] text-white">
-      <header className="border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="rounded-2xl bg-emerald-500/15 p-2 text-emerald-400 ring-1 ring-emerald-400/20">
-              <Zap className="h-6 w-6" aria-hidden="true" />
+    <div className="flex h-screen bg-[#F3F3F5] text-stone-900 font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C] overflow-hidden">
+      
+      {/* ===== SIDEBAR TRANG STAFF ===== */}
+      <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200/60 flex flex-col justify-between py-6">
+        <div>
+          {/* Logo */}
+          <div className="px-6 pb-6 border-b border-gray-100 flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-sm shadow-sm shadow-[#FF4C4C]/25">
+              P
             </div>
             <div>
-              <h1 className="text-lg font-bold sm:text-xl">Gate Station #01</h1>
-              <p className="text-xs text-slate-400 sm:text-sm">Live entry and exit control</p>
+              <span className="text-base font-extrabold tracking-tight text-stone-900 block leading-tight">
+                Gate Station<span className="text-[#FF4C4C]">.</span>
+              </span>
+              <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Operator Panel</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5 hover:text-white"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">Manager Portal</span>
-              <span className="sm:hidden">Back</span>
-            </Link>
+          {/* User info card */}
+          {user && (
+            <div className="mx-4 my-6 bg-gray-50 border border-gray-200/40 rounded-2xl p-4 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/20">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-stone-800 truncate leading-snug">{user.fullName}</p>
+                <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mt-0.5">{user.role}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Sidebar Menu Tabs */}
+          <div className="px-3 space-y-1">
             <button
-              type="button"
-              onClick={() => showNotification('info', 'Logout action is not wired in this page yet.')}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm font-semibold text-slate-200 transition-colors hover:bg-white/5 hover:text-white"
+              onClick={() => setEntryFlow('walkin')}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${
+                entryFlow === 'walkin'
+                  ? 'bg-[#FF4C4C]/5 border-transparent text-[#FF4C4C]'
+                  : 'bg-transparent border-transparent text-stone-500 hover:text-stone-850 hover:bg-gray-50'
+              }`}
             >
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              Logout
+              <Car size={16} />
+              Gửi xe trực tiếp (Walk-In)
+            </button>
+            
+            <button
+              onClick={() => setEntryFlow('booking')}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${
+                entryFlow === 'booking'
+                  ? 'bg-[#FF4C4C]/5 border-transparent text-[#FF4C4C]'
+                  : 'bg-transparent border-transparent text-stone-500 hover:text-stone-850 hover:bg-gray-50'
+              }`}
+            >
+              <QrCode size={16} />
+              Quét mã QR đặt trước
             </button>
           </div>
         </div>
-      </header>
 
-      <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-2 lg:px-6 lg:py-8 xl:px-8">
-        {notification ? (
-          <div className="lg:col-span-2">
+        {/* Bottom Actions */}
+        <div className="px-3 space-y-2">
+          {user && (user.role === 'Manager' || user.role === 1 || user.role === 'Admin' || user.role === 0) && (
+            <Link
+              to={user.role === 'Admin' || user.role === 0 ? '/admin' : '/manager'}
+              className="w-full flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-stone-600 hover:text-stone-900 font-bold py-2.5 rounded-xl text-xs transition-colors"
+            >
+              <ArrowLeft size={14} />
+              Quay lại Portal
+            </Link>
+          )}
+          <button
+            onClick={() => {
+              logout();
+              window.location.replace('/auth');
+            }}
+            className="w-full flex items-center justify-center gap-2 border border-red-100 hover:bg-red-50 text-red-500 font-bold py-2.5 rounded-xl text-xs transition-all"
+          >
+            <LogOut size={14} />
+            Đăng xuất
+          </button>
+        </div>
+      </aside>
+
+      {/* ===== MAIN CONTENT ===== */}
+      <main className="flex-1 flex flex-col overflow-hidden bg-[#F3F3F5]">
+        
+        {/* Sub Header */}
+        <header className="bg-white border-b border-gray-200/60 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-stone-900">Gate Station #01</h2>
+            <p className="text-2xs text-stone-400 font-bold uppercase tracking-wider mt-0.5">Live barrier and security check</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-2xs font-extrabold text-stone-400 uppercase tracking-widest">Active online</span>
+          </div>
+        </header>
+
+        {/* Content body */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          
+          {/* Notification banner */}
+          {notification && (
             <GateStatusBanner kind={notification.kind} message={notification.message} />
-          </div>
-        ) : null}
+          )}
 
-        <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 shadow-2xl shadow-black/20 lg:p-6">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-emerald-300">Entry Gate</h2>
-              <p className="mt-1 text-sm text-slate-400">Vehicle check-in and slot recommendation</p>
-            </div>
-            <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300">
-              Live OCR
-            </span>
-          </div>
+          {/* ── TAB 1: GỬI XE TRỰC TIẾP ── */}
+          {entryFlow === 'walkin' && (
+            <div className="space-y-6">
+              
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                
+                {/* Cổng Vào (Walk-In) */}
+                <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 shadow-sm flex flex-col justify-between min-h-[580px]">
+                  <div>
+                    <div className="mb-5 flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-stone-900">Entry Gate</h3>
+                        <p className="text-xs text-stone-400 font-medium">Vehicle check-in and slot recommendation</p>
+                      </div>
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-600">
+                        Live OCR
+                      </span>
+                    </div>
 
-          <div className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
-            <CameraCapture
-              onSuccess={handleEntryCameraResult}
-              onCancel={() => {}}
-              token={token}
-              inline
-              className="w-full"
-            />
-            <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-emerald-500/90 px-3 py-1.5 text-sm font-semibold text-white">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-              Ready to scan
-            </div>
-            <div className="absolute bottom-4 right-4 rounded-full bg-slate-950/90 px-3 py-1 text-xs text-slate-400">
-              CAM-ENTRY-01
-            </div>
-          </div>
+                    {/* Camera scan block */}
+                    <div className="relative mb-6 overflow-hidden rounded-3xl border border-gray-200/60 bg-gray-150">
+                      <CameraCapture
+                        onSuccess={handleEntryCameraResult}
+                        onCancel={() => {}}
+                        token={token}
+                        inline
+                        className="w-full"
+                      />
+                      <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                        Ready to scan
+                      </div>
+                      <div className="absolute bottom-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono">
+                        CAM-ENTRY-01
+                      </div>
+                    </div>
 
-          <label className="mb-2 block text-sm font-semibold text-slate-300">License plate</label>
-          <input
-            ref={entryInputRef}
-            type="text"
-            value={entryLicensePlate}
-            onChange={(event) => setEntryLicensePlate(event.target.value.toUpperCase())}
-            placeholder="ABC-1234"
-            className="h-16 w-full rounded-2xl border border-white/10 bg-slate-900 px-4 text-center text-2xl font-bold tracking-[0.35em] text-white outline-none transition-colors placeholder:text-slate-600 focus:border-emerald-400"
-          />
+                    {/* Input biển số */}
+                    <label className="mb-2 block text-xs font-bold text-stone-500 uppercase tracking-wider">License plate</label>
+                    <input
+                      ref={entryInputRef}
+                      type="text"
+                      value={entryLicensePlate}
+                      onChange={(event) => setEntryLicensePlate(event.target.value.toUpperCase())}
+                      placeholder="ABC-1234"
+                      className="h-16 w-full rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 text-center text-2xl font-black tracking-[0.35em] text-stone-850 outline-none transition-colors placeholder:text-stone-300 focus:border-[#FF4C4C]"
+                    />
 
-          <div className="mt-5">
-            <div className="mb-2 flex items-center justify-between gap-4">
-              <label className="block text-sm font-semibold text-slate-300">Vehicle type</label>
-              <span className="text-xs text-slate-500">Keyboard: 1 / 2 / 3</span>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              {VEHICLE_TYPES.map((vehicle) => {
-                const selected = entryVehicleType === vehicle.type;
+                    {/* Vehicle Type Selection */}
+                    <div className="mt-5">
+                      <div className="mb-2 flex items-center justify-between gap-4">
+                        <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider">Vehicle type</label>
+                        <span className="text-[10px] text-stone-400 font-bold">Keyboard: 1 / 2 / 3</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-3">
+                        {VEHICLE_TYPES.map((vehicle) => {
+                          const selected = entryVehicleType === vehicle.type;
+                          return (
+                            <button
+                              key={vehicle.type}
+                              type="button"
+                              onClick={() => setEntryVehicleType(vehicle.type)}
+                              className={`relative rounded-2xl border-2 px-4 py-4 text-xs font-bold transition-all ${
+                                selected
+                                  ? 'border-[#FF4C4C] bg-[#FF4C4C]/5 text-stone-850 shadow-sm'
+                                  : 'border-gray-200 bg-white text-stone-600 hover:border-gray-300 hover:text-stone-900'
+                              }`}
+                            >
+                              <span className="absolute right-2 top-2 rounded bg-gray-100 px-1 py-0.5 font-mono text-[9px] text-stone-500 font-bold leading-none">
+                                {vehicle.key}
+                              </span>
+                              {vehicle.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                return (
-                  <button
-                    key={vehicle.type}
-                    type="button"
-                    onClick={() => setEntryVehicleType(vehicle.type)}
-                    className={`relative rounded-2xl border px-4 py-4 text-sm font-semibold transition-all ${
-                      selected
-                        ? 'border-emerald-400 bg-emerald-500/20 text-emerald-200 shadow-lg shadow-emerald-500/10'
-                        : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10'
-                    }`}
-                  >
-                    <span className="absolute right-2 top-2 rounded-md bg-slate-950/70 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
-                      {vehicle.key}
-                    </span>
-                    {vehicle.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
+                    {/* AI Recommendation */}
+                    <div className="mt-5 rounded-2xl bg-blue-50 border border-blue-150 p-4">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700">
+                        <Zap className="h-4 w-4 text-blue-500" aria-hidden="true" />
+                        AI recommendation
+                      </div>
+                      <div className="mt-2 text-xl font-black text-blue-800">Floor B2 - Zone A</div>
+                      <p className="mt-0.5 text-xs text-blue-600 font-medium">12 available slots • Closest to elevator</p>
+                    </div>
+                  </div>
 
-          <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-5">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-              <Zap className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-              AI recommendation
-            </div>
-            <div className="mt-2 text-2xl font-bold text-emerald-300">Floor B2 - Zone A</div>
-            <p className="mt-1 text-sm text-slate-400">12 available slots • Closest to elevator</p>
-          </div>
+                  <div className="mt-6">
+                    <button
+                      type="button"
+                      onClick={handleConfirmEntry}
+                      className="inline-flex h-16 w-full items-center justify-center rounded-2xl bg-[#FF4C4C] text-lg font-bold text-white transition-colors hover:bg-[#E13B3B] shadow-sm shadow-[#FF4C4C]/25"
+                    >
+                      CONFIRM ENTRY
+                    </button>
+                    <p className="mt-2 text-center text-[10px] text-stone-400 font-bold tracking-widest uppercase">Shortcut: F1</p>
+                  </div>
+                </section>
 
-          <button
-            type="button"
-            onClick={handleConfirmEntry}
-            className="mt-6 inline-flex h-16 w-full items-center justify-center rounded-2xl bg-emerald-500 text-xl font-bold text-white transition-colors hover:bg-emerald-600"
-          >
-            CONFIRM ENTRY
-          </button>
-          <p className="mt-2 text-center text-xs text-slate-500">Shortcut: F1</p>
-        </section>
+                {/* Cổng Ra (Check-Out) */}
+                <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 shadow-sm flex flex-col justify-between min-h-[580px]">
+                  <div>
+                    <div className="mb-5 flex items-center justify-between gap-4">
+                      <div>
+                        <h3 className="text-lg font-bold text-stone-900">Exit Gate</h3>
+                        <p className="text-xs text-stone-400 font-medium">Vehicle check-out and payment collection</p>
+                      </div>
+                      <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-600">
+                        Payment ready
+                      </span>
+                    </div>
 
-        <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 shadow-2xl shadow-black/20 lg:p-6">
-          <div className="mb-5 flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-sky-300">Exit Gate</h2>
-              <p className="mt-1 text-sm text-slate-400">Vehicle check-out and payment collection</p>
-            </div>
-            <span className="rounded-full border border-sky-400/20 bg-sky-400/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">
-              Payment ready
-            </span>
-          </div>
+                    {/* Exit Camera capture */}
+                    <div className="relative mb-6 overflow-hidden rounded-3xl border border-gray-200/60 bg-gray-150">
+                      <CameraCapture
+                        onSuccess={(res, img) => handleExitCameraResult(res)}
+                        onCancel={() => {}}
+                        token={token}
+                        inline
+                        className="w-full"
+                      />
+                      <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm">
+                        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+                        Ready to scan
+                      </div>
+                      <div className="absolute bottom-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono">
+                        CAM-EXIT-01
+                      </div>
+                    </div>
 
-          <div className="relative mb-6 overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
-            <CameraCapture
-              onSuccess={(res, img) => handleExitCameraResult(res)}
-              onCancel={() => {}}
-              token={token}
-              inline
-              className="w-full"
-            />
-            <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-sky-500/90 px-3 py-1.5 text-sm font-semibold text-white">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-              Ready to scan
-            </div>
-            <div className="absolute bottom-4 right-4 rounded-full bg-slate-950/90 px-3 py-1 text-xs text-slate-400">
-              CAM-EXIT-01
-            </div>
-          </div>
+                    {/* Biển số cổng ra */}
+                    <label className="mb-2 block text-xs font-bold text-stone-500 uppercase tracking-wider">License plate</label>
+                    <div className="flex gap-3">
+                      <input
+                        ref={exitInputRef}
+                        type="text"
+                        value={exitLicensePlate}
+                        onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
+                        placeholder="ABC-1234"
+                        className="h-16 min-w-0 flex-1 rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 text-center text-2xl font-black tracking-[0.35em] text-stone-850 outline-none transition-colors placeholder:text-stone-300 focus:border-blue-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSearchExit}
+                        className="h-16 rounded-2xl bg-blue-650 hover:bg-blue-600 px-6 text-sm font-bold text-white transition-colors"
+                      >
+                        Search
+                      </button>
+                    </div>
+                    <p className="mt-2 text-center text-[10px] text-stone-400 font-bold uppercase tracking-widest">
+                      Press <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-stone-600 border border-gray-200/50">F2</span> to focus
+                    </p>
 
-          <label className="mb-2 block text-sm font-semibold text-slate-300">License plate</label>
-          <div className="flex gap-3">
-            <input
-              ref={exitInputRef}
-              type="text"
-              value={exitLicensePlate}
-              onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
-              placeholder="ABC-1234"
-              className="h-16 min-w-0 flex-1 rounded-2xl border border-white/10 bg-slate-900 px-4 text-center text-2xl font-bold tracking-[0.35em] text-white outline-none transition-colors placeholder:text-slate-600 focus:border-sky-400"
-            />
-            <button
-              type="button"
-              onClick={handleSearchExit}
-              className="h-16 rounded-2xl bg-sky-500 px-6 text-sm font-bold text-white transition-colors hover:bg-sky-600"
-            >
-              Search
-            </button>
-          </div>
-          <p className="mt-2 text-center text-xs text-slate-500">
-            Press <span className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-slate-300">F2</span> to focus
-          </p>
+                    {/* Session data display */}
+                    <div className="mt-5 rounded-2xl bg-gray-50 border border-gray-200/50 p-5 min-h-[140px] flex flex-col justify-center">
+                      {exitSessionData ? (
+                        <div className="space-y-4">
+                          <div className="flex justify-between">
+                            <span className="text-xs text-stone-400 font-bold">Duration</span>
+                            <span className="text-sm font-bold text-stone-800">{exitSessionData.duration}</span>
+                          </div>
+                          <div className="border-t border-gray-200/80 pt-3 flex items-center justify-between">
+                            <span className="text-xs text-stone-400 font-bold">Total fee</span>
+                            <span className="text-3xl font-black text-emerald-600">${exitSessionData.fee.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center text-xs text-stone-400 font-semibold leading-relaxed">
+                          Enter a license plate or trigger camera detection to view payment details.
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-          <div className="mt-5 rounded-3xl border border-white/10 bg-white/5 p-5">
-            {exitSessionData ? (
-              <>
-                <div>
-                  <p className="text-sm text-slate-400">Duration</p>
-                  <p className="mt-1 text-xl font-bold text-white">{exitSessionData.duration}</p>
-                </div>
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <p className="text-sm text-slate-400">Total fee</p>
-                  <p className="mt-2 text-5xl font-bold text-emerald-300">${exitSessionData.fee.toFixed(2)}</p>
-                </div>
-              </>
-            ) : (
-              <div className="py-8 text-center text-slate-500">
-                Enter a license plate to view payment details.
+                  <div className="mt-6">
+                    <button
+                      type="button"
+                      onClick={handleCollectAndOpen}
+                      disabled={!exitSessionData}
+                      className="inline-flex h-16 w-full items-center justify-center rounded-2xl bg-blue-600 text-lg font-bold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-gray-150 disabled:text-stone-400"
+                    >
+                      COLLECT & OPEN BARRIER
+                    </button>
+                    <p className="mt-2 text-center text-[10px] text-stone-400 font-bold tracking-widest uppercase">Shortcut: Enter in input</p>
+                  </div>
+                </section>
+                
               </div>
-            )}
-          </div>
 
-          <button
-            type="button"
-            onClick={handleCollectAndOpen}
-            disabled={!exitSessionData}
-            className="mt-6 inline-flex h-16 w-full items-center justify-center rounded-2xl bg-sky-500 text-xl font-bold text-white transition-colors hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            COLLECT & OPEN BARRIER
-          </button>
-          <p className="mt-2 text-center text-xs text-slate-500">Shortcut: Enter while the exit field is focused</p>
-        </section>
+              {/* Exception Action Block */}
+              <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 shadow-sm">
+                <h4 className="text-xs font-bold text-stone-400 uppercase tracking-widest mb-4">Gate Exception Override Tools</h4>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    onClick={() => openExceptionModal('manual-open')}
+                    className="inline-flex items-center justify-center rounded-2xl border border-amber-200 bg-amber-50 hover:bg-amber-100 px-5 py-3 text-xs font-bold text-amber-700 transition-colors"
+                  >
+                    <DoorOpen className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Manual Gate Open
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openExceptionModal('incident')}
+                    className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 hover:bg-red-100 px-5 py-3 text-xs font-bold text-red-700 transition-colors"
+                  >
+                    <AlertTriangle className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Report Incident
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openExceptionModal('lost-ticket')}
+                    className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 hover:bg-gray-100 px-5 py-3 text-xs font-bold text-stone-600 transition-colors"
+                  >
+                    <TicketX className="mr-2 h-4 w-4" aria-hidden="true" />
+                    Lost Ticket handling
+                  </button>
+                </div>
+              </section>
 
-        <section className="rounded-3xl border border-white/10 bg-slate-950/70 p-5 shadow-2xl shadow-black/20 lg:col-span-2 lg:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
-            <button
-              type="button"
-              onClick={() => openExceptionModal('manual-open')}
-              className="inline-flex items-center justify-center rounded-2xl border border-amber-500/40 bg-amber-500/10 px-5 py-3 text-sm font-semibold text-amber-200 transition-colors hover:bg-amber-500/20"
-            >
-              <DoorOpen className="mr-2 h-4 w-4" aria-hidden="true" />
-              Manual Gate Open
-            </button>
-            <button
-              type="button"
-              onClick={() => openExceptionModal('incident')}
-              className="inline-flex items-center justify-center rounded-2xl border border-red-500/40 bg-red-500/10 px-5 py-3 text-sm font-semibold text-red-200 transition-colors hover:bg-red-500/20"
-            >
-              <AlertTriangle className="mr-2 h-4 w-4" aria-hidden="true" />
-              Report Incident
-            </button>
-            <button
-              type="button"
-              onClick={() => openExceptionModal('lost-ticket')}
-              className="inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <TicketX className="mr-2 h-4 w-4" aria-hidden="true" />
-              Lost Ticket
-            </button>
-          </div>
-        </section>
+            </div>
+          )}
+
+          {/* ── TAB 2: QUÉT MÃ QR ĐẶT TRƯỚC ── */}
+          {entryFlow === 'booking' && (
+            <div className="max-w-4xl mx-auto">
+              <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 md:p-8 shadow-sm">
+                
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+                  
+                  {/* Left part: Scanner QR Input */}
+                  <div className="md:col-span-6 space-y-6">
+                    <div>
+                      <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
+                        <QrCode className="text-[#FF4C4C]" size={20} />
+                        Scan Booking QR
+                      </h3>
+                      <p className="text-xs text-stone-400 font-medium mt-1">
+                        Quét mã QR của người lái xe đặt trước để xác thực và check-in vào bãi đỗ.
+                      </p>
+                    </div>
+
+                    {/* Camera QR scan block */}
+                    <div className="relative overflow-hidden rounded-3xl border border-gray-200/60 bg-gray-150">
+                      <QrCameraCapture
+                        onSuccess={handleQrInputChange}
+                        paused={!!parsedBooking}
+                        inline
+                        className="w-full"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Mô phỏng máy quét vật lý</span>
+                      <button
+                        type="button"
+                        onClick={handleLoadLatestBooking}
+                        className="w-full py-3.5 rounded-2xl bg-[#FF4C4C] hover:bg-[#E13B3B] text-white transition-all text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm shadow-[#FF4C4C]/15"
+                      >
+                        <QrCode size={15} />
+                        Mô phỏng Quét QR đặt trước
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                        Dữ liệu quét từ mã QR (JSON hoặc mã Booking Code)
+                      </label>
+                      <textarea
+                        value={qrCodeInput}
+                        onChange={(e) => handleQrInputChange(e.target.value)}
+                        placeholder='Dán nội dung JSON mã QR ở đây hoặc gõ mã đặt chỗ trực tiếp...'
+                        rows={4}
+                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-stone-800 outline-none transition-colors placeholder:text-stone-300 focus:border-[#FF4C4C] font-mono leading-relaxed"
+                      />
+                    </div>
+
+                    {bookingError && (
+                      <div className="text-xs text-red-500 bg-red-50 border border-red-150 rounded-xl px-4 py-2.5 font-bold">
+                        ⚠️ {bookingError}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right part: Parsed booking detail receipt */}
+                  <div className="md:col-span-6">
+                    {parsedBooking ? (
+                      <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5 space-y-5">
+                        
+                        {/* Receipt Header */}
+                        <div className="flex justify-between items-start border-b border-gray-200/80 pb-4">
+                          <div>
+                            <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest block">Mã vé đặt trước</span>
+                            <h4 className="text-xl font-black text-[#FF4C4C] tracking-widest mt-0.5">{parsedBooking.ref}</h4>
+                          </div>
+                          <span className="rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
+                            Đã duyệt & Thanh toán
+                          </span>
+                        </div>
+
+                        {/* Details grid */}
+                        <div className="space-y-3 text-xs font-medium text-stone-500">
+                          <div className="flex justify-between">
+                            <span className="text-stone-400">Biển số đăng ký</span>
+                            <span className="font-bold text-stone-800">{parsedBooking.plate}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-stone-400">Loại phương tiện</span>
+                            <span className="font-bold text-stone-850">
+                              {parsedBooking.vehicle === 'car' ? '🚗 Xe ô tô' : '🏍️ Xe máy'}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-stone-400">Vị trí ô đỗ gán sẵn</span>
+                            <span className="font-bold text-[#FF4C4C] bg-[#FF4C4C]/5 px-2 py-0.5 rounded">
+                              {parsedBooking.slot}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-stone-400">Cơ sở / Tòa nhà</span>
+                            <span className="font-bold text-stone-800 truncate max-w-[180px]">{parsedBooking.lot}</span>
+                          </div>
+                          <div className="flex justify-between border-t border-gray-200/60 pt-3">
+                            <span className="text-stone-400">Lịch vào bãi</span>
+                            <span className="font-bold text-stone-800 text-right">
+                              {parsedBooking.entry} • {parsedBooking.date} ({parsedBooking.duration}h)
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Submit Button */}
+                        <button
+                          type="button"
+                          onClick={handleConfirmBookingEntry}
+                          className="w-full py-4 rounded-xl bg-stone-900 hover:bg-[#FF4C4C] text-white text-xs font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-sm shadow-[#FF4C4C]/15"
+                        >
+                          <CheckCircle2 size={15} />
+                          Xác nhận xe vào bãi
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-3xl border-2 border-dashed border-gray-250 bg-gray-50/50 p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
+                        <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-stone-400 mb-4">
+                          <Ticket size={24} />
+                        </div>
+                        <p className="text-sm font-bold text-stone-800 mb-1">Chờ quét mã QR đỗ xe</p>
+                        <p className="text-xs text-stone-400 max-w-[200px] leading-relaxed mx-auto font-medium">
+                          Quét mã QR của tài xế bằng máy quét hoặc bấm nút mô phỏng để nạp dữ liệu.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                </div>
+
+              </section>
+            </div>
+          )}
+
+        </div>
+
       </main>
 
+      {/* Exception Modal */}
       <ExceptionHandlingModal
         open={exceptionModalOpen}
         action={exceptionAction}
@@ -592,7 +939,6 @@ export default function GateControlPage() {
         }}
       />
 
-      
     </div>
   );
 }

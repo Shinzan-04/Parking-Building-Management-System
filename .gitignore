@@ -499,4 +499,7 @@ fe/.env
 # Local dev scripts
 start-postgres.bat
 
-.claude/
+.claude
+
+# AI Context backup (Xoay tua account Antigravity)
+AI_CONTEXT.md

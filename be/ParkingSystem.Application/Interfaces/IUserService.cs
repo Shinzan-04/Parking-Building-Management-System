@@ -9,4 +9,5 @@ public interface IUserService
     Task<UserResponse> CreateAsync(CreateUserRequest request);
     Task<UserResponse?> UpdateAsync(Guid id, UpdateUserRequest request);
     Task<bool> DeleteAsync(Guid id);
+    Task<bool> AssignRoleAsync(Guid id, AssignRoleRequest request);
 }

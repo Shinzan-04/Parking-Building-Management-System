@@ -59,6 +59,12 @@ public class CloudinaryImageService : IImageUploadService
 
         try
         {
+            // Loại bỏ phần prefix "data:image/png;base64," hoặc tương tự nếu FE gửi kèm
+            if (base64Image.Contains(","))
+            {
+                base64Image = base64Image.Substring(base64Image.IndexOf(",") + 1);
+            }
+
             // Decode Base64 → byte[] → MemoryStream
             var imageBytes = Convert.FromBase64String(base64Image);
             using var stream = new MemoryStream(imageBytes);

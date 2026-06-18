@@ -12,10 +12,12 @@ namespace ParkingSystem.API.Controllers;
 public class ReservationsController : ControllerBase
 {
     private readonly IReservationService _reservationService;
+    private readonly ISlotAssignmentService _slotAssignmentService;
 
-    public ReservationsController(IReservationService reservationService)
+    public ReservationsController(IReservationService reservationService, ISlotAssignmentService slotAssignmentService)
     {
         _reservationService = reservationService;
+        _slotAssignmentService = slotAssignmentService;
     }
 
     [HttpPost]
@@ -63,6 +65,59 @@ public class ReservationsController : ControllerBase
             return BadRequest();
         }
         catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+    // --- API CALLBACK THANH TOÁN ---
+
+    /// <summary>
+    /// Callback khi thanh toán thành công → chuyển reservation sang PendingReview
+    /// </summary>
+    [HttpPut("{id}/payment-success")]
+    public async Task<IActionResult> PaymentSuccess(Guid id)
+    {
+        try
+        {
+            var success = await _reservationService.ConfirmPaymentAsync(id);
+            if (success) return Ok(new { message = "Thanh toán thành công. Đang chờ Staff duyệt." });
+            return BadRequest();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Callback khi thanh toán thất bại → chuyển reservation sang PaymentFailed
+    /// </summary>
+    [HttpPut("{id}/payment-failed")]
+    public async Task<IActionResult> PaymentFailed(Guid id)
+    {
+        try
+        {
+            var success = await _reservationService.FailPaymentAsync(id);
+            if (success) return Ok(new { message = "Thanh toán thất bại. Vui lòng thử lại." });
+            return BadRequest();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // --- API GỢI Ý VỊ TRÍ BỞI AI ---
+
+    [HttpGet("ai-suggest")]
+    public async Task<IActionResult> GetAISuggestions([FromQuery] Guid vehicleTypeId, [FromQuery] Guid? buildingId, [FromQuery] int topN = 5)
+    {
+        try
+        {
+            var suggestions = await _slotAssignmentService.GetRecommendedSlotsAsync(vehicleTypeId, buildingId, topN);
+            return Ok(suggestions);
+        }
+        catch (Exception ex)
         {
             return BadRequest(new { message = ex.Message });
         }

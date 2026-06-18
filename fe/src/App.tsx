@@ -3,7 +3,9 @@ import { lazy, Suspense } from 'react';
 import './index.css';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
-const AuthPage         = lazy(() => import('./pages/AuthPage'));
+const AuthPage            = lazy(() => import('./pages/AuthPage'));
+const VerifyEmailPage     = lazy(() => import('./pages/VerifyEmailPage'));
+const ForgotPasswordPage  = lazy(() => import('./pages/ForgotPasswordPage'));
 
 const AdminLayout      = lazy(() => import('./pages/Admin/AdminLayout'));
 const AdminDashboard   = lazy(() => import('./pages/Admin/Dashboard'));
@@ -24,8 +26,8 @@ const ManagerReservations = lazy(() => import('./pages/Manager/Reservations'));
 
 const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
-const StaffLayout      = lazy(() => import('./pages/Staff/StaffLayout'));
-const StaffDashboard   = lazy(() => import('./pages/Staff/StaffDashboard'));
+const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
+const MyTicketPage     = lazy(() => import('./pages/User/MyTicketPage'));
 
 export default function App() {
   return (
@@ -33,7 +35,11 @@ export default function App() {
       <Suspense fallback={<div className="loading-screen" />}>
         <Routes>
           <Route path="/" element={<UserLandingPage />} />
+          <Route path="/booking" element={<BookingPage />} />
+          <Route path="/myticket" element={<ProtectedRoute element={<MyTicketPage />} />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
           {/* Admin Portal - chỉ Admin */}
           <Route
@@ -68,13 +74,6 @@ export default function App() {
             element={<ProtectedRoute element={<GateControlPage />} requiredRoles={["Staff"]} />}
           />
 
-          {/* Staff Portal */}
-          <Route
-            path="/staff"
-            element={<ProtectedRoute element={<StaffLayout />} requiredRoles={["Staff"]} />}
-          >
-            <Route index element={<StaffDashboard />} />
-          </Route>
         </Routes>
       </Suspense>
     </BrowserRouter>

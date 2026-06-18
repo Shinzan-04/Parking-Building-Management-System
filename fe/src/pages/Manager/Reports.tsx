@@ -48,7 +48,7 @@ function ChartTooltip({ active, payload, label, color, formatter }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#0B1120] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
+    <div className="bg-[#0E0E10] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
       <p className="text-white/60 mb-1">{label}</p>
       <p className="font-semibold" style={{ color }}>{formatter(payload[0].value)}</p>
     </div>
@@ -177,7 +177,7 @@ export default function ManagerReports() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-[#3BFFA4] animate-spin" />
+        <Loader2 size={28} className="text-orange-500 animate-spin" />
         <p className="text-sm text-white/40">Đang tải báo cáo...</p>
       </div>
     );
@@ -241,8 +241,8 @@ export default function ManagerReports() {
             unit: 'xe',
             sub: `${overdueCount} quá giờ`,
             icon: Car,
-            color: '#3BFFA4',
-            bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5',
+            color: '#F97316',
+            bg: 'from-orange-500/20 to-orange-500/5',
             alert: overdueCount > 0,
           },
           {
@@ -261,8 +261,8 @@ export default function ManagerReports() {
             unit: 'lượt',
             sub: 'sessions hoàn thành',
             icon: CheckCircle2,
-            color: '#00C2FF',
-            bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5',
+            color: '#F59E0B',
+            bg: 'from-amber-500/20 to-amber-500/5',
             alert: false,
           },
           {
@@ -319,12 +319,12 @@ export default function ManagerReports() {
               <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false}
                 tickFormatter={v => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
               <Tooltip
-                content={<ChartTooltip color="#3BFFA4" formatter={v => `${vnd(v)}đ`} />}
+                content={<ChartTooltip color="#F97316" formatter={v => `${vnd(v)}đ`} />}
                 cursor={{ fill: '#ffffff05' }}
               />
               <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
                 {revenueData.map((entry, i) => (
-                  <Cell key={i} fill={entry.revenue === Math.max(...revenueData.map(d => d.revenue)) ? '#3BFFA4' : '#3BFFA4aa'} />
+                  <Cell key={i} fill={entry.revenue === Math.max(...revenueData.map(d => d.revenue)) ? '#F97316' : '#F97316aa'} />
                 ))}
               </Bar>
             </BarChart>
@@ -351,10 +351,10 @@ export default function ManagerReports() {
                 <XAxis type="number" tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fill: '#ffffff88', fontSize: 12 }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip
-                  content={<ChartTooltip color="#00C2FF" formatter={v => `${v} lượt`} />}
+                  content={<ChartTooltip color="#F59E0B" formatter={v => `${v} lượt`} />}
                   cursor={{ fill: '#ffffff05' }}
                 />
-                <Bar dataKey="count" fill="#00C2FF" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="count" fill="#F59E0B" radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -389,7 +389,7 @@ export default function ManagerReports() {
                       <span className="text-sm font-mono font-semibold text-white">{s.licensePlate}</span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="text-xs bg-[#3BFFA4]/10 text-[#3BFFA4] px-2 py-0.5 rounded-full">{s.vehicleTypeName}</span>
+                      <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full">{s.vehicleTypeName}</span>
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="text-xs text-white/60">{s.buildingName} · {s.floorName} · {s.slotNumber}</span>
@@ -403,7 +403,7 @@ export default function ManagerReports() {
                     <td className="px-4 py-3.5">
                       {s.exitTime ? (
                         <div className="flex items-center gap-1.5 text-sm text-white/60">
-                          <CheckCircle2 size={11} className="text-[#3BFFA4]" />
+                          <CheckCircle2 size={11} className="text-orange-500" />
                           {new Date(s.exitTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       ) : (
@@ -414,7 +414,7 @@ export default function ManagerReports() {
                       <span className="text-sm text-white/60">{s.duration}</span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1 text-sm font-semibold text-[#3BFFA4]">
+                      <div className="flex items-center gap-1 text-sm font-semibold text-orange-500">
                         <ArrowUpRight size={13} />
                         {vnd(s.totalFee)}đ
                       </div>

@@ -13,17 +13,23 @@ public class CheckInService : ICheckInService
     private readonly IQrCodeService _qrCodeService;
     private readonly ISlotAssignmentService _slotAssignmentService;
     private readonly IImageUploadService _imageUploadService;
+    private readonly ITokenService _tokenService;
+    private readonly IRealtimeService _realtimeService;
 
     public CheckInService(
         ApplicationDbContext context,
         IQrCodeService qrCodeService,
         ISlotAssignmentService slotAssignmentService,
-        IImageUploadService imageUploadService)
+        IImageUploadService imageUploadService,
+        ITokenService tokenService,
+        IRealtimeService realtimeService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
         _slotAssignmentService = slotAssignmentService;
         _imageUploadService = imageUploadService;
+        _tokenService = tokenService;
+        _realtimeService = realtimeService;
     }
 
     /// <summary>
@@ -70,6 +76,63 @@ public class CheckInService : ICheckInService
     }
 
     /// <summary>
+    /// NHÁNH 1B: Check-in bằng QR Driver cố định
+    /// Bước 1: Parse JWT từ QR → lấy DriverId
+    /// Bước 2: Tìm Reservation Confirmed của Driver đó
+    /// Bước 3: Đối chiếu biển số OCR → nếu khớp → check-in
+    /// </summary>
+    public async Task<object> CheckInWithDriverQrAsync(CheckInDriverQrRequest request)
+    {
+        // 1. Parse JWT từ QR Driver
+        var parsed = _tokenService.ParseDriverQrToken(request.DriverQrToken);
+        if (parsed == null)
+            throw new InvalidOperationException("Mã QR không hợp lệ hoặc đã bị giả mạo.");
+
+        var (driverId, driverCode) = parsed.Value;
+
+        // 2. Tìm tất cả Reservation Confirmed của Driver này
+        var now = DateTime.UtcNow;
+        var confirmedReservations = await _context.Reservations
+            .Include(r => r.ParkingSlot)
+                .ThenInclude(s => s.Floor)
+                    .ThenInclude(f => f.Building)
+            .Include(r => r.VehicleType)
+            .Where(r => r.DriverId == driverId
+                     && r.Status == ReservationStatus.Confirmed
+                     && now >= r.StartTime.AddMinutes(-30) // Cho phép check-in sớm 30 phút
+                     && now <= r.EndTime)
+            .OrderBy(r => r.StartTime)
+            .ToListAsync();
+
+        if (!confirmedReservations.Any())
+            throw new InvalidOperationException($"Không tìm thấy đặt chỗ nào đang chờ check-in cho tài xế {driverCode}.");
+
+        // 3. Tìm reservation khớp với biển số OCR
+        var ocrPlate = request.LicensePlateOcr.Trim();
+        var matchedReservation = confirmedReservations
+            .FirstOrDefault(r => string.Equals(r.LicensePlate.Trim(), ocrPlate, StringComparison.OrdinalIgnoreCase));
+
+        if (matchedReservation != null)
+        {
+            // Biển số KHỚP → check-in tự động
+            return await ProcessBookingCheckIn(matchedReservation, matchedReservation.LicensePlate, request.StaffId, request.EntryImageBase64);
+        }
+
+        // 4. Biển số KHÔNG KHỚP → kiểm tra xem có reservation nào gần giờ nhất không
+        var closestReservation = confirmedReservations.First();
+
+        return new CheckInMismatchResponse
+        {
+            ReservationId = closestReservation.Id,
+            BookingLicensePlate = closestReservation.LicensePlate,
+            OcrLicensePlate = ocrPlate,
+            Message = $"Biển số OCR ({ocrPlate}) không khớp với booking ({closestReservation.LicensePlate}). " +
+                      $"Tài xế: {driverCode}. Cần nhân viên xác nhận.",
+            RequiresStaffConfirmation = true
+        };
+    }
+
+    /// <summary>
     /// Staff xác nhận override khi biển số lệch
     /// </summary>
     public async Task<CheckInResponse> StaffOverrideCheckInAsync(StaffOverrideRequest request)
@@ -85,8 +148,8 @@ public class CheckInService : ICheckInService
         if (reservation == null)
             throw new InvalidOperationException("Reservation không tồn tại hoặc không hợp lệ.");
 
-        // Staff cho phép → check-in với biển số thực tế
-        return await ProcessBookingCheckIn(reservation, request.ActualLicensePlate, request.StaffId, null);
+        // Staff cho phép → check-in với biển số thực tế và lưu lại ảnh
+        return await ProcessBookingCheckIn(reservation, request.ActualLicensePlate, request.StaffId, request.EntryImageBase64);
     }
 
     /// <summary>
@@ -193,6 +256,8 @@ public class CheckInService : ICheckInService
 
         _context.ParkingSessions.Add(session);
         await _context.SaveChangesAsync();
+        await _realtimeService.SendDashboardUpdateAsync();
+        await _realtimeService.SendSlotStatusUpdateAsync(assignedSlot.Id, assignedSlot.Status.ToString());
 
         // Sinh ảnh QR Code Base64 (để in vé giấy)
         var qrImageBase64 = _qrCodeService.GenerateQrCodeBase64(sessionCode);
@@ -258,6 +323,17 @@ public class CheckInService : ICheckInService
         slot.UpdatedAt = DateTime.UtcNow;
 
         _context.ParkingSessions.Add(session);
+
+        _context.ReservationLogs.Add(new ReservationLog
+        {
+            Id = Guid.NewGuid(),
+            ReservationId = reservation.Id,
+            Action = "CheckIn",
+            StatusSnapshot = reservation.Status,
+            Note = "Tài xế đã vào bãi thành công",
+            CreatedAt = DateTime.UtcNow
+        });
+
         await _context.SaveChangesAsync();
 
         var qrImageBase64 = _qrCodeService.GenerateQrCodeBase64(sessionCode);

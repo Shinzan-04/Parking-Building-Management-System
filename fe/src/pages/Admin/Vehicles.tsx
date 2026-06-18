@@ -1,39 +1,8 @@
-import { useState, useMemo } from 'react';
-import { Car, Bike, Clock, Search, Filter, CalendarDays, TrendingUp, CheckCircle2 } from 'lucide-react';
-
-type VehicleStatus = 'parked' | 'exited';
-type VehicleType   = 'car' | 'motorbike';
-
-interface Vehicle {
-  id: number;
-  plate: string;
-  owner: string;
-  type: VehicleType;
-  lot: string;
-  entry: string;
-  exit: string | null;
-  duration: string;
-  fee: number | null;
-  status: VehicleStatus;
-}
-
-const mockVehicles: Vehicle[] = [
-  { id: 1,  plate: '51G-123.45', owner: 'Nguyễn Văn An',    type: 'car',       lot: 'Khu A', entry: '06:15', exit: '09:30', duration: '3h 15m', fee: 32500,  status: 'exited' },
-  { id: 2,  plate: '30A-456.78', owner: 'Trần Thị Bình',   type: 'motorbike', lot: 'Khu B', entry: '07:00', exit: null,    duration: '5h 05m', fee: null,   status: 'parked' },
-  { id: 3,  plate: '43C-789.01', owner: 'Lê Minh Cường',   type: 'car',       lot: 'Khu A', entry: '07:45', exit: '11:20', duration: '3h 35m', fee: 35500,  status: 'exited' },
-  { id: 4,  plate: '92B-234.56', owner: 'Phạm Thu Dung',   type: 'car',       lot: 'Khu D', entry: '08:10', exit: null,    duration: '3h 55m', fee: null,   status: 'parked' },
-  { id: 5,  plate: '60H-567.89', owner: 'Hoàng Văn Em',    type: 'motorbike', lot: 'Khu B', entry: '08:30', exit: '10:00', duration: '1h 30m', fee: 15000,  status: 'exited' },
-  { id: 6,  plate: '15A-890.12', owner: 'Vũ Thị Phương',   type: 'car',       lot: 'Khu A', entry: '09:00', exit: null,    duration: '3h 05m', fee: null,   status: 'parked' },
-  { id: 7,  plate: '74D-321.65', owner: 'Đặng Quốc Hùng',  type: 'motorbike', lot: 'Khu F', entry: '09:15', exit: '11:45', duration: '2h 30m', fee: 25000,  status: 'exited' },
-  { id: 8,  plate: '29B-678.90', owner: 'Bùi Thị Lan',     type: 'car',       lot: 'Khu D', entry: '09:30', exit: null,    duration: '2h 35m', fee: null,   status: 'parked' },
-  { id: 9,  plate: '51F-111.22', owner: 'Ngô Thanh Mai',   type: 'car',       lot: 'Khu A', entry: '10:00', exit: '13:30', duration: '3h 30m', fee: 35000,  status: 'exited' },
-  { id: 10, plate: '30K-333.44', owner: 'Trịnh Văn Nam',   type: 'motorbike', lot: 'Khu B', entry: '10:20', exit: null,    duration: '1h 45m', fee: null,   status: 'parked' },
-  { id: 11, plate: '43P-555.66', owner: 'Đinh Thị Oanh',   type: 'car',       lot: 'Khu D', entry: '10:45', exit: '14:00', duration: '3h 15m', fee: 32500,  status: 'exited' },
-  { id: 12, plate: '92L-777.88', owner: 'Lý Hoàng Phúc',   type: 'motorbike', lot: 'Khu F', entry: '11:00', exit: null,    duration: '1h 05m', fee: null,   status: 'parked' },
-  { id: 13, plate: '60G-999.00', owner: 'Mai Thị Quyên',   type: 'car',       lot: 'Khu A', entry: '11:15', exit: '15:00', duration: '3h 45m', fee: 37500,  status: 'exited' },
-  { id: 14, plate: '15B-246.80', owner: 'Cao Minh Sơn',    type: 'car',       lot: 'Khu B', entry: '11:30', exit: null,    duration: '0h 35m', fee: null,   status: 'parked' },
-  { id: 15, plate: '74A-135.79', owner: 'Dương Thị Thu',   type: 'motorbike', lot: 'Khu F', entry: '12:00', exit: '13:30', duration: '1h 30m', fee: 15000,  status: 'exited' },
-];
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { Car, Bike, Clock, Search, Filter, TrendingUp, CheckCircle2, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
+import { searchSessions, getActiveSessions } from '../../services/sessionsService';
+import type { SessionDto } from '../../services/sessionsService';
 
 type FilterTab = 'all' | 'parked' | 'exited';
 
@@ -43,44 +12,149 @@ const tabs: { key: FilterTab; label: string }[] = [
   { key: 'exited', label: 'Đã ra' },
 ];
 
-export default function Vehicles() {
-  const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<FilterTab>('all');
+function isMotorbike(vehicleTypeName: string) {
+  const n = vehicleTypeName.toLowerCase();
+  return n.includes('máy') || n.includes('motorbike') || n.includes('motor') || n.includes('scooter');
+}
 
-  const parkedCount = mockVehicles.filter(v => v.status === 'parked').length;
-  const exitedCount = mockVehicles.filter(v => v.status === 'exited').length;
-  const carCount    = mockVehicles.filter(v => v.type === 'car').length;
+export default function Vehicles() {
+  const { token } = useAuth();
+
+  const [activeSessions,    setActiveSessions]    = useState<SessionDto[]>([]);
+  const [completedSessions, setCompletedSessions] = useState<SessionDto[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [apiError,   setApiError]   = useState('');
+  const [search,     setSearch]     = useState('');
+  const [activeTab,  setActiveTab]  = useState<FilterTab>('all');
+
+  const loadData = useCallback(async (silent = false) => {
+    if (!token) return;
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
+    setApiError('');
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+
+      const [activePage, completedPage] = await Promise.all([
+        getActiveSessions({ pageSize: 200 }, token),
+        searchSessions({
+          status: 'Completed',
+          fromDate: `${today}T00:00:00Z`,
+          toDate:   `${today}T23:59:59Z`,
+          pageSize: 200,
+        }, token),
+      ]);
+
+      let activeAll = [...activePage.items];
+      if (activePage.totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: activePage.totalPages - 1 }, (_, i) =>
+            getActiveSessions({ pageSize: 200, page: i + 2 }, token)
+          )
+        );
+        rest.forEach(r => activeAll.push(...r.items));
+      }
+
+      let completedAll = [...completedPage.items];
+      if (completedPage.totalPages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: completedPage.totalPages - 1 }, (_, i) =>
+            searchSessions({
+              status: 'Completed',
+              fromDate: `${today}T00:00:00Z`,
+              toDate:   `${today}T23:59:59Z`,
+              pageSize: 200,
+              page: i + 2,
+            }, token)
+          )
+        );
+        rest.forEach(r => completedAll.push(...r.items));
+      }
+
+      setActiveSessions(activeAll);
+      setCompletedSessions(completedAll);
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu phương tiện.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [token]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const allSessions = useMemo(() => {
+    const active    = activeSessions.map(s => ({ ...s, _tab: 'parked' as FilterTab }));
+    const completed = completedSessions.map(s => ({ ...s, _tab: 'exited' as FilterTab }));
+    return [...active, ...completed].sort((a, b) =>
+      new Date(b.entryTime).getTime() - new Date(a.entryTime).getTime()
+    );
+  }, [activeSessions, completedSessions]);
+
+  const totalToday  = allSessions.length;
+  const parkedCount = activeSessions.length;
+  const exitedCount = completedSessions.length;
+  const totalRevToday = completedSessions.reduce((s, x) => s + x.totalFee, 0);
+
+  const vnd = (n: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n);
 
   const stats = [
-    { label: 'Tổng xe hôm nay', value: mockVehicles.length, unit: 'xe',   icon: TrendingUp,    color: '#00C2FF', bg: 'from-[#00C2FF]/20 to-[#00C2FF]/5' },
-    { label: 'Đang đỗ',         value: parkedCount,          unit: 'xe',   icon: Car,           color: '#3BFFA4', bg: 'from-[#3BFFA4]/20 to-[#3BFFA4]/5' },
-    { label: 'Đã ra về',        value: exitedCount,          unit: 'xe',   icon: CheckCircle2,  color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-    { label: 'Ô tô / Xe máy',   value: `${carCount}/${mockVehicles.length - carCount}`, unit: '', icon: CalendarDays, color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
+    { label: 'Tổng xe hôm nay',   value: totalToday,             unit: 'xe',  icon: TrendingUp,  color: '#F59E0B', bg: 'from-[#F59E0B]/20 to-[#F59E0B]/5' },
+    { label: 'Đang đỗ',            value: parkedCount,            unit: 'xe',  icon: Car,         color: '#F97316', bg: 'from-[#F97316]/20 to-[#F97316]/5' },
+    { label: 'Đã ra về hôm nay',   value: exitedCount,            unit: 'xe',  icon: CheckCircle2,color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+    { label: 'Doanh thu hôm nay',  value: `${vnd(totalRevToday)}đ`, unit: '',  icon: TrendingUp,  color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
   ];
 
   const filtered = useMemo(() => {
-    return mockVehicles.filter(v => {
+    return allSessions.filter(v => {
       const matchSearch =
-        v.plate.toLowerCase().includes(search.toLowerCase()) ||
-        v.owner.toLowerCase().includes(search.toLowerCase()) ||
-        v.lot.toLowerCase().includes(search.toLowerCase());
+        v.licensePlate.toLowerCase().includes(search.toLowerCase()) ||
+        (v.driverName ?? '').toLowerCase().includes(search.toLowerCase()) ||
+        v.buildingName.toLowerCase().includes(search.toLowerCase()) ||
+        v.vehicleTypeName.toLowerCase().includes(search.toLowerCase());
       const matchTab =
-        activeTab === 'all' ? true :
-        activeTab === 'parked' ? v.status === 'parked' :
-        v.status === 'exited';
+        activeTab === 'all'    ? true :
+        activeTab === 'parked' ? v._tab === 'parked' :
+        v._tab === 'exited';
       return matchSearch && matchTab;
     });
-  }, [search, activeTab]);
+  }, [allSessions, search, activeTab]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 size={28} className="text-amber-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-white">Quản lý phương tiện</h2>
-        <p className="text-sm text-white/40 mt-0.5">
-          Theo dõi xe vào / ra · Hôm nay {new Date().toLocaleDateString('vi-VN')}
-        </p>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Quản lý phương tiện</h2>
+          <p className="text-sm text-white/40 mt-0.5">
+            Theo dõi xe vào / ra · Hôm nay {new Date().toLocaleDateString('vi-VN')}
+          </p>
+        </div>
+        <button
+          onClick={() => loadData(true)}
+          disabled={refreshing}
+          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
+        >
+          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+        </button>
       </div>
+
+      {apiError && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-red-400/10 border border-red-400/20 rounded-xl">
+          <AlertTriangle size={15} className="text-red-400 shrink-0" />
+          <p className="text-sm text-red-400">{apiError}</p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
@@ -103,19 +177,17 @@ export default function Vehicles() {
 
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        {/* Search */}
         <div className="relative flex-1 max-w-sm">
           <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
           <input
             type="text"
-            placeholder="Tìm biển số, chủ xe, khu đỗ..."
+            placeholder="Tìm biển số, chủ xe, tòa nhà..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#00C2FF]/50 transition-colors"
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#F59E0B]/50 transition-colors"
           />
         </div>
 
-        {/* Filter tabs */}
         <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1">
           {tabs.map(t => (
             <button
@@ -128,8 +200,8 @@ export default function Vehicles() {
               }`}
             >
               {t.label}
-              <span className={`ml-1.5 text-xs ${activeTab === t.key ? 'text-[#00C2FF]' : 'text-white/20'}`}>
-                {t.key === 'all' ? mockVehicles.length : t.key === 'parked' ? parkedCount : exitedCount}
+              <span className={`ml-1.5 text-xs ${activeTab === t.key ? 'text-[#F59E0B]' : 'text-white/20'}`}>
+                {t.key === 'all' ? totalToday : t.key === 'parked' ? parkedCount : exitedCount}
               </span>
             </button>
           ))}
@@ -148,7 +220,7 @@ export default function Vehicles() {
                 <th className="text-left text-xs font-medium text-white/40 px-6 py-3.5">Biển số</th>
                 <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Chủ xe</th>
                 <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Loại xe</th>
-                <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Khu đỗ</th>
+                <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Tòa nhà / Khu</th>
                 <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Giờ vào</th>
                 <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Giờ ra</th>
                 <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Thời gian</th>
@@ -164,74 +236,77 @@ export default function Vehicles() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((v) => (
-                  <tr
-                    key={v.id}
-                    className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors"
-                  >
-                    <td className="px-6 py-3.5">
-                      <span className="text-sm font-mono font-semibold text-white">{v.plate}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-sm text-white/80">{v.owner}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5">
-                        {v.type === 'car' ? (
-                          <Car size={13} className="text-[#00C2FF]" />
-                        ) : (
-                          <Bike size={13} className="text-[#3BFFA4]" />
-                        )}
+                filtered.map((v) => {
+                  const moto = isMotorbike(v.vehicleTypeName);
+                  return (
+                    <tr
+                      key={v.id}
+                      className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors"
+                    >
+                      <td className="px-6 py-3.5">
+                        <span className="text-sm font-mono font-semibold text-white">{v.licensePlate}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="text-sm text-white/80">{v.driverName ?? '—'}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5">
+                          {moto
+                            ? <Bike size={13} className="text-[#F97316]" />
+                            : <Car  size={13} className="text-[#F59E0B]" />}
+                          <span className="text-sm text-white/60">{v.vehicleTypeName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <p className="text-sm text-white/70">{v.buildingName}</p>
+                        <p className="text-xs text-white/30">{v.floorName} · {v.slotNumber}</p>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-1.5 text-sm text-white/70">
+                          <Clock size={12} className="text-white/30" />
+                          {new Date(v.entryTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
                         <span className="text-sm text-white/60">
-                          {v.type === 'car' ? 'Ô tô' : 'Xe máy'}
+                          {v.exitTime
+                            ? new Date(v.exitTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                            : '—'}
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-sm text-white/60">{v.lot}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5 text-sm text-white/70">
-                        <Clock size={12} className="text-white/30" />
-                        {v.entry}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-sm text-white/60">{v.exit ?? '—'}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-sm text-white/60">{v.duration}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-sm font-medium text-white">
-                        {v.fee != null ? new Intl.NumberFormat('vi-VN').format(v.fee) + 'đ' : '—'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      {v.status === 'parked' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#3BFFA4]/10 text-[#3BFFA4]">
-                          <span className="w-1.5 h-1.5 bg-[#3BFFA4] rounded-full animate-pulse" />
-                          Đang đỗ
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="text-sm text-white/60">{v.duration || '—'}</span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="text-sm font-medium text-white">
+                          {v.totalFee > 0 ? `${vnd(v.totalFee)}đ` : '—'}
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-white/50">
-                          <CheckCircle2 size={11} />
-                          Đã ra
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-4 py-3.5">
+                        {v._tab === 'parked' ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#F97316]/10 text-[#F97316]">
+                            <span className="w-1.5 h-1.5 bg-[#F97316] rounded-full animate-pulse" />
+                            Đang đỗ
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-white/50">
+                            <CheckCircle2 size={11} />
+                            Đã ra
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Footer count */}
         {filtered.length > 0 && (
           <div className="px-6 py-3 border-t border-white/5 flex items-center justify-between">
             <p className="text-xs text-white/30">
-              Hiển thị {filtered.length} / {mockVehicles.length} phương tiện
+              Hiển thị {filtered.length} / {totalToday} phương tiện
             </p>
             <p className="text-xs text-white/30">
               {parkedCount} đang đỗ · {exitedCount} đã ra

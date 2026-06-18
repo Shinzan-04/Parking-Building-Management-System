@@ -32,13 +32,15 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ParkingSystem API", Version = "v1" });
 
+    // Dùng Type = Http + Scheme = Bearer → Swagger tự thêm "Bearer " prefix
+    // User chỉ cần paste token, không cần gõ "Bearer " thủ công
     var securityScheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Description = "Enter 'Bearer {token}'",
+        Description = "Chỉ cần paste JWT token (không cần thêm 'Bearer ')",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
         BearerFormat = "JWT",
         Reference = new OpenApiReference
         {
@@ -50,7 +52,7 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityDefinition("Bearer", securityScheme);
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        { securityScheme, new[] { "Bearer" } }
+        { securityScheme, Array.Empty<string>() }
     });
 });
 
@@ -80,23 +82,43 @@ builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Service
 builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(
     builder.Configuration.GetSection("PayOS"));
 
+// Register SignalR và RealtimeService (từ nhánh dev)
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IRealtimeService, ParkingSystem.API.Services.RealtimeService>();
+
 // Register Cloudinary Image Upload Service (lưu ảnh biển số lên cloud)
 builder.Services.AddScoped<IImageUploadService, ParkingSystem.Infrastructure.Services.CloudinaryImageService>();
 
-// Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
-// Sử dụng model license_plate_detector.onnx đã train riêng cho biển số xe Việt Nam
+// Register Email + OTP Service (xác thực đăng ký / quên mật khẩu qua email)
+builder.Services.AddScoped<IEmailService, ParkingSystem.Infrastructure.Services.GmailEmailService>();
+builder.Services.AddScoped<IOtpService, ParkingSystem.Infrastructure.Services.OtpService>();
+builder.Services.AddScoped<INotificationService, ParkingSystem.Infrastructure.Services.NotificationService>();
+
+// Background Service: Tự động hủy reservation hết hạn (quét mỗi 5 phút)
+builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.ReservationCleanupService>();
+
+// Register LPR Services (Clean Architecture)
 var modelPath = Path.Combine(builder.Environment.ContentRootPath, "Models", "license_plate_detector.onnx");
+
 if (File.Exists(modelPath))
 {
-    builder.Services.AddSingleton<ILicensePlateOcrService>(
-        new ParkingSystem.Infrastructure.Services.LicensePlateOcrService(modelPath));
+    builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IYoloDetector>(
+        new ParkingSystem.Infrastructure.Services.Lpr.YoloDetector(modelPath));
 }
 else
 {
-    // Nếu chưa có model, dùng service giả trả về thông báo
-    builder.Services.AddSingleton<ILicensePlateOcrService>(
-        new ParkingSystem.Infrastructure.Services.FallbackOcrService());
+    // Tạm thời nếu ko có file, khởi tạo dummy hoặc ném lỗi tuỳ policy.
+    // Trong thực tế, AI phải có file model.
 }
+
+builder.Services.AddMemoryCache(); // Register IMemoryCache for PlateCacheService
+
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IOpenCvPreprocessor, ParkingSystem.Infrastructure.Services.Lpr.OpenCvPreprocessor>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPaddleOcrReader, ParkingSystem.Infrastructure.Services.Lpr.PaddleOcrReader>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPlatePostProcessor, ParkingSystem.Infrastructure.Services.Lpr.PlatePostProcessor>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPlateCacheService, ParkingSystem.Infrastructure.Services.Lpr.PlateCacheService>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IMultiFrameVotingService, ParkingSystem.Infrastructure.Services.Lpr.MultiFrameVotingService>();
+builder.Services.AddScoped<ParkingSystem.Application.Interfaces.Lpr.ILicensePlateRecognizer, ParkingSystem.Infrastructure.Services.Lpr.LicensePlateRecognizer>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key is missing in configuration.");
@@ -117,6 +139,21 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+    };
+
+    // Tự động nhận diện token dù có hay không có prefix "Bearer "
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(authHeader) && !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                // Nếu gửi token thẳng (không có "Bearer ") → gán vào Token để middleware xử lý
+                context.Token = authHeader;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -147,71 +184,8 @@ using (var scope = app.Services.CreateScope())
         var dbServer = dbContext.Database.GetDbConnection().DataSource;
         logger.LogInformation("📊 Database: {DbName} | Server: {Server}", dbName, dbServer);
 
-        // ===== SEED DATA: Tạo tài khoản mẫu cho từng Role =====
-        if (!dbContext.Users.Any())
-        {
-            logger.LogInformation("🌱 Seeding tài khoản mẫu cho 4 role...");
-
-            var seedUsers = new[]
-            {
-                new ParkingSystem.Domain.Entities.User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = "admin",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123"),
-                    FullName = "Quản trị viên hệ thống",
-                    Role = ParkingSystem.Domain.Enums.Role.Admin,
-                    Email = "admin@parking.vn",
-                    PhoneNumber = "0901000001",
-                    QrCode = Guid.NewGuid().ToString("N")[..8],
-                    CreatedAt = DateTime.UtcNow
-                },
-                new ParkingSystem.Domain.Entities.User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = "manager",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("manager123"),
-                    FullName = "Quản lý bãi xe",
-                    Role = ParkingSystem.Domain.Enums.Role.Manager,
-                    Email = "manager@parking.vn",
-                    PhoneNumber = "0901000002",
-                    QrCode = Guid.NewGuid().ToString("N")[..8],
-                    CreatedAt = DateTime.UtcNow
-                },
-                new ParkingSystem.Domain.Entities.User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = "staff",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("staff123"),
-                    FullName = "Nhân viên trực bãi",
-                    Role = ParkingSystem.Domain.Enums.Role.Staff,
-                    Email = "staff@parking.vn",
-                    PhoneNumber = "0901000003",
-                    QrCode = Guid.NewGuid().ToString("N")[..8],
-                    CreatedAt = DateTime.UtcNow
-                },
-                new ParkingSystem.Domain.Entities.User
-                {
-                    Id = Guid.NewGuid(),
-                    Username = "driver",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("driver123"),
-                    FullName = "Khách gửi xe",
-                    Role = ParkingSystem.Domain.Enums.Role.Driver,
-                    Email = "driver@parking.vn",
-                    PhoneNumber = "0901000004",
-                    QrCode = Guid.NewGuid().ToString("N")[..8],
-                    CreatedAt = DateTime.UtcNow
-                }
-            };
-
-            dbContext.Users.AddRange(seedUsers);
-            await dbContext.SaveChangesAsync();
-            logger.LogInformation("✅ Đã tạo {Count} tài khoản mẫu!", seedUsers.Length);
-        }
-        else
-        {
-            logger.LogInformation("📌 Database đã có dữ liệu, bỏ qua seed.");
-        }
+        // Bỏ đoạn Seed Data tự động theo yêu cầu của User vì Database đã có dữ liệu.
+        // Bạn có thể chạy lại file seed.sql thủ công nếu muốn Reset Database.
     }
     catch (Exception ex)
     {
@@ -221,6 +195,20 @@ using (var scope = app.Services.CreateScope())
 
 // Configure the HTTP request pipeline.
 app.UseCors("AllowAll");
+
+
+
+// Allow CORS preflight OPTIONS requests to pass through before auth
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == "OPTIONS")
+    {
+        context.Response.StatusCode = 200;
+        await context.Response.CompleteAsync();
+        return;
+    }
+    await next();
+});
 
 if (app.Environment.IsDevelopment())
 {
@@ -252,5 +240,6 @@ app.UseAuthorization();
 
 
 app.MapControllers();
+app.MapHub<ParkingSystem.API.Hubs.ParkingHub>("/parking-hub");
 
 app.Run();

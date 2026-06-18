@@ -49,3 +49,13 @@ async function authFetch<T>(path: string, token: string, options?: RequestInit):
 
 export const checkInWalkIn = (payload: WalkInRequest, token: string): Promise<CheckInResult> =>
   authFetch('/api/checkin/walk-in', token, { method: 'POST', body: JSON.stringify(payload) });
+
+export interface BookingCheckInRequest {
+  bookingCode: string;
+  licensePlateOcr: string;
+  staffId?: string;
+  entryImageBase64?: string;
+}
+
+export const checkInWithBooking = (payload: BookingCheckInRequest, token: string): Promise<CheckInResult> =>
+  authFetch('/api/checkin/booking', token, { method: 'POST', body: JSON.stringify(payload) });
