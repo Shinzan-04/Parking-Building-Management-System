@@ -36,6 +36,9 @@ export interface ParkingSlotSummary {
   id: string;
   floorId: string;
   status: string | number;
+  slotNumber?: string;
+  vehicleTypeName?: string;
+  vehicleTypeId?: string;
 }
 
 export function isSlotOccupied(status: string | number): boolean {

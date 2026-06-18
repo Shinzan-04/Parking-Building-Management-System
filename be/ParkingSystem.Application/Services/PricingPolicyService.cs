@@ -16,7 +16,7 @@ public class PricingPolicyService : IPricingPolicyService
 
     public async Task<IEnumerable<PricingPolicyResponse>> GetAllAsync()
     {
-        var policies = await _repository.GetAllAsync();
+        var policies = await _repository.GetAllAsync("VehicleType");
         return policies.Select(p => MapToResponse(p));
     }
 
@@ -28,7 +28,7 @@ public class PricingPolicyService : IPricingPolicyService
 
     public async Task<PricingPolicyResponse?> GetByVehicleTypeIdAsync(Guid vehicleTypeId)
     {
-        var policies = await _repository.FindAsync(p => p.VehicleTypeId == vehicleTypeId);
+        var policies = await _repository.FindAsync(p => p.VehicleTypeId == vehicleTypeId, "VehicleType");
         var policy = policies.FirstOrDefault();
         return policy == null ? null : MapToResponse(policy);
     }

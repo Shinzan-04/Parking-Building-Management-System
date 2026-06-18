@@ -45,14 +45,15 @@ export interface CreatePricingPolicyRequest {
 }
 
 export interface UpdatePricingPolicyRequest {
+  vehicleTypeId?: string;
   blockPrice: number;
   blockMinutes: number;
   hourlyRate: number;
   dailyMaxRate: number;
 }
 
-export const getAllPolicies = (): Promise<PricingPolicyResponse[]> =>
-  apiFetch('/api/PricingPolicies');
+export const getAllPolicies = (token?: string): Promise<PricingPolicyResponse[]> =>
+  apiFetch('/api/PricingPolicies', undefined, token);
 
 export const getPolicyById = (id: string): Promise<PricingPolicyResponse> =>
   apiFetch(`/api/PricingPolicies/${id}`);

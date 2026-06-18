@@ -37,6 +37,11 @@ const emptyForm = { name: '', address: '', totalSpots: '', status: 'active' as P
 
 const COLS = 8;
 
+function floorPrefix(floorName: string): string {
+  const parts = floorName.trim().split(/\s+/);
+  return parts[parts.length - 1].toUpperCase();
+}
+
 function OccupancyBar({ used, total }: { used: number; total: number }) {
   const pct = total === 0 ? 0 : Math.round((used / total) * 100);
   const color = pct >= 90 ? '#F87171' : '#FF4C4C';
@@ -83,6 +88,7 @@ function SlotMap({
 
   const floorSlots = slots
     .filter(s => s.floorId === activeFloorId && !isSlotMaintenance(s.status))
+    .sort((a, b) => (a.slotNumber ?? '').localeCompare(b.slotNumber ?? '', undefined, { numeric: true, sensitivity: 'base' }))
     .map((s, i) => ({ ...s, index: i }));
 
   const rows: (typeof floorSlots[0])[][] = [];
@@ -171,7 +177,7 @@ function SlotMap({
                     `}
                   >
                     {(occupied || isSelected) && <Car size={9} />}
-                    <span>{colLetter}{rowNum}</span>
+                    <span>{slot.slotNumber ?? `${colLetter}${rowNum}`}</span>
                   </button>
                 );
               })}
@@ -325,7 +331,8 @@ export default function ParkingLots() {
       ]);
 
       setAllFloors(floors);
-      setAllSlots(slots);
+      const statusMap: Record<string | number, string> = { 0: 'Available', 1: 'Occupied', 2: 'Reserved', 3: 'Maintenance' };
+      setAllSlots(slots.map(s => ({ ...s, status: statusMap[s.status] ?? s.status })));
 
       const fbMap: Record<string, string> = {};
       floors.forEach(f => { fbMap[f.id] = f.buildingId; });
@@ -434,12 +441,13 @@ export default function ParkingLots() {
       const nextIndex = editFloors.length > 0 ? Math.max(...editFloors.map(f => f.floorIndex)) + 1 : 0;
       const created = await createFloor({ buildingId: selected.id, name, floorIndex: nextIndex }, token);
 
+      const prefix = floorPrefix(created.name);
       await Promise.all(
         Array.from({ length: slotCount }, (_, i) =>
           createParkingSlot({
             floorId: created.id,
             vehicleTypeId: newFloorVehicleTypeId,
-            slotNumber: String(i + 1).padStart(3, '0'),
+            slotNumber: `${prefix}-${String(i + 1).padStart(3, '0')}`,
           }, token)
         )
       );
@@ -522,12 +530,13 @@ export default function ParkingLots() {
           }
           if (toCreate > 0) {
             const totalExisting = currentSlots.length;
+            const prefix = floorPrefix(f.name);
             await Promise.all(
               Array.from({ length: toCreate }, (_, i) =>
                 createParkingSlot({
                   floorId: f.id,
                   vehicleTypeId: editFloorVehicleTypeId,
-                  slotNumber: String(totalExisting + i + 1).padStart(3, '0'),
+                  slotNumber: `${prefix}-${String(totalExisting + i + 1).padStart(3, '0')}`,
                 }, activeToken)
               )
             );

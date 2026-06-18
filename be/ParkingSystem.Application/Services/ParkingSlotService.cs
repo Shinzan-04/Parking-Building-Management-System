@@ -17,25 +17,26 @@ public class ParkingSlotService : IParkingSlotService
 
     public async Task<IEnumerable<ParkingSlotResponse>> GetAllAsync()
     {
-        var slots = await _repository.GetAllAsync();
+        var slots = await _repository.GetAllAsync("VehicleType,Floor");
         return slots.Select(s => MapToResponse(s));
     }
 
     public async Task<IEnumerable<ParkingSlotResponse>> GetByFloorIdAsync(Guid floorId)
     {
-        var slots = await _repository.FindAsync(s => s.FloorId == floorId);
+        var slots = await _repository.FindAsync(s => s.FloorId == floorId, "VehicleType,Floor");
         return slots.Select(s => MapToResponse(s));
     }
 
     public async Task<IEnumerable<ParkingSlotResponse>> GetAvailableByVehicleTypeAsync(Guid vehicleTypeId)
     {
-        var slots = await _repository.FindAsync(s => s.VehicleTypeId == vehicleTypeId && s.Status == SlotStatus.Available);
+        var slots = await _repository.FindAsync(s => s.VehicleTypeId == vehicleTypeId && s.Status == SlotStatus.Available, "VehicleType,Floor");
         return slots.Select(s => MapToResponse(s));
     }
 
     public async Task<ParkingSlotResponse?> GetByIdAsync(Guid id)
     {
-        var slot = await _repository.GetByIdAsync(id);
+        var slots = await _repository.FindAsync(s => s.Id == id, "VehicleType,Floor");
+        var slot = slots.FirstOrDefault();
         return slot == null ? null : MapToResponse(slot);
     }
 
@@ -56,7 +57,8 @@ public class ParkingSlotService : IParkingSlotService
 
     public async Task<ParkingSlotResponse?> UpdateStatusAsync(Guid id, UpdateParkingSlotStatusRequest request)
     {
-        var slot = await _repository.GetByIdAsync(id);
+        var slots = await _repository.FindAsync(s => s.Id == id, "VehicleType,Floor");
+        var slot = slots.FirstOrDefault();
         if (slot == null) return null;
 
         slot.Status = request.Status;
