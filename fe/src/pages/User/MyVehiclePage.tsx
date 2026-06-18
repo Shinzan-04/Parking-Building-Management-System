@@ -23,6 +23,7 @@ import {
   Ticket,
   AlertTriangle,
   Star,
+  LogOut,
 } from 'lucide-react';
 
 export default function MyVehiclePage() {
@@ -462,7 +463,7 @@ export default function MyVehiclePage() {
                     >
                       {vehicleTypes.map((type) => (
                         <option key={type.id} value={type.id}>
-                          {type.name} (Phí cơ bản: {type.baseRate.toLocaleString()}đ)
+                          {type.name}{type.description ? ` — ${type.description}` : ''}
                         </option>
                       ))}
                     </select>
