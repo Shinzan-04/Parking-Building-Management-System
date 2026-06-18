@@ -53,6 +53,7 @@ public class PayOSPaymentService : IPaymentService
             Id = Guid.NewGuid(),
             PayOSOrderCode = orderCode,
             ParkingSessionId = request.ParkingSessionId,
+            ReservationId = request.ReservationId,
             Amount = request.Amount,
             Description = request.Description,
             PaymentDate = DateTime.UtcNow,
@@ -142,6 +143,26 @@ public class PayOSPaymentService : IPaymentService
                 ? PaymentStatus.Success
                 : PaymentStatus.Failed;
             payment.UpdatedAt = DateTime.UtcNow;
+
+            // Nếu thanh toán cho Reservation và thành công -> Cập nhật Reservation sang PendingReview
+            if (payment.Status == PaymentStatus.Success && payment.ReservationId.HasValue)
+            {
+                var reservation = await _context.Reservations.FindAsync(payment.ReservationId.Value);
+                if (reservation != null && reservation.Status == ReservationStatus.PaymentPending)
+                {
+                    reservation.Status = ReservationStatus.PendingReview;
+                    reservation.UpdatedAt = DateTime.UtcNow;
+                    _context.ReservationLogs.Add(new ReservationLog
+                    {
+                        Id = Guid.NewGuid(),
+                        ReservationId = reservation.Id,
+                        Action = "PaymentSuccess",
+                        StatusSnapshot = ReservationStatus.PendingReview,
+                        Note = "Thanh toán PayOS thành công (Webhook)",
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
+            }
 
             await _context.SaveChangesAsync();
 

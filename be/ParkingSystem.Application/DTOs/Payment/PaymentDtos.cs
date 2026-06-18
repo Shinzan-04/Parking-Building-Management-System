@@ -5,6 +5,7 @@ public class CreatePayOSPaymentRequest
     public decimal Amount { get; set; }
     public string Description { get; set; } = string.Empty;
     public Guid? ParkingSessionId { get; set; }
+    public Guid? ReservationId { get; set; }
 }
 
 public class PaymentStatusResult
