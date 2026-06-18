@@ -60,12 +60,11 @@ async function authFetch<T>(path: string, token: string, options?: RequestInit):
 }
 
 export interface CreateReservationRequest {
+  vehicleId: string;
   parkingSlotId?: string;
-  vehicleTypeId: string;
-  licensePlate: string;
+  buildingId?: string;
   startTime: string;
   endTime: string;
-  buildingId?: string;
   bookingMethod?: number; // 0 = Manual, 1 = AIRecommended
 }
 

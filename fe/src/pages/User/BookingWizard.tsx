@@ -23,8 +23,9 @@ import { getFloorsByBuilding, getBuildings } from '../../services/buildingsServi
 import type { FloorResponse } from '../../services/buildingsService';
 import { getSlotsByFloor } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
-import { createReservation, confirmPayment, getAiSuggestions } from '../../services/reservationsService';
-import { getMyVehicles } from '../../services/vehiclesService';
+import { createReservation, getAiSuggestions } from '../../services/reservationsService';
+import { createPayOSPayment } from '../../services/paymentService';
+import { getMyVehicles, createVehicle } from '../../services/vehiclesService';
 import type { VehicleResponse } from '../../services/vehiclesService';
 
 // ─────────────────────────────────────────────
@@ -1148,13 +1149,6 @@ import { QRCodeSVG } from 'qrcode.react';
 
 type PopupPhase = 'confirm' | 'payment' | 'qr';
 
-const PAYMENT_METHODS = [
-  { key: 'cash', label: 'Cash', icon: '💵' },
-  { key: 'card', label: 'Credit Card', icon: '💳' },
-  { key: 'momo', label: 'MoMo', icon: '🟣' },
-  { key: 'vnpay', label: 'VNPay', icon: '🔵' },
-];
-
 function ConfirmationPopup({
   lot,
   state,
@@ -1162,6 +1156,7 @@ function ConfirmationPopup({
   onDone,
   vehicles,
   floorLabel,
+  myVehicles,
 }: {
   lot: ParkingLot;
   state: WizardState;
@@ -1169,9 +1164,9 @@ function ConfirmationPopup({
   onDone: () => void;
   vehicles: ApiVehicleType[];
   floorLabel: string;
+  myVehicles: VehicleResponse[];
 }) {
   const [phase, setPhase] = useState<PopupPhase>('confirm');
-  const [payMethod, setPayMethod] = useState<string>('cash');
   const [createdReservation, setCreatedReservation] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1197,7 +1192,7 @@ function ConfirmationPopup({
     lot: lot.name,
     plate: state.licensePlate,
     vehicle: selectedVehicle?.name ?? '',
-    slot: `${floorLabel}/${state.zone}/${state.slot}`,
+    slot: `${floorLabel} / Slot ${state.slot}`,
     date: state.entryDate,
     entry: state.entryTime,
     duration: state.duration,
@@ -1217,28 +1212,48 @@ function ConfirmationPopup({
       entry.setHours(h, m, 0, 0);
       const exit = new Date(entry.getTime() + state.duration * 3600000);
 
+      // Resolve vehicleId
+      let vehicleIdToUse: string;
+      const matchedVehicle = myVehicles.find(
+        (v) => v.plateNumber === state.licensePlate && v.vehicleTypeId === state.vehicleType
+      );
+
+      if (matchedVehicle) {
+        vehicleIdToUse = matchedVehicle.id;
+      } else {
+        // Auto-create vehicle for the user silently
+        const newVehicle = await createVehicle({
+          plateNumber: state.licensePlate,
+          vehicleTypeId: state.vehicleType!
+        }, token);
+        vehicleIdToUse = newVehicle.id;
+      }
+
       const payload = {
+        vehicleId: vehicleIdToUse,
         parkingSlotId: state.slotId!,
-        vehicleTypeId: state.vehicleType!,
-        licensePlate: state.licensePlate,
+        buildingId: lot.id,
         startTime: entry.toISOString(),
         endTime: exit.toISOString(),
-        buildingId: lot.id,
         bookingMethod: state.bookingMethod
       };
 
       const res = await createReservation(payload, token);
       
-      // Simulate successful payment instantly by calling confirmPayment API
-      await confirmPayment(res.id, token);
-      res.status = 'PendingReview'; // update locally so UI reflects it
+      const paymentPayload = {
+        amount: total,
+        description: `Thanh toan don dat cho`,
+        reservationId: res.id
+      };
+
+      const payOSRes = await createPayOSPayment(paymentPayload, token);
       
-      setCreatedReservation(res);
-      setPhase('qr');
+      // Chuyển hướng người dùng qua trang thanh toán của PayOS
+      window.location.href = payOSRes.checkoutUrl;
+      
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Reservation failed. Please check your information.');
-    } finally {
       setSubmitting(false);
     }
   };
@@ -1271,7 +1286,7 @@ function ConfirmationPopup({
     { label: 'Entry Date', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
     { label: 'Estimated Exit', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
     { label: 'Duration', value: `${state.duration}h` },
-    { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
+    { label: 'Location', value: `${floorLabel} › Slot ${state.slot}` },
   ];
 
   const headerConfig = {
@@ -1369,21 +1384,12 @@ function ConfirmationPopup({
               </div>
 
               <div>
-                <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Payment Method</p>
-                <div className="grid grid-cols-2 gap-2">
-                  {PAYMENT_METHODS.map(({ key, label, icon }) => (
-                    <button
-                      key={key}
-                      onClick={() => setPayMethod(key)}
-                      className={`flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all text-left ${payMethod === key
-                          ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] text-stone-800'
-                          : 'bg-white border-gray-200/80 text-stone-500 hover:border-gray-300 hover:text-stone-855'
-                        }`}
-                    >
-                      <span className="text-xl">{icon}</span>
-                      <span className="text-xs font-bold">{label}</span>
-                    </button>
-                  ))}
+                <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Thanh Toán</p>
+                <div className="bg-white border-2 border-[#FF4C4C] rounded-xl p-4 text-center">
+                  <p className="text-sm font-bold text-stone-800 mb-2">Thanh toán qua Ngân hàng (VietQR)</p>
+                  <p className="text-xs text-stone-500">
+                    Bạn sẽ được chuyển hướng tới cổng thanh toán an toàn của PayOS. Vui lòng sử dụng ứng dụng Ngân hàng để quét mã QR và hoàn tất thanh toán.
+                  </p>
                 </div>
               </div>
 
@@ -1394,7 +1400,7 @@ function ConfirmationPopup({
               )}
 
               <p className="text-xs text-stone-400 font-medium text-center">
-                By confirming, you agree to the terms of service.
+                Bằng việc xác nhận, bạn đồng ý với Điều khoản và Dịch vụ.
               </p>
             </div>
           )}
@@ -1898,6 +1904,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           onDone={handlePaymentDone}
           vehicles={vehicles}
           floorLabel={floorLabel}
+          myVehicles={myVehicles}
         />
       )}
     </>
