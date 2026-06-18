@@ -47,16 +47,16 @@ function mapApiUser(u: UserResponse): UserAccount {
 }
 
 const roleConfig: Record<Role, { label: string; bg: string; text: string; icon: typeof ShieldCheck; color: string }> = {
-  Admin:   { label: 'Admin',        bg: 'bg-[#F59E0B]/15',   text: 'text-[#F59E0B]',   icon: ShieldCheck, color: '#F59E0B' },
+  Admin:   { label: 'Admin',        bg: 'bg-[#FF4C4C]/15',   text: 'text-[#FF4C4C]',   icon: ShieldCheck, color: '#FF4C4C' },
   Manager: { label: 'Quản lý',     bg: 'bg-violet-400/15',  text: 'text-violet-400',  icon: Briefcase,   color: '#A78BFA' },
-  Staff:   { label: 'Nhân viên',   bg: 'bg-amber-400/15',   text: 'text-amber-400',   icon: UserCheck,   color: '#F59E0B' },
+  Staff:   { label: 'Nhân viên',   bg: 'bg-[#FF4C4C]/15',   text: 'text-[#FF4C4C]',   icon: UserCheck,   color: '#FF4C4C' },
   User:    { label: 'Người dùng',  bg: 'bg-emerald-400/15', text: 'text-emerald-400', icon: User,        color: '#34D399' },
 };
 
 const avatarColors: Record<Role, string> = {
-  Admin:   'from-[#F59E0B] to-[#F97316]',
+  Admin:   'bg-[#FF4C4C]',
   Manager: 'from-violet-400 to-purple-600',
-  Staff:   'from-amber-400 to-orange-500',
+  Staff:   'bg-[#FF4C4C]',
   User:    'from-emerald-400 to-teal-500',
 };
 
@@ -102,7 +102,7 @@ function RoleBadge({ role }: { role: Role }) {
 
 function PermCheck({ value }: { value: boolean }) {
   return value
-    ? <div className="mx-auto w-6 h-6 rounded-full bg-[#F97316]/15 flex items-center justify-center"><Check size={13} className="text-[#F97316]" /></div>
+    ? <div className="mx-auto w-6 h-6 rounded-full bg-[#FF4C4C]/15 flex items-center justify-center"><Check size={13} className="text-[#FF4C4C]" /></div>
     : <div className="mx-auto w-6 h-6 rounded-full bg-white/5 flex items-center justify-center"><X size={12} className="text-white/20" /></div>;
 }
 
@@ -244,10 +244,10 @@ export default function UsersPage() {
   ];
 
   const statsData = [
-    { label: 'Tổng tài khoản', value: counts.all,     unit: 'tài khoản', icon: Users,      color: '#F59E0B', bg: 'from-[#F59E0B]/20 to-[#F59E0B]/5' },
-    { label: 'Admin',          value: counts.Admin,   unit: 'người',     icon: ShieldCheck, color: '#F97316', bg: 'from-[#F97316]/20 to-[#F97316]/5' },
+    { label: 'Tổng tài khoản', value: counts.all,     unit: 'tài khoản', icon: Users,      color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+    { label: 'Admin',          value: counts.Admin,   unit: 'người',     icon: ShieldCheck, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
     { label: 'Quản lý',        value: counts.Manager, unit: 'người',     icon: Briefcase,   color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-    { label: 'Nhân viên',      value: counts.Staff,   unit: 'người',     icon: UserCheck,   color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
+    { label: 'Nhân viên',      value: counts.Staff,   unit: 'người',     icon: UserCheck,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
     { label: 'Người dùng',     value: counts.User,    unit: 'người',     icon: User,        color: '#34D399', bg: 'from-emerald-400/20 to-emerald-400/5' },
   ];
 
@@ -261,7 +261,7 @@ export default function UsersPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={28} className="text-[#F59E0B] animate-spin" />
+        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
       </div>
     );
   }
@@ -276,7 +276,7 @@ export default function UsersPage() {
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#F59E0B] to-[#F97316] text-black font-semibold text-sm hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r bg-[#FF4C4C] text-black font-semibold text-sm hover:opacity-90 transition-opacity"
         >
           <Plus size={16} />
           Thêm người dùng
@@ -337,7 +337,7 @@ export default function UsersPage() {
                 placeholder="Tìm tên, email, tên đăng nhập..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#F59E0B]/50 transition-colors"
+                className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
               />
             </div>
             <div className="flex items-center gap-1 bg-white/5 rounded-xl p-1 flex-wrap">
@@ -350,7 +350,7 @@ export default function UsersPage() {
                   }`}
                 >
                   {t.label}
-                  <span className={`ml-1.5 ${roleFilter === t.key ? 'text-[#F59E0B]' : 'text-white/20'}`}>{t.count}</span>
+                  <span className={`ml-1.5 ${roleFilter === t.key ? 'text-[#FF4C4C]' : 'text-white/20'}`}>{t.count}</span>
                 </button>
               ))}
             </div>
@@ -396,7 +396,7 @@ export default function UsersPage() {
                             <ChevronDown size={12} className="text-white/30 ml-0.5" />
                           </button>
                           {showRoleDropdown === u.id && (
-                            <div className="absolute top-8 left-0 z-20 bg-[#121214] border border-white/10 rounded-xl py-1 shadow-2xl min-w-[150px]">
+                            <div className="absolute top-8 left-0 z-20 border border-white/10 rounded-xl py-1 shadow-2xl min-w-[150px]" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
                               {allRoles.map(r => (
                                 <button
                                   key={r}
@@ -416,7 +416,7 @@ export default function UsersPage() {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1">
-                          <button onClick={() => openEdit(u)} className="p-2 rounded-lg text-white/40 hover:text-[#F59E0B] hover:bg-[#F59E0B]/10 transition-all" title="Chỉnh sửa">
+                          <button onClick={() => openEdit(u)} className="p-2 rounded-lg text-white/40 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all" title="Chỉnh sửa">
                             <Pencil size={14} />
                           </button>
                           <button onClick={() => openDelete(u)} className="p-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-all" title="Xoá">
@@ -508,7 +508,7 @@ export default function UsersPage() {
       {/* ── ADD / EDIT MODAL ── */}
       {(modalType === 'add' || modalType === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-semibold text-white">
                 {modalType === 'add' ? 'Thêm người dùng mới' : `Chỉnh sửa · ${selected?.fullName}`}
@@ -532,7 +532,7 @@ export default function UsersPage() {
                     placeholder={f.placeholder}
                     value={form[f.key]}
                     onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#F59E0B]/50 transition-colors"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
               ))}
@@ -571,7 +571,7 @@ export default function UsersPage() {
                     placeholder="Nhập mật khẩu..."
                     value={form.password}
                     onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#F59E0B]/50 transition-colors"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
               )}
@@ -591,7 +591,7 @@ export default function UsersPage() {
               <button
                 onClick={modalType === 'add' ? handleAdd : handleEdit}
                 disabled={submitting}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-[#F59E0B] to-[#F97316] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r bg-[#FF4C4C] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
                 {modalType === 'add' ? 'Thêm mới' : 'Lưu thay đổi'}
@@ -604,7 +604,7 @@ export default function UsersPage() {
       {/* ── DELETE MODAL ── */}
       {modalType === 'delete' && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl">
+          <div className="border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="px-6 pt-6 pb-4 text-center">
               <div className="flex justify-center mb-4">
                 <AvatarIcon name={selected.fullName} role={selected.role} />

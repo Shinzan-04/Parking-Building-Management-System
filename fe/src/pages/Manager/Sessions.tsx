@@ -106,7 +106,7 @@ function SessionDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
+      <div className="border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">

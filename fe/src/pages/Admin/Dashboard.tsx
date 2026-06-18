@@ -39,7 +39,7 @@ function RevenueTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#121214] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
+    <div className="bg-[var(--admin-bg-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
       <p className="text-white/60 mb-1">{label}</p>
       <p className="text-amber-500 font-semibold">{vnd(payload[0].value)}đ</p>
     </div>
@@ -143,7 +143,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-amber-500 animate-spin" />
+        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
         <p className="text-sm text-white/40">Đang tải dữ liệu...</p>
       </div>
     );
@@ -184,9 +184,9 @@ export default function Dashboard() {
       {/* Stats cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { label: 'Tổng chỗ đỗ',         value: totalSpots.toLocaleString('vi-VN'),  unit: 'chỗ',          icon: Building2,  color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5' },
-          { label: 'Xe đang đỗ (real-time)',value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% lấp đầy`, icon: Car, color: '#F97316', bg: 'from-orange-500/20 to-orange-500/5' },
-          { label: 'Doanh thu hôm nay',    value: vnd(todayRevenue),                   unit: `đ · ${todayCompleted} lượt`, icon: Banknote, color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5' },
+          { label: 'Tổng chỗ đỗ',         value: totalSpots.toLocaleString('vi-VN'),  unit: 'chỗ',          icon: Building2,  color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'Xe đang đỗ (real-time)',value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% lấp đầy`, icon: Car, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'Doanh thu hôm nay',    value: vnd(todayRevenue),                   unit: `đ · ${todayCompleted} lượt`, icon: Banknote, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
           { label: 'Tỷ lệ lấp đầy',       value: `${occupancyPct}%`,                  unit: `${activeCount} / ${totalSpots} chỗ`, icon: TrendingUp, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
         ].map(stat => {
           const Icon = stat.icon;
@@ -225,7 +225,7 @@ export default function Dashboard() {
             <Tooltip content={<RevenueTooltip />} cursor={{ fill: '#ffffff05' }} />
             <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
               {revenueData.map((entry, i) => (
-                <Cell key={i} fill={entry.revenue === maxRevenue && entry.revenue > 0 ? '#F59E0B' : '#F59E0B66'} />
+                <Cell key={i} fill={entry.revenue === maxRevenue && entry.revenue > 0 ? '#FF4C4C' : '#FF4C4C55'} />
               ))}
             </Bar>
           </BarChart>
@@ -296,8 +296,8 @@ export default function Dashboard() {
                           Quá giờ
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-500">
-                          <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FF4C4C]/10 text-[#FF4C4C]">
+                          <span className="w-1.5 h-1.5 bg-[#FF4C4C] rounded-full animate-pulse" />
                           Đang đỗ
                         </span>
                       )}

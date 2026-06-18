@@ -21,13 +21,14 @@ interface ParkingLot {
   name: string;
   address: string;
   floorCount: number;
-  totalSpots: number;
+  totalSpots: number;   // totalCapacity from API (registered max)
+  actualSlots: number;  // real active slots created across all floors
   usedSpots: number;
   status: 'active' | 'maintenance' | 'full';
 }
 
 const statusConfig = {
-  active:      { label: 'Hoạt động', bg: 'bg-amber-500/10', text: 'text-amber-500', dot: 'bg-amber-500' },
+  active:      { label: 'Hoạt động', bg: 'bg-[#FF4C4C]/10', text: 'text-[#FF4C4C]', dot: 'bg-[#FF4C4C]' },
   full:        { label: 'Đầy chỗ',   bg: 'bg-amber-400/10',  text: 'text-amber-400',  dot: 'bg-amber-400' },
   maintenance: { label: 'Bảo trì',   bg: 'bg-red-400/10',    text: 'text-red-400',    dot: 'bg-red-400' },
 };
@@ -38,7 +39,7 @@ const COLS = 8;
 
 function OccupancyBar({ used, total }: { used: number; total: number }) {
   const pct = total === 0 ? 0 : Math.round((used / total) * 100);
-  const color = pct >= 90 ? '#F87171' : pct >= 70 ? '#F59E0B' : '#F97316';
+  const color = pct >= 90 ? '#F87171' : '#FF4C4C';
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-xs">
@@ -105,7 +106,7 @@ function SlotMap({
             onClick={() => { setActiveFloorId(f.id); onSelectSlot(null); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               f.id === activeFloorId
-                ? 'bg-amber-500 text-[#121214]'
+                ? 'bg-[#FF4C4C] text-white'
                 : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'
             }`}
           >
@@ -164,8 +165,8 @@ function SlotMap({
                         : occupied
                           ? 'bg-amber-500/15 border-amber-500/40 text-amber-500/80 hover:bg-amber-400/20 hover:border-amber-400/60 hover:text-amber-300'
                           : isSelected
-                            ? 'bg-amber-500 border-amber-500 text-[#121214] shadow-md shadow-amber-500/30 scale-105 z-10'
-                            : 'bg-white/5 border-white/10 text-white/30 hover:bg-amber-500/10 hover:border-amber-500/50 hover:text-amber-500'
+                            ? 'bg-[#FF4C4C] border-[#FF4C4C] text-white shadow-md shadow-[#FF4C4C]/30 scale-105 z-10'
+                            : 'bg-white/5 border-white/10 text-white/30 hover:bg-[#FF4C4C]/10 hover:border-[#FF4C4C]/50 hover:text-[#FF4C4C]'
                       }
                     `}
                   >
@@ -196,7 +197,7 @@ function SlotMap({
         </div>
         {selectedSlotId && (
           <div className="flex items-center gap-1.5">
-            <div className={`w-4 h-4 rounded border ${selectedIsOccupied ? 'bg-amber-400 border-amber-400' : 'bg-amber-500 border-amber-500'}`} />
+            <div className={`w-4 h-4 rounded border ${selectedIsOccupied ? 'bg-amber-400 border-amber-400' : 'bg-[#FF4C4C] border-[#FF4C4C]'}`} />
             Đang chọn
           </div>
         )}
@@ -237,8 +238,8 @@ function SlotMap({
           </div>
         ) : (
           /* ── Assign banner ── */
-          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-            <div className="flex items-center gap-2 text-sm text-amber-500">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-[#FF4C4C]/10 border border-[#FF4C4C]/30 rounded-xl">
+            <div className="flex items-center gap-2 text-sm text-[#FF4C4C]">
               <Car size={14} />
               <span>Chỗ trống · Phân bổ cho xe?</span>
             </div>
@@ -252,14 +253,14 @@ function SlotMap({
                   setConfirming(false);
                   onSelectSlot(null);
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-[#121214] text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FF4C4C] text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
               >
                 {confirming ? <Loader2 size={12} className="animate-spin" /> : <CircleCheck size={12} />}
                 Xác nhận phân bổ
               </button>
               <button
                 onClick={() => onSelectSlot(null)}
-                className="p-1.5 rounded-lg text-amber-500/60 hover:text-amber-500 hover:bg-amber-500/10 transition-all"
+                className="p-1.5 rounded-lg text-[#FF4C4C]/60 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all"
               >
                 <X size={13} />
               </button>
@@ -330,23 +331,31 @@ export default function ParkingLots() {
       floors.forEach(f => { fbMap[f.id] = f.buildingId; });
 
       const occupiedCountPerBuilding: Record<string, number> = {};
-      buildings.forEach(b => { occupiedCountPerBuilding[b.id] = 0; });
+      const actualSlotsPerBuilding: Record<string, number> = {};
+      buildings.forEach(b => { occupiedCountPerBuilding[b.id] = 0; actualSlotsPerBuilding[b.id] = 0; });
       slots
-        .filter(s => isSlotOccupied(s.status))
+        .filter(s => !isSlotMaintenance(s.status))
         .forEach(s => {
           const bid = fbMap[s.floorId];
-          if (bid) occupiedCountPerBuilding[bid] = (occupiedCountPerBuilding[bid] ?? 0) + 1;
+          if (bid) {
+            actualSlotsPerBuilding[bid] = (actualSlotsPerBuilding[bid] ?? 0) + 1;
+            if (isSlotOccupied(s.status)) {
+              occupiedCountPerBuilding[bid] = (occupiedCountPerBuilding[bid] ?? 0) + 1;
+            }
+          }
         });
 
       setLots(buildings.map(b => {
         const used = occupiedCountPerBuilding[b.id] ?? 0;
-        const pct = b.totalCapacity > 0 ? used / b.totalCapacity : 0;
+        const actual = actualSlotsPerBuilding[b.id] ?? 0;
+        const pct = actual > 0 ? used / actual : 0;
         return {
           id: b.id,
           name: b.name,
           address: b.address,
           floorCount: b.floorCount,
           totalSpots: b.totalCapacity,
+          actualSlots: actual,
           usedSpots: used,
           status: pct >= 1 ? 'full' : 'active',
         };
@@ -602,6 +611,7 @@ export default function ParkingLots() {
         address: created.address,
         floorCount: created.floorCount,
         totalSpots: created.totalCapacity,
+        actualSlots: 0,
         usedSpots: 0,
         status: 'active',
       }]);
@@ -654,6 +664,7 @@ export default function ParkingLots() {
   };
 
   const totalSpots    = lots.reduce((s, l) => s + l.totalSpots, 0);
+  const totalActual   = lots.reduce((s, l) => s + l.actualSlots, 0);
   const usedSpots     = lots.reduce((s, l) => s + l.usedSpots, 0);
   const activeLots    = lots.filter(l => l.status === 'active').length;
   const inMaintenance = lots.filter(l => l.status === 'maintenance').length;
@@ -664,16 +675,16 @@ export default function ParkingLots() {
   );
 
   const stats = [
-    { label: 'Tổng số tòa',    value: lots.length,           unit: 'tòa', icon: Building2,     color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5' },
+    { label: 'Tổng số tòa',    value: lots.length,           unit: 'tòa', icon: Building2,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
     { label: 'Tổng sức chứa',  value: totalSpots,             unit: 'chỗ', icon: ParkingSquare, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-    { label: 'Đang còn trống', value: totalSpots - usedSpots, unit: 'chỗ', icon: CircleCheck,   color: '#F97316', bg: 'from-orange-500/20 to-orange-500/5' },
+    { label: 'Đang còn trống', value: totalActual - usedSpots, unit: 'chỗ', icon: CircleCheck,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
     { label: 'Đang bảo trì',   value: inMaintenance,          unit: 'tòa', icon: Wrench,        color: '#F87171', bg: 'from-red-400/20 to-red-400/5' },
   ];
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={28} className="text-amber-500 animate-spin" />
+        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
       </div>
     );
   }
@@ -690,7 +701,7 @@ export default function ParkingLots() {
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black font-semibold text-sm hover:opacity-90 transition-opacity"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r bg-[#FF4C4C] text-black font-semibold text-sm hover:opacity-90 transition-opacity"
         >
           <Plus size={16} />
           Thêm tòa nhà
@@ -731,7 +742,7 @@ export default function ParkingLots() {
           placeholder="Tìm kiếm tòa nhà..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-amber-500/50 transition-colors"
+          className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
         />
       </div>
 
@@ -742,7 +753,7 @@ export default function ParkingLots() {
         )}
         {filtered.map((lot) => {
           const cfg = statusConfig[lot.status];
-          const available = lot.totalSpots - lot.usedSpots;
+          const available = lot.actualSlots - lot.usedSpots;
           return (
             <div key={lot.id} className="glass-card p-5 rounded-2xl flex flex-col gap-4 hover:border-white/20 transition-colors">
               <div className="flex items-start justify-between">
@@ -764,19 +775,30 @@ export default function ParkingLots() {
                 </span>
               </div>
 
-              <OccupancyBar used={lot.usedSpots} total={lot.totalSpots} />
+              <OccupancyBar used={lot.usedSpots} total={lot.actualSlots} />
 
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: 'Sức chứa', value: lot.totalSpots, color: 'text-white' },
-                  { label: 'Đã dùng',  value: lot.usedSpots,  color: 'text-amber-500' },
-                  { label: 'Trống',    value: available,      color: 'text-amber-500' },
-                ].map(item => (
-                  <div key={item.label} className="bg-white/5 rounded-xl px-3 py-2 text-center">
-                    <p className={`text-lg font-bold ${item.color}`}>{item.value}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{item.label}</p>
-                  </div>
-                ))}
+              {/* Slot stats */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 rounded-xl px-3 py-2 text-center col-span-2">
+                  <p className="text-xs text-white/30 mb-1">Sức chứa tối đa</p>
+                  <p className="text-lg font-bold text-white">{lot.totalSpots} <span className="text-xs font-normal text-white/30">chỗ</span></p>
+                </div>
+                <div className="bg-white/5 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đã tạo</p>
+                  <p className="text-lg font-bold text-white/70">{lot.actualSlots}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Chưa tạo</p>
+                  <p className="text-lg font-bold text-white/40">{lot.totalSpots - lot.actualSlots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đang đỗ</p>
+                  <p className="text-lg font-bold text-[#FF4C4C]">{lot.usedSpots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Còn trống</p>
+                  <p className="text-lg font-bold text-[#FF4C4C]">{available}</p>
+                </div>
               </div>
 
               <div className="flex items-center gap-2 pt-1 border-t border-white/5">
@@ -789,7 +811,7 @@ export default function ParkingLots() {
                 </button>
                 <button
                   onClick={() => openEdit(lot)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-amber-500/70 hover:text-amber-500 hover:bg-amber-500/10 transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-[#FF4C4C]/70 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all"
                 >
                   <Pencil size={13} />
                   Chỉnh sửa
@@ -810,7 +832,7 @@ export default function ParkingLots() {
       {/* ── DETAIL MODAL ── */}
       {modalType === 'detail' && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] flex flex-col">
+          <div className="border border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] flex flex-col" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
@@ -836,20 +858,31 @@ export default function ParkingLots() {
             </div>
 
             <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: 'Sức chứa',  value: selected.totalSpots,                     color: 'text-white' },
-                  { label: 'Đã dùng',   value: selected.usedSpots,                       color: 'text-amber-500' },
-                  { label: 'Còn trống', value: selected.totalSpots - selected.usedSpots, color: 'text-amber-500' },
-                ].map(item => (
-                  <div key={item.label} className="bg-white/5 rounded-xl p-3 text-center">
-                    <p className={`text-2xl font-bold ${item.color}`}>{item.value}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{item.label}</p>
-                  </div>
-                ))}
+              {/* Capacity summary */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 rounded-xl p-3 text-center col-span-2">
+                  <p className="text-xs text-white/30 mb-1">Sức chứa tối đa đăng ký</p>
+                  <p className="text-2xl font-bold text-white">{selected.totalSpots} <span className="text-sm font-normal text-white/30">chỗ</span></p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đã tạo slot</p>
+                  <p className="text-xl font-bold text-white/70">{selected.actualSlots}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-xs text-white/30 mb-1">Chưa tạo</p>
+                  <p className="text-xl font-bold text-white/40">{selected.totalSpots - selected.actualSlots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl p-3 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đang đỗ</p>
+                  <p className="text-xl font-bold text-[#FF4C4C]">{selected.usedSpots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl p-3 text-center">
+                  <p className="text-xs text-white/30 mb-1">Còn trống</p>
+                  <p className="text-xl font-bold text-[#FF4C4C]">{selected.actualSlots - selected.usedSpots}</p>
+                </div>
               </div>
 
-              <OccupancyBar used={selected.usedSpots} total={selected.totalSpots} />
+              <OccupancyBar used={selected.usedSpots} total={selected.actualSlots} />
 
               <div>
                 <p className="text-sm font-medium text-white mb-3">Sơ đồ chỗ đỗ</p>
@@ -879,7 +912,7 @@ export default function ParkingLots() {
                         setLots(prev => prev.map(l => ({
                           ...l,
                           usedSpots: usedByBuilding[l.id] ?? 0,
-                          status: (usedByBuilding[l.id] ?? 0) >= l.totalSpots ? 'full' : l.status === 'full' ? 'active' : l.status,
+                          status: (usedByBuilding[l.id] ?? 0) >= l.actualSlots ? 'full' : l.status === 'full' ? 'active' : l.status,
                         })));
                         if (selected) setSelected(s => s ? { ...s, usedSpots: usedByBuilding[s.id] ?? 0 } : s);
                         showToast('success', action === 'release' ? 'Đã giải phóng chỗ đỗ!' : 'Đã phân bổ chỗ đỗ thành công!');
@@ -905,7 +938,7 @@ export default function ParkingLots() {
               </button>
               <button
                 onClick={() => { closeModal(); openEdit(selected); }}
-                className="px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 transition-opacity"
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r bg-[#FF4C4C] hover:opacity-90 transition-opacity"
               >
                 Chỉnh sửa
               </button>
@@ -917,13 +950,13 @@ export default function ParkingLots() {
       {/* ── ADD / EDIT MODAL ── */}
       {(modalType === 'add' || modalType === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-[#0A0A0C] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]" style={{ backgroundColor: 'var(--admin-bg-base)' }}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <Building2 size={17} className="text-amber-500" />
+                <div className="w-9 h-9 rounded-xl bg-[#FF4C4C]/10 flex items-center justify-center">
+                  <Building2 size={17} className="text-[#FF4C4C]" />
                 </div>
                 <div>
                   <h3 className="text-[15px] font-semibold text-white leading-tight">
@@ -952,7 +985,7 @@ export default function ParkingLots() {
                     placeholder="Ví dụ: Tòa A"
                     value={form.name}
                     onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
                 <div>
@@ -962,7 +995,7 @@ export default function ParkingLots() {
                     placeholder="Ví dụ: 123 Đường Lê Lợi"
                     value={form.address}
                     onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors"
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
                 <div className={`grid gap-3 ${modalType === 'edit' ? 'grid-cols-2' : ''}`}>
@@ -973,7 +1006,7 @@ export default function ParkingLots() {
                       placeholder="Ví dụ: 300"
                       value={form.totalSpots}
                       onChange={e => setForm(prev => ({ ...prev, totalSpots: e.target.value }))}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-amber-500/50 transition-colors"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                     />
                   </div>
                   {modalType === 'edit' && (
@@ -982,7 +1015,7 @@ export default function ParkingLots() {
                       <select
                         value={form.status}
                         onChange={e => setForm(prev => ({ ...prev, status: e.target.value as ParkingLot['status'] }))}
-                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-500/50 transition-colors appearance-none"
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                       >
                         <option value="active"      className="bg-[#0A0A0C]">Hoạt động</option>
                         <option value="maintenance" className="bg-[#0A0A0C]">Bảo trì</option>
@@ -1013,14 +1046,14 @@ export default function ParkingLots() {
                           width: `${Math.min(100, selected ? (usedCapacity / selected.totalSpots) * 100 : 0)}%`,
                           backgroundColor: remainingCapacity === 0 ? '#F87171'
                             : remainingCapacity < (selected?.totalSpots ?? 0) * 0.15 ? '#F59E0B'
-                            : '#F97316',
+                            : '#FF4C4C',
                         }}
                       />
                     </div>
                     <div className="flex justify-between text-[10px] text-white/25">
                       <span>0</span>
                       {remainingCapacity > 0
-                        ? <span className="text-amber-500/60">còn {remainingCapacity} chỗ</span>
+                        ? <span className="text-[#FF4C4C]/60">còn {remainingCapacity} chỗ</span>
                         : <span className="text-red-400/70">đã phân bổ đầy</span>}
                       <span>{selected?.totalSpots ?? 0}</span>
                     </div>
@@ -1040,7 +1073,7 @@ export default function ParkingLots() {
                           key={f.id}
                           className={`rounded-xl border transition-all ${
                             editingFloorId === f.id
-                              ? 'border-amber-500/25 bg-amber-500/5'
+                              ? 'border-[#FF4C4C]/25 bg-[#FF4C4C]/5'
                               : 'border-white/10 bg-white/5 hover:bg-white/5'
                           }`}
                         >
@@ -1048,7 +1081,7 @@ export default function ParkingLots() {
                             /* ── Inline edit panel ── */
                             <div className="p-4 space-y-3">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-amber-500 flex items-center gap-1.5">
+                                <span className="text-xs font-semibold text-[#FF4C4C] flex items-center gap-1.5">
                                   <Pencil size={10} /> Chỉnh sửa tầng
                                 </span>
                                 <span className="text-[11px] text-white/35">
@@ -1065,7 +1098,7 @@ export default function ParkingLots() {
                                     type="text"
                                     value={editFloorName}
                                     onChange={e => { setEditFloorName(e.target.value); setEditFloorError(''); }}
-                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50 transition-colors"
+                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                                     placeholder="Tên tầng"
                                   />
                                 </div>
@@ -1082,7 +1115,7 @@ export default function ParkingLots() {
                                         max={maxSlots}
                                         value={editFloorAddedSlots}
                                         onChange={e => { setEditFloorAddedSlots(e.target.value); setEditFloorError(''); }}
-                                        className="w-full bg-white/10 border border-white/20 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50 transition-colors"
+                                        className="w-full bg-white/10 border border-white/20 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                                       />
                                     </div>
                                   );
@@ -1098,7 +1131,7 @@ export default function ParkingLots() {
                                   <select
                                     value={editFloorVehicleTypeId}
                                     onChange={e => { setEditFloorVehicleTypeId(e.target.value); setEditFloorError(''); }}
-                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500/50 transition-colors appearance-none"
+                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                                   >
                                     <option value="" className="bg-[#0A0A0C]">-- Chọn loại xe --</option>
                                     {vehicleTypes.map(vt => (
@@ -1112,7 +1145,7 @@ export default function ParkingLots() {
                               {editFloorActualCount !== null && editFloorAddedSlots !== '' && Number(editFloorAddedSlots) !== editFloorActualCount && (
                                 <div className={`px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${
                                   Number(editFloorAddedSlots) > editFloorActualCount
-                                    ? 'bg-amber-500/6 text-amber-500/70'
+                                    ? 'bg-[#FF4C4C]/5 text-[#FF4C4C]/70'
                                     : 'bg-amber-400/6 text-amber-400/70'
                                 }`}>
                                   {Number(editFloorAddedSlots) > editFloorActualCount
@@ -1133,7 +1166,7 @@ export default function ParkingLots() {
                                 <button
                                   onClick={() => saveFloorEdit(f)}
                                   disabled={floorLoading || !editFloorName.trim()}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-amber-500/12 border border-amber-500/20 text-amber-500 text-xs font-semibold hover:bg-amber-500/20 transition-all disabled:opacity-40"
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 text-[#FF4C4C] text-xs font-semibold hover:bg-[#FF4C4C]/20 transition-all disabled:opacity-40"
                                 >
                                   {floorLoading ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
                                   Lưu thay đổi
@@ -1163,7 +1196,7 @@ export default function ParkingLots() {
                                 <button
                                   onClick={() => startEditFloor(f)}
                                   disabled={floorLoading}
-                                  className="p-2 rounded-lg text-white/25 hover:text-amber-500 hover:bg-amber-500/8 transition-all disabled:opacity-30"
+                                  className="p-2 rounded-lg text-white/25 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/8 transition-all disabled:opacity-30"
                                   title="Chỉnh sửa"
                                 >
                                   <Pencil size={13} />
@@ -1198,7 +1231,7 @@ export default function ParkingLots() {
                           placeholder="Tên tầng"
                           value={newFloorName}
                           onChange={e => { setNewFloorName(e.target.value); setFloorError(''); }}
-                          className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-amber-500/40 transition-colors"
+                          className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                         />
                         <input
                           type="number"
@@ -1207,14 +1240,14 @@ export default function ParkingLots() {
                           max={Math.min(100, remainingCapacity)}
                           value={newFloorSlotCount}
                           onChange={e => { setNewFloorSlotCount(e.target.value); setFloorError(''); }}
-                          className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-amber-500/40 transition-colors"
+                          className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                         />
                       </div>
                       <div className="flex gap-2">
                         <select
                           value={newFloorVehicleTypeId}
                           onChange={e => { setNewFloorVehicleTypeId(e.target.value); setFloorError(''); }}
-                          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-amber-500/40 transition-colors appearance-none"
+                          className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-2 text-xs text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                         >
                           <option value="" className="bg-[#0A0A0C]">-- Chọn loại xe --</option>
                           {vehicleTypes.map(vt => (
@@ -1224,7 +1257,7 @@ export default function ParkingLots() {
                         <button
                           onClick={handleAddFloor}
                           disabled={floorLoading || !newFloorName.trim()}
-                          className="px-4 py-2 rounded-lg bg-amber-500/12 border border-amber-500/20 text-amber-500 text-xs font-semibold hover:bg-amber-500/20 transition-all disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap"
+                          className="px-4 py-2 rounded-lg bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 text-[#FF4C4C] text-xs font-semibold hover:bg-[#FF4C4C]/20 transition-all disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap"
                         >
                           {floorLoading ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
                           Thêm tầng
@@ -1266,7 +1299,7 @@ export default function ParkingLots() {
               <button
                 onClick={modalType === 'add' ? handleAdd : handleEdit}
                 disabled={submitting || (modalType === 'edit' && editingFloorId !== null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 transition-opacity disabled:opacity-55 flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r bg-[#FF4C4C] hover:opacity-90 transition-opacity disabled:opacity-55 flex items-center justify-center gap-2"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
                 {modalType === 'add' ? 'Thêm mới' : editingFloorId !== null ? 'Đang sửa tầng...' : 'Lưu thay đổi'}
@@ -1280,8 +1313,9 @@ export default function ParkingLots() {
       {toast && (
         <div className={`fixed top-5 right-5 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl text-sm font-medium max-w-sm
           ${toast.type === 'success'
-            ? 'bg-[#121214] border-amber-500/40 text-amber-500'
-            : 'bg-[#121214] border-red-400/40 text-red-400'}`}
+            ? 'border-[#FF4C4C]/40 text-[#FF4C4C]'
+            : 'border-red-400/40 text-red-400'}`}
+          style={{ backgroundColor: 'var(--admin-bg-surface)' }}
         >
           {toast.type === 'success' ? <CircleCheck size={16} className="shrink-0" /> : <AlertTriangle size={16} className="shrink-0" />}
           <span className="flex-1">{toast.msg}</span>
@@ -1294,7 +1328,7 @@ export default function ParkingLots() {
       {/* ── DELETE CONFIRM MODAL ── */}
       {modalType === 'delete' && selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl">
+          <div className="border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="px-6 pt-6 pb-4 text-center">
               <div className="w-14 h-14 rounded-2xl bg-red-400/10 flex items-center justify-center mx-auto mb-4">
                 <Trash2 size={24} className="text-red-400" />

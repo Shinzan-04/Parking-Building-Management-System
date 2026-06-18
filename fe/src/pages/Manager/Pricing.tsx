@@ -554,7 +554,7 @@ export default function ManagerPricing() {
       {/* Add/Edit Policy */}
       {(policyModal === 'add' || policyModal === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-semibold text-white">
                 {policyModal === 'add' ? 'Thêm chính sách giá' : `Sửa chính sách · ${selectedPolicy?.vehicleTypeName}`}
@@ -626,7 +626,7 @@ export default function ManagerPricing() {
       {/* Delete Policy */}
       {policyModal === 'delete' && selectedPolicy && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} className="text-red-400" />
@@ -655,7 +655,7 @@ export default function ManagerPricing() {
       {/* Add/Edit Setting */}
       {(settingModal === 'add' || settingModal === 'edit') && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl">
+          <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-semibold text-white">
                 {settingModal === 'add' ? 'Thêm bảng giá vé' : `Sửa bảng giá · ${selectedSetting?.vehicleTypeName}`}
@@ -752,7 +752,7 @@ export default function ManagerPricing() {
       {/* Delete Setting */}
       {settingModal === 'delete' && selectedSetting && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <AlertTriangle size={18} className="text-red-400" />
