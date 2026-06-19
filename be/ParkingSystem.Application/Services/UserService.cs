@@ -122,6 +122,7 @@ public class UserService : IUserService
         PhoneNumber = u.PhoneNumber,
         Email = u.Email,
         QrCode = u.DriverCode,
-        CreatedAt = u.CreatedAt
+        CreatedAt = u.CreatedAt,
+        AssignedBuildingId = u.AssignedBuildingId
     };
 }

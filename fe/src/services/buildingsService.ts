@@ -146,6 +146,7 @@ export interface StaffResponse {
   email?: string | null;
   phoneNumber?: string | null;
   createdAt: string;
+  assignedBuildingId?: string | null;
 }
 
 export const getBuildingStaff = (buildingId: string, token: string): Promise<StaffResponse[]> =>
