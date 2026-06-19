@@ -2,11 +2,11 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
+import NotificationBell from '../../components/NotificationBell';
 import {
- 
   Search, ShieldCheck, ArrowRight, BookOpen,
   LogOut, Activity, ChevronDown, Ticket,
-  LayoutDashboard, Sun, Moon,User,
+  LayoutDashboard, Sun, Moon, User,
   Car
 } from 'lucide-react';
 
@@ -94,6 +94,10 @@ export default function UserLandingPage() {
               >
                 {isDark ? <Sun size={17} /> : <Moon size={17} />}
               </button>
+
+              {token && user && (
+                <NotificationBell token={token} accentColor="#FF4C4C" />
+              )}
 
               {token && user ? (
                 <div className="relative" ref={dropdownRef}>
