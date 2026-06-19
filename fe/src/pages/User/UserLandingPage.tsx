@@ -148,21 +148,23 @@ export default function UserLandingPage() {
                       <button
                         type="button"
                         onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/5 transition-colors text-left"
+                        style={{ color: 'var(--lp-text-muted)' }}
                       >
                         <User size={16} />
                         <span>Profile</span>
                       </button>
-                      <div className="border-t border-gray-100 my-1" />
+                      <div className="my-1" style={{ borderTop: '1px solid var(--lp-border)' }} />
                       <button
                         type="button"
                         onClick={() => { setIsDropdownOpen(false); navigate('/my-vehicles'); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/5 transition-colors text-left"
+                        style={{ color: 'var(--lp-text-muted)' }}
                       >
                         <Car size={16} />
                         <span>My Vehicles</span>
                       </button>
-                      <div className="border-t border-gray-100 my-1" />
+                      <div className="my-1" style={{ borderTop: '1px solid var(--lp-border)' }} />
                       <button
                         type="button"
                         onClick={() => { setIsDropdownOpen(false); navigate('/myticket'); }}
