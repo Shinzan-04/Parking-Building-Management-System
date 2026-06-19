@@ -13,7 +13,6 @@ public class CheckOutService : ICheckOutService
 {
     private readonly ApplicationDbContext _context;
     private readonly ILicensePlateRecognizer _lprService;
-    private readonly IOcrService _ocrService;
     private readonly IPaymentService _paymentService;
     private readonly ILogger<CheckOutService> _logger;
     private readonly IRealtimeService _realtimeService;
@@ -21,14 +20,12 @@ public class CheckOutService : ICheckOutService
     public CheckOutService(
         ApplicationDbContext context,
         ILicensePlateRecognizer lprService,
-        IOcrService ocrService,
         IPaymentService paymentService,
         ILogger<CheckOutService> logger,
         IRealtimeService realtimeService)
     {
         _context = context;
         _lprService = lprService;
-        _ocrService = ocrService;
         _paymentService = paymentService;
         _logger = logger;
         _realtimeService = realtimeService;
