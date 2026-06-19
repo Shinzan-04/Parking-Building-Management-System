@@ -13,10 +13,12 @@ namespace ParkingSystem.Infrastructure.Services;
 public class NotificationService : INotificationService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IRealtimeService _realtimeService;
 
-    public NotificationService(ApplicationDbContext context)
+    public NotificationService(ApplicationDbContext context, IRealtimeService realtimeService)
     {
         _context = context;
+        _realtimeService = realtimeService;
     }
 
     /// <summary>
@@ -38,6 +40,9 @@ public class NotificationService : INotificationService
 
         _context.Notifications.Add(notification);
         await _context.SaveChangesAsync();
+
+        // Push realtime event (có thể FE sẽ lọc lại dựa trên nội dung hoặc báo chung để refetch)
+        await _realtimeService.SendNotificationAsync(message);
     }
 
     /// <summary>

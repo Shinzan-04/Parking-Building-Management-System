@@ -178,9 +178,25 @@ public class ReservationService : IReservationService
 
             if (fee == 0)
             {
-                // Nếu không có phí (fee = 0), duyệt qua bước chờ thanh toán luôn
-                initialStatus = ReservationStatus.PendingReview;
-                slot.Status = SlotStatus.Reserved; // Có thể giữ luôn slot vì đã bypass payment
+                // Nếu không có phí (fee = 0), kiểm tra Auto-Approve và Noti cho Staff
+                var buildingId = slot.Floor?.BuildingId;
+                var assignedStaffs = await _context.Users
+                    .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
+                    .Where(u => !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingId)
+                    .ToListAsync();
+
+                bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
+
+                if (isAutoApprove)
+                {
+                    initialStatus = ReservationStatus.Confirmed;
+                    slot.Status = SlotStatus.Reserved;
+                }
+                else
+                {
+                    initialStatus = ReservationStatus.PendingReview;
+                    slot.Status = SlotStatus.Reserved; 
+                }
             }
 
             // 8. Tạo Reservation
@@ -234,6 +250,46 @@ public class ReservationService : IReservationService
 
             // Mọi thứ OK thì mới Commit Database
             await transaction.CommitAsync();
+
+            // Gửi Notification nếu fee == 0 (vì bypass đoạn ConfirmPayment)
+            if (fee == 0)
+            {
+                if (initialStatus == ReservationStatus.Confirmed)
+                {
+                    await _notificationService.SendAsync(
+                        reservation.DriverId,
+                        "✅ Đặt chỗ được chấp nhận",
+                        $"Yêu cầu đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
+                        "ReservationAccepted",
+                        reservation.Id);
+                }
+                else if (initialStatus == ReservationStatus.PendingReview)
+                {
+                    await _notificationService.SendAsync(
+                        reservation.DriverId,
+                        "💳 Đặt chỗ thành công",
+                        $"Đặt chỗ {reservation.BookingCode} đã thành công. Đang chờ Staff duyệt.",
+                        "PendingReview",
+                        reservation.Id);
+
+                    var buildingId = slot.Floor?.BuildingId;
+                    var staffsToNotify = await _context.Users
+                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
+                        .Where(u => !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingId)
+                        .Where(u => u.IsNotificationEnabled)
+                        .ToListAsync();
+
+                    foreach (var staff in staffsToNotify)
+                    {
+                        await _notificationService.SendAsync(
+                            staff.Id,
+                            "🔔 Đặt chỗ mới",
+                            $"Có yêu cầu đặt chỗ mới ({reservation.BookingCode}) đang chờ duyệt.",
+                            "NewReservation",
+                            reservation.Id);
+                    }
+                }
+            }
 
             return MapToResponse(reservation, slot, checkoutUrl, bookingFee, payOSOrderCode);
 
