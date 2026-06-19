@@ -78,16 +78,13 @@ public class PayOSPaymentService : IPaymentService
             safeDescription = new string(safeDescription.Where(c => char.IsLetterOrDigit(c) || char.IsWhiteSpace(c)).ToArray());
             if (safeDescription.Length > 25) safeDescription = safeDescription.Substring(0, 25);
 
-            var cancelUrl = string.IsNullOrWhiteSpace(_options.CancelUrl) ? "https://baigiuxe.com/payment-cancel" : _options.CancelUrl;
-            var returnUrl = string.IsNullOrWhiteSpace(_options.ReturnUrl) ? "https://baigiuxe.com/payment-success" : _options.ReturnUrl;
-
             var paymentRequest = new CreatePaymentLinkRequest
             {
                 OrderCode = orderCode,
                 Amount = (int)request.Amount,
                 Description = safeDescription.Trim(),
-                ReturnUrl = returnUrl,
-                CancelUrl = cancelUrl,
+                ReturnUrl = _options.ReturnUrl,
+                CancelUrl = _options.CancelUrl,
                 ExpiredAt = expiredAt
             };
 
