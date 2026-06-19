@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ParkingSystem.Application.DTOs.Payment;
 using ParkingSystem.Application.Interfaces;
 
@@ -71,4 +72,58 @@ public class PaymentsController : ControllerBase
             return NotFound(new { message = "Khong tim thay thanh toan PayOS cho phien nay." });
         return Ok(result);
     }
+
+    [HttpGet("verify/{orderCode}")]
+    public async Task<IActionResult> VerifyPayment(
+        long orderCode,
+        [FromServices] IReservationService reservationService,
+        [FromServices] ParkingSystem.Infrastructure.Data.ApplicationDbContext context)
+    {
+        try
+        {
+            var (success, status) = await _paymentService.VerifyPayOSPaymentAsync(orderCode);
+            
+            if (status == ParkingSystem.Domain.Enums.PaymentStatus.Success)
+            {
+                var payment = await context.Payments.FirstOrDefaultAsync(p => p.PayOSOrderCode == orderCode);
+                if (payment != null && payment.ReservationId.HasValue)
+                {
+                    var reservation = await context.Reservations.FindAsync(payment.ReservationId.Value);
+                    if (reservation != null && reservation.Status == ParkingSystem.Domain.Enums.ReservationStatus.PaymentPending)
+                    {
+                        await reservationService.ConfirmPaymentAsync(payment.ReservationId.Value);
+                    }
+                }
+            }
+            else if (status == ParkingSystem.Domain.Enums.PaymentStatus.Failed)
+            {
+                var payment = await context.Payments.FirstOrDefaultAsync(p => p.PayOSOrderCode == orderCode);
+                if (payment != null && payment.ReservationId.HasValue)
+                {
+                    var reservation = await context.Reservations.FindAsync(payment.ReservationId.Value);
+                    if (reservation != null && reservation.Status == ParkingSystem.Domain.Enums.ReservationStatus.PaymentPending)
+                    {
+                        await reservationService.FailPaymentAsync(payment.ReservationId.Value);
+                    }
+                }
+            }
+
+            return Ok(new 
+            { 
+                orderCode = orderCode,
+                status = status.ToString(), 
+                isPaid = (status == ParkingSystem.Domain.Enums.PaymentStatus.Success) 
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new 
+            { 
+                error = ex.Message, 
+                details = ex.InnerException?.Message,
+                stackTrace = ex.StackTrace 
+            });
+        }
+    }
 }
+

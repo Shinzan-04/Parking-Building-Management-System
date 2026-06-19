@@ -69,3 +69,13 @@ export const createPayOSPayment = (payload: CreatePayOSPaymentRequest, token: st
 
 export const getPaymentStatus = (sessionId: string, token: string): Promise<PaymentStatusResult> =>
   authFetch(`/api/payments/status/${sessionId}`, token);
+
+export interface VerifyPaymentResult {
+  orderCode: number;
+  status: string;
+  isPaid: boolean;
+}
+
+export const verifyPayment = (orderCode: number, token: string): Promise<VerifyPaymentResult> =>
+  authFetch(`/api/payments/verify/${orderCode}`, token);
+
