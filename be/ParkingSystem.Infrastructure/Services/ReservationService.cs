@@ -179,10 +179,14 @@ public class ReservationService : IReservationService
             if (fee == 0)
             {
                 // Nếu không có phí (fee = 0), kiểm tra Auto-Approve và Noti cho Staff
-                var buildingId = slot.Floor?.BuildingId;
+                // Load Floor để lấy BuildingId chính xác
+                var slotWithFloor = await _context.ParkingSlots
+                    .Include(s => s.Floor)
+                    .FirstOrDefaultAsync(s => s.Id == slot.Id);
+                var buildingId = slotWithFloor?.Floor?.BuildingId;
                 var assignedStaffs = await _context.Users
                     .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
-                    .Where(u => !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingId)
+                    .Where(u => !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
                     .ToListAsync();
 
                 bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
@@ -275,8 +279,8 @@ public class ReservationService : IReservationService
                     var buildingId = slot.Floor?.BuildingId;
                     var staffsToNotify = await _context.Users
                         .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
-                        .Where(u => !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingId)
-                        .Where(u => u.IsNotificationEnabled)
+                        .Where(u => !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
+                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Manager || u.IsNotificationEnabled)
                         .ToListAsync();
 
                     foreach (var staff in staffsToNotify)
@@ -333,12 +337,16 @@ public class ReservationService : IReservationService
             payment.UpdatedAt = DateTime.UtcNow;
         }
 
-        var buildingId = reservation.ParkingSlot?.Floor?.BuildingId;
+        // Load ParkingSlot + Floor để lấy BuildingId chính xác
+        var reservationSlot = await _context.ParkingSlots
+            .Include(s => s.Floor)
+            .FirstOrDefaultAsync(s => s.Id == reservation.ParkingSlotId);
+        var buildingId = reservationSlot?.Floor?.BuildingId;
 
         // Lấy danh sách Staff phụ trách
         var assignedStaffs = await _context.Users
             .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
-            .Where(u => !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingId)
+            .Where(u => !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
             .ToListAsync();
 
         bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
@@ -373,8 +381,8 @@ public class ReservationService : IReservationService
                 "PaymentSuccess",
                 reservation.Id);
 
-            // Gửi Noti cho Staff nào bật nhận thông báo
-            var staffsToNotify = assignedStaffs.Where(u => u.IsNotificationEnabled).ToList();
+            // Manager luôn nhận, Staff chỉ nhận khi bật IsNotificationEnabled
+            var staffsToNotify = assignedStaffs.Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Manager || u.IsNotificationEnabled).ToList();
             foreach (var staff in staffsToNotify)
             {
                 await _notificationService.SendAsync(

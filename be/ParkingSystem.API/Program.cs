@@ -155,10 +155,18 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
+            // Cho SignalR dùng token qua query string ?access_token=
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/parking-hub"))
+            {
+                context.Token = accessToken;
+                return Task.CompletedTask;
+            }
+
             var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
             if (!string.IsNullOrEmpty(authHeader) && !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
-                // Nếu gửi token thẳng (không có "Bearer ") → gán vào Token để middleware xử lý
                 context.Token = authHeader;
             }
             return Task.CompletedTask;
