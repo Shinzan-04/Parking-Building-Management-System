@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   X,
   ChevronRight,
@@ -24,7 +24,7 @@ import type { FloorResponse } from '../../services/buildingsService';
 import { getSlotsByFloor } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
 import { createReservation, getAiSuggestions } from '../../services/reservationsService';
-import { createPayOSPayment } from '../../services/paymentService';
+import { createPayOSPayment, verifyPayment } from '../../services/paymentService';
 import { getMyVehicles, createVehicle } from '../../services/vehiclesService';
 import type { VehicleResponse } from '../../services/vehiclesService';
 
@@ -1170,22 +1170,12 @@ function ConfirmationPopup({
   const [createdReservation, setCreatedReservation] = useState<any>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'PAYOS_RESULT') {
-        if (event.data.status === 'success') {
-          setPhase('qr');
-        } else {
-          setError('Thanh toán thất bại hoặc đã bị hủy.');
-          setPhase('payment');
-        }
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  // orderCode từ PayOS để poll trạng thái
+  const [pendingOrderCode, setPendingOrderCode] = useState<number | null>(null);
+  // Ref tới tab PayOS đã mở
+  const payosTabRef = useRef<Window | null>(null);
+  // Bộ đếm giây polling
+  const [pollSeconds, setPollSeconds] = useState(0);
 
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
@@ -1255,19 +1245,39 @@ function ConfirmationPopup({
       };
 
       const res = await createReservation(payload, token);
-      
+      setCreatedReservation(res);
+
       const paymentPayload = {
         amount: total,
         description: `Thanh toan don dat cho`,
-        reservationId: res.id
+        reservationId: res.id,
       };
 
       const payOSRes = await createPayOSPayment(paymentPayload, token);
-      
-      // Thay vì chuyển trang, mở iframe PayOS ngay trong popup
-      setCheckoutUrl(payOSRes.checkoutUrl);
+
+      // Tính toán QR data thực tế chính xác dựa trên bookingCode thực tế vừa được tạo
+      const realQrData = JSON.stringify({
+        ref: res.bookingCode,
+        lot: lot.name,
+        plate: state.licensePlate,
+        vehicle: selectedVehicle?.name ?? '',
+        slot: `${floorLabel} / Slot ${state.slot}`,
+        date: state.entryDate,
+        entry: state.entryTime,
+        duration: state.duration,
+      });
+
+      // Lưu QR data vào localStorage
+      localStorage.setItem('latest_booking_qr', realQrData);
+      localStorage.setItem('latest_reservation_id', res.id);
+
+      // Mở tab mới thay vì iframe (tránh lỗi Private Network Access)
+      const newTab = window.open(payOSRes.checkoutUrl, '_blank', 'noopener');
+      payosTabRef.current = newTab;
+      setPendingOrderCode(payOSRes.orderCode);
+      setSubmitting(false);
       setPhase('checkout');
-      
+
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Reservation failed. Please check your information.');
@@ -1275,11 +1285,55 @@ function ConfirmationPopup({
     }
   };
 
+  // ── Polling: kiểm tra trạng thái thanh toán sau khi mở tab PayOS ──
   useEffect(() => {
-    if (phase === 'qr') {
-      localStorage.setItem('latest_booking_qr', qrData);
-    }
-  }, [phase, qrData]);
+    if (phase !== 'checkout' || pendingOrderCode == null) return;
+
+    const token = localStorage.getItem('sp_token') || '';
+    let cancelled = false;
+    let seconds = 0;
+    setPollSeconds(0);
+
+    const interval = setInterval(async () => {
+      seconds += 3;
+      setPollSeconds(seconds);
+
+      if (seconds > 600) {
+        clearInterval(interval);
+        setError('Hết thời gian chờ (10 phút). Vui lòng thử lại.');
+        setPhase('payment');
+        setPendingOrderCode(null);
+        return;
+      }
+
+      try {
+        const result = await verifyPayment(pendingOrderCode, token);
+        if (cancelled) return;
+
+        if (result.isPaid) {
+          clearInterval(interval);
+          try { payosTabRef.current?.close(); } catch {}
+          payosTabRef.current = null;
+          setPendingOrderCode(null);
+          setPhase('qr');
+        } else if (result.status === 'Failed') {
+          clearInterval(interval);
+          try { payosTabRef.current?.close(); } catch {}
+          payosTabRef.current = null;
+          setPendingOrderCode(null);
+          setError('Thanh toán thất bại. Vui lòng thử lại.');
+          setPhase('payment');
+        }
+      } catch {
+        // bỏ qua lỗi mạng tạm thời
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [phase, pendingOrderCode]);
 
   const formatDateDisplay = (d: string) => {
     if (!d) return '--';
@@ -1429,16 +1483,44 @@ function ConfirmationPopup({
             </div>
           )}
 
-          {/* ── Phase: Checkout (Iframe) ── */}
-          {phase === 'checkout' && checkoutUrl && (
-            <div className="w-full flex flex-col items-center justify-center">
-              <div className="w-full h-[550px] relative overflow-hidden rounded-2xl border border-gray-200">
-                <iframe 
-                  src={checkoutUrl} 
-                  className="w-full h-full border-0 absolute top-0 left-0" 
-                  title="PayOS Checkout" 
-                />
+          {/* ── Phase: Checkout (Tab mới + Polling) ── */}
+          {phase === 'checkout' && (
+            <div className="flex flex-col items-center gap-6 py-4">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full border-4 border-emerald-100 flex items-center justify-center">
+                  <Loader2 size={36} className="animate-spin text-emerald-500" />
+                </div>
+                <div className="absolute inset-0 rounded-full bg-emerald-400/10 animate-ping" />
               </div>
+              <div className="text-center">
+                <p className="text-base font-black text-stone-800 mb-1">Đang chờ thanh toán</p>
+                <p className="text-xs text-stone-500 leading-relaxed">
+                  Cửa sổ PayOS đã mở.<br />
+                  Hoàn tất thanh toán trên cửa sổ đó,<br />
+                  trang này sẽ tự động cập nhật.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 bg-stone-50 border border-gray-200 rounded-full px-5 py-2.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs text-stone-500 font-medium">
+                  Đang kiểm tra... <span className="font-bold text-stone-700">{pollSeconds}s</span>
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  if (payosTabRef.current && !payosTabRef.current.closed) {
+                    payosTabRef.current.focus();
+                  }
+                }}
+                className="text-xs text-[#FF4C4C] font-semibold hover:underline"
+              >
+                Nhấn để mở lại cửa sổ thanh toán →
+              </button>
+              {error && (
+                <div className="bg-red-50 border border-red-100 text-red-500 text-xs px-4 py-3 rounded-2xl text-center font-bold w-full">
+                  ⚠️ {error}
+                </div>
+              )}
             </div>
           )}
 
@@ -1557,8 +1639,10 @@ function ConfirmationPopup({
           {phase === 'checkout' && (
             <button
               onClick={() => {
+                try { payosTabRef.current?.close(); } catch {}
+                payosTabRef.current = null;
+                setPendingOrderCode(null);
                 setPhase('payment');
-                setCheckoutUrl(null);
               }}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all"
             >
