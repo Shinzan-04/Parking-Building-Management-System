@@ -255,8 +255,12 @@ public class ReservationService : IReservationService
         if (reservation.Status != ReservationStatus.PaymentPending)
             throw new InvalidOperationException("Reservation không ở trạng thái chờ thanh toán.");
 
-        // Lấy thông tin Payment để verify với PayOS
-        var payment = await _context.Payments.FirstOrDefaultAsync(p => p.ReservationId == reservationId && p.PaymentMethod == PaymentMethod.PayOS);
+        // Lấy thông tin giao dịch Payment mới nhất của đặt chỗ này để verify với PayOS
+        var payment = await _context.Payments
+            .Where(p => p.ReservationId == reservationId && p.PaymentMethod == PaymentMethod.PayOS)
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
+            
         if (payment == null)
             throw new InvalidOperationException("Không tìm thấy giao dịch thanh toán nào.");
 

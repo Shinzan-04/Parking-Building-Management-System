@@ -47,6 +47,8 @@ export default function App() {
           <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
           <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
           <Route path="/payment-result" element={<PaymentResultPage />} />
+          <Route path="/payment-success" element={<PaymentResultPage />} />
+          <Route path="/payment-cancel" element={<PaymentResultPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
