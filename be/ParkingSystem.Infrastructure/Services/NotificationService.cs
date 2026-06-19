@@ -41,8 +41,8 @@ public class NotificationService : INotificationService
         _context.Notifications.Add(notification);
         await _context.SaveChangesAsync();
 
-        // Push realtime event (có thể FE sẽ lọc lại dựa trên nội dung hoặc báo chung để refetch)
-        await _realtimeService.SendNotificationAsync(message);
+        // Push realtime event chỉ cho đúng user nhận thông báo
+        await _realtimeService.SendNotificationAsync(userId, message);
     }
 
     /// <summary>
