@@ -549,7 +549,7 @@ export default function GateControlPage() {
         <header className="bg-white border-b border-gray-200/60 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-stone-900">
-              {buildingName ? `Trạm kiểm soát — ${buildingName}` : 'Gate Station'}
+              Gate Station
             </h2>
             <p className="text-2xs text-stone-400 font-bold uppercase tracking-wider mt-0.5">Live barrier and security check</p>
           </div>
@@ -816,7 +816,6 @@ export default function GateControlPage() {
                       <QrCameraCapture
                         onSuccess={handleQrInputChange}
                         paused={!!parsedBooking}
-                        inline
                         className="w-full"
                       />
                     </div>

@@ -96,7 +96,7 @@ export default function Dashboard() {
       ]);
 
       // Fetch trang còn lại nếu có
-      let allItems = [...firstPage.items];
+      const allItems = [...firstPage.items];
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>

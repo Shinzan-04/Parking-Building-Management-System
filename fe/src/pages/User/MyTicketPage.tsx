@@ -152,7 +152,7 @@ export default function MyTicketPage() {
   };
 
   // Helper cho style của Status Badge
-  const getStatusBadgeStyle = (status: string | number) => {
+  const getStatusBadgeStyle = (status: any) => {
     const normalized = normalizeReservationStatus(status);
     switch (normalized) {
       case 'PaymentPending':

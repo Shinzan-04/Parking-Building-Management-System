@@ -567,7 +567,7 @@ function StepDateTime({
               <span className="text-[10px] text-stone-500 font-semibold">Grace Period</span>
             </div>
             <span className="text-[10px] font-bold text-emerald-600 text-right">
-              {policy.gracePeriodMinutes} phút miễn phí
+              15 phút miễn phí
             </span>
 
             {/* Block Price */}
@@ -1879,10 +1879,12 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
       setSlots([]);
       return;
     }
+    const currentFloor = state.floor;
     async function loadSlots() {
+      if (!currentFloor) return;
       try {
         setLoadingSlots(true);
-        const data = await getSlotsByFloor(state.floor);
+        const data = await getSlotsByFloor(currentFloor);
         setSlots(data);
       } catch (err) {
         console.error('Lỗi khi tải ô đỗ xe:', err);

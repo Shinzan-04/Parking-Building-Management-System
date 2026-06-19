@@ -91,7 +91,7 @@ export default function ManagerDashboard() {
       ]);
 
       // Fetch remaining pages if needed
-      let allCompleted = [...firstPage.items];
+      const allCompleted = [...firstPage.items];
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
