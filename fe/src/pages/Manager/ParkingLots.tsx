@@ -650,6 +650,22 @@ export default function ParkingLots() {
     getVehicleTypes().then(setVehicleTypes).catch(() => {});
   }, []);
 
+  // Lắng nghe sự kiện Realtime (SignalR) được phát từ useNotification
+  useEffect(() => {
+    const handleUpdate = () => {
+      // Refresh ngầm
+      loadData(true);
+    };
+
+    window.addEventListener('dashboardUpdate', handleUpdate);
+    window.addEventListener('slotUpdate', handleUpdate);
+
+    return () => {
+      window.removeEventListener('dashboardUpdate', handleUpdate);
+      window.removeEventListener('slotUpdate', handleUpdate);
+    };
+  }, []);
+
   const openAdd    = () => { setForm(emptyForm); setFormError(''); setModalType('add'); };
   const openDetail = (lot: ParkingLot) => {
     setSelected(lot);

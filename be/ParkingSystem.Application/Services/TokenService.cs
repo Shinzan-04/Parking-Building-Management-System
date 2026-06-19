@@ -22,6 +22,7 @@ public class TokenService : ITokenService
         var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
             new Claim(ClaimTypes.Role, user.Role.ToString()),
             new Claim("FullName", user.FullName)
@@ -55,6 +56,7 @@ public class TokenService : ITokenService
         var claims = new List<Claim>
         {
             new Claim(JwtRegisteredClaimNames.Sub, driverId.ToString()),
+            new Claim(ClaimTypes.NameIdentifier, driverId.ToString()),
             new Claim("driverCode", driverCode),
             new Claim("type", "driver")
         };

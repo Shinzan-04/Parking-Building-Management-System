@@ -75,8 +75,13 @@ export function useNotification(token: string | null) {
   useEffect(() => {
     if (!token) return;
 
+    // Cờ để phát hiện React Strict Mode cleanup chạy trước khi connect xong
+    let cancelled = false;
+
     const hub = new signalR.HubConnectionBuilder()
-      .withUrl(`${BASE_URL}/parking-hub?access_token=${encodeURIComponent(token)}`)
+      .withUrl(`${BASE_URL}/parking-hub`, {
+        accessTokenFactory: () => token,
+      })
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Warning)
       .build();
@@ -87,13 +92,39 @@ export function useNotification(token: string | null) {
       fetchNotifications(1);
     });
 
-    hub.start().catch(() => {
-      // Hub connection failed — REST polling still works; just no real-time push
+    // Phát sự kiện toàn cục để các màn hình khác (Dashboard, SlotList) bắt lấy
+    hub.on('ReceiveDashboardUpdate', () => {
+      window.dispatchEvent(new CustomEvent('dashboardUpdate'));
     });
 
-    hubRef.current = hub;
+    hub.on('ReceiveSlotUpdate', (data: { slotId: string, status: string }) => {
+      window.dispatchEvent(new CustomEvent('slotUpdate', { detail: data }));
+    });
+
+    // Dùng setTimeout nhỏ để tránh lỗi "connection stopped during negotiation" 
+    // do React Strict Mode unmount ngay lập tức khi vừa mount
+    const timer = setTimeout(() => {
+      if (cancelled) return;
+
+      hub.start()
+        .then(() => {
+          if (cancelled) {
+            hub.stop();
+            return;
+          }
+          hubRef.current = hub;
+          console.log('[SignalR] Kết nối thành công');
+        })
+        .catch((err) => {
+          if (!cancelled) {
+            console.error('[SignalR] Kết nối thất bại:', err);
+          }
+        });
+    }, 100);
 
     return () => {
+      cancelled = true;
+      clearTimeout(timer);
       hub.stop();
     };
   }, [token, fetchUnreadCount, fetchNotifications]);
