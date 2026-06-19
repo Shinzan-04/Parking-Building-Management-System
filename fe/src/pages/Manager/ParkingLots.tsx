@@ -19,7 +19,8 @@ import {
 import type { FloorResponse, ParkingSlotSummary, VehicleTypeResponse, StaffResponse } from '../../services/buildingsService';
 import { getSlotsByFloor, updateSlotStatus } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
-import { getUsers } from '../../services/usersService';
+import { getUsers, normalizeRole } from '../../services/usersService';
+import type { UserResponse } from '../../services/usersService';
 
 interface ParkingLot {
   id: string;
@@ -662,10 +663,12 @@ export default function ParkingLots() {
       getBuildingStaff(lot.id, activeToken),
       getUsers(activeToken),
     ]).then(([assigned, allUsers]) => {
-      console.log('[Staff] assigned:', assigned, 'allUsers:', allUsers);
-      setBuildingStaff(assigned);
+      const uniqueAssigned = assigned.filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
+      setBuildingStaff(uniqueAssigned);
       setAllStaffList(
-        allUsers.map(u => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email ?? null, phoneNumber: u.phoneNumber ?? null, createdAt: u.createdAt }))
+        allUsers
+          .filter(u => normalizeRole(u.role as any) === 'Staff')
+          .map(u => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email ?? null, phoneNumber: u.phoneNumber ?? null, createdAt: u.createdAt, assignedBuildingId: (u as any).assignedBuildingId ?? null }))
       );
     }).catch((err) => {
       console.error('[Staff] load error:', err);
@@ -684,9 +687,32 @@ export default function ParkingLots() {
     Promise.all([
       getBuildingStaff(lot.id, activeToken),
       getUsers(activeToken),
-    ]).then(([assigned, allUsers]) => {
-      setBuildingStaff(assigned);
-      setAllStaffList(allUsers.map(u => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email ?? null, phoneNumber: u.phoneNumber ?? null, createdAt: u.createdAt })));
+      // Fetch staff for ALL other buildings so we can exclude already-assigned staff
+      ...lots.filter(l => l.id !== lot.id).map(l => getBuildingStaff(l.id, activeToken).catch(() => [] as StaffResponse[])),
+    ]).then(([assigned, allUsers, ...otherBuildingStaffArrays]) => {
+      const uniqueAssigned2 = (assigned as StaffResponse[]).filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
+      setBuildingStaff(uniqueAssigned2);
+
+      // Build a set of all staff IDs already assigned to ANY building
+      const assignedInCurrentBuilding = new Set(uniqueAssigned2.map(s => s.id));
+      const assignedElsewhere = new Set(
+        (otherBuildingStaffArrays as StaffResponse[][]).flat().map(s => s.id)
+      );
+
+      setAllStaffList(
+        (allUsers as UserResponse[])
+          .filter(u => normalizeRole(u.role as any) === 'Staff')
+          .map(u => ({
+            id: u.id,
+            username: u.username,
+            fullName: u.fullName,
+            email: u.email ?? null,
+            phoneNumber: u.phoneNumber ?? null,
+            createdAt: u.createdAt,
+            // Mark as assigned if BE returns assignedBuildingId, or if found in any building's staff list
+            assignedBuildingId: u.assignedBuildingId ?? (assignedInCurrentBuilding.has(u.id) || assignedElsewhere.has(u.id) ? 'assigned' : null),
+          }))
+      );
     }).catch((err) => {
       console.error('[Staff] load error:', err);
       setBuildingStaff([]);
@@ -1228,6 +1254,9 @@ export default function ParkingLots() {
                               try {
                                 await unassignStaffFromBuilding(selected.id, s.id, activeToken);
                                 setBuildingStaff(prev => prev.filter(x => x.id !== s.id));
+                                setAllStaffList(prev => prev.map(x =>
+                                  x.id === s.id ? { ...x, assignedBuildingId: null } : x
+                                ));
                                 showToast('success', `Đã gỡ ${s.fullName} khỏi tòa nhà.`);
                               } catch (e) {
                                 showToast('error', e instanceof Error ? e.message : 'Không thể gỡ nhân viên.');
@@ -1250,16 +1279,16 @@ export default function ParkingLots() {
                     <select
                       value={assigningStaffId}
                       onChange={e => setAssigningStaffId(e.target.value)}
-                      disabled={allStaffList.filter(s => !buildingStaff.find(b => b.id === s.id)).length === 0}
+                      disabled={allStaffList.filter(s => !s.assignedBuildingId).length === 0}
                       className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-gray-700 dark:text-white focus:outline-none focus:border-blue-400 transition-colors disabled:opacity-40"
                     >
                       <option value="">
-                        {allStaffList.filter(s => !buildingStaff.find(b => b.id === s.id)).length === 0
+                        {allStaffList.filter(s => !s.assignedBuildingId).length === 0
                           ? '-- Không có nhân viên khả dụng --'
                           : '-- Chọn nhân viên --'}
                       </option>
                       {allStaffList
-                        .filter(s => !buildingStaff.find(b => b.id === s.id))
+                        .filter(s => !s.assignedBuildingId)
                         .map(s => (
                           <option key={s.id} value={s.id}>{s.fullName} (@{s.username})</option>
                         ))}
@@ -1274,7 +1303,12 @@ export default function ParkingLots() {
                         try {
                           await assignStaffToBuilding(selected.id, assigningStaffId, activeToken);
                           const staffMember = allStaffList.find(s => s.id === assigningStaffId);
-                          if (staffMember) setBuildingStaff(prev => [...prev, staffMember]);
+                          if (staffMember) {
+                            setBuildingStaff(prev => [...prev, staffMember]);
+                            setAllStaffList(prev => prev.map(s =>
+                              s.id === assigningStaffId ? { ...s, assignedBuildingId: selected.id } : s
+                            ));
+                          }
                           setAssigningStaffId('');
                           showToast('success', 'Đã phân công nhân viên thành công!');
                         } catch (e) {

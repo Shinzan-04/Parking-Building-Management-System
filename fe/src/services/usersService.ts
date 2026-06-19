@@ -21,6 +21,7 @@ export interface UserResponse {
   email?: string | null;
   qrCode: string;
   createdAt: string;
+  assignedBuildingId?: string | null;
 }
 
 export interface CreateUserRequest {
