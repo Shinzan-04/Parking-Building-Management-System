@@ -17,6 +17,7 @@ public class ReservationService : IReservationService
     private readonly ISlotAssignmentService _slotAssignmentService;
     private readonly IPaymentService _paymentService;
     private readonly ILogger<ReservationService> _logger;
+    private readonly IRealtimeService _realtimeService;
 
     public ReservationService(
         ApplicationDbContext context,
@@ -24,7 +25,8 @@ public class ReservationService : IReservationService
         INotificationService notificationService,
         ISlotAssignmentService slotAssignmentService,
         IPaymentService paymentService,
-        ILogger<ReservationService> logger)
+        ILogger<ReservationService> logger,
+        IRealtimeService realtimeService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
@@ -32,6 +34,7 @@ public class ReservationService : IReservationService
         _slotAssignmentService = slotAssignmentService;
         _paymentService = paymentService;
         _logger = logger;
+        _realtimeService = realtimeService;
     }
 
     public async Task<ReservationResponse> CreateReservationAsync(Guid driverId, CreateReservationRequest request)
@@ -251,6 +254,9 @@ public class ReservationService : IReservationService
             // Mọi thứ OK thì mới Commit Database
             await transaction.CommitAsync();
 
+            await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
+
             // Gửi Notification nếu fee == 0 (vì bypass đoạn ConfirmPayment)
             if (fee == 0)
             {
@@ -343,12 +349,25 @@ public class ReservationService : IReservationService
 
         bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
 
+        var slot = await _context.ParkingSlots.FindAsync(reservation.ParkingSlotId);
+        if (slot != null && slot.Status == SlotStatus.TemporaryHeld)
+        {
+            slot.Status = SlotStatus.Reserved;
+            slot.UpdatedAt = DateTime.UtcNow;
+        }
+
         if (isAutoApprove)
         {
             reservation.Status = ReservationStatus.Confirmed;
             reservation.UpdatedAt = DateTime.UtcNow;
             LogState(reservation, "Confirmed", "Tự động duyệt (Auto-Approve)");
             await _context.SaveChangesAsync();
+
+            if (slot != null)
+            {
+                await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+                await _realtimeService.SendDashboardUpdateAsync();
+            }
 
             // Báo cho Driver
             await _notificationService.SendAsync(
@@ -364,6 +383,12 @@ public class ReservationService : IReservationService
             reservation.UpdatedAt = DateTime.UtcNow;
             LogState(reservation, "PaymentSuccess", "Xác nhận thanh toán thành công. Đang chờ Staff duyệt");
             await _context.SaveChangesAsync();
+
+            if (slot != null)
+            {
+                await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+                await _realtimeService.SendDashboardUpdateAsync();
+            }
 
             // Báo cho Driver
             await _notificationService.SendAsync(
@@ -412,6 +437,12 @@ public class ReservationService : IReservationService
 
         LogState(reservation, "PaymentFailed", "Thanh toán thất bại");
         await _context.SaveChangesAsync();
+
+        if (slot != null)
+        {
+            await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
+        }
 
         await _notificationService.SendAsync(
             reservation.DriverId,
@@ -474,6 +505,12 @@ public class ReservationService : IReservationService
 
         LogState(reservation, "Cancel", "Người dùng hủy đặt chỗ");
         await _context.SaveChangesAsync();
+
+        if (slot != null)
+        {
+            await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
+        }
 
         await _notificationService.SendAsync(
             reservation.DriverId,
@@ -571,6 +608,13 @@ public class ReservationService : IReservationService
         }
 
         await _context.SaveChangesAsync();
+
+        if (slot != null)
+        {
+            await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
+        }
+
         return true;
     }
 
