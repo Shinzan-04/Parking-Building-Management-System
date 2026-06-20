@@ -30,7 +30,11 @@ public class OcrController : ControllerBase
     }
 
     /// <summary>
-    /// Scan biển số + Tự động check-in Walk-in luôn (flow liền mạch)
+    /// [DEPRECATED] — Không còn sử dụng trong flow mới.
+    /// Flow mới: Camera scan biển số (scan-plate) → điền vào input → Staff bấm CHECK-IN
+    /// → gọi POST /api/CheckIn/smart (SmartCheckIn) thay vì gọi API này.
+    /// 
+    /// API CŨ: Scan biển số + Tự động check-in Walk-in luôn (flow liền mạch)
     /// </summary>
     [HttpPost("scan-and-checkin")]
     [Authorize(Roles = "Staff,Manager,Admin")]

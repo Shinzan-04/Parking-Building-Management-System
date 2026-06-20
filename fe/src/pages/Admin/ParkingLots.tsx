@@ -179,6 +179,11 @@ function SlotMap({
                   >
                     {(occupied || isSelected) && <Car size={9} />}
                     <span>{slot.slotNumber ?? `${colLetter}${rowNum}`}</span>
+                    {occupied && slot.currentLicensePlate && (
+                      <span className="text-[6.5px] opacity-90 truncate w-full text-center px-px leading-none -mt-0.5">
+                        {slot.currentLicensePlate}
+                      </span>
+                    )}
                   </button>
                 );
               })}

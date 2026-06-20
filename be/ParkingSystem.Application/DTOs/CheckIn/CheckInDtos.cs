@@ -3,7 +3,8 @@ using ParkingSystem.Domain.Enums;
 namespace ParkingSystem.Application.DTOs.CheckIn;
 
 /// <summary>
-/// NHÁNH 1: Check-in bằng mã QR Booking (đã đặt trước)
+/// [DEPRECATED] — Không còn sử dụng. Flow mới dùng SmartCheckInRequest thay thế.
+/// API CŨ: Check-in bằng mã QR Booking (đã đặt trước)
 /// </summary>
 public class CheckInBookingRequest
 {
@@ -18,7 +19,8 @@ public class CheckInBookingRequest
 }
 
 /// <summary>
-/// NHÁNH 1B: Check-in bằng QR Driver cố định (quét QR trên app → JWT → DriverId)
+/// [DEPRECATED] — Không còn sử dụng. Flow mới dùng SmartCheckInRequest thay thế.
+/// API CŨ: Check-in bằng QR Driver cố định (quét QR trên app → JWT → DriverId)
 /// Hệ thống tự tra Reservation Confirmed khớp với biển số OCR
 /// </summary>
 public class CheckInDriverQrRequest
@@ -42,9 +44,9 @@ public class CheckInDriverQrRequest
 }
 
 /// <summary>
-/// NHÁNH 2: Check-in trực tiếp (khách vãng lai)
-/// Nếu SlotId = null → Hệ thống AI tự chọn slot tốt nhất
-/// Nếu SlotId có giá trị → Staff chọn thủ công
+/// [DEPRECATED] — Đã được gộp vào SmartCheckInRequest.
+/// SmartCheckIn tự động rẽ nhánh Walk-in nếu không tìm thấy Booking.
+/// API CŨ: Check-in trực tiếp (khách vãng lai)
 /// </summary>
 public class CheckInWalkInRequest
 {
@@ -69,6 +71,28 @@ public class CheckInWalkInRequest
 }
 
 /// <summary>
+/// SMART CHECK-IN: API duy nhất cho cổng vào
+/// Camera quét biển số → Backend tự phân loại Booking hay Walk-in
+/// </summary>
+public class SmartCheckInRequest
+{
+    /// <summary>Biển số xe đọc từ Camera OCR</summary>
+    public string LicensePlate { get; set; } = string.Empty;
+    
+    /// <summary>Loại phương tiện (cần thiết cho Walk-in để AI gán slot)</summary>
+    public Guid VehicleTypeId { get; set; }
+    
+    /// <summary>StaffId — tự lấy từ JWT nếu không truyền</summary>
+    public Guid? StaffId { get; set; }
+    
+    /// <summary>Tuỳ chọn: Staff tự chọn slot thủ công. Nếu null, AI sẽ tự động gán slot tốt nhất.</summary>
+    public Guid? SlotId { get; set; }
+    
+    /// <summary>Ảnh biển số (Base64) — lưu làm bằng chứng</summary>
+    public string? EntryImageBase64 { get; set; }
+}
+
+/// <summary>
 /// Response chung cho cả 2 nhánh check-in
 /// </summary>
 public class CheckInResponse
@@ -83,6 +107,11 @@ public class CheckInResponse
     public string FloorName { get; set; } = string.Empty;
     public string BuildingName { get; set; } = string.Empty;
     public string VehicleTypeName { get; set; } = string.Empty;
+    
+    /// <summary>
+    /// Mã booking nếu xe có đặt trước (null nếu walk-in)
+    /// </summary>
+    public string? BookingCode { get; set; }
     
     /// <summary>
     /// true nếu slot được AI tự động gán, false nếu Staff chọn tay
@@ -109,7 +138,8 @@ public class CheckInResponse
 }
 
 /// <summary>
-/// Response khi biển số OCR không khớp với booking (cần Staff xác nhận)
+/// [DEPRECATED] — Không còn kịch bản sử dụng vì flow mới không còn đối chiếu QR vs OCR.
+/// API CŨ: Response khi biển số OCR không khớp với booking (cần Staff xác nhận)
 /// </summary>
 public class CheckInMismatchResponse
 {
@@ -121,7 +151,9 @@ public class CheckInMismatchResponse
 }
 
 /// <summary>
-/// Staff xác nhận cho phép đổi xe (khi biển số lệch)
+/// [DEPRECATED] — Gần như không còn kịch bản sử dụng.
+/// Giữ lại phòng trường hợp mở rộng sau.
+/// API CŨ: Staff xác nhận cho phép đổi xe (khi biển số lệch)
 /// </summary>
 public class StaffOverrideRequest
 {

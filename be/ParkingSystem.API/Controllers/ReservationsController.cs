@@ -137,6 +137,18 @@ public class ReservationsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("all-active")]
+    [Authorize(Roles = "Staff,Manager,Admin")]
+    public async Task<IActionResult> GetAllActiveReservations()
+    {
+        var staffIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(staffIdClaim)) return Unauthorized();
+
+        var staffId = Guid.Parse(staffIdClaim);
+        var result = await _reservationService.GetAllActiveReservationsAsync(staffId);
+        return Ok(result);
+    }
+
     [HttpPut("{id}/review")]
     [Authorize(Roles = "Staff,Manager,Admin")]
     public async Task<IActionResult> ReviewReservation(Guid id, [FromBody] ReviewReservationRequest request)

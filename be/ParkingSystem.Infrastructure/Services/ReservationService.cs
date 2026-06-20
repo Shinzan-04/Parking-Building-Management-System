@@ -585,6 +585,28 @@ public class ReservationService : IReservationService
         return reservations.Select(r => MapToResponse(r, r.ParkingSlot));
     }
 
+    public async Task<IEnumerable<ReservationResponse>> GetAllActiveReservationsAsync(Guid staffId)
+    {
+        var staff = await _context.Users.FindAsync(staffId);
+
+        var validStatuses = new[] { ReservationStatus.PendingReview, ReservationStatus.Confirmed, ReservationStatus.Paid, ReservationStatus.CheckedIn };
+        var query = _context.Reservations
+            .Include(r => r.ParkingSlot)
+            .ThenInclude(ps => ps.Floor)
+            .Where(r => validStatuses.Contains(r.Status));
+
+        if (staff != null && staff.AssignedBuildingId.HasValue)
+        {
+            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == staff.AssignedBuildingId.Value);
+        }
+
+        var reservations = await query
+            .OrderBy(r => r.StartTime)
+            .ToListAsync();
+
+        return reservations.Select(r => MapToResponse(r, r.ParkingSlot));
+    }
+
     public async Task<bool> ReviewReservationAsync(Guid reservationId, Guid staffId, ReviewReservationRequest request)
     {
         var reservation = await _context.Reservations.FirstOrDefaultAsync(r => r.Id == reservationId);

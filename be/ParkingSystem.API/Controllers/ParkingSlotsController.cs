@@ -17,9 +17,9 @@ public class ParkingSlotsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] Guid? buildingId)
     {
-        var slots = await _slotService.GetAllAsync();
+        var slots = await _slotService.GetAllAsync(buildingId);
         return Ok(slots);
     }
 

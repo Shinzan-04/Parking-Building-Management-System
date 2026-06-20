@@ -39,6 +39,7 @@ export interface ParkingSlotSummary {
   slotNumber?: string;
   vehicleTypeName?: string;
   vehicleTypeId?: string;
+  currentLicensePlate?: string;
 }
 
 export function isSlotOccupied(status: string | number): boolean {

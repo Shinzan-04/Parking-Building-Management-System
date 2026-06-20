@@ -252,6 +252,11 @@ function SlotMap({
                         {slot.status === 'Occupied' && <VehicleIcon name={slot.vehicleTypeName} size={8} />}
                         {slot.status === 'Maintenance' && <Wrench size={8} />}
                         <span>{slot.slotNumber}</span>
+                        {slot.status === 'Occupied' && slot.currentLicensePlate && (
+                          <span className="text-[6.5px] opacity-90 truncate w-full text-center px-px leading-none -mt-0.5">
+                            {slot.currentLicensePlate}
+                          </span>
+                        )}
                       </button>
                     );
                   })}

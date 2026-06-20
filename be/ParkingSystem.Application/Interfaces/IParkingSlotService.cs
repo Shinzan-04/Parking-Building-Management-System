@@ -5,7 +5,7 @@ namespace ParkingSystem.Application.Interfaces;
 
 public interface IParkingSlotService
 {
-    Task<IEnumerable<ParkingSlotResponse>> GetAllAsync();
+    Task<IEnumerable<ParkingSlotResponse>> GetAllAsync(Guid? buildingId = null);
     Task<IEnumerable<ParkingSlotResponse>> GetByFloorIdAsync(Guid floorId);
     Task<IEnumerable<ParkingSlotResponse>> GetAvailableByVehicleTypeAsync(Guid vehicleTypeId);
     Task<ParkingSlotResponse?> GetByIdAsync(Guid id);
