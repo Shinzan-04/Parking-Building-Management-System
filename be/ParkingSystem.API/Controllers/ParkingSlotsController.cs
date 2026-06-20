@@ -30,6 +30,13 @@ public class ParkingSlotsController : ControllerBase
         return Ok(slots);
     }
 
+    [HttpGet("floor/{floorId}/availability")]
+    public async Task<IActionResult> GetAvailability(Guid floorId, [FromQuery] DateTime startTime, [FromQuery] DateTime endTime)
+    {
+        var slots = await _slotService.GetAvailabilityByFloorAsync(floorId, startTime, endTime);
+        return Ok(slots);
+    }
+
     [HttpGet("available/{vehicleTypeId}")]
     public async Task<IActionResult> GetAvailable(Guid vehicleTypeId)
     {

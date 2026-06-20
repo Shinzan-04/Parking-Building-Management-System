@@ -22,7 +22,7 @@ import { getAllPolicies, getPolicyByVehicleType } from '../../services/pricingSe
 import type { PricingPolicyResponse } from '../../services/pricingService';
 import { getFloorsByBuilding, getBuildings } from '../../services/buildingsService';
 import type { FloorResponse } from '../../services/buildingsService';
-import { getSlotsByFloor } from '../../services/parkingService';
+import { getAvailableSlotsByVehicleType, getRecommendedSlots, getSlotsByFloor, getAvailableSlotsByFloor } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
 import { createReservation, getAiSuggestions } from '../../services/reservationsService';
 import { createPayOSPayment, verifyPayment } from '../../services/paymentService';
@@ -1865,9 +1865,21 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
         setFloors(sorted);
 
         // Fetch all slots for these floors in parallel
-        const slotsArrays = await Promise.all(
-          sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
-        );
+        let slotsArrays: ParkingSlotDetail[][] = [];
+        if (state.entryDate && state.entryTime && state.duration) {
+          const [h, m] = state.entryTime.split(':').map(Number);
+          const entry = new Date(state.entryDate);
+          entry.setHours(h, m, 0, 0);
+          const exit = new Date(entry.getTime() + state.duration * 3600000);
+          slotsArrays = await Promise.all(
+            sorted.map((f) => getAvailableSlotsByFloor(f.id, entry.toISOString(), exit.toISOString()).catch(() => []))
+          );
+        } else {
+          slotsArrays = await Promise.all(
+            sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
+          );
+        }
+        
         const flatSlots = slotsArrays.flat();
         setAllBuildingSlots(flatSlots);
       } catch (err) {
@@ -1877,7 +1889,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
       }
     }
     loadFloors();
-  }, [lot.id]);
+  }, [lot.id, state.entryDate, state.entryTime, state.duration]);
 
   // Load slots when floor changes
   useEffect(() => {
@@ -1890,7 +1902,21 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
       if (!currentFloor) return;
       try {
         setLoadingSlots(true);
-        const data = await getSlotsByFloor(currentFloor);
+        let data: ParkingSlotDetail[];
+        
+        if (state.entryDate && state.entryTime && state.duration) {
+          const [h, m] = state.entryTime.split(':').map(Number);
+          const entry = new Date(state.entryDate);
+          entry.setHours(h, m, 0, 0);
+          const exit = new Date(entry.getTime() + state.duration * 3600000);
+          
+          // Dùng API mới tính toán overlap
+          data = await getAvailableSlotsByFloor(currentFloor, entry.toISOString(), exit.toISOString());
+        } else {
+          // Fallback nếu thiếu thời gian
+          data = await getSlotsByFloor(currentFloor);
+        }
+        
         setSlots(data);
       } catch (err) {
         console.error('Lỗi khi tải ô đỗ xe:', err);
@@ -1899,7 +1925,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
       }
     }
     loadSlots();
-  }, [state.floor]);
+  }, [state.floor, state.entryDate, state.entryTime, state.duration]);
 
   // Lock body scroll
   useEffect(() => {

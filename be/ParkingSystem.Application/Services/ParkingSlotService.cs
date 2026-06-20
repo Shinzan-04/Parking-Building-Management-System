@@ -9,10 +9,14 @@ namespace ParkingSystem.Application.Services;
 public class ParkingSlotService : IParkingSlotService
 {
     private readonly IGenericRepository<ParkingSlot> _repository;
+    private readonly IGenericRepository<Reservation> _reservationRepo;
 
-    public ParkingSlotService(IGenericRepository<ParkingSlot> repository)
+    public ParkingSlotService(
+        IGenericRepository<ParkingSlot> repository,
+        IGenericRepository<Reservation> reservationRepo)
     {
         _repository = repository;
+        _reservationRepo = reservationRepo;
     }
 
     public async Task<IEnumerable<ParkingSlotResponse>> GetAllAsync()
@@ -75,6 +79,39 @@ public class ParkingSlotService : IParkingSlotService
 
         await _repository.DeleteAsync(slot);
         return true;
+    }
+
+    public async Task<IEnumerable<ParkingSlotResponse>> GetAvailabilityByFloorAsync(Guid floorId, DateTime startTime, DateTime endTime)
+    {
+        var slots = await _repository.FindAsync(s => s.FloorId == floorId, "VehicleType,Floor");
+        var activeStatuses = new[] { ReservationStatus.PaymentPending, ReservationStatus.Confirmed };
+        
+        var reservations = await _reservationRepo.FindAsync(r => r.ParkingSlot.FloorId == floorId && activeStatuses.Contains(r.Status));
+        
+        var overlappingSlotIds = reservations
+            .Where(r => r.StartTime < endTime && r.EndTime > startTime)
+            .Select(r => r.ParkingSlotId)
+            .ToList();
+
+        var responses = slots.Select(s => MapToResponse(s)).ToList();
+        var isImmediate = startTime <= DateTime.UtcNow.AddMinutes(30);
+
+        foreach(var res in responses)
+        {
+            if (overlappingSlotIds.Contains(res.Id))
+            {
+                res.Status = SlotStatus.Reserved; 
+            }
+            else
+            {
+                if (!isImmediate)
+                {
+                    res.Status = SlotStatus.Available;
+                }
+            }
+        }
+
+        return responses;
     }
 
     private static ParkingSlotResponse MapToResponse(ParkingSlot s) => new()

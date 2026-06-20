@@ -12,4 +12,5 @@ public interface IParkingSlotService
     Task<ParkingSlotResponse> CreateAsync(CreateParkingSlotRequest request);
     Task<ParkingSlotResponse?> UpdateStatusAsync(Guid id, UpdateParkingSlotStatusRequest request);
     Task<bool> DeleteAsync(Guid id);
+    Task<IEnumerable<ParkingSlotResponse>> GetAvailabilityByFloorAsync(Guid floorId, DateTime startTime, DateTime endTime);
 }

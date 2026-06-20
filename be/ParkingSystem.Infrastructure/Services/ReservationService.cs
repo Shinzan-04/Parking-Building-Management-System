@@ -704,6 +704,52 @@ public class ReservationService : IReservationService
         });
     }
 
+    public async Task<bool> ReassignSlotAsync(Guid reservationId, Guid newSlotId, Guid staffId)
+    {
+        var reservation = await _context.Reservations.FirstOrDefaultAsync(r => r.Id == reservationId);
+        if (reservation == null)
+            throw new InvalidOperationException("Không tìm thấy thông tin đặt chỗ.");
+
+        if (reservation.Status != ReservationStatus.Confirmed)
+            throw new InvalidOperationException("Chỉ có thể đổi chỗ cho booking đã được Confirmed.");
+
+        var newSlot = await _context.ParkingSlots.FindAsync(newSlotId);
+        if (newSlot == null || newSlot.Status != SlotStatus.Available)
+            throw new InvalidOperationException("Ô đỗ mới không tồn tại hoặc không còn trống.");
+
+        var oldSlotId = reservation.ParkingSlotId;
+
+        // Cập nhật booking
+        reservation.ParkingSlotId = newSlotId;
+        reservation.UpdatedAt = DateTime.UtcNow;
+        LogState(reservation, "Reassigned", $"Staff {staffId} đổi ô đỗ từ {oldSlotId} sang {newSlotId}");
+
+        // Khóa ô mới
+        newSlot.Status = SlotStatus.Reserved;
+        newSlot.UpdatedAt = DateTime.UtcNow;
+
+        // Nhả ô cũ
+        var oldSlot = await _context.ParkingSlots.FindAsync(oldSlotId);
+        if (oldSlot != null && oldSlot.Status == SlotStatus.Reserved)
+        {
+            oldSlot.Status = SlotStatus.Available;
+            oldSlot.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+
+        // Gửi Notification cho Driver
+        await _notificationService.SendAsync(
+            reservation.DriverId,
+            "🔄 Thay đổi ô đỗ",
+            $"Do sự cố vận hành, ô đỗ của bạn đã được chuyển sang ô {newSlot.SlotNumber}. Mong bạn thông cảm.",
+            "ReservationReassigned",
+            reservation.Id
+        );
+
+        return true;
+    }
+
     // ===== HELPER: Map entity → response =====
     private ReservationResponse MapToResponse(
         Reservation r,

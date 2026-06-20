@@ -111,9 +111,13 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
 export const getAllSlots = (): Promise<ParkingSlotDetail[]> =>
   apiFetch('/api/parkingslots');
 
-/** Lấy slots theo tầng */
+/** Lấy slots theo tầng (thực tế - vật lý) */
 export const getSlotsByFloor = (floorId: string): Promise<ParkingSlotDetail[]> =>
   apiFetch(`/api/parkingslots/floor/${floorId}`);
+
+/** Lấy slots theo tầng có tính toán đặt chỗ tương lai */
+export const getAvailableSlotsByFloor = (floorId: string, startTime: string, endTime: string): Promise<ParkingSlotDetail[]> =>
+  apiFetch(`/api/parkingslots/floor/${floorId}/availability?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}`);
 
 /** Lấy slots còn trống theo loại xe */
 export const getAvailableSlotsByVehicleType = (vehicleTypeId: string): Promise<ParkingSlotDetail[]> =>

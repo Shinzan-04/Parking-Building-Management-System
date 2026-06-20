@@ -160,4 +160,31 @@ public class ReservationsController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpPut("{id}/reassign-slot")]
+    [Authorize(Roles = "Staff,Manager,Admin")]
+    public async Task<IActionResult> ReassignSlot(Guid id, [FromBody] ReassignSlotRequest request)
+    {
+        try
+        {
+            var staffIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(staffIdClaim)) return Unauthorized();
+
+            var staffId = Guid.Parse(staffIdClaim);
+
+            var success = await _reservationService.ReassignSlotAsync(id, request.NewSlotId, staffId);
+            if (success) return Ok(new { message = "Đổi ô đỗ cho khách thành công." });
+            
+            return BadRequest();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+}
+
+public class ReassignSlotRequest
+{
+    public Guid NewSlotId { get; set; }
 }

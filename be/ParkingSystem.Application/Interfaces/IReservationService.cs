@@ -15,4 +15,5 @@ public interface IReservationService
     // For Staff
     Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync(Guid staffId);
     Task<bool> ReviewReservationAsync(Guid reservationId, Guid staffId, ReviewReservationRequest request);
+    Task<bool> ReassignSlotAsync(Guid reservationId, Guid newSlotId, Guid staffId);
 }

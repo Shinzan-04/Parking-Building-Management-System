@@ -13,4 +13,7 @@ public interface IRealtimeService
 
     // Gửi Notification cho 1 user cụ thể (theo userId)
     Task SendNotificationAsync(Guid userId, string message);
+
+    // Báo động cho toàn bộ Staff
+    Task BroadcastNotificationToStaffAsync(string message);
 }

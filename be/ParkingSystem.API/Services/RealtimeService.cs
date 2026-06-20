@@ -37,4 +37,12 @@ public class RealtimeService : IRealtimeService
     {
         await _hubContext.Clients.User(userId.ToString()).SendAsync("ReceiveNotification", message);
     }
+
+    /// <summary>
+    /// Báo động cho toàn bộ Staff
+    /// </summary>
+    public async Task BroadcastNotificationToStaffAsync(string message)
+    {
+        await _hubContext.Clients.All.SendAsync("ReceiveNotification", message);
+    }
 }
