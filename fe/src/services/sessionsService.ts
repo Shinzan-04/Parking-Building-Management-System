@@ -67,9 +67,23 @@ export interface SessionDto {
 export interface SessionSummary {
   totalActive: number;
   totalOverdue: number;
-  totalCompletedToday: number;
   totalRevenueToday: number;
 }
+
+export interface MyActiveSessionResponse {
+  id: string;
+  sessionCode: string;
+  sessionQrCodeBase64: string;
+  licensePlate: string;
+  vehicleTypeName: string;
+  entryTime: string;
+  buildingName: string;
+  floorName: string;
+  slotNumber: string;
+  pricePerHour: number;
+  currentFee: number;
+}
+
 
 export interface SessionListResponse {
   items: SessionDto[];
@@ -121,3 +135,7 @@ export const getSessionById = (id: string, token: string): Promise<SessionDto> =
 /** Tìm session Active theo biển số */
 export const findSessionByPlate = (plate: string, token: string): Promise<SessionDto | null> =>
   apiFetch(`/api/sessions/find-by-plate?plate=${encodeURIComponent(plate)}`, undefined, token);
+
+/** Lấy Live Session (phiên đang đỗ) của User/Driver */
+export const getMyActiveSession = (token: string): Promise<MyActiveSessionResponse | null> =>
+  apiFetch(`/api/sessions/my-active`, undefined, token);

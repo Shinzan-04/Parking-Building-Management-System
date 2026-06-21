@@ -15,10 +15,12 @@ namespace ParkingSystem.Infrastructure.Services;
 public class SessionService : ISessionService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IQrCodeService _qrCodeService;
 
-    public SessionService(ApplicationDbContext context)
+    public SessionService(ApplicationDbContext context, IQrCodeService qrCodeService)
     {
         _context = context;
+        _qrCodeService = qrCodeService;
     }
 
     /// <summary>
@@ -204,6 +206,49 @@ public class SessionService : ISessionService
             TotalFee = s.TotalFee,
             Duration = durationText,
             EntryImageUrl = s.EntryImageUrl
+        };
+    }
+
+    /// <summary>
+    /// Lấy thông tin phiên đỗ xe hiện tại (Live Session) của user (Driver)
+    /// </summary>
+    public async Task<MyActiveSessionResponse?> GetMyActiveSessionAsync(Guid driverId)
+    {
+        var session = await _context.ParkingSessions
+            .Include(s => s.VehicleType)
+            .Include(s => s.ParkingSlot)
+                .ThenInclude(ps => ps.Floor)
+                    .ThenInclude(f => f.Building)
+            .Where(s => s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted)
+            .OrderByDescending(s => s.EntryTime)
+            .FirstOrDefaultAsync();
+
+        if (session == null) return null;
+
+        // Lấy đơn giá theo giờ từ PricingPolicy
+        var pricing = await _context.PricingPolicies
+            .FirstOrDefaultAsync(p => p.VehicleTypeId == session.VehicleTypeId && !p.IsDeleted);
+
+        var pricePerHour = pricing?.HourlyRate ?? 0;
+
+        // Tính tạm phí đỗ xe
+        var duration = DateTime.UtcNow - session.EntryTime;
+        var hours = Math.Ceiling(duration.TotalHours);
+        var currentFee = (decimal)Math.Max(1, hours) * pricePerHour;
+
+        return new MyActiveSessionResponse
+        {
+            Id = session.Id,
+            SessionCode = session.SessionCode,
+            SessionQrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(session.Id.ToString()),
+            LicensePlate = session.LicensePlate,
+            VehicleTypeName = session.VehicleType?.Name ?? "",
+            EntryTime = session.EntryTime,
+            BuildingName = session.ParkingSlot?.Floor?.Building?.Name ?? "",
+            FloorName = session.ParkingSlot?.Floor?.Name ?? "",
+            SlotNumber = session.ParkingSlot?.SlotNumber ?? "",
+            PricePerHour = pricePerHour,
+            CurrentFee = currentFee
         };
     }
 }
