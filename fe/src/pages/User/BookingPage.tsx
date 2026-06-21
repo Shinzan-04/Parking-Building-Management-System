@@ -5,8 +5,10 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../hooks/useAuth';
-import { getBuildings } from '../../services/buildingsService';
-import type { BuildingResponse } from '../../services/buildingsService';
+import { getBuildings, getFloorsByBuilding } from '../../services/buildingsService';
+import type { BuildingResponse, FloorResponse } from '../../services/buildingsService';
+import { getSlotsByFloor, SLOT_STATUS_COLORS, SLOT_STATUS_LABELS, SLOT_STATUS_FROM_ENUM } from '../../services/parkingService';
+import type { ParkingSlotDetail, SlotStatus } from '../../services/parkingService';
 import {
   Search,
   MapPin,
@@ -208,6 +210,12 @@ export default function BookingPage() {
   const sortRef = useRef<HTMLDivElement>(null);
   const handleMapRef = useCallback((map: L.Map) => setMapInstance(map), []);
 
+  const [buildingFloors, setBuildingFloors] = useState<FloorResponse[]>([]);
+  const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
+  const [floorSlots, setFloorSlots] = useState<ParkingSlotDetail[]>([]);
+  const [isLoadingFloors, setIsLoadingFloors] = useState(false);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingUser, setLocatingUser] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -289,6 +297,40 @@ export default function BookingPage() {
       });
     return () => { cancelled = true; };
   }, []);
+
+  // Fetch floors when selectedLot changes
+  useEffect(() => {
+    if (selectedLot) {
+      setIsLoadingFloors(true);
+      setSelectedFloorId(null);
+      setFloorSlots([]);
+      getFloorsByBuilding(selectedLot.id)
+        .then((floors) => {
+          setBuildingFloors(floors.sort((a, b) => a.floorIndex - b.floorIndex));
+        })
+        .catch((err) => console.error('Failed to fetch floors:', err))
+        .finally(() => setIsLoadingFloors(false));
+    } else {
+      setBuildingFloors([]);
+      setSelectedFloorId(null);
+      setFloorSlots([]);
+    }
+  }, [selectedLot]);
+
+  // Fetch slots when selectedFloorId changes
+  useEffect(() => {
+    if (selectedFloorId) {
+      setIsLoadingSlots(true);
+      getSlotsByFloor(selectedFloorId)
+        .then((slots) => {
+          setFloorSlots(slots.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber)));
+        })
+        .catch((err) => console.error('Failed to fetch slots:', err))
+        .finally(() => setIsLoadingSlots(false));
+    } else {
+      setFloorSlots([]);
+    }
+  }, [selectedFloorId]);
 
   // Hàm lấy vị trí người dùng
   const handleLocateMe = useCallback(() => {
@@ -1050,6 +1092,76 @@ export default function BookingPage() {
                       </span>
                     ))}
                   </div>
+                </div>
+
+                {/* Floors & Slots */}
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-3">
+                    Floors & Parking Slots
+                  </p>
+                  
+                  {isLoadingFloors ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 size={18} className="text-[#FF4C4C] animate-spin" />
+                    </div>
+                  ) : buildingFloors.length === 0 ? (
+                    <p className="text-xs text-stone-400 italic">No floors data available.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {buildingFloors.map(floor => (
+                          <button
+                            key={floor.id}
+                            onClick={() => setSelectedFloorId(floor.id === selectedFloorId ? null : floor.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedFloorId === floor.id
+                              ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm'
+                              : 'bg-white text-stone-600 border-gray-200 hover:border-[#FF4C4C]/50 hover:text-[#FF4C4C]'
+                            }`}
+                          >
+                            {floor.name}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Slots for selected floor */}
+                      {selectedFloorId && (
+                        <div className="mt-3 bg-gray-50 border border-gray-200/60 rounded-xl p-3">
+                          {isLoadingSlots ? (
+                            <div className="flex items-center gap-2 text-xs text-stone-500 justify-center py-2">
+                              <Loader2 size={14} className="animate-spin text-[#FF4C4C]" />
+                              Loading slots...
+                            </div>
+                          ) : floorSlots.length === 0 ? (
+                            <p className="text-xs text-stone-500 text-center py-2">No slots on this floor.</p>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto scrollbar-thin pr-1">
+                              {floorSlots.map(slot => {
+                                const statusStr: SlotStatus = typeof slot.status === 'number' 
+                                  ? SLOT_STATUS_FROM_ENUM[slot.status as number] || 'Available'
+                                  : slot.status || 'Available';
+                                const colors = SLOT_STATUS_COLORS[statusStr] || SLOT_STATUS_COLORS['Available'];
+                                
+                                return (
+                                  <div
+                                    key={slot.id}
+                                    title={SLOT_STATUS_LABELS[statusStr]}
+                                    className={`relative flex flex-col items-center justify-center p-2 rounded-lg border text-xs font-bold transition-all ${
+                                      statusStr === 'Available'
+                                        ? 'bg-white border-emerald-200 hover:border-emerald-400 text-stone-700'
+                                        : 'bg-gray-100/50 border-gray-200 text-stone-400 cursor-not-allowed opacity-70'
+                                    }`}
+                                  >
+                                    <span className="mb-0.5">{slot.slotNumber}</span>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* CTA buttons */}
