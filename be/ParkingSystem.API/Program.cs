@@ -150,6 +150,11 @@ builder.Services.AddAuthentication(options =>
         NameClaimType = System.Security.Claims.ClaimTypes.Name,
     };
 
+    // Tự động nhận diện token dù có hay không có prefix "Bearer "
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
             // 1. Cho các API gọi bằng cách gửi thẳng token vào Header "Authorization" không có "Bearer "
             var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
             if (!string.IsNullOrEmpty(authHeader) && !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
