@@ -54,9 +54,20 @@ export default function LiveSessionPage() {
       const s = (totalSeconds % 60).toString().padStart(2, '0');
       setElapsedString(`${h}:${m}:${s}`);
 
-      // Dynamic fee calculation (simplified: rounded up to nearest hour)
-      const hours = Math.ceil(diffMs / (1000 * 60 * 60));
-      const newFee = Math.max(1, hours) * session.pricePerHour;
+      let newFee = 0;
+      if (session.isPrepaid) {
+        if (session.prepaidEndTime) {
+          const endTimeMs = new Date(session.prepaidEndTime).getTime();
+          if (now > endTimeMs) {
+            const overdueMs = now - endTimeMs;
+            const overdueHours = Math.ceil(overdueMs / (1000 * 60 * 60));
+            newFee = Math.max(1, overdueHours) * session.pricePerHour;
+          }
+        }
+      } else {
+        const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+        newFee = Math.max(1, hours) * session.pricePerHour;
+      }
       setDynamicFee(newFee);
     };
 
@@ -89,146 +100,160 @@ export default function LiveSessionPage() {
   return (
     <div className="min-h-screen bg-[#F4F7F9] text-slate-800 font-sans pb-10">
       {/* Header */}
-      <div className="bg-white px-4 py-4 flex items-center shadow-sm sticky top-0 z-50">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-500 hover:text-slate-800">
+      <div className="bg-white px-4 py-4 flex items-center shadow-sm sticky top-0 z-50 lg:px-8">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-500 hover:text-slate-800 transition-colors">
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-lg font-bold flex-1 text-center pr-8">Phiên đỗ xe</h1>
+        <h1 className="text-lg font-bold flex-1 text-center pr-8 lg:pr-0 lg:text-left lg:ml-4">Phiên đỗ xe hiện tại</h1>
       </div>
 
-      <div className="max-w-md mx-auto px-4 mt-6 space-y-4">
+      {/* Main Grid Container for Desktop */}
+      <div className="max-w-6xl mx-auto px-4 mt-6 lg:mt-10 lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start">
 
-        {/* QR Code Block */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm flex flex-col items-center">
-          <div className="w-48 h-48 bg-white border border-slate-200 rounded-xl flex items-center justify-center mb-4">
-            {session.sessionQrCodeBase64 ? (
-              <img src={`data:image/png;base64,${session.sessionQrCodeBase64}`} alt="QR Code" className="w-full h-full object-contain" />
-            ) : (
-              <div className="relative grid grid-cols-5 grid-rows-5 gap-1 p-2 w-40 h-40">
-                {Array.from({ length: 25 }).map((_, i) => (
-                  <div key={i} className={`bg-slate-900 rounded-sm ${Math.random() > 0.5 ? 'opacity-100' : 'opacity-0'}`}></div>
-                ))}
-                <div className="absolute inset-0 m-auto w-12 h-12 bg-white border-4 border-slate-900 flex items-center justify-center">
-                  <div className="w-4 h-4 bg-[#2B52FF]"></div>
+        {/* LEFT COLUMN: The "E-Ticket" (4 columns out of 12) */}
+        <div className="lg:col-span-4 bg-gradient-to-br from-[#1A36A8] to-[#2B52FF] rounded-3xl p-8 shadow-2xl text-white relative overflow-hidden space-y-8 mb-6 lg:mb-0">
+          {/* Glassmorphism Background Shapes */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-40 h-40 bg-black/10 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
+          
+          <div className="relative z-10 flex flex-col items-center">
+            {/* QR Code Container */}
+            <div className="bg-white p-4 rounded-3xl shadow-inner mb-6">
+              {session.sessionQrCodeBase64 ? (
+                <img src={`data:image/png;base64,${session.sessionQrCodeBase64}`} alt="QR Code" className="w-56 h-56 object-contain" />
+              ) : (
+                <div className="relative grid grid-cols-5 grid-rows-5 gap-1 p-2 w-56 h-56">
+                  {Array.from({ length: 25 }).map((_, i) => (
+                    <div key={i} className={`bg-slate-900 rounded-sm ${Math.random() > 0.5 ? 'opacity-100' : 'opacity-0'}`}></div>
+                  ))}
+                  <div className="absolute inset-0 m-auto w-16 h-16 bg-white border-4 border-slate-900 flex items-center justify-center">
+                    <div className="w-6 h-6 bg-[#2B52FF]"></div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-xs text-white/80 font-bold text-center uppercase tracking-widest mb-8 bg-white/10 py-2 px-4 rounded-full">
+              Mã quét tại cổng ra
+            </p>
+
+            <div className="w-full border-t border-white/20 pt-8">
+              <div className="text-[10px] uppercase font-bold text-white/60 mb-2 tracking-wider text-center">Biển số xe</div>
+              <div className="text-4xl font-black text-white text-center tracking-wider mb-3">{session.licensePlate}</div>
+              <div className="flex items-center justify-center gap-2 bg-black/20 py-2 rounded-xl w-fit mx-auto px-4">
+                <Car size={16} className="text-white/80" />
+                <div className="text-sm text-white font-medium">{session.vehicleTypeName}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN: Info & Actions (8 columns out of 12) */}
+        <div className="lg:col-span-8 space-y-6">
+          
+          {/* Top Level Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
+            {/* Time Card */}
+            <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 flex flex-col justify-center transition-all hover:shadow-md">
+              <div className="flex items-center gap-2 text-[#2B52FF] mb-4">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+                  <Clock size={20} />
+                </div>
+                <span className="text-xs uppercase font-bold tracking-widest">Thời gian đỗ</span>
+              </div>
+              <div className="text-5xl lg:text-6xl font-black font-mono tracking-wider text-slate-800">{elapsedString}</div>
+              <div className="text-[10px] text-slate-400 mt-2 uppercase font-bold tracking-widest">Giờ : Phút : Giây</div>
+            </div>
+
+            {/* Fee Card */}
+            <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 flex flex-col justify-center transition-all hover:shadow-md">
+              <div className="flex items-center gap-2 text-emerald-500 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                  <CreditCard size={20} />
+                </div>
+                <span className="text-xs uppercase font-bold tracking-widest">
+                  {session.isPrepaid ? 'Phí quá hạn' : 'Phí hiện tại'}
+                </span>
+              </div>
+              <div className="text-5xl lg:text-6xl font-black text-slate-800">
+                {dynamicFee.toLocaleString('vi-VN')} <span className="text-2xl text-slate-400 font-bold">đ</span>
+              </div>
+              <div className="text-sm text-slate-400 mt-3 font-medium">
+                Đơn giá: <span className="text-slate-600 font-bold">{session.pricePerHour.toLocaleString('vi-VN')} đ/giờ</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Location & Details Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+            {/* Location */}
+            <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 flex flex-col h-full transition-all hover:shadow-md">
+              <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <MapPin size={18} className="text-orange-500" />
+                Vị trí đỗ xe
+              </h3>
+              <div className="bg-gradient-to-br from-orange-50 to-orange-100/50 rounded-2xl p-6 flex-1 flex flex-col items-center justify-center text-center border border-orange-100/50">
+                <div className="text-sm uppercase font-bold text-orange-400 tracking-wider mb-2">{session.floorName}</div>
+                <div className="text-5xl font-black text-orange-600 drop-shadow-sm">Ô {session.slotNumber}</div>
+              </div>
+            </div>
+
+            {/* Session Details */}
+            <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 h-full flex flex-col transition-all hover:shadow-md">
+              <h3 className="text-sm font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <Flag size={18} className="text-indigo-500" />
+                Chi tiết phiên đỗ
+              </h3>
+              <div className="grid grid-cols-2 gap-y-8 gap-x-4 flex-1 content-start">
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 tracking-wider">Giờ vào</div>
+                  <div className="text-sm font-bold text-slate-800">{formattedEntryDate}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 tracking-wider">Khu vực</div>
+                  <div className="text-sm font-bold text-slate-800">{session.buildingName}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 tracking-wider">Loại phương tiện</div>
+                  <div className="text-sm font-bold text-slate-800">{session.vehicleTypeName}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase font-bold text-slate-400 mb-1.5 tracking-wider">Hình thức vào</div>
+                  <div className="text-sm font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md inline-block">
+                     {session.isPrepaid ? 'Khách Đặt Trước' : 'Khách Vãng Lai'}
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
-          <p className="text-xs text-slate-500 font-medium text-center">
-            Quét mã tại cổng ra để thanh toán
-          </p>
-        </div>
-
-        {/* License Plate */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-[#EEF2FF] flex items-center justify-center text-[#2B52FF]">
-            <Car size={24} />
-          </div>
-          <div>
-            <div className="text-[10px] uppercase font-bold text-slate-400 mb-0.5 tracking-wider">Biển số xe</div>
-            <div className="text-lg font-bold text-slate-800">{session.licensePlate}</div>
-            <div className="text-xs text-slate-500 font-medium">{session.vehicleTypeName}</div>
-          </div>
-        </div>
-
-        {/* Time & Fee Grid */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-1.5 text-[#2B52FF] mb-2">
-              <Clock size={16} />
-              <span className="text-[10px] uppercase font-bold tracking-wider">Thời gian đỗ</span>
-            </div>
-            <div className="text-2xl font-black font-mono tracking-wider">{elapsedString}</div>
-            <div className="text-[10px] text-slate-400 mt-1 uppercase">HH:MM:SS</div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 shadow-sm">
-            <div className="flex items-center gap-1.5 text-emerald-500 mb-2">
-              <CreditCard size={16} />
-              <span className="text-[10px] uppercase font-bold tracking-wider">Phí hiện tại</span>
-            </div>
-            <div className="text-2xl font-black">{dynamicFee.toLocaleString('vi-VN')} <span className="text-lg">đ</span></div>
-            <div className="text-[10px] text-slate-400 mt-1">{session.pricePerHour.toLocaleString('vi-VN')} đ/giờ</div>
-          </div>
-        </div>
-
-        {/* Location Block */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-orange-50 flex items-center justify-center text-orange-500">
-              <MapPin size={20} />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-0.5">Vị trí đỗ xe</div>
-              <div className="text-base font-bold text-slate-800">
-                {session.floorName} — Ô {session.slotNumber}
+              <div className="mt-6 pt-6 border-t border-slate-100 flex items-start gap-3 bg-orange-50/50 p-4 rounded-2xl">
+                <AlertTriangle size={18} className="text-orange-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                  Giữ mã QR để xuất trình tại cổng ra. Phí được tính tự động theo thời gian thực hệ thống.
+                </p>
               </div>
             </div>
           </div>
-          <button className="w-full py-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center gap-2 transition-colors">
-            <Navigation size={14} />
-            Tìm Xe Của Tôi
-          </button>
-        </div>
 
-        {/* Session Details */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-100">
-            <h3 className="text-sm font-bold text-slate-800">Chi Tiết Phiên Đỗ</h3>
+          {/* Action Buttons */}
+          <div className="pt-4 flex flex-col sm:flex-row items-center gap-4">
+            {(!session.isPrepaid || dynamicFee > 0) && (
+              <button
+                onClick={handlePayment}
+                className="w-full sm:flex-1 bg-[#2B52FF] hover:bg-blue-700 text-white font-bold py-5 rounded-2xl shadow-xl shadow-[#2B52FF]/30 transition-all hover:-translate-y-1 flex justify-center items-center gap-3 text-lg border border-transparent"
+              >
+                <CreditCard size={22} />
+                Thanh Toán ({dynamicFee.toLocaleString('vi-VN')} đ)
+              </button>
+            )}
+            <button
+              onClick={handleReport}
+              className="w-full sm:flex-1 bg-white border-2 border-slate-100 hover:bg-slate-50 hover:border-slate-200 text-slate-600 font-bold py-5 rounded-2xl transition-all flex justify-center items-center gap-2 text-base"
+            >
+              <Flag size={20} />
+              Báo Cáo Sự Cố
+            </button>
           </div>
-          <div className="p-4 grid grid-cols-2 gap-y-6 gap-x-4">
-            <div>
-              <div className="text-[10px] uppercase font-bold text-[#2B52FF] mb-1">Giờ vào</div>
-              <div className="text-xs font-bold text-slate-800">{formattedEntryDate}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-bold text-[#2B52FF] mb-1">Khu vực</div>
-              <div className="text-xs font-bold text-slate-800">{session.buildingName}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-bold text-[#2B52FF] mb-1">Loại phương tiện</div>
-              <div className="text-xs font-bold text-slate-800">{session.vehicleTypeName}</div>
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-bold text-[#2B52FF] mb-1">Ô đỗ</div>
-              <div className="text-xs font-bold text-[#2B52FF]">{session.slotNumber}</div>
-            </div>
-          </div>
-          <div className="p-4 bg-slate-50 flex justify-between items-center border-t border-slate-100">
-            <span className="text-xs text-slate-500 font-medium">Đơn giá áp dụng</span>
-            <span className="text-sm font-bold text-[#2B52FF]">{session.pricePerHour.toLocaleString('vi-VN')} đ / giờ</span>
-          </div>
-        </div>
 
-        {/* Important Note */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-orange-100 flex gap-3">
-          <AlertTriangle size={16} className="text-orange-500 shrink-0 mt-0.5" />
-          <div>
-            <h4 className="text-xs font-bold text-slate-800 mb-1">Lưu Ý Quan Trọng</h4>
-            <p className="text-[10px] text-slate-500 leading-relaxed">
-              Giữ mã QR để xuất trình tại cổng ra. Thời gian đỗ tối đa 24 giờ. Phí được tính theo giờ thực tế với đơn giá <span className="font-bold text-slate-700">{session.pricePerHour.toLocaleString('vi-VN')} đ/giờ</span>.
-            </p>
-          </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="pt-2 space-y-3">
-          <button
-            onClick={handlePayment}
-            className="w-full bg-[#2B52FF] hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-[#2B52FF]/20 transition-colors flex justify-center items-center gap-2"
-          >
-            <CreditCard size={18} />
-            Thanh Toán ({dynamicFee.toLocaleString('vi-VN')} đ)
-          </button>
-          <button
-            onClick={handleReport}
-            className="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-4 rounded-2xl transition-colors flex justify-center items-center gap-2"
-          >
-            <Flag size={18} />
-            Báo Cáo Sự Cố
-          </button>
-        </div>
-
       </div>
     </div>
   );

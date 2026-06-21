@@ -82,6 +82,8 @@ export interface MyActiveSessionResponse {
   slotNumber: string;
   pricePerHour: number;
   currentFee: number;
+  isPrepaid: boolean;
+  prepaidEndTime?: string;
 }
 
 

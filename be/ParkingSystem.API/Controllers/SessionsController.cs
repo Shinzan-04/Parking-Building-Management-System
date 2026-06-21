@@ -116,7 +116,7 @@ public class SessionsController : ControllerBase
 
             if (result == null)
             {
-                return Ok(new { data = (object?)null }); // Trả về 200 OK kèm data: null nếu không có session
+                return NoContent();
             }
 
             return Ok(result);
