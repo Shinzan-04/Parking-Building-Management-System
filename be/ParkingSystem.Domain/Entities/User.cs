@@ -39,9 +39,16 @@ public class User : BaseEntity
     /// </summary>
     public bool IsAutoApproveReservations { get; set; } = false;
 
+    /// <summary>
+    /// Số dư ví tài xế (dùng để nhận tiền hoàn từ Admin và để rút tiền)
+    /// </summary>
+    public decimal Balance { get; set; } = 0;
+
     public ICollection<ParkingSession> DriverSessions { get; set; } = new List<ParkingSession>();
     public ICollection<ParkingSession> HandledSessions { get; set; } = new List<ParkingSession>();
     public ICollection<Reservation> Reservations { get; set; } = new List<Reservation>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+    public ICollection<UserBankAccount> BankAccounts { get; set; } = new List<UserBankAccount>();
+    public ICollection<WalletTransaction> WalletTransactions { get; set; } = new List<WalletTransaction>();
 }

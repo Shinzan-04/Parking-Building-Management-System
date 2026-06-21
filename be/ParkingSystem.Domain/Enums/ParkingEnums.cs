@@ -17,7 +17,7 @@ public enum ReservationStatus
     NoShow,          // Driver không đến sau 30 phút
     PaymentFailed    // Thanh toán thất bại
 }
-public enum PaymentStatus { Pending, Success, Failed, Refunding, Refunded }
+public enum PaymentStatus { Pending, Success, Failed, Refunding, Refunded, RefundFailed }
 public enum PaymentMethod { Cash, Momo, VNPay, CreditCard, PayOS }
 public enum CheckInMethod { WalkIn, Booking }
 public enum BookingMethod { Manual, AIRecommended }

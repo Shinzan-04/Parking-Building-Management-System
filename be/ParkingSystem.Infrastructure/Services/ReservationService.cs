@@ -706,7 +706,7 @@ public class ReservationService : IReservationService
                 reservation.DriverId,
                 "❌ Đặt chỗ bị từ chối",
                 $"Đặt chỗ {reservation.BookingCode} bị từ chối. " +
-                $"Lý do: {reservation.RejectReason}. Tiền sẽ được hoàn lại.",
+                $"Lý do: {reservation.RejectReason}. Vui lòng liên hệ Admin để được hỗ trợ hoàn tiền.",
                 "ReservationRejected",
                 reservation.Id);
 
