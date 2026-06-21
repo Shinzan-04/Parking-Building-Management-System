@@ -9,6 +9,7 @@ import {
 } from '../../services/reservationsService';
 import type { ReservationResponse } from '../../services/reservationsService';
 import { QRCodeSVG } from 'qrcode.react';
+import FloatingSessionBanner from '../../components/FloatingSessionBanner';
 import {
   ArrowLeft,
   Calendar,
@@ -539,7 +540,7 @@ export default function MyTicketPage() {
           </div>
         </div>
       )}
-
+      <FloatingSessionBanner />
     </div>
   );
 }

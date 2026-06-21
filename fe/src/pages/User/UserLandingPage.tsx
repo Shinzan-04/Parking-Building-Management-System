@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import NotificationBell from '../../components/NotificationBell';
+import FloatingSessionBanner from '../../components/FloatingSessionBanner';
 import {
   Search, ShieldCheck, ArrowRight, BookOpen,
   LogOut, Activity, ChevronDown, Ticket,
@@ -440,6 +441,7 @@ export default function UserLandingPage() {
           </div>
         </div>
       </footer>
+      <FloatingSessionBanner />
     </div>
   );
 }

@@ -159,6 +159,7 @@ function ExceptionHandlingModal({
 }
 
 export default function GateControlPage() {
+  const [activeTab, setActiveTab] = useState<'entry' | 'exit'>('entry');
   const [entryLicensePlate, setEntryLicensePlate] = useState('');
   const [entryVehicleType, setEntryVehicleType] = useState<VehicleType>('car');
   const [entryImageBase64, setEntryImageBase64] = useState<string | null>(null);
@@ -397,10 +398,26 @@ export default function GateControlPage() {
           {/* Sidebar Menu Tabs */}
           <div className="px-3 space-y-1">
             <button
-              className="w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border bg-[#FF4C4C]/5 border-transparent text-[#FF4C4C] transition-all"
+              onClick={() => setActiveTab('entry')}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${
+                activeTab === 'entry'
+                  ? 'bg-[#FF4C4C]/5 border-[#FF4C4C]/10 text-[#FF4C4C]'
+                  : 'bg-transparent border-transparent text-stone-500 hover:bg-gray-50 hover:text-stone-900'
+              }`}
             >
               <Car size={16} />
               Cổng Vào (Check-in)
+            </button>
+            <button
+              onClick={() => setActiveTab('exit')}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${
+                activeTab === 'exit'
+                  ? 'bg-blue-600/5 border-blue-600/10 text-blue-600'
+                  : 'bg-transparent border-transparent text-stone-500 hover:bg-gray-50 hover:text-stone-900'
+              }`}
+            >
+              <DoorOpen size={16} />
+              Cổng Ra (Check-out)
             </button>
           </div>
         </div>
@@ -461,10 +478,12 @@ export default function GateControlPage() {
           {/* ── CHẾ ĐỘ CHECK-IN DUY NHẤT (BIỂN SỐ LÀ TRUNG TÂM) ── */}
             <div className="space-y-6">
               
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="flex justify-center w-full mb-6">
+                <div className="w-full max-w-3xl">
                 
-                {/* Cổng Vào (Walk-In) */}
+                {activeTab === 'entry' && (
                 <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 shadow-sm flex flex-col justify-between min-h-[580px]">
+                  {/* Cổng Vào (Walk-In) */}
                   <div>
                     <div className="mb-5 flex items-center justify-between gap-4">
                       <div>
@@ -489,7 +508,7 @@ export default function GateControlPage() {
                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
                         Ready to scan
                       </div>
-                      <div className="absolute bottom-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono">
+                      <div className="absolute top-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono shadow-sm">
                         CAM-ENTRY-01
                       </div>
                     </div>
@@ -570,9 +589,11 @@ export default function GateControlPage() {
                     <p className="mt-2 text-center text-[10px] text-stone-400 font-bold tracking-widest uppercase">Shortcut: F1</p>
                   </div>
                 </section>
+                )}
 
-                {/* Cổng Ra (Check-Out) */}
+                {activeTab === 'exit' && (
                 <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 shadow-sm flex flex-col justify-between min-h-[580px]">
+                  {/* Cổng Ra (Check-Out) */}
                   <div>
                     <div className="mb-5 flex items-center justify-between gap-4">
                       <div>
@@ -597,7 +618,7 @@ export default function GateControlPage() {
                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
                         Ready to scan
                       </div>
-                      <div className="absolute bottom-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono">
+                      <div className="absolute top-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono shadow-sm">
                         CAM-EXIT-01
                       </div>
                     </div>
@@ -616,7 +637,7 @@ export default function GateControlPage() {
                       <button
                         type="button"
                         onClick={handleSearchExit}
-                        className="h-16 rounded-2xl bg-blue-650 hover:bg-blue-600 px-6 text-sm font-bold text-white transition-colors"
+                        className="h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 px-6 text-sm font-bold text-white transition-colors"
                       >
                         Search
                       </button>
@@ -658,7 +679,9 @@ export default function GateControlPage() {
                     <p className="mt-2 text-center text-[10px] text-stone-400 font-bold tracking-widest uppercase">Shortcut: Enter in input</p>
                   </div>
                 </section>
+                )}
                 
+                </div>
               </div>
 
               {/* Exception Action Block */}
