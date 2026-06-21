@@ -47,7 +47,7 @@ export default function Vehicles() {
         }, token),
       ]);
 
-      let activeAll = [...activePage.items];
+      const activeAll = [...activePage.items];
       if (activePage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: activePage.totalPages - 1 }, (_, i) =>
@@ -57,7 +57,7 @@ export default function Vehicles() {
         rest.forEach(r => activeAll.push(...r.items));
       }
 
-      let completedAll = [...completedPage.items];
+      const completedAll = [...completedPage.items];
       if (completedPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: completedPage.totalPages - 1 }, (_, i) =>

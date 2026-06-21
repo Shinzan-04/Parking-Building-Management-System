@@ -68,7 +68,7 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
       if (result) {
         onSuccess(result, imageBase64);
       } else {
-        setError(result?.message || 'No license plate detected. Please try again.');
+        setError('No license plate detected. Please try again.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to scan plate');

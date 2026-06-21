@@ -108,12 +108,18 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
 // ─── ParkingSlots API ─────────────────────────────────────────────────────────
 
 /** Lấy tất cả slots */
-export const getAllSlots = (): Promise<ParkingSlotDetail[]> =>
-  apiFetch('/api/parkingslots');
+export const getAllSlots = (buildingId?: string): Promise<ParkingSlotDetail[]> => {
+  const query = buildingId ? `?buildingId=${buildingId}` : '';
+  return apiFetch(`/api/parkingslots${query}`);
+};
 
-/** Lấy slots theo tầng */
+/** Lấy slots theo tầng (thực tế - vật lý) */
 export const getSlotsByFloor = (floorId: string): Promise<ParkingSlotDetail[]> =>
   apiFetch(`/api/parkingslots/floor/${floorId}`);
+
+/** Lấy slots theo tầng có tính toán đặt chỗ tương lai */
+export const getAvailableSlotsByFloor = (floorId: string, startTime: string, endTime: string): Promise<ParkingSlotDetail[]> =>
+  apiFetch(`/api/parkingslots/floor/${floorId}/availability?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}`);
 
 /** Lấy slots còn trống theo loại xe */
 export const getAvailableSlotsByVehicleType = (vehicleTypeId: string): Promise<ParkingSlotDetail[]> =>

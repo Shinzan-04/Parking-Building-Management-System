@@ -102,6 +102,22 @@ export default function StaffDashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Lắng nghe sự kiện Realtime (SignalR) được phát từ useNotification
+  useEffect(() => {
+    const handleUpdate = () => {
+      // Refresh ngầm
+      loadData(true);
+    };
+
+    window.addEventListener('dashboardUpdate', handleUpdate);
+    window.addEventListener('slotUpdate', handleUpdate);
+
+    return () => {
+      window.removeEventListener('dashboardUpdate', handleUpdate);
+      window.removeEventListener('slotUpdate', handleUpdate);
+    };
+  }, [loadData]);
+
   const vnd = (n: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n);
 
   if (loading) {

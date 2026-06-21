@@ -17,9 +17,9 @@ public class ParkingSlotsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] Guid? buildingId)
     {
-        var slots = await _slotService.GetAllAsync();
+        var slots = await _slotService.GetAllAsync(buildingId);
         return Ok(slots);
     }
 
@@ -27,6 +27,13 @@ public class ParkingSlotsController : ControllerBase
     public async Task<IActionResult> GetByFloorId(Guid floorId)
     {
         var slots = await _slotService.GetByFloorIdAsync(floorId);
+        return Ok(slots);
+    }
+
+    [HttpGet("floor/{floorId}/availability")]
+    public async Task<IActionResult> GetAvailability(Guid floorId, [FromQuery] DateTime startTime, [FromQuery] DateTime endTime)
+    {
+        var slots = await _slotService.GetAvailabilityByFloorAsync(floorId, startTime, endTime);
         return Ok(slots);
     }
 

@@ -126,6 +126,10 @@ export interface ReviewReservationRequest {
 export const getPendingReservations = (token: string): Promise<ReservationResponse[]> =>
   authFetch('/api/reservations/pending', token);
 
+/** Lấy tất cả danh sách đặt chỗ đang Active/Pending (để hiển thị và đổi chỗ) */
+export const getAllActiveReservations = (token: string): Promise<ReservationResponse[]> =>
+  authFetch('/api/reservations/all-active', token);
+
 /** Duyệt hoặc từ chối đặt chỗ */
 export const reviewReservation = (
   id: string,
@@ -135,4 +139,15 @@ export const reviewReservation = (
   authFetch(`/api/reservations/${id}/review`, token, {
     method: 'PUT',
     body: JSON.stringify(payload),
+  });
+
+/** Đổi chỗ thủ công cho khách (Staff/Manager) */
+export const reassignSlot = (
+  id: string,
+  newSlotId: string,
+  token: string,
+): Promise<{ message: string }> =>
+  authFetch(`/api/reservations/${id}/reassign-slot`, token, {
+    method: 'PUT',
+    body: JSON.stringify({ newSlotId }),
   });

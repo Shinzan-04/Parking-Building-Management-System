@@ -8,7 +8,6 @@ import {
   Mail,
   Phone,
   Calendar,
-  Shield,
   ArrowLeft,
   CheckCircle2,
   AlertTriangle,
@@ -57,33 +56,6 @@ export default function ProfilePage() {
     logout();
     navigate('/auth');
   };
-
-  // Tải thông tin Profile chi tiết từ backend
-  const fetchProfile = async () => {
-    if (!token) return;
-    try {
-      setLoadingProfile(true);
-      setErrorProfile(null);
-      const data = await getProfileApi(token);
-      setProfile(data);
-      
-      // Đồng bộ hóa giá trị khởi tạo form
-      formik.setValues({
-        fullName: data.fullName || '',
-        email: data.email || '',
-        phoneNumber: data.phoneNumber || '',
-      });
-    } catch (err: any) {
-      console.error(err);
-      setErrorProfile(err.message || 'Không thể tải thông tin cá nhân.');
-    } finally {
-      setLoadingProfile(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchProfile();
-  }, [token]);
 
   // Formik validation schema
   const validationSchema = Yup.object().shape({
@@ -135,6 +107,33 @@ export default function ProfilePage() {
       }
     }
   });
+
+  // Tải thông tin Profile chi tiết từ backend
+  const fetchProfile = async () => {
+    if (!token) return;
+    try {
+      setLoadingProfile(true);
+      setErrorProfile(null);
+      const data = await getProfileApi(token);
+      setProfile(data);
+      
+      // Đồng bộ hóa giá trị khởi tạo form
+      formik.setValues({
+        fullName: data.fullName || '',
+        email: data.email || '',
+        phoneNumber: data.phoneNumber || '',
+      });
+    } catch (err: any) {
+      console.error(err);
+      setErrorProfile(err.message || 'Không thể tải thông tin cá nhân.');
+    } finally {
+      setLoadingProfile(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, [token]);
 
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
   const roleDisplay = (role: string | number) => {

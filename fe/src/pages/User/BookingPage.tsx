@@ -5,8 +5,10 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../hooks/useAuth';
-import { getBuildings } from '../../services/buildingsService';
-import type { BuildingResponse } from '../../services/buildingsService';
+import { getBuildings, getFloorsByBuilding } from '../../services/buildingsService';
+import type { BuildingResponse, FloorResponse } from '../../services/buildingsService';
+import { getSlotsByFloor, SLOT_STATUS_COLORS, SLOT_STATUS_LABELS, SLOT_STATUS_FROM_ENUM } from '../../services/parkingService';
+import type { ParkingSlotDetail, SlotStatus } from '../../services/parkingService';
 import {
   Search,
   MapPin,
@@ -109,7 +111,7 @@ function getBuildingCoordinates(buildingId: string, address: string): { lat: num
   // Thêm offset nhất quán trong khoảng [-0.015, 0.015] để các toạ độ không bị trùng và tập trung gần khu trung tâm
   const latOffset = ((Math.abs(hash) % 300) / 10000) - 0.015;
   const lngOffset = ((Math.abs(hash >> 3) % 300) / 10000) - 0.015;
-  
+
   return {
     lat: 21.0285 + latOffset,
     lng: 105.8542 + lngOffset,
@@ -208,6 +210,12 @@ export default function BookingPage() {
   const sortRef = useRef<HTMLDivElement>(null);
   const handleMapRef = useCallback((map: L.Map) => setMapInstance(map), []);
 
+  const [buildingFloors, setBuildingFloors] = useState<FloorResponse[]>([]);
+  const [selectedFloorId, setSelectedFloorId] = useState<string | null>(null);
+  const [floorSlots, setFloorSlots] = useState<ParkingSlotDetail[]>([]);
+  const [isLoadingFloors, setIsLoadingFloors] = useState(false);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingUser, setLocatingUser] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -289,6 +297,40 @@ export default function BookingPage() {
       });
     return () => { cancelled = true; };
   }, []);
+
+  // Fetch floors when selectedLot changes
+  useEffect(() => {
+    if (selectedLot) {
+      setIsLoadingFloors(true);
+      setSelectedFloorId(null);
+      setFloorSlots([]);
+      getFloorsByBuilding(selectedLot.id)
+        .then((floors) => {
+          setBuildingFloors(floors.sort((a, b) => a.floorIndex - b.floorIndex));
+        })
+        .catch((err) => console.error('Failed to fetch floors:', err))
+        .finally(() => setIsLoadingFloors(false));
+    } else {
+      setBuildingFloors([]);
+      setSelectedFloorId(null);
+      setFloorSlots([]);
+    }
+  }, [selectedLot]);
+
+  // Fetch slots when selectedFloorId changes
+  useEffect(() => {
+    if (selectedFloorId) {
+      setIsLoadingSlots(true);
+      getSlotsByFloor(selectedFloorId)
+        .then((slots) => {
+          setFloorSlots(slots.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber)));
+        })
+        .catch((err) => console.error('Failed to fetch slots:', err))
+        .finally(() => setIsLoadingSlots(false));
+    } else {
+      setFloorSlots([]);
+    }
+  }, [selectedFloorId]);
 
   // Hàm lấy vị trí người dùng
   const handleLocateMe = useCallback(() => {
@@ -382,12 +424,12 @@ export default function BookingPage() {
 
   return (
     <div className="flex flex-col h-screen bg-[#F3F3F5] text-stone-900 overflow-hidden font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C]">
-      
+
       {/* ===== Top Navigation ===== */}
-      <nav className="flex-shrink-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
+      <nav className="relative flex-shrink-0 z-[9999] bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
         <div className="max-w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            
+
             {/* Logo + Back */}
             <div className="flex items-center gap-4">
               <button
@@ -497,9 +539,9 @@ export default function BookingPage() {
       </nav>
 
       {/* ===== Filter Bar ===== */}
-      <div className="flex-shrink-0 z-40 bg-white/80 border-b border-gray-200/50 px-4 sm:px-6 lg:px-8 py-3 backdrop-blur-md">
+      <div className="relative flex-shrink-0 z-[9998] bg-white/80 border-b border-gray-200/50 px-4 sm:px-6 lg:px-8 py-3 backdrop-blur-md">
         <div className="flex items-center gap-3 flex-wrap">
-          
+
           {/* Vehicle type filters */}
           {(
             [
@@ -513,8 +555,8 @@ export default function BookingPage() {
               key={key}
               onClick={() => setVehicleFilter(key)}
               className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${vehicleFilter === key
-                  ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/15'
-                  : 'bg-gray-100 text-stone-600 border-gray-200 hover:bg-gray-200/60 hover:text-stone-900'
+                ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/15'
+                : 'bg-gray-100 text-stone-600 border-gray-200 hover:bg-gray-200/60 hover:text-stone-900'
                 }`}
             >
               <Icon size={13} />
@@ -538,8 +580,8 @@ export default function BookingPage() {
                     key={opt}
                     onClick={() => { setSortBy(opt); setIsSortOpen(false); }}
                     className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors ${sortBy === opt
-                        ? 'text-[#FF4C4C] bg-[#FF4C4C]/5'
-                        : 'text-stone-600 hover:text-stone-900 hover:bg-gray-50'
+                      ? 'text-[#FF4C4C] bg-[#FF4C4C]/5'
+                      : 'text-stone-600 hover:text-stone-900 hover:bg-gray-50'
                       }`}
                   >
                     {SORT_LABELS[opt]}
@@ -553,10 +595,10 @@ export default function BookingPage() {
 
       {/* ===== Main Content: Sidebar + Map ===== */}
       <div className="flex flex-1 overflow-hidden">
-        
+
         {/* ----- Sidebar ----- */}
         <aside className="w-80 flex-shrink-0 bg-[#F8F8FA] border-r border-gray-200/60 flex flex-col overflow-hidden">
-          
+
           {/* Search + count */}
           <div className="px-4 pt-4 pb-3 space-y-3">
             <div className="relative">
@@ -630,8 +672,8 @@ export default function BookingPage() {
                   mapInstance?.flyTo([lot.lat, lot.lng], 16, { duration: 1.2 });
                 }}
                 className={`w-full text-left rounded-2xl border p-4 transition-all group ${selectedLot?.id === lot.id
-                    ? 'bg-red-50/80 border-[#FF4C4C]/40 shadow-sm'
-                    : 'bg-white border-gray-205/80 hover:border-[#FF4C4C]/30 hover:shadow-md hover:shadow-gray-200/10'
+                  ? 'bg-red-50/80 border-[#FF4C4C]/40 shadow-sm'
+                  : 'bg-white border-gray-205/80 hover:border-[#FF4C4C]/30 hover:shadow-md hover:shadow-gray-200/10'
                   }`}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -673,8 +715,8 @@ export default function BookingPage() {
                 </div>
 
                 <div className={`mt-3 text-center text-xs font-bold py-1.5 rounded-lg border transition-all ${selectedLot?.id === lot.id
-                    ? 'border-[#FF4C4C]/40 text-[#FF4C4C] bg-red-50'
-                    : 'border-gray-200 text-stone-500 bg-gray-50 group-hover:text-[#FF4C4C] group-hover:border-[#FF4C4C]/20 group-hover:bg-red-50/30'
+                  ? 'border-[#FF4C4C]/40 text-[#FF4C4C] bg-red-50'
+                  : 'border-gray-200 text-stone-500 bg-gray-50 group-hover:text-[#FF4C4C] group-hover:border-[#FF4C4C]/20 group-hover:bg-red-50/30'
                   }`}>
                   📍 View Details
                 </div>
@@ -841,8 +883,8 @@ export default function BookingPage() {
                 disabled={locatingUser}
                 title="Tìm bãi đỗ gần tôi"
                 className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-md transition-all ${userLocation
-                    ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500'
-                    : 'bg-white border-gray-200 text-stone-600 hover:bg-gray-100 hover:text-blue-500 hover:border-blue-200'
+                  ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500'
+                  : 'bg-white border-gray-200 text-stone-600 hover:bg-gray-100 hover:text-blue-500 hover:border-blue-200'
                   } ${locatingUser ? 'cursor-wait opacity-70' : ''}`}
               >
                 {locatingUser
@@ -871,8 +913,8 @@ export default function BookingPage() {
                     key={opt.value}
                     onClick={() => setNearbyRadius(opt.value)}
                     className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${nearbyRadius === opt.value
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-stone-500 hover:text-blue-600 hover:bg-blue-50'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-stone-500 hover:text-blue-600 hover:bg-blue-50'
                       }`}
                   >
                     {opt.label}
@@ -941,8 +983,8 @@ export default function BookingPage() {
                     </h2>
                     <span
                       className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedLot.type === 'PUBLIC'
-                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                          : 'bg-sky-50 text-sky-600 border border-sky-200'
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                        : 'bg-sky-50 text-sky-600 border border-sky-200'
                         }`}
                     >
                       {selectedLot.type}
@@ -1050,6 +1092,76 @@ export default function BookingPage() {
                       </span>
                     ))}
                   </div>
+                </div>
+
+                {/* Floors & Slots */}
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-3">
+                    Floors & Parking Slots
+                  </p>
+                  
+                  {isLoadingFloors ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 size={18} className="text-[#FF4C4C] animate-spin" />
+                    </div>
+                  ) : buildingFloors.length === 0 ? (
+                    <p className="text-xs text-stone-400 italic">No floors data available.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap gap-2">
+                        {buildingFloors.map(floor => (
+                          <button
+                            key={floor.id}
+                            onClick={() => setSelectedFloorId(floor.id === selectedFloorId ? null : floor.id)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedFloorId === floor.id
+                              ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm'
+                              : 'bg-white text-stone-600 border-gray-200 hover:border-[#FF4C4C]/50 hover:text-[#FF4C4C]'
+                            }`}
+                          >
+                            {floor.name}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Slots for selected floor */}
+                      {selectedFloorId && (
+                        <div className="mt-3 bg-gray-50 border border-gray-200/60 rounded-xl p-3">
+                          {isLoadingSlots ? (
+                            <div className="flex items-center gap-2 text-xs text-stone-500 justify-center py-2">
+                              <Loader2 size={14} className="animate-spin text-[#FF4C4C]" />
+                              Loading slots...
+                            </div>
+                          ) : floorSlots.length === 0 ? (
+                            <p className="text-xs text-stone-500 text-center py-2">No slots on this floor.</p>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto scrollbar-thin pr-1">
+                              {floorSlots.map(slot => {
+                                const statusStr: SlotStatus = typeof slot.status === 'number' 
+                                  ? SLOT_STATUS_FROM_ENUM[slot.status as number] || 'Available'
+                                  : slot.status || 'Available';
+                                const colors = SLOT_STATUS_COLORS[statusStr] || SLOT_STATUS_COLORS['Available'];
+                                
+                                return (
+                                  <div
+                                    key={slot.id}
+                                    title={SLOT_STATUS_LABELS[statusStr]}
+                                    className={`relative flex flex-col items-center justify-center p-2 rounded-lg border text-xs font-bold transition-all ${
+                                      statusStr === 'Available'
+                                        ? 'bg-white border-emerald-200 hover:border-emerald-400 text-stone-700'
+                                        : 'bg-gray-100/50 border-gray-200 text-stone-400 cursor-not-allowed opacity-70'
+                                    }`}
+                                  >
+                                    <span className="mb-0.5">{slot.slotNumber}</span>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* CTA buttons */}

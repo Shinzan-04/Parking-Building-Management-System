@@ -150,25 +150,21 @@ builder.Services.AddAuthentication(options =>
         NameClaimType = System.Security.Claims.ClaimTypes.Name,
     };
 
-    // Tự động nhận diện token dù có hay không có prefix "Bearer "
-    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
-    {
-        OnMessageReceived = context =>
-        {
-            // Cho SignalR dùng token qua query string ?access_token=
-            var accessToken = context.Request.Query["access_token"];
-            var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/parking-hub"))
-            {
-                context.Token = accessToken;
-                return Task.CompletedTask;
-            }
-
+            // 1. Cho các API gọi bằng cách gửi thẳng token vào Header "Authorization" không có "Bearer "
             var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
             if (!string.IsNullOrEmpty(authHeader) && !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
                 context.Token = authHeader;
             }
+
+            // 2. Cho SignalR gọi bằng query string ?access_token=...
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/parking-hub"))
+            {
+                context.Token = accessToken;
+            }
+
             return Task.CompletedTask;
         }
     };
@@ -192,20 +188,6 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 app.UseCors("AllowAll");
 
-
-
-// Allow CORS preflight OPTIONS requests to pass through before auth
-app.Use(async (context, next) =>
-{
-    if (context.Request.Method == "OPTIONS")
-    {
-        context.Response.StatusCode = 200;
-        await context.Response.CompleteAsync();
-        return;
-    }
-    await next();
-});
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -217,7 +199,6 @@ if (app.Environment.IsDevelopment())
 }
 
 // app.UseHttpsRedirection();
-app.UseCors("AllowAll");
 
 app.UseDefaultFiles(new Microsoft.AspNetCore.Builder.DefaultFilesOptions
 {

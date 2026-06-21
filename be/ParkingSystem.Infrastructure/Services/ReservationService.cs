@@ -17,6 +17,7 @@ public class ReservationService : IReservationService
     private readonly ISlotAssignmentService _slotAssignmentService;
     private readonly IPaymentService _paymentService;
     private readonly ILogger<ReservationService> _logger;
+    private readonly IRealtimeService _realtimeService;
 
     public ReservationService(
         ApplicationDbContext context,
@@ -24,7 +25,8 @@ public class ReservationService : IReservationService
         INotificationService notificationService,
         ISlotAssignmentService slotAssignmentService,
         IPaymentService paymentService,
-        ILogger<ReservationService> logger)
+        ILogger<ReservationService> logger,
+        IRealtimeService realtimeService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
@@ -32,6 +34,7 @@ public class ReservationService : IReservationService
         _slotAssignmentService = slotAssignmentService;
         _paymentService = paymentService;
         _logger = logger;
+        _realtimeService = realtimeService;
     }
 
     public async Task<ReservationResponse> CreateReservationAsync(Guid driverId, CreateReservationRequest request)
@@ -117,6 +120,7 @@ public class ReservationService : IReservationService
             // Lock Row: FOR UPDATE (PostgreSQL)
             var slot = await _context.ParkingSlots
                 .FromSqlRaw("SELECT * FROM \"ParkingSlots\" WHERE \"Id\" = {0} FOR UPDATE", targetSlotId)
+                .Include(s => s.Floor)
                 .FirstOrDefaultAsync();
 
             if (slot == null)
@@ -130,7 +134,7 @@ public class ReservationService : IReservationService
                 {
                     // AI tự tìm slot khác gợi ý ngay khi bị trùng
                     var suggest = await _slotAssignmentService.GetBestSlotAsync(vehicleTypeId, request.BuildingId);
-                    if (suggest != null) 
+                    if (suggest != null)
                         suggestMsg = $" 💡 Gợi ý (AI Suggest): Bạn có thể đổi sang ô {suggest.SlotNumber} (Tầng {suggest.FloorName}).";
                 }
                 throw new InvalidOperationException($"Ô đỗ {slot.SlotNumber} vừa có người khác chọn hoặc không khả dụng.{suggestMsg}");
@@ -199,7 +203,7 @@ public class ReservationService : IReservationService
                 else
                 {
                     initialStatus = ReservationStatus.PendingReview;
-                    slot.Status = SlotStatus.Reserved; 
+                    slot.Status = SlotStatus.Reserved;
                 }
             }
 
@@ -255,6 +259,9 @@ public class ReservationService : IReservationService
             // Mọi thứ OK thì mới Commit Database
             await transaction.CommitAsync();
 
+            await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
+
             // Gửi Notification nếu fee == 0 (vì bypass đoạn ConfirmPayment)
             if (fee == 0)
             {
@@ -266,6 +273,24 @@ public class ReservationService : IReservationService
                         $"Yêu cầu đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
                         "ReservationAccepted",
                         reservation.Id);
+
+                    // Thông báo cho Staff/Manager biết có booking mới (tự duyệt, miễn phí)
+                    var buildingIdAuto = slot.Floor?.BuildingId;
+                    var staffsAuto = await _context.Users
+                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
+                        .Where(u => !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingIdAuto)
+                        .Where(u => u.IsNotificationEnabled)
+                        .ToListAsync();
+
+                    foreach (var staff in staffsAuto)
+                    {
+                        await _notificationService.SendAsync(
+                            staff.Id,
+                            "🔔 Đặt chỗ mới (tự động duyệt)",
+                            $"Đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
+                            "NewReservation",
+                            reservation.Id);
+                    }
                 }
                 else if (initialStatus == ReservationStatus.PendingReview)
                 {
@@ -308,7 +333,11 @@ public class ReservationService : IReservationService
     // ===== THANH TOÁN THÀNH CÔNG → Chuyển sang PendingReview =====
     public async Task<bool> ConfirmPaymentAsync(Guid reservationId)
     {
-        var reservation = await _context.Reservations.FindAsync(reservationId);
+        var reservation = await _context.Reservations
+            .Include(r => r.ParkingSlot)
+            .ThenInclude(s => s.Floor)
+            .FirstOrDefaultAsync(r => r.Id == reservationId);
+
         if (reservation == null)
             throw new InvalidOperationException("Không tìm thấy thông tin đặt chỗ.");
 
@@ -320,13 +349,13 @@ public class ReservationService : IReservationService
             .Where(p => p.ReservationId == reservationId && p.PaymentMethod == PaymentMethod.PayOS)
             .OrderByDescending(p => p.CreatedAt)
             .FirstOrDefaultAsync();
-            
+
         if (payment == null)
             throw new InvalidOperationException("Không tìm thấy giao dịch thanh toán nào.");
 
         // Kiểm tra thực tế trên PayOS
         var (verifySuccess, actualStatus) = await _paymentService.VerifyPayOSPaymentAsync(payment.PayOSOrderCode);
-        
+
         if (!verifySuccess || actualStatus != PaymentStatus.Success)
         {
             // Nếu webhook đã xử lý thành công trước đó thì db đã là Success
@@ -355,12 +384,25 @@ public class ReservationService : IReservationService
 
         bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
 
+        var slot = await _context.ParkingSlots.FindAsync(reservation.ParkingSlotId);
+        if (slot != null && slot.Status == SlotStatus.TemporaryHeld)
+        {
+            slot.Status = SlotStatus.Reserved;
+            slot.UpdatedAt = DateTime.UtcNow;
+        }
+
         if (isAutoApprove)
         {
             reservation.Status = ReservationStatus.Confirmed;
             reservation.UpdatedAt = DateTime.UtcNow;
             LogState(reservation, "Confirmed", "Tự động duyệt (Auto-Approve)");
             await _context.SaveChangesAsync();
+
+            if (slot != null)
+            {
+                await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+                await _realtimeService.SendDashboardUpdateAsync();
+            }
 
             // Báo cho Driver
             await _notificationService.SendAsync(
@@ -369,6 +411,18 @@ public class ReservationService : IReservationService
                 $"Yêu cầu đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
                 "ReservationAccepted",
                 reservation.Id);
+
+            // Thông báo cho Staff/Manager biết có booking mới (đã tự duyệt)
+            var staffsToNotify = assignedStaffs.Where(u => u.IsNotificationEnabled).ToList();
+            foreach (var staff in staffsToNotify)
+            {
+                await _notificationService.SendAsync(
+                    staff.Id,
+                    "🔔 Đặt chỗ mới (tự động duyệt)",
+                    $"Đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
+                    "NewReservation",
+                    reservation.Id);
+            }
         }
         else
         {
@@ -376,6 +430,12 @@ public class ReservationService : IReservationService
             reservation.UpdatedAt = DateTime.UtcNow;
             LogState(reservation, "PaymentSuccess", "Xác nhận thanh toán thành công. Đang chờ Staff duyệt");
             await _context.SaveChangesAsync();
+
+            if (slot != null)
+            {
+                await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+                await _realtimeService.SendDashboardUpdateAsync();
+            }
 
             // Báo cho Driver
             await _notificationService.SendAsync(
@@ -424,6 +484,12 @@ public class ReservationService : IReservationService
 
         LogState(reservation, "PaymentFailed", "Thanh toán thất bại");
         await _context.SaveChangesAsync();
+
+        if (slot != null)
+        {
+            await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
+        }
 
         await _notificationService.SendAsync(
             reservation.DriverId,
@@ -487,6 +553,12 @@ public class ReservationService : IReservationService
         LogState(reservation, "Cancel", "Người dùng hủy đặt chỗ");
         await _context.SaveChangesAsync();
 
+        if (slot != null)
+        {
+            await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
+        }
+
         await _notificationService.SendAsync(
             reservation.DriverId,
             "🚫 Đặt chỗ đã bị hủy",
@@ -508,6 +580,28 @@ public class ReservationService : IReservationService
             .Include(r => r.ParkingSlot)
             .ThenInclude(ps => ps.Floor)
             .Where(r => r.Status == ReservationStatus.PendingReview); // Chỉ hiện những cái đã thanh toán
+
+        if (staff != null && staff.AssignedBuildingId.HasValue)
+        {
+            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == staff.AssignedBuildingId.Value);
+        }
+
+        var reservations = await query
+            .OrderBy(r => r.StartTime)
+            .ToListAsync();
+
+        return reservations.Select(r => MapToResponse(r, r.ParkingSlot));
+    }
+
+    public async Task<IEnumerable<ReservationResponse>> GetAllActiveReservationsAsync(Guid staffId)
+    {
+        var staff = await _context.Users.FindAsync(staffId);
+
+        var validStatuses = new[] { ReservationStatus.PendingReview, ReservationStatus.Confirmed, ReservationStatus.Paid, ReservationStatus.CheckedIn };
+        var query = _context.Reservations
+            .Include(r => r.ParkingSlot)
+            .ThenInclude(ps => ps.Floor)
+            .Where(r => validStatuses.Contains(r.Status));
 
         if (staff != null && staff.AssignedBuildingId.HasValue)
         {
@@ -553,7 +647,7 @@ public class ReservationService : IReservationService
                 $"Vui lòng đến trước {reservation.StartTime:dd/MM/yyyy HH:mm}.",
                 "ReservationApproved",
                 reservation.Id);
-                
+
             LogState(reservation, "Approve", "Staff đã duyệt đặt chỗ");
         }
         else
@@ -578,11 +672,18 @@ public class ReservationService : IReservationService
                 $"Lý do: {reservation.RejectReason}. Tiền sẽ được hoàn lại.",
                 "ReservationRejected",
                 reservation.Id);
-                
+
             LogState(reservation, "Reject", $"Staff từ chối. Lý do: {reservation.RejectReason}");
         }
 
         await _context.SaveChangesAsync();
+
+        if (slot != null)
+        {
+            await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
+        }
+
         return true;
     }
 
@@ -633,6 +734,52 @@ public class ReservationService : IReservationService
         });
     }
 
+    public async Task<bool> ReassignSlotAsync(Guid reservationId, Guid newSlotId, Guid staffId)
+    {
+        var reservation = await _context.Reservations.FirstOrDefaultAsync(r => r.Id == reservationId);
+        if (reservation == null)
+            throw new InvalidOperationException("Không tìm thấy thông tin đặt chỗ.");
+
+        if (reservation.Status != ReservationStatus.Confirmed)
+            throw new InvalidOperationException("Chỉ có thể đổi chỗ cho booking đã được Confirmed.");
+
+        var newSlot = await _context.ParkingSlots.FindAsync(newSlotId);
+        if (newSlot == null || newSlot.Status != SlotStatus.Available)
+            throw new InvalidOperationException("Ô đỗ mới không tồn tại hoặc không còn trống.");
+
+        var oldSlotId = reservation.ParkingSlotId;
+
+        // Cập nhật booking
+        reservation.ParkingSlotId = newSlotId;
+        reservation.UpdatedAt = DateTime.UtcNow;
+        LogState(reservation, "Reassigned", $"Staff {staffId} đổi ô đỗ từ {oldSlotId} sang {newSlotId}");
+
+        // Khóa ô mới
+        newSlot.Status = SlotStatus.Reserved;
+        newSlot.UpdatedAt = DateTime.UtcNow;
+
+        // Nhả ô cũ
+        var oldSlot = await _context.ParkingSlots.FindAsync(oldSlotId);
+        if (oldSlot != null && oldSlot.Status == SlotStatus.Reserved)
+        {
+            oldSlot.Status = SlotStatus.Available;
+            oldSlot.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+
+        // Gửi Notification cho Driver
+        await _notificationService.SendAsync(
+            reservation.DriverId,
+            "🔄 Thay đổi ô đỗ",
+            $"Do sự cố vận hành, ô đỗ của bạn đã được chuyển sang ô {newSlot.SlotNumber}. Mong bạn thông cảm.",
+            "ReservationReassigned",
+            reservation.Id
+        );
+
+        return true;
+    }
+
     // ===== HELPER: Map entity → response =====
     private ReservationResponse MapToResponse(
         Reservation r,
@@ -640,24 +787,24 @@ public class ReservationService : IReservationService
         string? checkoutUrl = null,
         decimal? bookingFee = null,
         long? payOSOrderCode = null) => new()
-    {
-        Id = r.Id,
-        DriverId = r.DriverId,
-        ParkingSlotId = r.ParkingSlotId,
-        SlotNumber = slot?.SlotNumber ?? "",
-        BookingCode = r.BookingCode,
-        QrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(r.BookingCode),
-        LicensePlate = r.LicensePlate,
-        StartTime = r.StartTime,
-        EndTime = r.EndTime,
-        Status = r.Status,
-        BookingMethod = r.BookingMethod,
-        AIScore = r.AIScore,
-        AIReason = r.AIReason,
-        RejectReason = r.RejectReason,
-        CreatedAt = r.CreatedAt,
-        PayOSCheckoutUrl = checkoutUrl,
-        BookingFee = bookingFee,
-        PayOSOrderCode = payOSOrderCode
-    };
+        {
+            Id = r.Id,
+            DriverId = r.DriverId,
+            ParkingSlotId = r.ParkingSlotId,
+            SlotNumber = slot?.SlotNumber ?? "",
+            BookingCode = r.BookingCode,
+            QrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(r.BookingCode),
+            LicensePlate = r.LicensePlate,
+            StartTime = r.StartTime,
+            EndTime = r.EndTime,
+            Status = r.Status,
+            BookingMethod = r.BookingMethod,
+            AIScore = r.AIScore,
+            AIReason = r.AIReason,
+            RejectReason = r.RejectReason,
+            CreatedAt = r.CreatedAt,
+            PayOSCheckoutUrl = checkoutUrl,
+            BookingFee = bookingFee,
+            PayOSOrderCode = payOSOrderCode
+        };
 }

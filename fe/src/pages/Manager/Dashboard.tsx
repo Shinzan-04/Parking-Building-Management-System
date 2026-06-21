@@ -91,7 +91,7 @@ export default function ManagerDashboard() {
       ]);
 
       // Fetch remaining pages if needed
-      let allCompleted = [...firstPage.items];
+      const allCompleted = [...firstPage.items];
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
@@ -138,6 +138,22 @@ export default function ManagerDashboard() {
   }, [token]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Lắng nghe sự kiện Realtime (SignalR) được phát từ useNotification
+  useEffect(() => {
+    const handleUpdate = () => {
+      // Gọi refresh (cập nhật background, không hiện loader tròn giữa màn hình)
+      loadData(true);
+    };
+
+    window.addEventListener('dashboardUpdate', handleUpdate);
+    window.addEventListener('slotUpdate', handleUpdate);
+
+    return () => {
+      window.removeEventListener('dashboardUpdate', handleUpdate);
+      window.removeEventListener('slotUpdate', handleUpdate);
+    };
+  }, [loadData]);
 
   const available    = totalCapacity - activeCount;
   const occupancyPct = totalCapacity > 0 ? Math.round((activeCount / totalCapacity) * 1000) / 10 : 0;

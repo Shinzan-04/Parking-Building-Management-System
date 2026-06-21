@@ -12,25 +12,23 @@ namespace ParkingSystem.Infrastructure.Services;
 public class CheckOutService : ICheckOutService
 {
     private readonly ApplicationDbContext _context;
-    // Từ nhánh dev: nhận diện biển số bằng AI pipeline
     private readonly ILicensePlateRecognizer _lprService;
-    private readonly IRealtimeService _realtimeService;
-    // Từ HEAD: xử lý thanh toán PayOS và logging
     private readonly IPaymentService _paymentService;
     private readonly ILogger<CheckOutService> _logger;
+    private readonly IRealtimeService _realtimeService;
 
     public CheckOutService(
         ApplicationDbContext context,
         ILicensePlateRecognizer lprService,
-        IRealtimeService realtimeService,
         IPaymentService paymentService,
-        ILogger<CheckOutService> logger)
+        ILogger<CheckOutService> logger,
+        IRealtimeService realtimeService)
     {
         _context = context;
         _lprService = lprService;
-        _realtimeService = realtimeService;
         _paymentService = paymentService;
         _logger = logger;
+        _realtimeService = realtimeService;
     }
 
     public async Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate)
@@ -196,6 +194,9 @@ public class CheckOutService : ICheckOutService
 
             await _context.SaveChangesAsync();
 
+            await _realtimeService.SendSlotStatusUpdateAsync(psSlot.Id, psSlot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
+
             return new CheckOutConfirmResponse
             {
                 SessionId = session.Id,
@@ -271,6 +272,9 @@ public class CheckOutService : ICheckOutService
 
         _context.Payments.Add(payment);
         await _context.SaveChangesAsync();
+
+        await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+        await _realtimeService.SendDashboardUpdateAsync();
 
         decimal? changeAmount = null;
         if (request.PaymentMethod == PaymentMethod.Cash && request.PaymentAmount.HasValue)

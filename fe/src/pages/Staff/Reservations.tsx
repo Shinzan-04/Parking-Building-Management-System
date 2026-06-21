@@ -143,7 +143,7 @@ function ReservationCard({
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-export default function ManagerReservations() {
+export default function StaffReservations() {
   const { token, user } = useAuth();
 
   const [reservations, setReservations] = useState<ReservationResponse[]>([]);

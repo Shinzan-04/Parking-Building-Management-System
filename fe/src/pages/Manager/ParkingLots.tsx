@@ -252,6 +252,11 @@ function SlotMap({
                         {slot.status === 'Occupied' && <VehicleIcon name={slot.vehicleTypeName} size={8} />}
                         {slot.status === 'Maintenance' && <Wrench size={8} />}
                         <span>{slot.slotNumber}</span>
+                        {slot.status === 'Occupied' && slot.currentLicensePlate && (
+                          <span className="text-[6.5px] opacity-90 truncate w-full text-center px-px leading-none -mt-0.5">
+                            {slot.currentLicensePlate}
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -648,6 +653,22 @@ export default function ParkingLots() {
   useEffect(() => {
     loadData();
     getVehicleTypes().then(setVehicleTypes).catch(() => {});
+  }, []);
+
+  // Lắng nghe sự kiện Realtime (SignalR) được phát từ useNotification
+  useEffect(() => {
+    const handleUpdate = () => {
+      // Refresh ngầm
+      loadData(true);
+    };
+
+    window.addEventListener('dashboardUpdate', handleUpdate);
+    window.addEventListener('slotUpdate', handleUpdate);
+
+    return () => {
+      window.removeEventListener('dashboardUpdate', handleUpdate);
+      window.removeEventListener('slotUpdate', handleUpdate);
+    };
   }, []);
 
   const openAdd    = () => { setForm(emptyForm); setFormError(''); setModalType('add'); };

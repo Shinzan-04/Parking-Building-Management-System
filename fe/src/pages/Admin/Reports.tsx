@@ -112,7 +112,7 @@ export default function AdminReports() {
       ]);
 
       // Nếu có nhiều trang, fetch song song các trang còn lại
-      let allItems = [...firstPage.items];
+      const allItems = [...firstPage.items];
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>

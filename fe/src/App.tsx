@@ -29,12 +29,14 @@ const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
 const StaffLayout      = lazy(() => import('./pages/Staff/StaffLayout'));
 const StaffDashboard   = lazy(() => import('./pages/Staff/Dashboard'));
 const StaffSlotList    = lazy(() => import('./pages/Staff/SlotList'));
+const StaffReservations = lazy(() => import('./pages/Staff/Reservations'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
 const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
 const MyTicketPage     = lazy(() => import('./pages/User/MyTicketPage'));
 const ProfilePage      = lazy(() => import('./pages/User/ProfilePage'));
 const MyVehiclePage    = lazy(() => import('./pages/User/MyVehiclePage'));
 const PaymentResultPage= lazy(() => import('./pages/User/PaymentResult'));
+const LiveSessionPage  = lazy(() => import('./pages/User/LiveSessionPage'));
 
 export default function App() {
   return (
@@ -46,6 +48,7 @@ export default function App() {
           <Route path="/myticket" element={<ProtectedRoute element={<MyTicketPage />} />} />
           <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
           <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
+          <Route path="/live-session" element={<ProtectedRoute element={<LiveSessionPage />} />} />
           <Route path="/payment-result" element={<PaymentResultPage />} />
           <Route path="/payment-success" element={<PaymentResultPage />} />
           <Route path="/payment-cancel" element={<PaymentResultPage />} />
@@ -88,6 +91,7 @@ export default function App() {
           >
             <Route index element={<StaffDashboard />} />
             <Route path="slots" element={<StaffSlotList />} />
+            <Route path="reservations" element={<StaffReservations />} />
           </Route>
 
           {/* Gate Control - Staff standalone */}

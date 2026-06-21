@@ -263,7 +263,8 @@ public class AuthService : IAuthService
             DriverCode = user.DriverCode,
             QrCodeImageBase64 = !string.IsNullOrEmpty(user.DriverCode)
                 ? _qrCodeService.GenerateQrCodeBase64(_tokenService.GenerateDriverQrToken(user.Id, user.DriverCode))
-                : null
+                : null,
+            AssignedBuildingId = user.AssignedBuildingId
         };
     }
 
@@ -302,6 +303,7 @@ public class AuthService : IAuthService
             QrCodeImageBase64 = !string.IsNullOrEmpty(user.DriverCode)
                 ? _qrCodeService.GenerateQrCodeBase64(_tokenService.GenerateDriverQrToken(user.Id, user.DriverCode))
                 : null,
+            AssignedBuildingId = user.AssignedBuildingId,
             CreatedAt = user.CreatedAt
         };
     }
