@@ -125,5 +125,34 @@ public class PaymentsController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Thực hiện hoàn tiền cho giao dịch (Chỉ Admin/Staff)
+    /// </summary>
+    [HttpPost("{paymentId}/refund")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Staff")]
+    [ProducesResponseType(typeof(PaymentRefundResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RefundPayment(Guid paymentId)
+    {
+        try
+        {
+            var response = await _paymentService.RefundPaymentAsync(paymentId);
+            return Ok(response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Lỗi hệ thống khi hoàn tiền.", details = ex.Message });
+        }
+    }
 }
 

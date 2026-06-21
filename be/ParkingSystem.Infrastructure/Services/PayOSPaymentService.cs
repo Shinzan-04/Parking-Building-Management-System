@@ -10,6 +10,10 @@ using PayOS;
 using PayOS.Models;
 using PayOS.Models.V2.PaymentRequests;
 using PayOS.Models.Webhooks;
+using System.Net.Http.Headers;
+using System.Text.Json;
+using System.Text;
+using System.Security.Cryptography;
 
 namespace ParkingSystem.Infrastructure.Services;
 
@@ -21,6 +25,12 @@ public class PayOSOptions
     public string BaseUrl { get; set; } = "https://api.payos.vn";
     public string ReturnUrl { get; set; } = string.Empty;
     public string CancelUrl { get; set; } = string.Empty;
+    public string PayoutMode { get; set; } = "Demo"; // "Demo" or "Production"
+    
+    // Payout (Chi hộ) Keys
+    public string PayoutClientId { get; set; } = string.Empty;
+    public string PayoutApiKey { get; set; } = string.Empty;
+    public string PayoutChecksumKey { get; set; } = string.Empty;
 }
 
 public class PayOSPaymentService : IPaymentService
@@ -268,5 +278,219 @@ public class PayOSPaymentService : IPaymentService
             _logger.LogError(ex, "Failed to verify PayOS payment via API. OrderCode={OrderCode}", orderCode);
             return (false, PaymentStatus.Pending);
         }
+    }
+
+    public async Task<PaymentRefundResponse> RefundPaymentAsync(Guid paymentId)
+    {
+        var payment = await _context.Payments
+            .IgnoreQueryFilters()
+            .Include(p => p.Reservation)
+            .Include(p => p.ParkingSession)
+            .FirstOrDefaultAsync(p => p.Id == paymentId);
+
+        if (payment == null)
+            throw new KeyNotFoundException("Không tìm thấy giao dịch Payment.");
+
+        // Bắt buộc trạng thái phải là Refunding mới cho hoàn tiền
+        if (payment.Status != PaymentStatus.Refunding)
+            throw new InvalidOperationException($"Không thể hoàn tiền. Trạng thái hiện tại của Payment là: {payment.Status}");
+
+        // Chống Double Refund (Idempotency)
+        if (!string.IsNullOrEmpty(payment.RefundReferenceId) || payment.Status == PaymentStatus.Refunded)
+            throw new InvalidOperationException("Giao dịch này đã được hoàn tiền trước đó.");
+
+        // Tạo mã tham chiếu duy nhất (idempotency key)
+        string referenceId = $"RF_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}";
+        
+        try
+        {
+            if (_options.PayoutMode == "Demo")
+            {
+                // Giả lập chế độ Demo
+                _logger.LogInformation("Bắt đầu hoàn tiền chế độ Demo cho PaymentId={Id}, Amount={Amount}", payment.Id, payment.Amount);
+                await Task.Delay(1500); // Giả lập network delay
+
+                payment.Status = PaymentStatus.Refunded;
+                payment.RefundedAt = DateTime.UtcNow;
+                payment.RefundReferenceId = referenceId;
+                payment.RefundProvider = "PayOS_Demo";
+                payment.RefundTransactionId = $"DEMO_TX_{DateTime.UtcNow.Ticks}";
+                
+                _logger.LogInformation("Hoàn tiền Demo thành công cho PaymentId={Id}", payment.Id);
+            }
+            else
+            {
+                // Chế độ Production thực tế
+                _logger.LogInformation("Bắt đầu hoàn tiền chế độ Production cho PaymentId={Id}", payment.Id);
+
+                Guid? driverId = payment.Reservation?.DriverId ?? payment.ParkingSession?.DriverId;
+
+                if (driverId == null)
+                    throw new InvalidOperationException("Không thể tìm thấy thông tin Driver để hoàn tiền.");
+
+                var defaultBank = await _context.UserBankAccounts
+                    .FirstOrDefaultAsync(b => b.UserId == driverId && b.IsDefault);
+
+                if (defaultBank == null)
+                {
+                    // Lấy đại 1 bank nếu không có default
+                    defaultBank = await _context.UserBankAccounts
+                        .FirstOrDefaultAsync(b => b.UserId == driverId);
+                }
+
+                if (defaultBank == null)
+                {
+                    throw new InvalidOperationException("Người dùng chưa cấu hình tài khoản nhận tiền hoàn (UserBankAccount). Vui lòng yêu cầu người dùng cập nhật.");
+                }
+
+                // Thực hiện gọi API Payout (Sử dụng HttpClient độc lập để bảo đảm kết nối)
+                var payoutResult = await ExecutePayOSPayoutAsync(payment.Amount, referenceId, defaultBank);
+                if (!payoutResult.Success)
+                {
+                    throw new Exception($"PayOS Payout Failed: {payoutResult.ErrorMessage}");
+                }
+
+                payment.Status = PaymentStatus.Refunded;
+                payment.RefundedAt = DateTime.UtcNow;
+                payment.RefundReferenceId = referenceId;
+                payment.RefundProvider = "PayOS_Payout";
+                payment.RefundTransactionId = payoutResult.TransactionId;
+
+                _logger.LogInformation("Hoàn tiền Production thành công cho PaymentId={Id}, TxId={TxId}", payment.Id, payoutResult.TransactionId);
+            }
+
+            if (payment.Reservation != null)
+            {
+                // Update logic nếu cần, ví dụ ghi log Reservation
+            }
+
+            payment.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return new PaymentRefundResponse
+            {
+                PaymentId = payment.Id,
+                ReservationId = payment.ReservationId,
+                Amount = payment.Amount,
+                Status = payment.Status,
+                Provider = payment.RefundProvider,
+                ReferenceId = payment.RefundReferenceId,
+                TransactionId = payment.RefundTransactionId,
+                RefundedAt = payment.RefundedAt,
+                Message = "Hoàn tiền thành công."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi hoàn tiền cho PaymentId={Id}", payment.Id);
+            
+            payment.Status = PaymentStatus.RefundFailed;
+            payment.RefundFailureReason = ex.Message;
+            payment.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return new PaymentRefundResponse
+            {
+                PaymentId = payment.Id,
+                ReservationId = payment.ReservationId,
+                Amount = payment.Amount,
+                Status = payment.Status,
+                Message = $"Hoàn tiền thất bại: {ex.Message}"
+            };
+        }
+    }
+
+    /// <summary>
+    /// Hàm private gọi API Payout của PayOS thông qua SDK PayOSClient
+    /// SDK tự tính signature đúng chuẩn với Payout credentials
+    /// </summary>
+    private async Task<(bool Success, string TransactionId, string ErrorMessage)> ExecutePayOSPayoutAsync(decimal amount, string referenceId, UserBankAccount bankAccount)
+    {
+        try
+        {
+            // Tạo PayOSClient riêng với thông tin kênh Chi Hộ (Payout)
+            var payoutClient = new PayOSClient(
+                _options.PayoutClientId,
+                _options.PayoutApiKey,
+                _options.PayoutChecksumKey
+            );
+
+            // API yêu cầu camelCase (toBin, toAccountNumber, referenceId)
+            // Lưu ý: Thông báo lỗi của API in ra snake_case (như to_bin) do thư viện validator của họ tự format, nhưng field gửi đi PHẢI là camelCase!
+            var payload = new Dictionary<string, object>
+            {
+                { "toBin", bankAccount.BankBin },
+                { "toAccountNumber", bankAccount.AccountNumber },
+                { "amount", (int)amount },
+                { "description", "Hoan tien gui xe" },
+                { "referenceId", referenceId.ToString() }
+            };
+
+            _logger.LogInformation("=== PAYOUT via SDK === toAccountNumber={num} | amount={amt} | toBin={bin} | referenceId={ref}",
+                payload["toAccountNumber"], payload["amount"], payload["toBin"], payload["referenceId"]);
+
+
+
+
+            // Dùng đúng SDK CryptoProvider.CreateSignature cho Payout (header signature type)
+            // EncodeUri=true (mặc định) → khoảng trắng thành %20, KHÔNG phải +
+            var cryptoOptions = new PayOS.Crypto.CryptoSignatureOptions { EncodeUri = true };
+            var signature = payoutClient.Crypto.CreateSignature(_options.PayoutChecksumKey, payload, cryptoOptions);
+            _logger.LogInformation("SDK Payout Signature (EncodeUri=true): {sig}", signature);
+
+            // Gọi HTTP với signature do SDK tính
+            using var httpClient = new HttpClient();
+            httpClient.BaseAddress = new Uri("https://api-merchant.payos.vn");
+            
+            var jsonPayload = JsonSerializer.Serialize(payload);
+            _logger.LogInformation("Actual JSON Payload sent to PayOS: {json}", jsonPayload);
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "/v1/payouts");
+
+            request.Headers.Add("x-client-id", _options.PayoutClientId);
+            request.Headers.Add("x-api-key", _options.PayoutApiKey);
+            request.Headers.Add("x-signature", signature);
+            request.Headers.Add("x-idempotency-key", referenceId);
+            request.Content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            var httpResponse = await httpClient.SendAsync(request);
+            var responseStr = await httpResponse.Content.ReadAsStringAsync();
+            _logger.LogInformation("PayOS Payout HTTP Response: {status} | Body: {body}", httpResponse.StatusCode, responseStr);
+
+            using var doc = JsonDocument.Parse(responseStr);
+            var code = doc.RootElement.TryGetProperty("code", out var codeProp) ? codeProp.GetString() : null;
+            
+            if (code == "00")
+                return (true, referenceId, string.Empty);
+            
+            var desc = doc.RootElement.TryGetProperty("desc", out var descProp) ? descProp.GetString() : responseStr;
+            return (false, string.Empty, $"PayOS Code {code} - {desc}");
+
+        }
+
+        catch (Exception ex)
+        {
+            _logger.LogWarning("PayOS SDK Payout exception: {msg}", ex.Message);
+            return (false, string.Empty, ex.Message);
+        }
+    }
+
+
+    private string CreateSignature(string data, string key)
+    {
+        // Cách 1: Dùng key dạng UTF-8 string (cách hiện tại)
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(key));
+        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
+        return BitConverter.ToString(hash).Replace("-", "").ToLower();
+    }
+
+    private string CreateSignatureFromHexKey(string data, string hexKey)
+    {
+        // Cách 2: Decode key từ HEX string thành bytes trước (b4e609... → byte[])
+        // Vì PayOS ChecksumKey là chuỗi hex 64 ký tự (32 bytes thực)
+        var keyBytes = Convert.FromHexString(hexKey);
+        using var hmac = new HMACSHA256(keyBytes);
+        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(data));
+        return BitConverter.ToString(hash).Replace("-", "").ToLower();
     }
 }

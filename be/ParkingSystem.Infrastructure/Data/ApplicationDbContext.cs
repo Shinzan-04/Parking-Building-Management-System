@@ -10,6 +10,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<OtpCode> OtpCodes { get; set; }
+    public DbSet<UserBankAccount> UserBankAccounts { get; set; }
     public DbSet<Building> Buildings { get; set; }
     public DbSet<Floor> Floors { get; set; }
     public DbSet<VehicleType> VehicleTypes { get; set; }

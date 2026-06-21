@@ -9,4 +9,5 @@ public interface IPaymentService
     Task<bool> ProcessPayOSWebhookAsync(System.Text.Json.JsonElement webhookData);
     Task<PaymentStatusResult?> GetPaymentStatusBySessionIdAsync(Guid sessionId);
     Task<(bool Success, PaymentStatus Status)> VerifyPayOSPaymentAsync(long orderCode);
+    Task<PaymentRefundResponse> RefundPaymentAsync(Guid paymentId);
 }
