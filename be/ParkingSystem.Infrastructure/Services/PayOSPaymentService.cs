@@ -67,6 +67,7 @@ public class PayOSPaymentService : IPaymentService
             PayOSOrderCode = orderCode,
             ParkingSessionId = request.ParkingSessionId,
             ReservationId = request.ReservationId,
+            UserId = request.IsWalletDeposit ? request.UserId : null,
             Amount = request.Amount,
             Description = request.Description,
             PaymentDate = DateTime.UtcNow,
@@ -208,6 +209,27 @@ public class PayOSPaymentService : IPaymentService
                 
                 shouldNotifyPaymentSuccess = true;
                 reservationIdToNotify = payment.ReservationId.Value;
+            }
+
+            // Xử lý nạp tiền vào ví (Top-up Wallet)
+            if (payment.Status == PaymentStatus.Success && payment.UserId.HasValue && !payment.ReservationId.HasValue && !payment.ParkingSessionId.HasValue)
+            {
+                var user = await _context.Users.FindAsync(payment.UserId.Value);
+                if (user != null)
+                {
+                    user.Balance += payment.Amount;
+                    _context.WalletTransactions.Add(new WalletTransaction
+                    {
+                        Id = Guid.NewGuid(),
+                        UserId = user.Id,
+                        Amount = payment.Amount,
+                        Type = "Deposit",
+                        Status = "Success",
+                        Description = $"Nạp tiền vào ví qua PayOS (Order: {payment.PayOSOrderCode})",
+                        ReferenceId = payment.PayOSOrderCode.ToString(),
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
             }
 
             await _context.SaveChangesAsync();

@@ -86,12 +86,38 @@ public class PaymentsController : ControllerBase
             if (status == ParkingSystem.Domain.Enums.PaymentStatus.Success)
             {
                 var payment = await context.Payments.FirstOrDefaultAsync(p => p.PayOSOrderCode == orderCode);
-                if (payment != null && payment.ReservationId.HasValue)
+                if (payment != null)
                 {
-                    var reservation = await context.Reservations.FindAsync(payment.ReservationId.Value);
-                    if (reservation != null && reservation.Status == ParkingSystem.Domain.Enums.ReservationStatus.PaymentPending)
+                    if (payment.ReservationId.HasValue)
                     {
-                        await reservationService.ConfirmPaymentAsync(payment.ReservationId.Value);
+                        var reservation = await context.Reservations.FindAsync(payment.ReservationId.Value);
+                        if (reservation != null && reservation.Status == ParkingSystem.Domain.Enums.ReservationStatus.PaymentPending)
+                        {
+                            await reservationService.ConfirmPaymentAsync(payment.ReservationId.Value);
+                        }
+                    }
+                    else if (payment.UserId.HasValue && !payment.ReservationId.HasValue && !payment.ParkingSessionId.HasValue && payment.Status == ParkingSystem.Domain.Enums.PaymentStatus.Pending)
+                    {
+                        // Xử lý nạp tiền vào ví
+                        var user = await context.Users.FindAsync(payment.UserId.Value);
+                        if (user != null)
+                        {
+                            user.Balance += payment.Amount;
+                            context.WalletTransactions.Add(new ParkingSystem.Domain.Entities.WalletTransaction
+                            {
+                                Id = Guid.NewGuid(),
+                                UserId = user.Id,
+                                Amount = payment.Amount,
+                                Type = "Deposit",
+                                Status = "Success",
+                                Description = $"Nạp tiền vào ví qua PayOS (Order: {payment.PayOSOrderCode})",
+                                ReferenceId = payment.PayOSOrderCode.ToString(),
+                                CreatedAt = DateTime.UtcNow
+                            });
+                            payment.Status = ParkingSystem.Domain.Enums.PaymentStatus.Success;
+                            payment.UpdatedAt = DateTime.UtcNow;
+                            await context.SaveChangesAsync();
+                        }
                     }
                 }
             }

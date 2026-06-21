@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wallet Test — Parking System</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    h1 {
+      font-size: 1.6rem;
+      color: #4ade80;
+      margin-bottom: 6px;
+    }
+    .subtitle { color: #94a3b8; font-size: 0.9rem; margin-bottom: 24px; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media(max-width:860px){ .grid{ grid-template-columns:1fr; } }
+
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card h2 {
+      font-size: 1rem;
+      color: #7dd3fc;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    label { display: block; font-size: 0.82rem; color: #94a3b8; margin-bottom: 4px; margin-top: 12px; }
+    input {
+      width: 100%;
+      background: #0f172a;
+      border: 1px solid #475569;
+      border-radius: 8px;
+      color: #e2e8f0;
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: #38bdf8; }
+
+    button {
+      margin-top: 16px;
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    button:active { transform: scale(0.98); }
+    .btn-primary { background: #0ea5e9; color: white; }
+    .btn-success { background: #22c55e; color: white; }
+    .btn-warning { background: #f59e0b; color: #0f172a; }
+
+    .log {
+      background: #0f172a;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 12px;
+      min-height: 80px;
+      max-height: 260px;
+      overflow-y: auto;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .log .ok   { color: #4ade80; }
+    .log .err  { color: #f87171; }
+    .log .info { color: #93c5fd; }
+    
+    .wallet-box {
+      background: #0f2a1e;
+      border: 1px solid #22c55e;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      margin-top: 16px;
+    }
+    .wallet-box .balance {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #4ade80;
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+
+<h1>💰 Wallet Test</h1>
+<p class="subtitle">Kiểm tra Nạp tiền (PayOS) và Rút tiền</p>
+
+<div class="grid">
+
+  <!-- ĐĂNG NHẬP -->
+  <div class="card">
+    <h2>1️⃣ Đăng nhập (Tài xế)</h2>
+    <label>Username</label>
+    <input id="username" value="driver01" />
+    <label>Password</label>
+    <input id="password" type="password" value="123456" />
+    <button class="btn-primary" onclick="login()">🔑 Đăng nhập</button>
+    <div class="log" id="log-auth">Chưa đăng nhập...</div>
+  </div>
+
+  <!-- VÍ & GIAO DỊCH -->
+  <div class="card">
+    <h2>2️⃣ Quản lý Ví</h2>
+    <div class="wallet-box">
+      <h3 style="color:#fcd34d;">Số dư khả dụng</h3>
+      <div class="balance" id="balance-display">... VND</div>
+      <button class="btn-secondary" style="margin-top:8px; padding:6px; font-size:0.8rem; background:#334155; color:#fff;" onclick="loadWallet()">🔄 Làm mới</button>
+    </div>
+
+    <label>Số tiền (VND)</label>
+    <input id="amount" type="number" value="50000" />
+    
+    <div style="display:flex; gap:10px;">
+      <button class="btn-success" onclick="deposit()">➕ Nạp tiền (Tạo PayOS)</button>
+      <button class="btn-warning" onclick="withdraw()">➖ Rút tiền (Rút về NH)</button>
+    </div>
+
+    <div id="payos-link-container" style="display:none; margin-top:16px; text-align:center;">
+        <a id="payos-link" href="#" target="_blank" style="display:inline-block; width:100%; padding:10px; background:#0ea5e9; color:white; border-radius:8px; text-decoration:none; font-weight:bold;">🔗 Mở trang thanh toán Nạp tiền</a>
+        <p style="margin-top:8px; color:#94a3b8; font-size:0.8rem;">Sau khi thanh toán xong ở cửa sổ mới, bấm nút bên dưới để hệ thống xác nhận (Bypass Webhook).</p>
+        <button class="btn-primary" style="margin-top:8px;" onclick="verifyPayment()">✅ Đã thanh toán xong (Verify)</button>
+    </div>
+
+    <div class="log" id="log-wallet">Chưa có dữ liệu...</div>
+  </div>
+
+</div>
+
+<script>
+const BASE = window.location.origin;
+let token = localStorage.getItem('wallet_test_token') || '';
+let currentOrderCode = null;
+
+function log(id, msg, type = 'info') {
+  const el = document.getElementById(id);
+  const line = document.createElement('span');
+  line.className = type;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearLog(id) {
+  document.getElementById(id).innerHTML = '';
+}
+
+async function apiFetch(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(BASE + path, opts);
+  const text = await res.text();
+  try { return { ok: res.ok, status: res.status, data: JSON.parse(text) }; }
+  catch { return { ok: res.ok, status: res.status, data: text }; }
+}
+
+async function login() {
+  clearLog('log-auth');
+  log('log-auth', 'Đang đăng nhập...', 'info');
+  const r = await apiFetch('/api/auth/login', 'POST', {
+    username: document.getElementById('username').value,
+    password: document.getElementById('password').value
+  });
+  if (r.ok && r.data.accessToken) {
+    token = r.data.accessToken;
+    localStorage.setItem('wallet_test_token', token);
+    log('log-auth', `✅ Đăng nhập thành công! ${r.data.fullName}`, 'ok');
+    await loadWallet();
+  } else {
+    log('log-auth', `❌ Lỗi: ${JSON.stringify(r.data)}`, 'err');
+  }
+}
+
+async function loadWallet() {
+  clearLog('log-wallet');
+  const r = await apiFetch('/api/wallets/me');
+  if (r.ok) {
+    const balance = r.data.balance || 0;
+    document.getElementById('balance-display').textContent = `${balance.toLocaleString('vi-VN')} VND`;
+    log('log-wallet', `✅ Đã tải thông tin ví. Số dư: ${balance.toLocaleString('vi-VN')} VND`, 'ok');
+    
+    // Hiển thị lịch sử ngắn
+    if (r.data.transactions && r.data.transactions.length > 0) {
+        log('log-wallet', `Lịch sử giao dịch gần đây:`, 'info');
+        r.data.transactions.slice(0, 5).forEach(t => {
+            log('log-wallet', `- ${t.type} | ${t.amount.toLocaleString()} đ | ${t.status} | ${t.description}`, 'info');
+        });
+    }
+  } else {
+    log('log-wallet', `❌ Lỗi: ${JSON.stringify(r.data)}`, 'err');
+  }
+}
+
+async function deposit() {
+  clearLog('log-wallet');
+  const amount = parseFloat(document.getElementById('amount').value);
+  if (!amount || amount < 10000) {
+      log('log-wallet', '❌ Vui lòng nhập số tiền hợp lệ (Tối thiểu 10,000)', 'err');
+      return;
+  }
+  
+  log('log-wallet', `Đang tạo yêu cầu nạp ${amount.toLocaleString()} VND...`, 'info');
+  const r = await apiFetch('/api/wallets/deposit', 'POST', { amount });
+  
+  if (r.ok) {
+      currentOrderCode = r.data.orderCode;
+      log('log-wallet', `✅ Đã tạo link PayOS. OrderCode: ${currentOrderCode}`, 'ok');
+      document.getElementById('payos-link-container').style.display = 'block';
+      document.getElementById('payos-link').href = r.data.checkoutUrl;
+  } else {
+      log('log-wallet', `❌ Lỗi: ${JSON.stringify(r.data)}`, 'err');
+  }
+}
+
+async function verifyPayment() {
+    if (!currentOrderCode) return;
+    log('log-wallet', `Đang gọi API VerifyPayment cho Order: ${currentOrderCode}...`, 'info');
+    const r = await apiFetch(`/api/payments/verify/${currentOrderCode}`, 'GET');
+    
+    if (r.ok) {
+        log('log-wallet', `✅ Trạng thái: ${r.data.status}`, 'ok');
+        if (r.data.isPaid) {
+            log('log-wallet', `🎉 Xác nhận thanh toán thành công! Tiền đã được cộng vào ví.`, 'ok');
+            document.getElementById('payos-link-container').style.display = 'none';
+            await loadWallet();
+        } else {
+            log('log-wallet', `⚠️ Thanh toán chưa hoàn tất. PayOS báo: ${r.data.status}`, 'warn');
+        }
+    } else {
+        log('log-wallet', `❌ Lỗi: ${JSON.stringify(r.data)}`, 'err');
+    }
+}
+
+async function withdraw() {
+  clearLog('log-wallet');
+  const amount = parseFloat(document.getElementById('amount').value);
+  if (!amount || amount <= 0) {
+      log('log-wallet', '❌ Vui lòng nhập số tiền cần rút.', 'err');
+      return;
+  }
+
+  if (!confirm(`Bạn chắc chắn muốn rút ${amount.toLocaleString()} VND về ngân hàng?`)) return;
+  
+  log('log-wallet', `Đang gửi yêu cầu rút tiền...`, 'info');
+  const r = await apiFetch('/api/wallets/withdraw', 'POST', { amount });
+  
+  if (r.ok) {
+      log('log-wallet', `✅ ${r.data.message || 'Rút tiền thành công!'}`, 'ok');
+      await loadWallet();
+  } else {
+      log('log-wallet', `❌ Lỗi: ${JSON.stringify(r.data)}`, 'err');
+  }
+}
+
+// Tự động load ví nếu có token
+if (token) {
+    loadWallet();
+}
+</script>
+</body>
+</html>

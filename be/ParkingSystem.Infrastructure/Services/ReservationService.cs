@@ -191,6 +191,7 @@ public class ReservationService : IReservationService
 
             var approvalMode = slot.Floor?.Building?.ApprovalMode ?? ReservationApprovalMode.Manual;
 
+            bool isAutoApprove = false;
             if (approvalMode == ReservationApprovalMode.AutoReject)
             {
                 // Nếu không có phí (fee = 0), kiểm tra Auto-Approve và Noti cho Staff
@@ -207,7 +208,7 @@ public class ReservationService : IReservationService
                              || !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
                     .ToListAsync();
 
-                bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
+                isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
 
                 if (isAutoApprove)
                 {
@@ -244,33 +245,54 @@ public class ReservationService : IReservationService
             _context.Reservations.Add(reservation);
             LogState(reservation, "Create", "Người dùng tạo đặt chỗ");
 
-            // Lưu trước để lấy ID cho Payment
-            await _context.SaveChangesAsync();
-
-            // Nếu có phí thì tạo PayOS. Nếu tạo lỗi sẽ throw -> Rollback toàn bộ
+            // Nếu có phí thì trừ tiền từ Ví tài xế
             if (fee > 0)
             {
-                try
-                {
-                    var payosResult = await _paymentService.CreatePayOSPaymentAsync(new CreatePayOSPaymentRequest
-                    {
-                        ReservationId = reservation.Id,
-                        Amount = fee,
-                        Description = $"Booking {reservation.BookingCode}"
-                    });
+                var driver = await _context.Users.FirstOrDefaultAsync(u => u.Id == driverId);
+                if (driver == null) throw new InvalidOperationException("Không tìm thấy thông tin tài xế.");
 
-                    checkoutUrl = payosResult.CheckoutUrl;
-                    bookingFee = fee;
-                    payOSOrderCode = payosResult.OrderCode;
-
-                    _logger.LogInformation("PayOS booking payment created. ReservationId={Id}, Fee={Fee}", reservation.Id, fee);
-                }
-                catch (Exception ex)
+                if (driver.Balance < fee)
                 {
-                    _logger.LogError(ex, "Tạo PayOS payment cho booking {Id} thất bại", reservation.Id);
-                    throw new InvalidOperationException("Không thể tạo link thanh toán PayOS lúc này. Vui lòng thử lại sau.");
+                    throw new InvalidOperationException("Số dư ví không đủ. Vui lòng nạp thêm tiền vào ví để thanh toán phí đặt chỗ.");
                 }
+
+                // Trừ ví và tạo Transaction
+                driver.Balance -= fee;
+                _context.WalletTransactions.Add(new WalletTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = driver.Id,
+                    Amount = fee,
+                    Type = "BookingPayment",
+                    Status = "Success",
+                    Description = $"Thanh toán phí đặt chỗ {bookingCode}",
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                // Cập nhật trạng thái Reservation luôn vì đã trừ tiền
+                reservation.Status = isAutoApprove ? ReservationStatus.Confirmed : ReservationStatus.PendingReview;
+
+                // Tạo Entity Payment (Lịch sử thanh toán cho Booking)
+                var payment = new Payment
+                {
+                    Id = Guid.NewGuid(),
+                    ReservationId = reservation.Id,
+                    Amount = fee,
+                    Description = $"Thanh toán ví cho Booking {bookingCode}",
+                    PaymentDate = DateTime.UtcNow,
+                    PaymentMethod = PaymentMethod.Wallet,
+                    Status = PaymentStatus.Success,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                _context.Payments.Add(payment);
+
+                bookingFee = fee;
+                _logger.LogInformation("Thanh toán Booking bằng Ví thành công. ReservationId={Id}, Fee={Fee}", reservation.Id, fee);
             }
+
+            // Lưu trước để Commit
+            await _context.SaveChangesAsync();
 
             // Mọi thứ OK thì mới Commit Database
             await transaction.CommitAsync();
@@ -278,11 +300,9 @@ public class ReservationService : IReservationService
             await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
             await _realtimeService.SendDashboardUpdateAsync();
 
-            // Gửi Notification nếu fee == 0 (vì bypass đoạn ConfirmPayment)
-            if (fee == 0)
+            // Gửi Notification sau khi đặt chỗ (và đã thanh toán xong qua ví nếu có phí)
+            if (reservation.Status == ReservationStatus.Confirmed)
             {
-                if (initialStatus == ReservationStatus.Confirmed)
-                {
                     await _notificationService.SendAsync(
                         reservation.DriverId,
                         "✅ Đặt chỗ được chấp nhận",
@@ -313,7 +333,7 @@ public class ReservationService : IReservationService
                             reservation.Id);
                     }
                 }
-                else if (initialStatus == ReservationStatus.PendingReview)
+                else if (reservation.Status == ReservationStatus.PendingReview)
                 {
                     await _notificationService.SendAsync(
                         reservation.DriverId,
@@ -344,7 +364,6 @@ public class ReservationService : IReservationService
                             reservation.Id);
                     }
                 }
-            }
 
             return MapToResponse(reservation, slot, checkoutUrl, bookingFee, payOSOrderCode);
 

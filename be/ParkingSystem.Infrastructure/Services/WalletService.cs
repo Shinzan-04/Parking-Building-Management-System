@@ -22,27 +22,28 @@ public class WalletService : IWalletService
 
     public async Task<WalletBalanceDto> GetMyBalanceAsync(Guid userId)
     {
-        var user = await _context.Users
-            .Include(u => u.WalletTransactions)
-            .FirstOrDefaultAsync(u => u.Id == userId);
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) throw new Exception("Không tìm thấy người dùng.");
 
-        if (user == null)
-            throw new Exception("Không tìm thấy người dùng.");
+        var transactions = await _context.WalletTransactions
+            .Where(t => t.UserId == userId)
+            .OrderByDescending(t => t.CreatedAt)
+            .Take(50)
+            .Select(t => new WalletTransactionDto
+            {
+                Id = t.Id,
+                Amount = t.Amount,
+                Type = t.Type,
+                Status = t.Status,
+                Description = t.Description,
+                CreatedAt = t.CreatedAt
+            })
+            .ToListAsync();
 
         return new WalletBalanceDto
         {
             Balance = user.Balance,
-            Transactions = user.WalletTransactions
-                .OrderByDescending(t => t.CreatedAt)
-                .Select(t => new WalletTransactionDto
-                {
-                    Id = t.Id,
-                    Amount = t.Amount,
-                    Type = t.Type,
-                    Status = t.Status,
-                    Description = t.Description,
-                    CreatedAt = t.CreatedAt
-                }).ToList()
+            Transactions = transactions
         };
     }
 

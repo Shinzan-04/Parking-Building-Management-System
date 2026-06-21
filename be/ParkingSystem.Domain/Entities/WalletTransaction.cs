@@ -13,7 +13,7 @@ public class WalletTransaction : BaseEntity
     public decimal Amount { get; set; }
 
     /// <summary>
-    /// Loại giao dịch: "Refund" (Cộng tiền), "Withdrawal" (Trừ tiền)
+    /// Loại giao dịch: Deposit, Withdraw, Payment, Refund
     /// </summary>
     public string Type { get; set; } = string.Empty;
 
@@ -35,6 +35,7 @@ public class WalletTransaction : BaseEntity
 
     /// <summary>
     /// Mã đối soát với cổng thanh toán PayOS (nếu là rút tiền)
-    /// </summary>
     public string? ReferenceId { get; set; }
+
+
 }

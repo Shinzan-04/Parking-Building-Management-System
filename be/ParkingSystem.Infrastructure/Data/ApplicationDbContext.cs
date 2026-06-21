@@ -104,6 +104,13 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(p => p.ReservationId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        // Payment → User (dành cho nạp tiền vào ví)
+        modelBuilder.Entity<Payment>()
+            .HasOne(p => p.User)
+            .WithMany()
+            .HasForeignKey(p => p.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
         // PriceSetting → VehicleType
         modelBuilder.Entity<PriceSetting>()
             .HasOne(ps => ps.VehicleType)

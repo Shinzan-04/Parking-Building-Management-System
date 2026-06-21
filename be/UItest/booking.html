@@ -214,17 +214,14 @@
     </select>
     <button class="btn-primary" onclick="createBooking()">📅 Tạo Booking</button>
 
-    <!-- Hiển thị kết quả & PayOS link -->
-    <div class="payos-box" id="payos-box">
-      <h3>💳 Thanh toán đặt chỗ</h3>
-      <div class="fee" id="payos-fee">0 VND</div>
-      <div id="payos-booking-code" style="color:#94a3b8;margin-bottom:4px;"></div>
-      <a id="payos-link" href="#" target="_blank">🔗 Mở trang thanh toán PayOS</a>
-      <div class="order-code" id="payos-order">OrderCode: —</div>
-      <hr>
-      <p style="font-size:0.8rem;color:#94a3b8;margin-top:8px;">Sau khi thanh toán, bấm nút dưới để xác nhận</p>
-      <button class="btn-success" style="margin-top:8px;" onclick="confirmPayment()">✅ Xác nhận đã thanh toán</button>
-      <button class="btn-danger" style="margin-top:8px;" onclick="failPayment()">❌ Báo thanh toán thất bại</button>
+    <!-- NẠP TIỀN & SỐ DƯ VÍ -->
+    <div class="wallet-box" id="wallet-box" style="margin-top:16px; background:#0f2a1e; padding:16px; border:1px solid #22c55e; border-radius:8px;">
+      <h3 style="color:#fcd34d;">💰 Ví Tài Xế</h3>
+      <div style="font-size:1.6rem; font-weight:bold; color:#4ade80; margin:8px 0;" id="wallet-balance">... VND</div>
+      <button class="btn-success" onclick="topupWallet()">➕ Nạp 50,000 VND qua PayOS</button>
+      <div id="topup-link-container" style="margin-top:12px; display:none;">
+        <a id="topup-link" href="#" target="_blank" style="display:inline-block; padding:8px 16px; background:#22c55e; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">🔗 Mở trang Nạp tiền PayOS</a>
+      </div>
     </div>
 
     <div class="log" id="log-booking">Chưa tạo booking...</div>
@@ -308,6 +305,7 @@ async function login() {
     log('log-auth', `📧 ${r.data.email}`, 'info');
     log('log-auth', `🪪 DriverCode: ${r.data.driverCode || 'N/A'}`, 'info');
     await loadVehiclesAndSlots();
+    await loadWalletBalance();
   } else {
     log('log-auth', `❌ Lỗi: ${JSON.stringify(r.data?.message || r.data)}`, 'err');
   }
@@ -365,7 +363,7 @@ async function loadVehiclesAndSlots() {
 // ============================
 async function createBooking() {
   clearLog('log-booking');
-  document.getElementById('payos-box').classList.remove('visible');
+  // document.getElementById('payos-box').classList.remove('visible');
 
   const vehicleId = document.getElementById('vehicleId').value;
   const slotId = document.getElementById('slotId').value;
@@ -392,49 +390,42 @@ async function createBooking() {
   if (r.ok) {
     const d = r.data;
     currentReservationId = d.id;
-    log('log-booking', `✅ Booking tạo thành công!`, 'ok');
+    log('log-booking', `✅ Booking tạo thành công! Tiền đã được trừ từ ví.`, 'ok');
     log('log-booking', `📋 Code: ${d.bookingCode}`, 'ok');
     log('log-booking', `🅿️ Slot: ${d.slotNumber}`, 'ok');
+    log('log-booking', `💰 Phí đã trừ: ${(d.bookingFee || 0).toLocaleString('vi-VN')} VND`, 'info');
     log('log-booking', `📌 Status: ${d.status}`, 'info');
 
-    if (d.payOSCheckoutUrl) {
-      document.getElementById('payos-fee').textContent =
-        `${(d.bookingFee || 0).toLocaleString('vi-VN')} VND`;
-      document.getElementById('payos-booking-code').textContent = `Mã đặt chỗ: ${d.bookingCode}`;
-      document.getElementById('payos-link').href = d.payOSCheckoutUrl;
-      document.getElementById('payos-order').textContent = `OrderCode: ${d.payOSOrderCode || '—'}`;
-      document.getElementById('payos-box').classList.add('visible');
-      log('log-booking', `💳 PayOS link: ${d.payOSCheckoutUrl}`, 'ok');
-    } else {
-      log('log-booking', '⚠️ Không có link PayOS (phí = 0 hoặc lỗi tạo link)', 'warn');
+    // Cập nhật lại số dư
+    await loadWalletBalance();
+    await loadMyReservations();
+  } else {
+    log('log-booking', `❌ Lỗi: ${JSON.stringify(r.data)}`, 'err');
+    if (r.status === 400 && JSON.stringify(r.data).includes("Số dư ví không đủ")) {
+        alert("Số dư ví không đủ! Vui lòng bấm nạp tiền vào ví trước khi đặt chỗ.");
     }
-  } else {
-    log('log-booking', `❌ Lỗi: ${JSON.stringify(r.data)}`, 'err');
   }
 }
 
 // ============================
-// XÁC NHẬN THANH TOÁN THỦ CÔNG
+// NẠP TIỀN VÀO VÍ (TOP-UP)
 // ============================
-async function confirmPayment() {
-  if (!currentReservationId) { alert('Chưa có booking!'); return; }
-  const r = await apiFetch(`/api/reservations/${currentReservationId}/payment-success`, 'PUT');
+async function loadWalletBalance() {
+  const r = await apiFetch('/api/wallets/me');
   if (r.ok) {
-    log('log-booking', '✅ Xác nhận thanh toán thành công → PendingReview', 'ok');
-    await loadMyReservations();
-  } else {
-    log('log-booking', `❌ Lỗi xác nhận: ${JSON.stringify(r.data)}`, 'err');
+    const balance = r.data.balance || 0;
+    document.getElementById('wallet-balance').textContent = `${balance.toLocaleString('vi-VN')} VND`;
   }
 }
 
-async function failPayment() {
-  if (!currentReservationId) { alert('Chưa có booking!'); return; }
-  const r = await apiFetch(`/api/reservations/${currentReservationId}/payment-failed`, 'PUT');
+async function topupWallet() {
+  const r = await apiFetch('/api/wallets/deposit', 'POST', { amount: 50000 });
   if (r.ok) {
-    log('log-booking', '⚠️ Đã báo thanh toán thất bại → PaymentFailed', 'warn');
-    await loadMyReservations();
+    document.getElementById('topup-link-container').style.display = 'block';
+    document.getElementById('topup-link').href = r.data.checkoutUrl;
+    alert("Đã tạo link nạp tiền! Bấm 'Mở trang Nạp tiền PayOS' để thanh toán.");
   } else {
-    log('log-booking', `❌ Lỗi: ${JSON.stringify(r.data)}`, 'err');
+    alert("Lỗi khi tạo nạp tiền: " + JSON.stringify(r.data));
   }
 }
 

@@ -23,3 +23,7 @@ public class WithdrawRequestDto
 {
     public decimal Amount { get; set; }
 }
+public class DepositRequestDto
+{
+    public decimal Amount { get; set; }
+}
