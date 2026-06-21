@@ -385,7 +385,7 @@ public class PayOSPaymentService : IPaymentService
                     Amount = payment.Amount,
                     Type = "Refund",
                     Status = "Success",
-                    Description = $"Hoàn tiền cho giao dịch {payment.PayOSOrderCode ?? payment.Id.ToString()}",
+                    Description = $"Hoàn tiền cho giao dịch {(payment.PayOSOrderCode != 0 ? payment.PayOSOrderCode.ToString() : payment.Id.ToString())}",
                     RelatedPaymentId = payment.Id,
                     ReferenceId = referenceId
                 };

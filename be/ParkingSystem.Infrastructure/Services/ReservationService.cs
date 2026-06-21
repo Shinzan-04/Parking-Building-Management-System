@@ -754,8 +754,12 @@ public class ReservationService : IReservationService
         {
             payment.Status = PaymentStatus.Refunding;
             payment.UpdatedAt = DateTime.UtcNow;
-            // TODO: Gọi API PayOS/Momo để hoàn tiền thực tế
-            // Sau khi hoàn xong → cập nhật payment.Status = PaymentStatus.Refunded
+            
+            // Lưu trạng thái Refunding xuống DB trước khi gọi RefundPaymentAsync
+            await _context.SaveChangesAsync();
+            
+            // Gọi API hoàn tiền thực tế (chuyển tiền vào Ví Tài xế)
+            await _paymentService.RefundPaymentAsync(payment.Id);
         }
     }
 
