@@ -219,6 +219,7 @@ public class SessionService : ISessionService
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
                     .ThenInclude(f => f.Building)
+            .Include(s => s.Reservation)
             .Where(s => s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted)
             .OrderByDescending(s => s.EntryTime)
             .FirstOrDefaultAsync();
@@ -231,10 +232,25 @@ public class SessionService : ISessionService
 
         var pricePerHour = pricing?.HourlyRate ?? 0;
 
-        // Tính tạm phí đỗ xe
-        var duration = DateTime.UtcNow - session.EntryTime;
-        var hours = Math.Ceiling(duration.TotalHours);
-        var currentFee = (decimal)Math.Max(1, hours) * pricePerHour;
+        bool isPrepaid = session.CheckInMethod == CheckInMethod.Booking && session.Reservation != null;
+        DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : null;
+        
+        decimal currentFee = 0;
+        if (isPrepaid)
+        {
+            if (prepaidEndTime.HasValue && DateTime.UtcNow > prepaidEndTime.Value)
+            {
+                var overdueDuration = DateTime.UtcNow - prepaidEndTime.Value;
+                var overdueHours = Math.Ceiling(overdueDuration.TotalHours);
+                currentFee = (decimal)Math.Max(1, overdueHours) * pricePerHour;
+            }
+        }
+        else
+        {
+            var duration = DateTime.UtcNow - session.EntryTime;
+            var hours = Math.Ceiling(duration.TotalHours);
+            currentFee = (decimal)Math.Max(1, hours) * pricePerHour;
+        }
 
         return new MyActiveSessionResponse
         {
@@ -248,7 +264,9 @@ public class SessionService : ISessionService
             FloorName = session.ParkingSlot?.Floor?.Name ?? "",
             SlotNumber = session.ParkingSlot?.SlotNumber ?? "",
             PricePerHour = pricePerHour,
-            CurrentFee = currentFee
+            CurrentFee = currentFee,
+            IsPrepaid = isPrepaid,
+            PrepaidEndTime = prepaidEndTime
         };
     }
 }

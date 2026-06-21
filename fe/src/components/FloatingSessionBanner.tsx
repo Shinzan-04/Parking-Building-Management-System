@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, Navigation, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import * as signalR from '@microsoft/signalr';
 import { getMyActiveSession } from '../services/sessionsService';
 import type { MyActiveSessionResponse } from '../services/sessionsService';
 
@@ -34,7 +35,30 @@ export default function FloatingSessionBanner() {
 
     fetchActiveSession();
     const intervalId = setInterval(fetchActiveSession, 60000);
-    return () => clearInterval(intervalId);
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5237'}/hub`, {
+        accessTokenFactory: () => token
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    connection.start().then(() => {
+      console.log("SignalR Connected for Floating Banner");
+      connection.on("ReceiveNotification", (message: string) => {
+        if (message === "SESSION_STARTED" || message === "SESSION_COMPLETED") {
+          fetchActiveSession();
+          if (message === "SESSION_STARTED") {
+            setIsCollapsed(false);
+          }
+        }
+      });
+    }).catch(err => console.error("SignalR Connection Error: ", err));
+
+    return () => {
+      clearInterval(intervalId);
+      connection.stop();
+    };
   }, [user, token]);
 
   // Timer effect to update elapsed time every second

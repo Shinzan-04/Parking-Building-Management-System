@@ -290,6 +290,10 @@ public class CheckInService : ICheckInService
         await _context.SaveChangesAsync();
         await _realtimeService.SendDashboardUpdateAsync();
         await _realtimeService.SendSlotStatusUpdateAsync(assignedSlot.Id, assignedSlot.Status.ToString());
+        if (session.DriverId.HasValue)
+        {
+            await _realtimeService.SendNotificationAsync(session.DriverId.Value, "SESSION_STARTED");
+        }
 
         // Sinh ảnh QR Code Base64 (để in vé giấy)
         var qrImageBase64 = _qrCodeService.GenerateQrCodeBase64(sessionCode);
@@ -370,6 +374,10 @@ public class CheckInService : ICheckInService
 
         await _realtimeService.SendDashboardUpdateAsync();
         await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+        if (session.DriverId.HasValue)
+        {
+            await _realtimeService.SendNotificationAsync(session.DriverId.Value, "SESSION_STARTED");
+        }
 
         var qrImageBase64 = _qrCodeService.GenerateQrCodeBase64(sessionCode);
 
@@ -527,6 +535,10 @@ public class CheckInService : ICheckInService
         await _context.SaveChangesAsync();
         await _realtimeService.SendDashboardUpdateAsync();
         await _realtimeService.SendSlotStatusUpdateAsync(assignedSlot.Id, assignedSlot.Status.ToString());
+        if (session.DriverId.HasValue)
+        {
+            await _realtimeService.SendNotificationAsync(session.DriverId.Value, "SESSION_STARTED");
+        }
 
         var qrImageBase64 = _qrCodeService.GenerateQrCodeBase64(sessionCode);
         var buildingName = assignedSlot.Floor?.Building?.Name ?? "";

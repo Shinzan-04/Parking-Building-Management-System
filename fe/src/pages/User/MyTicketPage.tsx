@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import * as signalR from '@microsoft/signalr';
 import { useAuth } from '../../hooks/useAuth';
 import {
   getMyReservations,
@@ -64,6 +65,30 @@ export default function MyTicketPage() {
 
   useEffect(() => {
     fetchTickets();
+  }, [token]);
+
+  // Lắng nghe SignalR để tự động cập nhật danh sách vé (khi Staff duyệt/từ chối, check-in, etc)
+  useEffect(() => {
+    if (!token) return;
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5237'}/hub`, {
+        accessTokenFactory: () => token
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    connection.start().then(() => {
+      console.log("SignalR Connected for MyTicketPage");
+      connection.on("ReceiveNotification", () => {
+        // Cứ có thông báo mới đẩy về (ví dụ: Staff đã duyệt vé) -> Reload ngay lập tức!
+        fetchTickets();
+      });
+    }).catch(err => console.error("SignalR Connection Error: ", err));
+
+    return () => {
+      connection.stop();
+    };
   }, [token]);
 
   // Click outside cho dropdown avatar

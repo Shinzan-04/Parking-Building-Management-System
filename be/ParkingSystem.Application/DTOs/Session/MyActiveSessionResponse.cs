@@ -13,4 +13,6 @@ public class MyActiveSessionResponse
     public string SlotNumber { get; set; } = string.Empty;
     public decimal PricePerHour { get; set; }
     public decimal CurrentFee { get; set; }
+    public bool IsPrepaid { get; set; }
+    public DateTime? PrepaidEndTime { get; set; }
 }
