@@ -189,8 +189,11 @@ public class ReservationService : IReservationService
                     .FirstOrDefaultAsync(s => s.Id == slot.Id);
                 var buildingId = slotWithFloor?.Floor?.BuildingId;
                 var assignedStaffs = await _context.Users
-                    .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
-                    .Where(u => !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
+                    .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin
+                             || u.Role == ParkingSystem.Domain.Enums.Role.Manager
+                             || u.Role == ParkingSystem.Domain.Enums.Role.Staff)
+                    .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin // Admin nhận tất cả, không lọc theo tòa nhà
+                             || !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
                     .ToListAsync();
 
                 bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
@@ -277,9 +280,14 @@ public class ReservationService : IReservationService
                     // Thông báo cho Staff/Manager biết có booking mới (tự duyệt, miễn phí)
                     var buildingIdAuto = slot.Floor?.BuildingId;
                     var staffsAuto = await _context.Users
-                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
-                        .Where(u => !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingIdAuto)
-                        .Where(u => u.IsNotificationEnabled)
+                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin
+                                 || u.Role == ParkingSystem.Domain.Enums.Role.Manager
+                                 || u.Role == ParkingSystem.Domain.Enums.Role.Staff)
+                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin
+                                 || !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingIdAuto)
+                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin // Admin luôn nhận
+                                 || u.Role == ParkingSystem.Domain.Enums.Role.Manager // Manager luôn nhận
+                                 || u.IsNotificationEnabled) // Staff chỉ nhận khi bật
                         .ToListAsync();
 
                     foreach (var staff in staffsAuto)
@@ -303,9 +311,14 @@ public class ReservationService : IReservationService
 
                     var buildingId = slot.Floor?.BuildingId;
                     var staffsToNotify = await _context.Users
-                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
-                        .Where(u => !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
-                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Manager || u.IsNotificationEnabled)
+                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin
+                                 || u.Role == ParkingSystem.Domain.Enums.Role.Manager
+                                 || u.Role == ParkingSystem.Domain.Enums.Role.Staff)
+                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin
+                                 || !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
+                        .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin // Admin luôn nhận
+                                 || u.Role == ParkingSystem.Domain.Enums.Role.Manager // Manager luôn nhận
+                                 || u.IsNotificationEnabled) // Staff chỉ nhận khi bật
                         .ToListAsync();
 
                     foreach (var staff in staffsToNotify)
@@ -378,8 +391,11 @@ public class ReservationService : IReservationService
 
         // Lấy danh sách Staff phụ trách
         var assignedStaffs = await _context.Users
-            .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
-            .Where(u => !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
+            .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin
+                     || u.Role == ParkingSystem.Domain.Enums.Role.Manager
+                     || u.Role == ParkingSystem.Domain.Enums.Role.Staff)
+            .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin // Admin nhận tất cả, không lọc theo tòa nhà
+                     || !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
             .ToListAsync();
 
         bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
@@ -412,8 +428,12 @@ public class ReservationService : IReservationService
                 "ReservationAccepted",
                 reservation.Id);
 
-            // Thông báo cho Staff/Manager biết có booking mới (đã tự duyệt)
-            var staffsToNotify = assignedStaffs.Where(u => u.IsNotificationEnabled).ToList();
+            // Thông báo cho Admin/Manager/Staff biết có booking mới (đã tự duyệt)
+            var staffsToNotify = assignedStaffs
+                .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin // Admin luôn nhận
+                         || u.Role == ParkingSystem.Domain.Enums.Role.Manager // Manager luôn nhận
+                         || u.IsNotificationEnabled) // Staff chỉ nhận khi bật
+                .ToList();
             foreach (var staff in staffsToNotify)
             {
                 await _notificationService.SendAsync(
@@ -445,8 +465,12 @@ public class ReservationService : IReservationService
                 "PaymentSuccess",
                 reservation.Id);
 
-            // Manager luôn nhận, Staff chỉ nhận khi bật IsNotificationEnabled
-            var staffsToNotify = assignedStaffs.Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Manager || u.IsNotificationEnabled).ToList();
+            // Admin/Manager luôn nhận, Staff chỉ nhận khi bật IsNotificationEnabled
+            var staffsToNotify = assignedStaffs
+                .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin
+                         || u.Role == ParkingSystem.Domain.Enums.Role.Manager
+                         || u.IsNotificationEnabled)
+                .ToList();
             foreach (var staff in staffsToNotify)
             {
                 await _notificationService.SendAsync(
