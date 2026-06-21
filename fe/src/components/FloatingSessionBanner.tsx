@@ -2,20 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clock, Navigation } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { getMyActiveSession } from '../services/sessionsService';
+import type { MyActiveSessionResponse } from '../services/sessionsService';
 
-export interface MyActiveSession {
-  id: string;
-  sessionCode: string;
-  licensePlate: string;
-  vehicleTypeName: string;
-  entryTime: string;
-  buildingName: string;
-  floorName: string;
-  slotNumber: string;
-  pricePerHour: number;
-  currentFee: number;
-  sessionQrCodeBase64?: string;
-}
+export type MyActiveSession = MyActiveSessionResponse;
 
 export default function FloatingSessionBanner() {
   const { user, token } = useAuth();
@@ -30,40 +20,20 @@ export default function FloatingSessionBanner() {
     // Once the backend implements the API, replace this with a real fetch
     const fetchActiveSession = async () => {
       try {
-        /*
-        const res = await fetch('http://localhost:5000/api/UserSessions/my-active', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
+        const data = await getMyActiveSession(token);
+        if (data) {
           setActiveSession(data);
+        } else {
+          setActiveSession(null);
         }
-        */
-        
-        // --- MOCK DATA cho Frontend Demo ---
-        const mockData: MyActiveSession = {
-          id: '123',
-          sessionCode: 'AB12C',
-          licensePlate: '51A-123.45',
-          vehicleTypeName: 'Ô tô 4 chỗ',
-          entryTime: new Date(Date.now() - 3600000 - 15000).toISOString(), // 1 hour 15 seconds ago
-          buildingName: 'ParkSmart Building',
-          floorName: 'B1',
-          slotNumber: 'A-01',
-          pricePerHour: 20000,
-          currentFee: 20000
-        };
-        setActiveSession(mockData);
-        // -----------------------------------
       } catch (err) {
         console.error('Failed to fetch active session', err);
       }
     };
 
     fetchActiveSession();
-    // In production, you might want to poll this every 1-5 minutes
-    // const intervalId = setInterval(fetchActiveSession, 60000);
-    // return () => clearInterval(intervalId);
+    const intervalId = setInterval(fetchActiveSession, 60000);
+    return () => clearInterval(intervalId);
   }, [user, token]);
 
   // Timer effect to update elapsed time every second
@@ -93,7 +63,7 @@ export default function FloatingSessionBanner() {
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm">
-      <div 
+      <div
         onClick={() => navigate('/live-session')}
         className="bg-[#2B52FF] text-white rounded-2xl p-4 shadow-xl shadow-[#2B52FF]/30 cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-between"
       >

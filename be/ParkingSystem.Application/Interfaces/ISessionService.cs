@@ -23,4 +23,9 @@ public interface ISessionService
     /// Tìm session đang Active theo biển số xe (tra cứu nhanh)
     /// </summary>
     Task<SessionDto?> FindActiveByPlateAsync(string licensePlate);
+    
+    /// <summary>
+    /// Lấy thông tin phiên đỗ xe hiện tại (Live Session) của user (Driver)
+    /// </summary>
+    Task<MyActiveSessionResponse?> GetMyActiveSessionAsync(Guid driverId);
 }

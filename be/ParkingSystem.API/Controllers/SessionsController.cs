@@ -7,7 +7,7 @@ namespace ParkingSystem.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Staff,Manager,Admin")]
+[Authorize]
 public class SessionsController : ControllerBase
 {
     private readonly ISessionService _sessionService;
@@ -22,6 +22,7 @@ public class SessionsController : ControllerBase
     /// Endpoint chính cho Staff xem dashboard xe đang gửi
     /// </summary>
     [HttpGet("active")]
+    [Authorize(Roles = "Staff,Manager,Admin")]
     public async Task<IActionResult> GetActiveSessions([FromQuery] SessionFilterRequest filter)
     {
         try
@@ -40,6 +41,7 @@ public class SessionsController : ControllerBase
     /// Hỗ trợ: biển số (gần đúng), trạng thái, tòa nhà, tầng, khoảng ngày
     /// </summary>
     [HttpGet("search")]
+    [Authorize(Roles = "Staff,Manager,Admin")]
     public async Task<IActionResult> SearchSessions([FromQuery] SessionFilterRequest filter)
     {
         try
@@ -57,6 +59,7 @@ public class SessionsController : ControllerBase
     /// Xem chi tiết 1 session theo ID
     /// </summary>
     [HttpGet("{id:guid}")]
+    [Authorize(Roles = "Staff,Manager,Admin")]
     public async Task<IActionResult> GetSessionById(Guid id)
     {
         try
@@ -75,7 +78,8 @@ public class SessionsController : ControllerBase
     /// Dùng khi check-out — Staff quét biển số → tìm session tương ứng
     /// </summary>
     [HttpGet("find-by-plate")]
-    public async Task<IActionResult> FindByPlate([FromQuery] string plate)
+    [Authorize(Roles = "Staff,Manager,Admin")]
+    public async Task<IActionResult> FindActiveByPlate([FromQuery] string plate)
     {
         if (string.IsNullOrWhiteSpace(plate))
             return BadRequest(new { message = "Vui lòng nhập biển số xe." });
@@ -87,6 +91,34 @@ public class SessionsController : ControllerBase
             if (result == null)
                 return NotFound(new { message = $"Không tìm thấy xe biển số '{plate}' đang gửi trong bãi." });
             
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy thông tin phiên đỗ xe hiện tại của user
+    /// </summary>
+    [HttpGet("my-active")]
+    [Authorize] // Chấp nhận mọi role đã đăng nhập (User, Driver...)
+    public async Task<IActionResult> GetMyActiveSession()
+    {
+        try
+        {
+            var driverIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(driverIdClaim)) return Unauthorized();
+
+            var driverId = Guid.Parse(driverIdClaim);
+            var result = await _sessionService.GetMyActiveSessionAsync(driverId);
+
+            if (result == null)
+            {
+                return Ok(new { data = (object?)null }); // Trả về 200 OK kèm data: null nếu không có session
+            }
+
             return Ok(result);
         }
         catch (Exception ex)

@@ -1,48 +1,48 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Car, MapPin, Clock, CreditCard, AlertTriangle, 
-  ChevronLeft, Navigation, Flag 
+import {
+  Car, MapPin, Clock, CreditCard, AlertTriangle,
+  ChevronLeft, Navigation, Flag
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import type { MyActiveSession } from '../../components/FloatingSessionBanner';
-
-// You can use a QR code library like 'qrcode.react' in a real project
-// import { QRCodeSVG } from 'qrcode.react';
+import { getMyActiveSession } from '../../services/sessionsService';
+import type { MyActiveSessionResponse } from '../../services/sessionsService';
 
 export default function LiveSessionPage() {
   const navigate = useNavigate();
   const { user, token } = useAuth();
-  
-  const [session, setSession] = useState<MyActiveSession | null>(null);
+
+  const [session, setSession] = useState<MyActiveSessionResponse | null>(null);
   const [elapsedString, setElapsedString] = useState('00:00:00');
   const [dynamicFee, setDynamicFee] = useState(0);
 
   useEffect(() => {
-    // Simulate fetching the active session
-    const mockData: MyActiveSession = {
-      id: '123',
-      sessionCode: 'AB12C',
-      licensePlate: '51A-123.45',
-      vehicleTypeName: 'Xe ô tô 4 chỗ',
-      entryTime: new Date(Date.now() - 3600000 - 15000).toISOString(), // 1 hr 15s
-      buildingName: 'ParkSmart Building',
-      floorName: 'B1',
-      slotNumber: 'A-01',
-      pricePerHour: 20000,
-      currentFee: 20000, // Initial fee
-      sessionQrCodeBase64: '' // We will render a placeholder or simple SVG
+    if (!token) return;
+
+    const fetchSession = async () => {
+      try {
+        const data = await getMyActiveSession(token);
+        if (data) {
+          setSession(data);
+          setDynamicFee(data.currentFee);
+        } else {
+          // If no active session, redirect back
+          navigate(-1);
+        }
+      } catch (err) {
+        console.error('Failed to load active session', err);
+      }
     };
-    setSession(mockData);
-    setDynamicFee(mockData.currentFee);
-  }, []);
+
+    fetchSession();
+  }, [token, navigate]);
 
   // Timer & Fee Calculator
   useEffect(() => {
     if (!session) return;
 
     const entryTime = new Date(session.entryTime).getTime();
-    
+
     const updateTimeAndFee = () => {
       const now = new Date().getTime();
       const diffMs = Math.max(0, now - entryTime);
@@ -97,19 +97,22 @@ export default function LiveSessionPage() {
       </div>
 
       <div className="max-w-md mx-auto px-4 mt-6 space-y-4">
-        
+
         {/* QR Code Block */}
         <div className="bg-white rounded-2xl p-6 shadow-sm flex flex-col items-center">
           <div className="w-48 h-48 bg-white border border-slate-200 rounded-xl flex items-center justify-center mb-4">
-            {/* Giả lập QR Code */}
-            <div className="relative grid grid-cols-5 grid-rows-5 gap-1 p-2 w-40 h-40">
-              {Array.from({length: 25}).map((_, i) => (
-                <div key={i} className={`bg-slate-900 rounded-sm ${Math.random() > 0.5 ? 'opacity-100' : 'opacity-0'}`}></div>
-              ))}
-              <div className="absolute inset-0 m-auto w-12 h-12 bg-white border-4 border-slate-900 flex items-center justify-center">
-                <div className="w-4 h-4 bg-[#2B52FF]"></div>
+            {session.sessionQrCodeBase64 ? (
+              <img src={`data:image/png;base64,${session.sessionQrCodeBase64}`} alt="QR Code" className="w-full h-full object-contain" />
+            ) : (
+              <div className="relative grid grid-cols-5 grid-rows-5 gap-1 p-2 w-40 h-40">
+                {Array.from({ length: 25 }).map((_, i) => (
+                  <div key={i} className={`bg-slate-900 rounded-sm ${Math.random() > 0.5 ? 'opacity-100' : 'opacity-0'}`}></div>
+                ))}
+                <div className="absolute inset-0 m-auto w-12 h-12 bg-white border-4 border-slate-900 flex items-center justify-center">
+                  <div className="w-4 h-4 bg-[#2B52FF]"></div>
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <p className="text-xs text-slate-500 font-medium text-center">
             Quét mã tại cổng ra để thanh toán
@@ -210,14 +213,14 @@ export default function LiveSessionPage() {
 
         {/* Action Buttons */}
         <div className="pt-2 space-y-3">
-          <button 
+          <button
             onClick={handlePayment}
             className="w-full bg-[#2B52FF] hover:bg-blue-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-[#2B52FF]/20 transition-colors flex justify-center items-center gap-2"
           >
             <CreditCard size={18} />
             Thanh Toán ({dynamicFee.toLocaleString('vi-VN')} đ)
           </button>
-          <button 
+          <button
             onClick={handleReport}
             className="w-full bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 font-bold py-4 rounded-2xl transition-colors flex justify-center items-center gap-2"
           >
