@@ -24,6 +24,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Vehicle> Vehicles { get; set; }
     public DbSet<FavoriteSlot> FavoriteSlots { get; set; }
     public DbSet<ReservationLog> ReservationLogs { get; set; }
+    public DbSet<WalletTransaction> WalletTransactions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -128,6 +129,23 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<PriceSetting>()
             .Property(p => p.DailyMaxPrice)
             .HasColumnType("decimal(18,2)");
+
+        // WalletTransaction
+        modelBuilder.Entity<WalletTransaction>()
+            .Property(w => w.Amount)
+            .HasColumnType("decimal(18,2)");
+
+        modelBuilder.Entity<WalletTransaction>()
+            .HasOne(w => w.User)
+            .WithMany(u => u.WalletTransactions)
+            .HasForeignKey(w => w.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<WalletTransaction>()
+            .HasOne(w => w.RelatedPayment)
+            .WithMany()
+            .HasForeignKey(w => w.RelatedPaymentId)
+            .OnDelete(DeleteBehavior.SetNull);
 
         // RefreshToken → User (cascade delete khi xóa user)
         modelBuilder.Entity<RefreshToken>()

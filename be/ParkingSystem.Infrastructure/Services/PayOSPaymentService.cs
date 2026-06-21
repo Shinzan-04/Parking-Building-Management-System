@@ -328,35 +328,33 @@ public class PayOSPaymentService : IPaymentService
                 if (driverId == null)
                     throw new InvalidOperationException("Không thể tìm thấy thông tin Driver để hoàn tiền.");
 
-                var defaultBank = await _context.UserBankAccounts
-                    .FirstOrDefaultAsync(b => b.UserId == driverId && b.IsDefault);
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == driverId);
+                if (user == null)
+                    throw new InvalidOperationException("Không thể tìm thấy thông tin tài khoản để hoàn tiền.");
 
-                if (defaultBank == null)
-                {
-                    // Lấy đại 1 bank nếu không có default
-                    defaultBank = await _context.UserBankAccounts
-                        .FirstOrDefaultAsync(b => b.UserId == driverId);
-                }
+                // Thay vì chuyển khoản trực tiếp qua PayOS, cộng tiền vào Ví điện tử (Wallet)
+                user.Balance += payment.Amount;
 
-                if (defaultBank == null)
+                var walletTx = new ParkingSystem.Domain.Entities.WalletTransaction
                 {
-                    throw new InvalidOperationException("Người dùng chưa cấu hình tài khoản nhận tiền hoàn (UserBankAccount). Vui lòng yêu cầu người dùng cập nhật.");
-                }
-
-                // Thực hiện gọi API Payout (Sử dụng HttpClient độc lập để bảo đảm kết nối)
-                var payoutResult = await ExecutePayOSPayoutAsync(payment.Amount, referenceId, defaultBank);
-                if (!payoutResult.Success)
-                {
-                    throw new Exception($"PayOS Payout Failed: {payoutResult.ErrorMessage}");
-                }
+                    UserId = user.Id,
+                    Amount = payment.Amount,
+                    Type = "Refund",
+                    Status = "Success",
+                    Description = $"Hoàn tiền cho giao dịch {payment.PayOSOrderCode ?? payment.Id.ToString()}",
+                    RelatedPaymentId = payment.Id,
+                    ReferenceId = referenceId
+                };
+                
+                _context.WalletTransactions.Add(walletTx);
 
                 payment.Status = PaymentStatus.Refunded;
                 payment.RefundedAt = DateTime.UtcNow;
                 payment.RefundReferenceId = referenceId;
-                payment.RefundProvider = "PayOS_Payout";
-                payment.RefundTransactionId = payoutResult.TransactionId;
+                payment.RefundProvider = "Wallet";
+                payment.RefundTransactionId = walletTx.Id.ToString();
 
-                _logger.LogInformation("Hoàn tiền Production thành công cho PaymentId={Id}, TxId={TxId}", payment.Id, payoutResult.TransactionId);
+                _logger.LogInformation("Hoàn tiền vào Ví thành công cho PaymentId={Id}, UserId={UserId}", payment.Id, user.Id);
             }
 
             if (payment.Reservation != null)
@@ -401,10 +399,10 @@ public class PayOSPaymentService : IPaymentService
     }
 
     /// <summary>
-    /// Hàm private gọi API Payout của PayOS thông qua SDK PayOSClient
+    /// Hàm public gọi API Payout của PayOS thông qua SDK PayOSClient
     /// SDK tự tính signature đúng chuẩn với Payout credentials
     /// </summary>
-    private async Task<(bool Success, string TransactionId, string ErrorMessage)> ExecutePayOSPayoutAsync(decimal amount, string referenceId, UserBankAccount bankAccount)
+    public async Task<(bool Success, string TransactionId, string ErrorMessage)> ProcessPayoutAsync(decimal amount, string referenceId, UserBankAccount bankAccount)
     {
         try
         {
