@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, Navigation } from 'lucide-react';
+import { Clock, Navigation, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 
 export interface MyActiveSession {
@@ -22,6 +22,7 @@ export default function FloatingSessionBanner() {
   const navigate = useNavigate();
   const [activeSession, setActiveSession] = useState<MyActiveSession | null>(null);
   const [elapsedString, setElapsedString] = useState('00:00:00');
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     if (!user || !token) return;
@@ -92,35 +93,57 @@ export default function FloatingSessionBanner() {
   if (!activeSession) return null;
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm">
-      <div 
-        onClick={() => navigate('/live-session')}
-        className="bg-[#2B52FF] text-white rounded-2xl p-4 shadow-xl shadow-[#2B52FF]/30 cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-between"
-      >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
-            <Clock size={20} className="text-white" />
+    <div className="fixed top-24 right-0 z-[100] transition-all duration-300 flex items-center">
+      {isCollapsed ? (
+        <button 
+          onClick={() => setIsCollapsed(false)} 
+          className="bg-[#2B52FF] text-white py-3 pl-3 pr-4 rounded-l-full shadow-xl shadow-[#2B52FF]/20 flex items-center gap-2 hover:bg-blue-700 transition-colors"
+        >
+          <ChevronLeft size={16} />
+          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+            <Clock size={12} className="text-white" />
           </div>
-          <div>
-            <div className="text-xs font-medium text-white/80 uppercase tracking-wider mb-0.5">
-              Đang đỗ xe
-            </div>
-            <div className="font-bold font-mono tracking-widest text-base">
-              {elapsedString}
-            </div>
-          </div>
-        </div>
+          <span className="font-mono font-bold text-sm tracking-widest">{elapsedString}</span>
+        </button>
+      ) : (
+        <div className="relative mr-6">
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsCollapsed(true); }}
+            className="absolute -left-3 -top-3 w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-slate-500 hover:text-[#2B52FF] border border-slate-100 z-10 transition-colors"
+          >
+            <ChevronRight size={16} />
+          </button>
 
-        <div className="flex flex-col items-end">
-          <div className="text-xs font-medium text-white/80 mb-0.5">
-            {activeSession.licensePlate}
-          </div>
-          <div className="flex items-center gap-1.5 font-bold text-sm bg-white/15 px-2 py-0.5 rounded-lg">
-            <Navigation size={12} className="text-[#FFD700]" />
-            {activeSession.floorName}-{activeSession.slotNumber}
+          <div 
+            onClick={() => navigate('/live-session')}
+            className="bg-[#2B52FF] text-white rounded-2xl p-4 shadow-xl shadow-[#2B52FF]/30 cursor-pointer hover:scale-[1.02] transition-transform flex items-center justify-between min-w-[260px] gap-6"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center animate-pulse">
+                <Clock size={20} className="text-white" />
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-white/80 uppercase tracking-wider mb-0.5">
+                  Đang đỗ xe
+                </div>
+                <div className="font-bold font-mono tracking-widest text-sm">
+                  {elapsedString}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end">
+              <div className="text-xs font-medium text-white/90 mb-1">
+                {activeSession.licensePlate}
+              </div>
+              <div className="flex items-center gap-1.5 font-bold text-[10px] uppercase tracking-wider bg-white/15 px-2 py-0.5 rounded-lg">
+                <Navigation size={10} className="text-[#FFD700]" />
+                {activeSession.floorName}-{activeSession.slotNumber}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
