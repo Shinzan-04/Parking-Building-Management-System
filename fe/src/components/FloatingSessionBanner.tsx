@@ -37,7 +37,7 @@ export default function FloatingSessionBanner() {
     const intervalId = setInterval(fetchActiveSession, 60000);
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/hub`, {
+      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5237'}/hub`, {
         accessTokenFactory: () => token
       })
       .withAutomaticReconnect()
