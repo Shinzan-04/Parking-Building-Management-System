@@ -15,6 +15,7 @@ import {
 import type { ReservationResponse, ReviewReservationRequest } from '../../services/reservationsService';
 import { getAllSlots } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
+import { getBuildingById, updateBuildingApprovalMode } from '../../services/buildingsService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -172,6 +173,10 @@ export default function ManagerReservations() {
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
   const [loadingSlots, setLoadingSlots] = useState(false);
 
+  // Approval Mode
+  const [approvalMode, setApprovalMode] = useState<number>(0);
+  const [updatingMode, setUpdatingMode] = useState(false);
+
   // ─── Load ──────────────────────────────────────────────────────────────────
 
   const loadData = useCallback(async (silent = false) => {
@@ -180,6 +185,10 @@ export default function ManagerReservations() {
     else setRefreshing(true);
     setApiError('');
     try {
+      if (user?.assignedBuildingId) {
+        const building = await getBuildingById(user.assignedBuildingId, token);
+        setApprovalMode(building.approvalMode);
+      }
       const data = await getAllActiveReservations(token);
       setReservations(data);
     } catch (err) {
@@ -269,6 +278,21 @@ export default function ManagerReservations() {
     }
   };
 
+  // ─── Update Approval Mode ───────────────────────────────────────────────────
+
+  const handleModeChange = async (mode: number) => {
+    if (!token || !user?.assignedBuildingId) return;
+    setUpdatingMode(true);
+    try {
+      await updateBuildingApprovalMode(user.assignedBuildingId, mode, token);
+      setApprovalMode(mode);
+    } catch (e) {
+      setApiError('Lỗi cập nhật chế độ duyệt.');
+    } finally {
+      setUpdatingMode(false);
+    }
+  };
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   const pendingList = reservations.filter(r => normalizeReservationStatus(r.status) === 'PendingReview');
@@ -299,13 +323,30 @@ export default function ManagerReservations() {
             Duyệt yêu cầu và hỗ trợ đổi chỗ cho khách
           </p>
         </div>
-        <button
-          onClick={() => loadData(true)}
-          disabled={refreshing}
-          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
-        >
-          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-        </button>
+        <div className="flex flex-col items-end gap-2">
+          {user?.assignedBuildingId && (
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+              <span className="text-xs font-semibold text-white/50">Chế độ duyệt:</span>
+              <select
+                value={approvalMode}
+                onChange={(e) => handleModeChange(Number(e.target.value))}
+                disabled={updatingMode}
+                className="bg-transparent text-sm font-bold text-white outline-none disabled:opacity-50 cursor-pointer"
+              >
+                <option value={0} className="text-black">Bằng tay (Manual)</option>
+                <option value={1} className="text-black">Tự động duyệt tất cả (Auto-Approve)</option>
+                <option value={2} className="text-black">Từ chối tất cả (Auto-Reject)</option>
+              </select>
+            </div>
+          )}
+          <button
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
+          >
+            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       {apiError && (

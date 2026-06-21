@@ -158,20 +158,42 @@ public class PayOSPaymentService : IPaymentService
             // Nếu thanh toán cho Reservation và thành công -> Cập nhật Reservation sang PendingReview
             if (payment.Status == PaymentStatus.Success && payment.ReservationId.HasValue)
             {
-                var reservation = await _context.Reservations.FindAsync(payment.ReservationId.Value);
+                var reservation = await _context.Reservations
+                    .Include(r => r.ParkingSlot)
+                        .ThenInclude(s => s.Floor)
+                            .ThenInclude(f => f.Building)
+                    .FirstOrDefaultAsync(r => r.Id == payment.ReservationId.Value);
+
                 if (reservation != null && reservation.Status == ReservationStatus.PaymentPending)
                 {
-                    reservation.Status = ReservationStatus.PendingReview;
-                    reservation.UpdatedAt = DateTime.UtcNow;
-                    _context.ReservationLogs.Add(new ReservationLog
+                    var approvalMode = reservation.ParkingSlot?.Floor?.Building?.ApprovalMode ?? ReservationApprovalMode.Manual;
+                    if (approvalMode == ReservationApprovalMode.AutoApprove)
                     {
-                        Id = Guid.NewGuid(),
-                        ReservationId = reservation.Id,
-                        Action = "PaymentSuccess",
-                        StatusSnapshot = ReservationStatus.PendingReview,
-                        Note = "Thanh toán PayOS thành công (Webhook)",
-                        CreatedAt = DateTime.UtcNow
-                    });
+                        reservation.Status = ReservationStatus.Confirmed;
+                        _context.ReservationLogs.Add(new ReservationLog
+                        {
+                            Id = Guid.NewGuid(),
+                            ReservationId = reservation.Id,
+                            Action = "AutoApproved",
+                            StatusSnapshot = ReservationStatus.Confirmed,
+                            Note = "Tự động duyệt sau khi thanh toán",
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                    else
+                    {
+                        reservation.Status = ReservationStatus.PendingReview;
+                        _context.ReservationLogs.Add(new ReservationLog
+                        {
+                            Id = Guid.NewGuid(),
+                            ReservationId = reservation.Id,
+                            Action = "PaymentSuccess",
+                            StatusSnapshot = ReservationStatus.PendingReview,
+                            Note = "Thanh toán PayOS thành công (Webhook)",
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                    reservation.UpdatedAt = DateTime.UtcNow;
                 }
                 
                 shouldNotifyPaymentSuccess = true;

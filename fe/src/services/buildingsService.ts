@@ -6,6 +6,7 @@ export interface BuildingResponse {
   address: string;
   totalCapacity: number;
   floorCount: number;
+  approvalMode: number;
   createdAt: string;
 }
 
@@ -85,11 +86,17 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
 export const getBuildings = (): Promise<BuildingResponse[]> =>
   apiFetch('/api/buildings');
 
+export const getBuildingById = (id: string, token: string): Promise<BuildingResponse> =>
+  apiFetch(`/api/buildings/${id}`, undefined, token);
+
 export const createBuilding = (payload: CreateBuildingRequest, token: string): Promise<BuildingResponse> =>
   apiFetch('/api/buildings', { method: 'POST', body: JSON.stringify(payload) }, token);
 
 export const updateBuilding = (id: string, payload: UpdateBuildingRequest, token: string): Promise<BuildingResponse> =>
   apiFetch(`/api/buildings/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
+
+export const updateBuildingApprovalMode = (id: string, mode: number, token: string): Promise<BuildingResponse> =>
+  apiFetch(`/api/buildings/${id}/approval-mode`, { method: 'PUT', body: JSON.stringify(mode) }, token);
 
 export const deleteBuilding = (id: string, token: string): Promise<void> =>
   apiFetch(`/api/buildings/${id}`, { method: 'DELETE' }, token);
@@ -138,7 +145,7 @@ export const getParkingSlots = (): Promise<ParkingSlotSummary[]> =>
   apiFetch('/api/parkingslots');
 
 export const getParkingSlotsByBuilding = (buildingId: string): Promise<ParkingSlotSummary[]> =>
-  apiFetch(`/api/parkingslots/building/${buildingId}`);
+  apiFetch(`/api/parkingslots?buildingId=${buildingId}`);
 
 export interface StaffResponse {
   id: string;

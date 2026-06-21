@@ -87,14 +87,33 @@ public class ParkingSlotService : IParkingSlotService
 
     public async Task<IEnumerable<ParkingSlotResponse>> GetAvailabilityByFloorAsync(Guid floorId, DateTime startTime, DateTime endTime)
     {
+        // Lấy tất cả slot vật lý của tầng
         var slots = await _repository.FindAsync(s => s.FloorId == floorId, "VehicleType,Floor,ParkingSessions");
-        var activeStatuses = new[] { ReservationStatus.PaymentPending, ReservationStatus.Confirmed };
         
-        var reservations = await _reservationRepo.FindAsync(r => r.ParkingSlot.FloorId == floorId && activeStatuses.Contains(r.Status));
+        // Tất cả trạng thái Reservation đang "chiếm giữ" ô đỗ
+        // PaymentPending: Đang chờ thanh toán (giữ 15 phút)
+        // Paid: Đã thanh toán xong, chờ Staff duyệt
+        // PendingReview: Đang chờ Staff duyệt
+        // Confirmed: Staff đã duyệt, chờ Driver đến
+        // CheckedIn: Driver đã check-in, đang đỗ xe
+        var activeStatuses = new[] 
+        { 
+            ReservationStatus.PaymentPending, 
+            ReservationStatus.Paid,
+            ReservationStatus.PendingReview,
+            ReservationStatus.Confirmed, 
+            ReservationStatus.CheckedIn 
+        };
         
+        // Tìm tất cả Reservation đang hoạt động trên tầng này
+        var reservations = await _reservationRepo.FindAsync(
+            r => r.ParkingSlot.FloorId == floorId && activeStatuses.Contains(r.Status));
+        
+        // Lọc ra những Reservation có khung giờ trùng lắp (overlap) với thời gian đặt mới
         var overlappingSlotIds = reservations
             .Where(r => r.StartTime < endTime && r.EndTime > startTime)
             .Select(r => r.ParkingSlotId)
+            .Distinct()
             .ToList();
 
         var responses = slots.Select(s => MapToResponse(s)).ToList();
@@ -104,15 +123,18 @@ public class ParkingSlotService : IParkingSlotService
         {
             if (overlappingSlotIds.Contains(res.Id))
             {
+                // Có Reservation trùng giờ → đánh dấu Reserved (không cho đặt)
                 res.Status = SlotStatus.Reserved; 
             }
-            else
+            else if (!isImmediate)
             {
-                if (!isImmediate)
-                {
-                    res.Status = SlotStatus.Available;
-                }
+                // Đặt cho tương lai VÀ không có ai đặt trùng → mở slot
+                // Dù vật lý slot đang Occupied (có xe đỗ hiện tại),
+                // nhưng đến ngày tương lai xe đó đã đi rồi → Available
+                res.Status = SlotStatus.Available;
             }
+            // Nếu isImmediate VÀ không overlap → giữ nguyên status vật lý
+            // (nếu Occupied thì vẫn Occupied, Available thì vẫn Available)
         }
 
         return responses;

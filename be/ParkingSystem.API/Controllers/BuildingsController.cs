@@ -48,6 +48,25 @@ public class BuildingsController : ControllerBase
         return building == null ? NotFound() : Ok(building);
     }
 
+    [HttpPut("{id}/approval-mode")]
+    [Authorize(Roles = "Admin,Manager,Staff")]
+    public async Task<IActionResult> UpdateApprovalMode(Guid id, [FromBody] int mode)
+    {
+        var building = await _buildingService.GetByIdAsync(id);
+        if (building == null) return NotFound();
+
+        var request = new UpdateBuildingRequest
+        {
+            Name = building.Name,
+            Address = building.Address,
+            TotalCapacity = building.TotalCapacity,
+            ApprovalMode = (ParkingSystem.Domain.Enums.ReservationApprovalMode)mode
+        };
+
+        var updated = await _buildingService.UpdateAsync(id, request);
+        return Ok(updated);
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Delete(Guid id)

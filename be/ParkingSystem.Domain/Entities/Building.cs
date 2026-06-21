@@ -8,4 +8,9 @@ public class Building : BaseEntity
 
     public ICollection<Floor> Floors { get; set; } = new List<Floor>();
     public ICollection<User> AssignedStaffs { get; set; } = new List<User>();
+
+    /// <summary>
+    /// Chế độ duyệt đơn đặt chỗ cho tòa nhà này
+    /// </summary>
+    public ParkingSystem.Domain.Enums.ReservationApprovalMode ApprovalMode { get; set; } = ParkingSystem.Domain.Enums.ReservationApprovalMode.Manual;
 }

@@ -127,19 +127,11 @@ public class ReservationService : IReservationService
                 throw new InvalidOperationException("Ô đỗ xe không tồn tại.");
 
             // 5. Validate slot (Race Condition Check)
-            if (slot.Status != SlotStatus.Available)
-            {
-                string suggestMsg = "";
-                if (request.BookingMethod == BookingMethod.Manual)
-                {
-                    // AI tự tìm slot khác gợi ý ngay khi bị trùng
-                    var suggest = await _slotAssignmentService.GetBestSlotAsync(vehicleTypeId, request.BuildingId);
-                    if (suggest != null)
-                        suggestMsg = $" 💡 Gợi ý (AI Suggest): Bạn có thể đổi sang ô {suggest.SlotNumber} (Tầng {suggest.FloorName}).";
-                }
-                throw new InvalidOperationException($"Ô đỗ {slot.SlotNumber} vừa có người khác chọn hoặc không khả dụng.{suggestMsg}");
-            }
+            // Slot Maintenance → luôn chặn
+            if (slot.Status == SlotStatus.Maintenance)
+                throw new InvalidOperationException($"Ô đỗ {slot.SlotNumber} đang bảo trì, không thể đặt chỗ.");
 
+            // Kiểm tra loại xe phù hợp
             if (slot.VehicleTypeId != vehicleTypeId)
             {
                 var slotVehicleType = await _context.VehicleTypes.FindAsync(slot.VehicleTypeId);
@@ -148,21 +140,38 @@ public class ReservationService : IReservationService
                     $"không hỗ trợ {vehicle.VehicleType?.Name ?? "loại xe bạn chọn"}.");
             }
 
-            // 6. Kiểm tra khung giờ trùng (Double Check)
+            // 6. Kiểm tra khung giờ trùng (Double Check - đây là điều kiện quan trọng nhất)
+            // Cho phép đặt slot đang Reserved/Occupied NẾU khung giờ KHÔNG trùng lắp
             var hasOverlapping = await _context.Reservations
                 .AnyAsync(r => r.ParkingSlotId == slot.Id
                             && activeStatuses.Contains(r.Status)
                             && r.StartTime < request.EndTime
                             && r.EndTime > request.StartTime);
             if (hasOverlapping)
-                throw new InvalidOperationException("Vị trí này đã được đặt trong khoảng thời gian bạn chọn.");
+            {
+                // Có trùng giờ thật sự → gợi ý slot khác
+                string suggestMsg = "";
+                if (request.BookingMethod == BookingMethod.Manual)
+                {
+                    var suggest = await _slotAssignmentService.GetBestSlotAsync(vehicleTypeId, request.BuildingId);
+                    if (suggest != null)
+                        suggestMsg = $" 💡 Gợi ý: Bạn có thể đổi sang ô {suggest.SlotNumber} (Tầng {suggest.FloorName}).";
+                }
+                throw new InvalidOperationException($"Ô đỗ {slot.SlotNumber} đã được đặt trong khoảng thời gian này.{suggestMsg}");
+            }
 
             // 7. Sinh mã Booking Code
             var bookingCode = await GenerateBookingCodeAsync();
 
-            // Cập nhật trạng thái Slot -> TemporaryHeld (hoặc Reserved luôn nếu fee = 0)
-            slot.Status = SlotStatus.TemporaryHeld;
-            slot.UpdatedAt = DateTime.UtcNow;
+            // Cập nhật trạng thái Slot → TemporaryHeld
+            // CHỈ đổi khi slot đang Available. Nếu slot đã Reserved/Occupied (do booking khác ngày),
+            // KHÔNG ghi đè để tránh phá hủy trạng thái của booking đang hoạt động.
+            var shouldUpdateSlotStatus = slot.Status == SlotStatus.Available;
+            if (shouldUpdateSlotStatus)
+            {
+                slot.Status = SlotStatus.TemporaryHeld;
+                slot.UpdatedAt = DateTime.UtcNow;
+            }
 
             // ===== TÍNH PHÍ VÀ TẠO LINK PAYOS =====
             string? checkoutUrl = null;
@@ -180,26 +189,28 @@ public class ReservationService : IReservationService
             else if (priceSetting != null)
                 fee = (decimal)totalHours * priceSetting.DayPassPrice;
 
-            if (fee == 0)
+            var approvalMode = slot.Floor?.Building?.ApprovalMode ?? ReservationApprovalMode.Manual;
+
+            if (approvalMode == ReservationApprovalMode.AutoReject)
             {
-                // Nếu không có phí (fee = 0), kiểm tra Auto-Approve và Noti cho Staff
-                var buildingId = slot.Floor?.BuildingId;
-                var assignedStaffs = await _context.Users
-                    .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Staff || u.Role == ParkingSystem.Domain.Enums.Role.Manager)
-                    .Where(u => !u.AssignedBuildingId.HasValue || u.AssignedBuildingId == buildingId)
-                    .ToListAsync();
-
-                bool isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
-
-                if (isAutoApprove)
+                initialStatus = ReservationStatus.Rejected;
+                if (shouldUpdateSlotStatus)
+                    slot.Status = SlotStatus.Available; // Reset trạng thái slot về Available
+                fee = 0; // Không tiến hành thanh toán
+            }
+            else if (fee == 0)
+            {
+                if (approvalMode == ReservationApprovalMode.AutoApprove)
                 {
                     initialStatus = ReservationStatus.Confirmed;
-                    slot.Status = SlotStatus.Reserved;
+                    if (shouldUpdateSlotStatus)
+                        slot.Status = SlotStatus.Reserved;
                 }
                 else
                 {
                     initialStatus = ReservationStatus.PendingReview;
-                    slot.Status = SlotStatus.Reserved;
+                    if (shouldUpdateSlotStatus)
+                        slot.Status = SlotStatus.Reserved;
                 }
             }
 
