@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Car, Users, BarChart3, Settings,
-  LogOut, MapPin, Sun, Moon, Home,
+  LogOut, MapPin, Sun, Moon, Home, Banknote,
+  DollarSign, ClipboardList, CalendarCheck,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -13,8 +14,13 @@ const navItems = [
   { to: '/admin/parking-lots', label: 'Bãi đỗ xe',    icon: MapPin,          end: false },
   { to: '/admin/vehicles',     label: 'Phương tiện',  icon: Car,             end: false },
   { to: '/admin/users',        label: 'Người dùng',   icon: Users,           end: false },
-  { to: '/admin/reports',      label: 'Báo cáo',      icon: BarChart3,       end: false },
-  { to: '/admin/settings',     label: 'Cài đặt',      icon: Settings,        end: false },
+  { to: '/admin/pricing',       label: 'Bảng giá',     icon: DollarSign,      end: false },
+  { to: '/admin/sessions',      label: 'Phiên đỗ xe',  icon: ClipboardList,   end: false },
+  { to: '/admin/reservations',  label: 'Đặt chỗ',      icon: CalendarCheck,   end: false },
+  { to: '/admin/vehicle-types', label: 'Loại xe',       icon: Car,             end: false },
+  { to: '/admin/reports',       label: 'Báo cáo',      icon: BarChart3,       end: false },
+  { to: '/admin/refunds',       label: 'Hoàn tiền',    icon: Banknote,        end: false },
+  { to: '/admin/settings',      label: 'Cài đặt',      icon: Settings,        end: false },
 ];
 
 export default function AdminLayout() {

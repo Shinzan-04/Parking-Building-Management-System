@@ -11,4 +11,6 @@ public interface IPaymentService
     Task<(bool Success, PaymentStatus Status)> VerifyPayOSPaymentAsync(long orderCode);
     Task<PaymentRefundResponse> RefundPaymentAsync(Guid paymentId);
     Task<(bool Success, string TransactionId, string ErrorMessage)> ProcessPayoutAsync(decimal amount, string referenceId, ParkingSystem.Domain.Entities.UserBankAccount bankAccount);
+    Task<PaymentListResult> GetPaymentsAsync(PaymentListQuery query);
+    Task RejectRefundAsync(Guid paymentId, string reason);
 }
