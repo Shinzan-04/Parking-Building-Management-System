@@ -165,13 +165,6 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
     useNotification(token);
 
-  // Tự động mark all as read khi mở panel
-  useEffect(() => {
-    if (open && unreadCount > 0) {
-      markAllAsRead();
-    }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Close on outside click
   useEffect(() => {
     if (!open) return;
@@ -207,7 +200,12 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
       setTop(r.bottom + 8);
       setRight(Math.max(8, window.innerWidth - r.right));
     }
-    setOpen(v => !v);
+    const opening = !open;
+    setOpen(opening);
+    // Khi mở panel: mark all as read (optimistic update trong hook)
+    if (opening) {
+      markAllAsRead();
+    }
   };
 
   return (
