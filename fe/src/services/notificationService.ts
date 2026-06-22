@@ -53,26 +53,41 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
   return data as T;
 }
 
+// Backend không cấu hình camelCase nên trả PascalCase — normalize về camelCase
+function normalizeNotification(n: Record<string, unknown>): NotificationResponse {
+  return {
+    id:          (n['id']          ?? n['Id'])          as string,
+    title:       (n['title']       ?? n['Title']        ?? '') as string,
+    message:     (n['message']     ?? n['Message']      ?? '') as string,
+    type:        (n['type']        ?? n['Type']         ?? '') as string,
+    referenceId: (n['referenceId'] ?? n['ReferenceId']  ?? null) as string | null,
+    isRead:      Boolean(n['isRead'] ?? n['IsRead']),
+    createdAt:   (n['createdAt']   ?? n['CreatedAt']    ?? '') as string,
+  };
+}
+
 export const getNotifications = async (token: string, page = 1, pageSize = 20): Promise<NotificationListResponse> => {
   const raw = await apiFetch<unknown>(`/api/notifications?page=${page}&pageSize=${pageSize}`, undefined, token);
-  // Normalise: backend may return array directly or a paged wrapper
+  // Backend trả array thẳng (không có wrapper)
   if (Array.isArray(raw)) {
-    return { items: raw as NotificationResponse[], totalCount: (raw as unknown[]).length, page, pageSize };
+    const items = (raw as Record<string, unknown>[]).map(normalizeNotification);
+    return { items, totalCount: items.length, page, pageSize };
   }
-  const obj = raw as Partial<NotificationListResponse> | null;
+  const obj = raw as Record<string, unknown> | null;
+  const rawItems = (obj?.['items'] ?? obj?.['Items'] ?? []) as Record<string, unknown>[];
   return {
-    items:      Array.isArray(obj?.items) ? obj!.items : [],
-    totalCount: obj?.totalCount ?? 0,
-    page:       obj?.page ?? page,
-    pageSize:   obj?.pageSize ?? pageSize,
+    items:      rawItems.map(normalizeNotification),
+    totalCount: (obj?.['totalCount'] ?? obj?.['TotalCount'] ?? 0) as number,
+    page:       (obj?.['page']       ?? obj?.['Page']       ?? page) as number,
+    pageSize:   (obj?.['pageSize']   ?? obj?.['PageSize']   ?? pageSize) as number,
   };
 };
 
 export const getUnreadCount = async (token: string): Promise<UnreadCountResponse> => {
   const raw = await apiFetch<unknown>('/api/notifications/unread-count', undefined, token);
   if (typeof raw === 'number') return { unreadCount: raw };
-  const obj = raw as Partial<UnreadCountResponse> | null;
-  return { unreadCount: obj?.unreadCount ?? 0 };
+  const obj = raw as Record<string, unknown> | null;
+  return { unreadCount: ((obj?.['unreadCount'] ?? obj?.['UnreadCount']) as number) ?? 0 };
 };
 
 export const markAsRead = (id: string, token: string): Promise<{ message: string }> =>
