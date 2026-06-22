@@ -305,7 +305,7 @@ export default function GateControlPage() {
     try {
       const result = await confirmCheckOut({
         sessionId: exitSessionData.sessionId,
-        staffId: user.id,
+        staffId: user.userId,
         paymentMethod: 0, // Cash
         paymentAmount: exitSessionData.estimatedFee,
       }, token);
@@ -708,8 +708,20 @@ export default function GateControlPage() {
                           Đang tải dữ liệu...
                         </div>
                       ) : exitSessionData ? (
-                        <div className="space-y-4">
-                          <div className="flex justify-between">
+                        <div className="space-y-3">
+                          <div className="flex justify-between border-b border-gray-100 pb-2">
+                            <span className="text-xs text-stone-400 font-bold">Giờ vào</span>
+                            <span className="text-xs font-bold text-stone-800">{new Date(exitSessionData.entryTime).toLocaleString('vi-VN')}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-gray-100 pb-2">
+                            <span className="text-xs text-stone-400 font-bold">Phương tiện</span>
+                            <span className="text-xs font-bold text-stone-800 capitalize">{exitSessionData.vehicleTypeName}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-gray-100 pb-2">
+                            <span className="text-xs text-stone-400 font-bold">Vị trí đỗ</span>
+                            <span className="text-xs font-bold text-stone-800">{exitSessionData.floorName} - Ô {exitSessionData.slotNumber}</span>
+                          </div>
+                          <div className="flex justify-between pt-1">
                             <span className="text-xs text-stone-400 font-bold">Duration</span>
                             <span className="text-sm font-bold text-stone-800">{exitSessionData.totalHours.toFixed(2)}h</span>
                           </div>
