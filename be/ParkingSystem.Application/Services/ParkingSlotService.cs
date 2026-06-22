@@ -10,13 +10,16 @@ public class ParkingSlotService : IParkingSlotService
 {
     private readonly IGenericRepository<ParkingSlot> _repository;
     private readonly IGenericRepository<Reservation> _reservationRepo;
+    private readonly IGenericRepository<ParkingSession> _sessionRepo;
 
     public ParkingSlotService(
         IGenericRepository<ParkingSlot> repository,
-        IGenericRepository<Reservation> reservationRepo)
+        IGenericRepository<Reservation> reservationRepo,
+        IGenericRepository<ParkingSession> sessionRepo)
     {
         _repository = repository;
         _reservationRepo = reservationRepo;
+        _sessionRepo = sessionRepo;
     }
 
     public async Task<IEnumerable<ParkingSlotResponse>> GetAllAsync(Guid? buildingId = null)
@@ -140,6 +143,62 @@ public class ParkingSlotService : IParkingSlotService
         return responses;
     }
 
+    public async Task<CurrentVehicleResponse?> GetCurrentVehicleAsync(Guid slotId)
+    {
+        var slot = await _repository.GetByIdAsync(slotId);
+        if (slot == null) return null;
+
+        var now = DateTime.UtcNow;
+
+        // 1. Kiểm tra xem có xe nào đang đỗ không (ParkingSession)
+        // Xe đang đỗ có thể là Active hoặc Overdue
+        var activeSessions = await _sessionRepo.FindAsync(s => s.ParkingSlotId == slotId && (s.Status == SessionStatus.Active || s.Status == SessionStatus.Overdue));
+        var activeSession = activeSessions.FirstOrDefault();
+        
+        if (activeSession != null)
+        {
+            return new CurrentVehicleResponse
+            {
+                LicensePlate = string.IsNullOrWhiteSpace(activeSession.LicensePlate) ? null : activeSession.LicensePlate,
+                Status = activeSession.Status == SessionStatus.Overdue ? "Overdue" : "Occupied",
+                ExpectedEndTime = activeSession.ExitTime // or null
+            };
+        }
+
+        // 2. Nếu không có xe đỗ, kiểm tra xem có ai đặt trước không (Reservation)
+        var activeStatuses = new[] 
+        { 
+            ReservationStatus.PaymentPending, 
+            ReservationStatus.Paid,
+            ReservationStatus.PendingReview,
+            ReservationStatus.Confirmed 
+        };
+
+        var reservations = await _reservationRepo.FindAsync(
+            r => r.ParkingSlotId == slotId && activeStatuses.Contains(r.Status));
+        
+        // Lấy cái gần nhất
+        var activeReservation = reservations.OrderBy(r => r.StartTime).FirstOrDefault();
+
+        if (activeReservation != null)
+        {
+            return new CurrentVehicleResponse
+            {
+                LicensePlate = string.IsNullOrWhiteSpace(activeReservation.LicensePlate) ? null : activeReservation.LicensePlate,
+                Status = "Reserved",
+                ExpectedEndTime = activeReservation.EndTime
+            };
+        }
+
+        // 3. Trống
+        return new CurrentVehicleResponse
+        {
+            LicensePlate = null,
+            Status = "Available",
+            ExpectedEndTime = null
+        };
+    }
+
     private static ParkingSlotResponse MapToResponse(ParkingSlot s) => new()
     {
         Id = s.Id,
@@ -152,7 +211,7 @@ public class ParkingSlotService : IParkingSlotService
         Row = s.Row,
         Column = s.Column,
         DistanceToEntry = s.DistanceToEntry,
-        CurrentLicensePlate = s.ParkingSessions?.FirstOrDefault(ps => ps.Status == SessionStatus.Active)?.LicensePlate,
+        CurrentLicensePlate = s.ParkingSessions?.FirstOrDefault(ps => ps.Status == SessionStatus.Active || ps.Status == SessionStatus.Overdue)?.LicensePlate,
         CreatedAt = s.CreatedAt
     };
 }

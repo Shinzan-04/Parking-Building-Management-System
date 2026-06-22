@@ -51,6 +51,13 @@ public class ParkingSlotsController : ControllerBase
         return slot == null ? NotFound() : Ok(slot);
     }
 
+    [HttpGet("{id}/current-vehicle")]
+    public async Task<IActionResult> GetCurrentVehicle(Guid id)
+    {
+        var result = await _slotService.GetCurrentVehicleAsync(id);
+        return result == null ? NotFound() : Ok(result);
+    }
+
     [HttpPost]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Create([FromBody] CreateParkingSlotRequest request)
