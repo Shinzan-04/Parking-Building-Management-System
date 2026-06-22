@@ -1286,7 +1286,16 @@ function ConfirmationPopup({
 
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Reservation failed. Please check your information.');
+      if (err.code === 'INSUFFICIENT_BALANCE' && err.requiredAmount) {
+        const fmt = (n: number) => n.toLocaleString('vi-VN') + ' ₫';
+        setError(
+          `Số dư ví không đủ. Cần nạp thêm ${fmt(err.requiredAmount)} ` +
+          `(Tổng phí: ${fmt(err.totalFee ?? 0)} — Số dư hiện tại: ${fmt(err.currentBalance ?? 0)}). ` +
+          `Vui lòng nạp tiền vào ví trước khi đặt chỗ.`
+        );
+      } else {
+        setError(err.message || 'Reservation failed. Please check your information.');
+      }
       setSubmitting(false);
     }
   };

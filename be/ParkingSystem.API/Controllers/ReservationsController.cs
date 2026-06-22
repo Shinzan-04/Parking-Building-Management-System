@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ParkingSystem.Application.DTOs.Reservation;
 using ParkingSystem.Application.Interfaces;
+using System.Linq;
 using System.Security.Claims;
 
 namespace ParkingSystem.API.Controllers;
@@ -35,6 +36,18 @@ public class ReservationsController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            if (ex.Message.StartsWith("INSUFFICIENT_BALANCE:"))
+            {
+                var parts = ex.Message.Split(':');
+                return BadRequest(new
+                {
+                    code = "INSUFFICIENT_BALANCE",
+                    message = "Số dư ví không đủ. Vui lòng nạp thêm tiền vào ví để thanh toán phí đặt chỗ.",
+                    requiredAmount = decimal.TryParse(parts.ElementAtOrDefault(1), out var req) ? req : 0,
+                    totalFee = decimal.TryParse(parts.ElementAtOrDefault(2), out var fee2) ? fee2 : 0,
+                    currentBalance = decimal.TryParse(parts.ElementAtOrDefault(3), out var bal) ? bal : 0,
+                });
+            }
             return BadRequest(new { message = ex.Message });
         }
     }

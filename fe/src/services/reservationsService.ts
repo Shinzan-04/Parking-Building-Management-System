@@ -54,7 +54,11 @@ async function authFetch<T>(path: string, token: string, options?: RequestInit):
       localStorage.removeItem('sp_user');
       window.location.replace('/auth');
     }
-    throw new Error((data as { message?: string }).message ?? `Yêu cầu thất bại (${res.status}).`);
+    const body = data as Record<string, unknown>;
+    const err = new Error((body.message as string | undefined) ?? `Yêu cầu thất bại (${res.status}).`) as Error & Record<string, unknown>;
+    // Attach extra fields so callers can inspect structured errors
+    Object.assign(err, body);
+    throw err;
   }
   return data as T;
 }

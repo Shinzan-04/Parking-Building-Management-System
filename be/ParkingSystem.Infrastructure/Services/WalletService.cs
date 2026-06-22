@@ -50,7 +50,7 @@ public class WalletService : IWalletService
     public async Task<bool> WithdrawAsync(Guid userId, WithdrawRequestDto request)
     {
         if (request.Amount < 10000)
-            throw new Exception("Số tiền rút tối thiểu là 10,000 VND.");
+            throw new Exception("Số tiền rút tối thiểu là 10,000 VNĐ.");
 
         // Dùng Transaction để tránh race condition trừ tiền quá số dư
         using var transaction = await _context.Database.BeginTransactionAsync();

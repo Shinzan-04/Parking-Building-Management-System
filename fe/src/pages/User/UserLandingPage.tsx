@@ -8,7 +8,7 @@ import {
   Search, ShieldCheck, ArrowRight, BookOpen,
   LogOut, Activity, ChevronDown, Ticket,
   LayoutDashboard, Sun, Moon, User,
-  Car
+  Car, Wallet
 } from 'lucide-react';
 
 function getDashboardPath(role: string | number): string | null {
@@ -174,6 +174,16 @@ export default function UserLandingPage() {
                       >
                         <Ticket size={16} />
                         <span>My Tickets</span>
+                      </button>
+                      <div className="my-1" style={{ borderTop: '1px solid var(--lp-border)' }} />
+                      <button
+                        type="button"
+                        onClick={() => { setIsDropdownOpen(false); navigate('/wallet'); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/5 transition-colors text-left"
+                        style={{ color: 'var(--lp-text-muted)' }}
+                      >
+                        <Wallet size={16} />
+                        <span>Ví của tôi</span>
                       </button>
                       <div className="my-1" style={{ borderTop: '1px solid var(--lp-border)' }} />
                       <button

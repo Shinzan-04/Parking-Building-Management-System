@@ -16,4 +16,7 @@ public interface IRealtimeService
 
     // Báo động cho toàn bộ Staff
     Task BroadcastNotificationToStaffAsync(string message);
+
+    // Gửi cập nhật số dư ví cho user cụ thể
+    Task SendWalletUpdateAsync(Guid userId, decimal newBalance);
 }

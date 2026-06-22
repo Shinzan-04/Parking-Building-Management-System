@@ -101,6 +101,10 @@ export function useNotification(token: string | null) {
       window.dispatchEvent(new CustomEvent('slotUpdate', { detail: data }));
     });
 
+    hub.on('ReceiveWalletUpdate', (newBalance: number) => {
+      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: { balance: newBalance } }));
+    });
+
     // Dùng setTimeout nhỏ để tránh lỗi "connection stopped during negotiation" 
     // do React Strict Mode unmount ngay lập tức khi vừa mount
     const timer = setTimeout(() => {
