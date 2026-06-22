@@ -97,6 +97,11 @@
     background-color: var(--admin-bg-base);
   }
 
+  select option {
+    background-color: var(--admin-bg-surface, #121214);
+    color: var(--admin-text-primary, #FFFFFF);
+  }
+
   #root {
     @apply min-h-screen;
     background-color: var(--admin-bg-base);
