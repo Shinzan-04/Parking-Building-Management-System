@@ -87,20 +87,21 @@ export function useNotification(token: string | null) {
       .build();
 
     hub.on('ReceiveNotification', async () => {
-      // Chỉ fetch noti mới nhất (page 1, size 5) rồi prepend vào list hiện tại
-      // Không reset toàn bộ list để tránh các noti cũ hiện lại như mới
+      // Fetch noti mới nhất và unread count từ server — không tự tính để tránh lệch
       try {
-        const res = await getNotifications(token, 1, 5);
+        const [res, countRes] = await Promise.all([
+          getNotifications(token, 1, 5),
+          getUnreadCount(token),
+        ]);
         const fresh = Array.isArray(res.items) ? res.items : [];
+        setUnreadCount(countRes.unreadCount);
         setNotifications(prev => {
           const existingIds = new Set(prev.map(n => n.id));
           const newItems = fresh.filter(n => !existingIds.has(n.id));
           if (newItems.length === 0) return prev;
-          setUnreadCount(c => c + newItems.filter(n => !n.isRead).length);
           return [...newItems, ...prev];
         });
       } catch {
-        // fallback: chỉ tăng badge, không reset list
         fetchUnreadCount();
       }
     });
