@@ -1,8 +1,10 @@
 using System;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using ParkingSystem.Application.DTOs.Wallet;
 using ParkingSystem.Application.Interfaces;
 
@@ -103,13 +105,119 @@ public class WalletsController : ControllerBase
                 BankBin = request.BankBin,
                 AccountNumber = request.AccountNumber,
                 AccountHolderName = request.AccountName,
-                IsDefault = true,
+                IsDefault = true, // Mặc định cái đầu tiên hoặc mới thêm là true
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
+
+            // Nếu đây là tài khoản đầu tiên, tự động là Default
+            var hasOther = await context.UserBankAccounts.AnyAsync(b => b.UserId == userId);
+            if (hasOther)
+            {
+                // Nếu muốn tài khoản mới là mặc định thì bỏ Default các tài khoản cũ
+                var oldDefaults = await context.UserBankAccounts.Where(b => b.UserId == userId && b.IsDefault).ToListAsync();
+                foreach (var old in oldDefaults) old.IsDefault = false;
+            }
+
             context.UserBankAccounts.Add(account);
             await context.SaveChangesAsync();
-            return Ok(new { Message = "Thêm tài khoản ngân hàng thành công." });
+            return Ok(new { Message = "Thêm tài khoản ngân hàng thành công.", Id = account.Id });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    [HttpGet("bank-accounts")]
+    public async Task<IActionResult> GetBankAccounts([FromServices] ParkingSystem.Infrastructure.Data.ApplicationDbContext context)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var accounts = await context.UserBankAccounts
+                .Where(b => b.UserId == userId)
+                .OrderByDescending(b => b.IsDefault)
+                .ThenByDescending(b => b.CreatedAt)
+                .Select(b => new
+                {
+                    b.Id,
+                    b.BankName,
+                    b.BankBin,
+                    b.AccountNumber,
+                    b.AccountHolderName,
+                    b.IsDefault,
+                    b.CreatedAt
+                })
+                .ToListAsync();
+
+            return Ok(accounts);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    [HttpPut("bank-account/{id}")]
+    public async Task<IActionResult> UpdateBankAccount(Guid id, [FromBody] ParkingSystem.Application.DTOs.Wallet.UpdateBankAccountDto request, [FromServices] ParkingSystem.Infrastructure.Data.ApplicationDbContext context)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var account = await context.UserBankAccounts.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
+            
+            if (account == null)
+                return NotFound(new { Message = "Không tìm thấy tài khoản ngân hàng." });
+
+            account.BankName = request.BankName;
+            account.BankBin = request.BankBin;
+            account.AccountNumber = request.AccountNumber;
+            account.AccountHolderName = request.AccountName;
+            account.UpdatedAt = DateTime.UtcNow;
+
+            if (request.IsDefault && !account.IsDefault)
+            {
+                var oldDefaults = await context.UserBankAccounts.Where(b => b.UserId == userId && b.IsDefault).ToListAsync();
+                foreach (var old in oldDefaults) old.IsDefault = false;
+                account.IsDefault = true;
+            }
+
+            await context.SaveChangesAsync();
+            return Ok(new { Message = "Cập nhật tài khoản ngân hàng thành công." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    [HttpDelete("bank-account/{id}")]
+    public async Task<IActionResult> DeleteBankAccount(Guid id, [FromServices] ParkingSystem.Infrastructure.Data.ApplicationDbContext context)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var account = await context.UserBankAccounts.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
+            
+            if (account == null)
+                return NotFound(new { Message = "Không tìm thấy tài khoản ngân hàng." });
+
+            context.UserBankAccounts.Remove(account);
+            await context.SaveChangesAsync();
+
+            // Nếu xoá cái Default, tự động set cái cũ nhất thành Default
+            if (account.IsDefault)
+            {
+                var nextDefault = await context.UserBankAccounts.Where(b => b.UserId == userId).OrderBy(b => b.CreatedAt).FirstOrDefaultAsync();
+                if (nextDefault != null)
+                {
+                    nextDefault.IsDefault = true;
+                    await context.SaveChangesAsync();
+                }
+            }
+
+            return Ok(new { Message = "Đã xoá tài khoản ngân hàng." });
         }
         catch (Exception ex)
         {
