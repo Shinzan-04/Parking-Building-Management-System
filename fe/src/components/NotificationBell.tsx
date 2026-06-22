@@ -200,7 +200,12 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
       setTop(r.bottom + 8);
       setRight(Math.max(8, window.innerWidth - r.right));
     }
-    setOpen(v => !v);
+    const opening = !open;
+    setOpen(opening);
+    // Khi mở panel: mark all as read ngay (optimistic) để badge về 0
+    if (opening && unreadCount > 0) {
+      markAllAsRead();
+    }
   };
 
   return (
