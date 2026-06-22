@@ -13,17 +13,17 @@ type SlotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
 
 function getStatusLabel(status: string | number): SlotStatus {
   if (status === 'Available'    || status === 0) return 'Available';
-  if (status === 'Occupied'     || status === 1) return 'Occupied';
   if (status === 'Reserved'     || status === 2) return 'Reserved';
-  if (status === 'Maintenance'  || status === 3) return 'Maintenance';
-  return 'Available';
+  if (status === 'Occupied'     || status === 3) return 'Occupied';
+  if (status === 'Maintenance'  || status === 4) return 'Maintenance';
+  return 'Available'; // TemporaryHeld (1) fallback
 }
 
 const STATUS_COLORS: Record<SlotStatus, string> = {
-  Available:   'bg-emerald-500/15 text-emerald-500 border-emerald-500/30',
-  Occupied:    'bg-[#FF4C4C]/15 text-[#FF4C4C] border-[#FF4C4C]/30',
-  Reserved:    'bg-amber-400/15 text-amber-400 border-amber-400/30',
-  Maintenance: 'bg-orange-400/15 text-orange-400 border-orange-400/30',
+  Available:   'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+  Occupied:    'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  Reserved:    'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
+  Maintenance: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
 };
 
 const STATUS_VI: Record<SlotStatus, string> = {
@@ -34,6 +34,86 @@ const STATUS_VI: Record<SlotStatus, string> = {
 };
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
+
+import { getCurrentVehicle } from '../../services/buildingsService';
+
+function SlotRow({ slot, floorName, token }: { slot: ParkingSlotSummary, floorName: string, token: string }) {
+  const statusKey = getStatusLabel(slot.status);
+  const [licensePlate, setLicensePlate] = useState<string | null>(null);
+  const [loadingPlate, setLoadingPlate] = useState(false);
+  const [isOverdue, setIsOverdue] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (statusKey === 'Occupied' || statusKey === 'Reserved') {
+      setLoadingPlate(true);
+      getCurrentVehicle(slot.id, token)
+        .then(res => {
+          if (isMounted && res) {
+            if (res.licensePlate) setLicensePlate(res.licensePlate);
+            if (res.status === 'Overdue') setIsOverdue(true);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (isMounted) setLoadingPlate(false);
+        });
+    } else {
+      setLicensePlate(null);
+      setIsOverdue(false);
+    }
+    return () => { isMounted = false; };
+  }, [slot.id, statusKey, token]);
+
+  return (
+    <tr
+      className="border-b last:border-0 transition-colors hover:bg-white/[0.02]"
+      style={{ borderColor: 'var(--admin-border)' }}
+    >
+      <td className="px-6 py-3.5">
+        <span className="text-sm font-mono font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
+          {slot.slotNumber ?? slot.id.slice(0, 8)}
+        </span>
+      </td>
+      <td className="px-4 py-3.5">
+        <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>{floorName}</span>
+      </td>
+      <td className="px-4 py-3.5">
+        <div className="flex flex-col">
+          <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>
+            {slot.vehicleTypeName ?? '—'}
+          </span>
+          {loadingPlate ? (
+            <span className="text-xs text-[#FF4C4C] mt-1 flex items-center gap-1">
+              <Loader2 size={10} className="animate-spin" /> Đang tải...
+            </span>
+          ) : licensePlate ? (
+            <span className={`text-xs font-mono font-bold mt-1 px-2 py-0.5 rounded w-fit ${isOverdue ? 'bg-red-500/20 text-red-400' : 'bg-white/10'}`} style={isOverdue ? {} : { color: 'var(--admin-text-primary)' }}>
+              {licensePlate}
+            </span>
+          ) : (statusKey === 'Occupied' || statusKey === 'Reserved') ? (
+            <span className="text-xs font-mono mt-1 px-2 py-0.5 rounded bg-white/5 w-fit" style={{ color: 'var(--admin-text-muted)' }}>
+              Không xác định
+            </span>
+          ) : null}
+        </div>
+      </td>
+      <td className="px-4 py-3.5">
+        <div className="flex items-center gap-2">
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[statusKey]}`}>
+            {STATUS_VI[statusKey]}
+          </span>
+          {isOverdue && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-pink-500/20 text-pink-500 uppercase tracking-wider">
+              <AlertTriangle size={10} />
+              Lố giờ
+            </span>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 export default function StaffSlotList() {
   const { user, token } = useAuth();
@@ -251,36 +331,14 @@ export default function StaffSlotList() {
                     Không có slot phù hợp
                   </td>
                 </tr>
-              ) : filtered.map(slot => {
-                const statusKey = getStatusLabel(slot.status);
-                const floorName = floors.find(f => f.id === slot.floorId)?.name ?? slot.floorId;
-                return (
-                  <tr
-                    key={slot.id}
-                    className="border-b last:border-0 transition-colors hover:bg-white/[0.02]"
-                    style={{ borderColor: 'var(--admin-border)' }}
-                  >
-                    <td className="px-6 py-3.5">
-                      <span className="text-sm font-mono font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
-                        {slot.slotNumber ?? slot.id.slice(0, 8)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>{floorName}</span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>
-                        {slot.vehicleTypeName ?? '—'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[statusKey]}`}>
-                        {STATUS_VI[statusKey]}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
+              ) : filtered.map(slot => (
+                <SlotRow 
+                  key={slot.id} 
+                  slot={slot} 
+                  floorName={floors.find(f => f.id === slot.floorId)?.name ?? slot.floorId} 
+                  token={token ?? ''} 
+                />
+              ))}
             </tbody>
           </table>
         </div>

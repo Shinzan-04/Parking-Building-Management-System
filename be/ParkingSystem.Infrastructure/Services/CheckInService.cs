@@ -54,8 +54,8 @@ public class CheckInService : ICheckInService
 
         // Kiểm tra thời gian booking có hợp lệ không
         var now = DateTime.UtcNow;
-        if (now < reservation.StartTime.AddMinutes(-30) || now > reservation.EndTime)
-            throw new InvalidOperationException("Booking đã hết hạn hoặc chưa đến giờ check-in.");
+        if (now > reservation.EndTime)
+            throw new InvalidOperationException("Booking đã hết hạn.");
 
         // Đối chiếu biển số OCR với biển số đăng ký trong Booking
         if (!string.Equals(request.LicensePlateOcr.Trim(), reservation.LicensePlate.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -99,7 +99,6 @@ public class CheckInService : ICheckInService
             .Include(r => r.VehicleType)
             .Where(r => r.DriverId == driverId
                      && r.Status == ReservationStatus.Confirmed
-                     && now >= r.StartTime.AddMinutes(-30) // Cho phép check-in sớm 30 phút
                      && now <= r.EndTime)
             .OrderBy(r => r.StartTime)
             .ToListAsync();
@@ -333,6 +332,21 @@ public class CheckInService : ICheckInService
         // Lưu ảnh biển số
         string? entryImageUrl = await SaveEntryImageAsync(entryImageBase64, licensePlate);
 
+        // Xử lý khách đến sớm: Dịch chuyển StartTime và EndTime
+        var now = DateTime.UtcNow;
+        if (now < reservation.StartTime)
+        {
+            var slotStatus = reservation.ParkingSlot.Status;
+            if (slotStatus == SlotStatus.Occupied || slotStatus == SlotStatus.TemporaryHeld || slotStatus == SlotStatus.Maintenance)
+            {
+                throw new InvalidOperationException($"Bạn đến sớm, nhưng ô đỗ {reservation.ParkingSlot.SlotNumber} hiện đang có xe khác hoặc bảo trì. Vui lòng liên hệ nhân viên để đổi chỗ.");
+            }
+
+            var earlyAmount = reservation.StartTime - now;
+            reservation.StartTime = now;
+            reservation.EndTime = reservation.EndTime.Subtract(earlyAmount);
+        }
+
         // Tạo Parking Session liên kết với Reservation
         var session = new ParkingSession
         {
@@ -345,13 +359,14 @@ public class CheckInService : ICheckInService
             LicensePlate = licensePlate,
             SessionCode = sessionCode,
             CheckInMethod = CheckInMethod.Booking,
-            EntryTime = DateTime.UtcNow,
+            EntryTime = now,
             EntryImageUrl = entryImageUrl,
             Status = SessionStatus.Active
         };
 
         // Cập nhật trạng thái Reservation → CheckedIn
         reservation.Status = ReservationStatus.CheckedIn;
+        reservation.UpdatedAt = now;
 
         // Cập nhật trạng thái Slot: Reserved → Occupied
         var slot = reservation.ParkingSlot;
@@ -430,7 +445,6 @@ public class CheckInService : ICheckInService
             .Include(r => r.VehicleType)
             .FirstOrDefaultAsync(r => r.LicensePlate.ToLower() == searchPlate.ToLower()
                                    && validStatuses.Contains(r.Status)
-                                   && now >= r.StartTime.AddMinutes(-30)
                                    && now <= r.EndTime);
 
         if (validReservation != null)
@@ -459,7 +473,6 @@ public class CheckInService : ICheckInService
         }
 
         ParkingSlot? assignedSlot = null;
-        bool isAIAssigned = false;
         double? slotScore = null;
         string? slotReason = null;
 
@@ -479,8 +492,6 @@ public class CheckInService : ICheckInService
             // Validate: Slot phải thuộc tòa nhà đã chọn (nếu có)
             if (effectiveBuildingId.HasValue && assignedSlot.Floor.BuildingId != effectiveBuildingId.Value)
                 throw new InvalidOperationException("Ô đỗ xe không thuộc tòa nhà đang quản lý.");
-
-            isAIAssigned = false;
         }
         else
         {
@@ -500,7 +511,6 @@ public class CheckInService : ICheckInService
             if (assignedSlot == null)
                 throw new InvalidOperationException("Lỗi hệ thống: Không tìm thấy slot được gợi ý.");
 
-            isAIAssigned = true;
             slotScore = bestSlot.Score;
             slotReason = bestSlot.Reason;
         }

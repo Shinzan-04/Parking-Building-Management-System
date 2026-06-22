@@ -43,16 +43,16 @@ const SLOT_STATUS_LABELS: Record<SlotStatus, string> = {
 };
 
 const SLOT_STATUS_COLORS: Record<SlotStatus, { bg: string; text: string }> = {
-  Available:   { bg: 'bg-[#FF4C4C]/10',   text: 'text-[#FF4C4C]' },
-  Occupied:    { bg: 'bg-amber-500/15',    text: 'text-amber-500' },
-  Reserved:    { bg: 'bg-amber-400/15',    text: 'text-amber-400' },
-  Maintenance: { bg: 'bg-red-400/15',      text: 'text-red-400' },
+  Available:   { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  Occupied:    { bg: 'bg-blue-500/15',    text: 'text-blue-400' },
+  Reserved:    { bg: 'bg-fuchsia-500/15', text: 'text-fuchsia-400' },
+  Maintenance: { bg: 'bg-zinc-500/15',    text: 'text-zinc-400' },
 };
 
 const statusConfig = {
-  active:      { label: 'Hoạt động', bg: 'bg-[#FF4C4C]/10', text: 'text-[#FF4C4C]', dot: 'bg-[#FF4C4C]' },
-  full:        { label: 'Đầy chỗ',   bg: 'bg-amber-400/10',  text: 'text-amber-400',  dot: 'bg-amber-400' },
-  maintenance: { label: 'Bảo trì',   bg: 'bg-red-400/10',    text: 'text-red-400',    dot: 'bg-red-400' },
+  active:      { label: 'Hoạt động', bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-400' },
+  full:        { label: 'Đầy chỗ',   bg: 'bg-blue-500/10',    text: 'text-blue-400',    dot: 'bg-blue-400' },
+  maintenance: { label: 'Bảo trì',   bg: 'bg-zinc-400/10',    text: 'text-zinc-400',    dot: 'bg-zinc-400' },
 };
 
 const emptyForm = { name: '', address: '', totalSpots: '', status: 'active' as ParkingLot['status'] };
@@ -129,9 +129,9 @@ function SlotMap({
 
   const normalizeStatus = (s: string | number): SlotStatus => {
     if (s === 0 || s === 'Available')   return 'Available';
-    if (s === 1 || s === 'Occupied')    return 'Occupied';
     if (s === 2 || s === 'Reserved')    return 'Reserved';
-    if (s === 3 || s === 'Maintenance') return 'Maintenance';
+    if (s === 3 || s === 'Occupied')    return 'Occupied';
+    if (s === 4 || s === 'Maintenance') return 'Maintenance';
     return 'Available';
   };
 
@@ -154,18 +154,19 @@ function SlotMap({
   const maintCount     = activeFloorSlots.filter(s => normalizeStatus(s.status) === 'Maintenance').length;
 
   const slotColorClass = (status: SlotStatus, isSelected: boolean, isBulkPicked: boolean) => {
-    if (isBulkPicked && status === 'Available')   return 'bg-red-500 border-red-400 text-white scale-105 z-10 shadow-md ring-2 ring-red-400/60';
-    if (isBulkPicked && status === 'Maintenance') return 'bg-green-500 border-green-400 text-white scale-105 z-10 shadow-md ring-2 ring-green-400/60';
-    if (isSelected) return 'bg-[#FF4C4C] border-[#FF4C4C] text-white scale-110 z-10 shadow-lg';
+    if (isBulkPicked && status === 'Available')   return 'bg-zinc-500 border-zinc-400 text-white scale-105 z-10 shadow-md ring-2 ring-zinc-400/60';
+    if (isBulkPicked && status === 'Maintenance') return 'bg-emerald-500 border-emerald-400 text-white scale-105 z-10 shadow-md ring-2 ring-emerald-400/60';
+    if (isSelected) return 'bg-white border-white text-black scale-110 z-10 shadow-lg';
+    
     switch (status) {
       case 'Available':   return bulkMode
-        ? 'bg-[#FF4C4C]/10 border-[#FF4C4C]/40 text-[#FF4C4C] hover:bg-red-500/20 cursor-pointer ring-1 ring-[#FF4C4C]/30'
-        : 'bg-[#FF4C4C]/10 border-[#FF4C4C]/40 text-[#FF4C4C] hover:bg-[#FF4C4C]/20 cursor-pointer';
-      case 'Occupied':    return 'bg-amber-400/20 border-amber-400/60 text-amber-500 cursor-default';
-      case 'Reserved':    return 'bg-amber-300/20 border-amber-300/60 text-amber-400 cursor-default';
+        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer ring-1 ring-emerald-500/30'
+        : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer';
+      case 'Occupied':    return 'bg-blue-500/20 border-blue-500/60 text-blue-400 cursor-default';
+      case 'Reserved':    return 'bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-400 cursor-default';
       case 'Maintenance': return bulkMode
-        ? 'bg-red-500/20 border-red-500/70 text-red-500 hover:bg-green-500/20 hover:border-green-500/60 cursor-pointer ring-1 ring-red-400/40'
-        : 'bg-red-500/20 border-red-500/70 text-red-500 hover:bg-red-500/30 cursor-pointer';
+        ? 'bg-zinc-500/20 border-zinc-500/70 text-zinc-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 cursor-pointer ring-1 ring-zinc-400/40'
+        : 'bg-zinc-500/20 border-zinc-500/70 text-zinc-400 hover:bg-zinc-500/30 cursor-pointer';
     }
   };
 
@@ -252,11 +253,6 @@ function SlotMap({
                         {slot.status === 'Occupied' && <VehicleIcon name={slot.vehicleTypeName} size={8} />}
                         {slot.status === 'Maintenance' && <Wrench size={8} />}
                         <span>{slot.slotNumber}</span>
-                        {slot.status === 'Occupied' && slot.currentLicensePlate && (
-                          <span className="text-[6.5px] opacity-90 truncate w-full text-center px-px leading-none -mt-0.5">
-                            {slot.currentLicensePlate}
-                          </span>
-                        )}
                       </button>
                     );
                   })}
@@ -272,10 +268,10 @@ function SlotMap({
           <div className="flex items-center flex-wrap gap-x-4 gap-y-2 pt-2 border-t border-black/10 dark:border-white/5 text-xs text-gray-500 dark:text-white/40">
             {/* Stats — always visible */}
             {[
-              { label: 'Trống',     count: availableCount, colorClass: 'bg-[#FF4C4C]/20 border-[#FF4C4C]/40' },
-              { label: 'Có xe',     count: occupiedCount,  colorClass: 'bg-amber-500/20 border-amber-500/40' },
-              { label: 'Đặt trước', count: reservedCount,  colorClass: 'bg-amber-400/20 border-amber-400/40' },
-              { label: 'Bảo trì',   count: maintCount,     colorClass: 'bg-red-400/20 border-red-400/40' },
+              { label: 'Trống',     count: availableCount, colorClass: 'bg-emerald-500/20 border-emerald-500/40' },
+              { label: 'Có xe',     count: occupiedCount,  colorClass: 'bg-blue-500/20 border-blue-500/40' },
+              { label: 'Đặt trước', count: reservedCount,  colorClass: 'bg-fuchsia-500/20 border-fuchsia-500/40' },
+              { label: 'Bảo trì',   count: maintCount,     colorClass: 'bg-zinc-500/20 border-zinc-500/40' },
             ].map(s => (
               <div key={s.label} className="flex items-center gap-1.5">
                 <span className={`w-3 h-3 rounded border ${s.colorClass}`} />
@@ -606,7 +602,7 @@ export default function ParkingLots() {
       ]);
 
       setAllFloors(floors);
-      const statusMap: Record<string | number, string> = { 0: 'Available', 1: 'Occupied', 2: 'Reserved', 3: 'Maintenance' };
+      const statusMap: Record<string | number, string> = { 0: 'Available', 1: 'TemporaryHeld', 2: 'Reserved', 3: 'Occupied', 4: 'Maintenance' };
       setAllSlots(slots.map(s => ({ ...s, status: statusMap[s.status] ?? s.status })));
 
       const fbMap: Record<string, string> = {};
