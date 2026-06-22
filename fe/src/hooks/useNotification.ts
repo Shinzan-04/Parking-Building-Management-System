@@ -18,19 +18,15 @@ export function useNotification(token: string | null) {
   const tokenRef = useRef(token);
   useEffect(() => { tokenRef.current = token; }, [token]);
 
-  // Fetch danh sách + unread count từ server (đọc đúng isRead từ DB)
+  // Fetch danh sách — không set unreadCount vì markAllAsRead sẽ set về 0
   const fetchNotifications = useCallback(async () => {
     const t = tokenRef.current;
     if (!t) return;
     setLoading(true);
     try {
-      const [notiRes, countRes] = await Promise.all([
-        getNotifications(t, 1, 20),
-        getUnreadCount(t),
-      ]);
+      const notiRes = await getNotifications(t, 1, 20);
       const items = Array.isArray(notiRes.items) ? notiRes.items : [];
       setNotifications(items);
-      setUnreadCount(countRes.unreadCount);
     } catch { /* ignore */ } finally {
       setLoading(false);
     }
@@ -64,10 +60,7 @@ export function useNotification(token: string | null) {
     // Optimistic: update UI ngay lập tức
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     setUnreadCount(0);
-    // Gọi API để lưu vào DB — log rõ kết quả để debug
-    markAllAsRead(t)
-      .then(() => console.log('[Notification] markAllAsRead: DB updated OK'))
-      .catch(err => console.error('[Notification] markAllAsRead: FAIL', err));
+    markAllAsRead(t).catch(() => { /* ignore */ });
   }, []);
 
   // Initial load: chỉ lấy unread count để hiện badge, KHÔNG mark gì cả
