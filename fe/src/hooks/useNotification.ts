@@ -57,18 +57,17 @@ export function useNotification(token: string | null) {
     } catch { /* ignore */ }
   }, []);
 
-  // Mark tất cả đã đọc — gọi API trước, update UI sau khi API thành công
+  // Mark tất cả đã đọc — update UI ngay, gọi API song song
   const handleMarkAllAsRead = useCallback(async () => {
     const t = tokenRef.current;
     if (!t) return;
-    try {
-      await markAllAsRead(t);
-      // Chỉ update UI sau khi API thành công
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch (err) {
-      console.error('[Notification] markAllAsRead lỗi:', err);
-    }
+    // Optimistic: update UI ngay lập tức
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+    // Gọi API để lưu vào DB — log rõ kết quả để debug
+    markAllAsRead(t)
+      .then(() => console.log('[Notification] markAllAsRead: DB updated OK'))
+      .catch(err => console.error('[Notification] markAllAsRead: FAIL', err));
   }, []);
 
   // Initial load: chỉ lấy unread count để hiện badge, KHÔNG mark gì cả

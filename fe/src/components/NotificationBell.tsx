@@ -202,9 +202,11 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
     }
     const opening = !open;
     setOpen(opening);
-    // Khi mở panel: chỉ fetch danh sách, KHÔNG tự mark as read
     if (opening) {
+      // Fetch danh sách để hiện trong panel
       fetchNotifications();
+      // Auto mark all as read ngay khi mở — gọi API riêng song song
+      markAllAsRead();
     }
   };
 
