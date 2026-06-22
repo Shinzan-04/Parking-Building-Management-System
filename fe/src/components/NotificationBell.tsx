@@ -34,8 +34,10 @@ interface Props {
 function timeAgo(dateStr: string | undefined): string {
   if (!dateStr) return '';
   try {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    if (isNaN(diff)) return '';
+    // Đảm bảo parse đúng UTC — backend trả ISO string không có 'Z' suffix
+    const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z';
+    const diff = Date.now() - new Date(normalized).getTime();
+    if (isNaN(diff) || diff < 0) return 'vừa xong';
     const mins = Math.floor(diff / 60_000);
     if (mins < 1)  return 'vừa xong';
     if (mins < 60) return `${mins} phút trước`;
