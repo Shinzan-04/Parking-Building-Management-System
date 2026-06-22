@@ -165,16 +165,6 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
     useNotification(token);
 
-  // Tự động mark all as read khi mở panel — dùng ref để tránh stale closure
-  const unreadRef = useRef(unreadCount);
-  useEffect(() => { unreadRef.current = unreadCount; }, [unreadCount]);
-
-  useEffect(() => {
-    if (open && unreadRef.current > 0) {
-      markAllAsRead();
-    }
-  }, [open, markAllAsRead]);
-
   // Close on outside click
   useEffect(() => {
     if (!open) return;
