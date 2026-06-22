@@ -16,6 +16,8 @@ import {
   Loader2,
   Sparkles,
   ChevronDown,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { getVehicleTypes } from '../../services/vehicleTypesService';
 import { getAllPolicies, getPolicyByVehicleType } from '../../services/pricingService';
@@ -182,9 +184,7 @@ function StepVehicleType({
                     {v.description}
                   </p>
                 )}
-                <p className="text-xs text-stone-500 mt-1.5 font-bold">
-                  {formatCurrency(v.hourlyRate)}/hr
-                </p>
+
               </div>
 
               {selected && (
@@ -416,6 +416,63 @@ function StepLicensePlate({
   );
 }
 
+// ── Hàm tính chi phí ước tính dùng chung ──
+export function computeEstimatedCostHelper(
+  state: WizardState,
+  vehicles: ApiVehicleType[],
+  policy: PricingPolicyResponse | null
+): { total: number; isCapped: boolean; breakdown: string } {
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  if (!selectedVehicle) return { total: 0, isCapped: false, breakdown: '' };
+
+  if (policy && policy.blockDurationHours > 0) {
+    const blocksRequired = Math.ceil(state.duration / policy.blockDurationHours);
+    const [h, m] = (state.entryTime || '00:00').split(':').map(Number);
+    let currentHour = h + m / 60;
+    
+    let dayBlocks = 0;
+    let nightBlocks = 0;
+    
+    for (let i = 0; i < blocksRequired; i++) {
+      const isNight = policy.nightStartHour <= policy.nightEndHour
+        ? (currentHour >= policy.nightStartHour && currentHour < policy.nightEndHour)
+        : (currentHour >= policy.nightStartHour || currentHour < policy.nightEndHour);
+        
+      if (isNight) nightBlocks++;
+      else dayBlocks++;
+      
+      currentHour = (currentHour + policy.blockDurationHours) % 24;
+    }
+    
+    const raw = (dayBlocks * policy.dayBlockRate) + (nightBlocks * policy.nightBlockRate);
+    
+    const days = Math.ceil(state.duration / 24) || 1;
+    const maxAllowed = policy.dailyRate > 0 ? (days * policy.dailyRate) : raw;
+    
+    const capped = Math.min(raw, maxAllowed);
+    const isCapped = raw > maxAllowed;
+    
+    const breakdownArr = [];
+    if (dayBlocks > 0) breakdownArr.push(`${dayBlocks} Block Ngày (${policy.dayBlockRate.toLocaleString('vi-VN')}đ/bl)`);
+    if (nightBlocks > 0) breakdownArr.push(`${nightBlocks} Block Đêm (${policy.nightBlockRate.toLocaleString('vi-VN')}đ/bl)`);
+    const breakdown = breakdownArr.join(' + ');
+
+    return { total: capped, isCapped, breakdown };
+  }
+
+  // Fallback: dùng hourlyRate từ vehicle data
+  const rate = selectedVehicle.hourlyRate;
+  const raw = rate * state.duration;
+  const dailyMax = policy?.dailyMaxRate ?? 0;
+  const capped = dailyMax > 0 ? Math.min(raw, dailyMax) : raw;
+  const isCapped = dailyMax > 0 && raw > dailyMax;
+  return {
+    total: capped,
+    isCapped,
+    breakdown: `${state.duration}h × ${rate.toLocaleString('vi-VN')}đ/h`,
+  };
+}
+
 // Step 3 – Date & Time
 function StepDateTime({
   state,
@@ -448,45 +505,8 @@ function StepDateTime({
     return `${d}/${mo}/${y}`;
   };
 
-  // ── Tính chi phí ước tính theo đúng logic PricingPolicy ──
-  // Logic: block đầu tiên (blockPrice) + các giờ tiếp theo (hourlyRate/giờ)
-  // Tổng chi phí bị giới hạn bởi dailyMaxRate
-  const computeEstimatedCost = (): { total: number; isCapped: boolean; breakdown: string } => {
-    const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
-    if (!selectedVehicle) return { total: 0, isCapped: false, breakdown: '' };
-
-    // Nếu có PricingPolicy đầy đủ → dùng logic block
-    if (policy && policy.blockPrice > 0 && policy.blockMinutes > 0) {
-      const blocksPerHour = 60 / policy.blockMinutes;
-      const firstBlockCost = policy.blockPrice; // Chi phí block đầu
-      const additionalHours = Math.max(0, state.duration - 1);
-      const additionalCost = additionalHours * policy.hourlyRate;
-      const raw = firstBlockCost + additionalCost;
-      const capped = policy.dailyMaxRate > 0 ? Math.min(raw, policy.dailyMaxRate) : raw;
-      const isCapped = policy.dailyMaxRate > 0 && raw > policy.dailyMaxRate;
-      const perBlock = `${policy.blockPrice.toLocaleString('vi-VN')}đ/${policy.blockMinutes}ph`;
-      const perHour = `${policy.hourlyRate.toLocaleString('vi-VN')}đ/h`;
-      const bd = state.duration <= 1
-        ? `1 block (${perBlock})`
-        : `1 block (${perBlock}) + ${additionalHours}h × ${perHour}`;
-      return { total: capped, isCapped, breakdown: bd };
-    }
-
-    // Fallback: dùng hourlyRate từ vehicle data
-    const rate = selectedVehicle.hourlyRate;
-    const raw = rate * state.duration;
-    const dailyMax = policy?.dailyMaxRate ?? 0;
-    const capped = dailyMax > 0 ? Math.min(raw, dailyMax) : raw;
-    const isCapped = dailyMax > 0 && raw > dailyMax;
-    return {
-      total: capped,
-      isCapped,
-      breakdown: `${state.duration}h × ${rate.toLocaleString('vi-VN')}đ/h`,
-    };
-  };
-
   const exitInfo = computeExitTime();
-  const costResult = computeEstimatedCost();
+  const costResult = computeEstimatedCostHelper(state, vehicles, policy);
 
   return (
     <div className="flex flex-col gap-6">
@@ -540,79 +560,60 @@ function StepDateTime({
           Duration
         </label>
         <div className="flex flex-wrap gap-2">
-          {durations.map((d) => (
-            <button
-              key={d}
-              onClick={() => setState((s) => ({ ...s, duration: d }))}
-              className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${state.duration === d
-                  ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/20'
-                  : 'bg-white text-stone-600 border-gray-200 hover:bg-gray-50 hover:text-stone-900 hover:border-gray-300'
-                }`}
-            >
-              {d}h
-            </button>
-          ))}
+          {policy && policy.blockDurationHours > 0 ? (
+            [1, 2, 3, 4, 5, 6].map((b) => {
+              const hours = b * policy.blockDurationHours;
+              
+              // Calculate day/night blocks for this option based on entryTime
+              const [h, m] = (state.entryTime || '00:00').split(':').map(Number);
+              let currentHour = h + m / 60;
+              let dBlocks = 0;
+              let nBlocks = 0;
+              
+              for (let i = 0; i < b; i++) {
+                const isNight = policy.nightStartHour <= policy.nightEndHour
+                  ? (currentHour >= policy.nightStartHour && currentHour < policy.nightEndHour)
+                  : (currentHour >= policy.nightStartHour || currentHour < policy.nightEndHour);
+                if (isNight) nBlocks++;
+                else dBlocks++;
+                currentHour = (currentHour + policy.blockDurationHours) % 24;
+              }
+
+              return (
+                <button
+                  key={`block-${b}`}
+                  onClick={() => setState((s) => ({ ...s, duration: hours }))}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 ${state.duration === hours
+                      ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/20'
+                      : 'bg-white text-stone-600 border-gray-200 hover:bg-gray-50 hover:text-stone-900 hover:border-gray-300'
+                    }`}
+                >
+                  <div className="flex -space-x-0.5">
+                    {dBlocks > 0 && <Sun size={14} className={state.duration === hours ? "text-white" : "text-amber-500"} />}
+                    {nBlocks > 0 && <Moon size={14} className={state.duration === hours ? "text-white" : "text-indigo-500"} />}
+                  </div>
+                  <span>{b} Block{b > 1 ? 's' : ''} <span className="opacity-70 font-normal">({hours}h)</span></span>
+                </button>
+              );
+            })
+          ) : (
+            durations.map((d) => (
+              <button
+                key={`hour-${d}`}
+                onClick={() => setState((s) => ({ ...s, duration: d }))}
+                className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all ${state.duration === d
+                    ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/20'
+                    : 'bg-white text-stone-600 border-gray-200 hover:bg-gray-50 hover:text-stone-900 hover:border-gray-300'
+                  }`}
+              >
+                {d}h
+              </button>
+            ))
+          )}
         </div>
       </div>
 
-      {/* ── Pricing Structure Card ── */}
-      {policy && (
-        <div className="rounded-2xl border border-amber-200/80 bg-amber-50/60 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-5 h-5 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-[9px] font-black">₫</span>
-            </div>
-            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-widest">
-              Pricing Structure
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {/* Grace Period */}
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-              <span className="text-[10px] text-stone-500 font-semibold">Grace Period</span>
-            </div>
-            <span className="text-[10px] font-bold text-emerald-600 text-right">
-              15 phút miễn phí
-            </span>
 
-            {/* Block Price */}
-            {policy.blockPrice > 0 && (
-              <>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                  <span className="text-[10px] text-stone-500 font-semibold">Block đầu tiên</span>
-                </div>
-                <span className="text-[10px] font-bold text-blue-600 text-right">
-                  {policy.blockPrice.toLocaleString('vi-VN')}đ / {policy.blockMinutes}ph
-                </span>
-              </>
-            )}
-
-            {/* Hourly Rate */}
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C] flex-shrink-0" />
-              <span className="text-[10px] text-stone-500 font-semibold">Giá theo giờ</span>
-            </div>
-            <span className="text-[10px] font-bold text-[#FF4C4C] text-right">
-              {policy.hourlyRate.toLocaleString('vi-VN')}đ / giờ
-            </span>
-
-            {/* Daily Max Rate */}
-            {policy.dailyMaxRate > 0 && (
-              <>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0" />
-                  <span className="text-[10px] text-stone-500 font-semibold">Tối đa / ngày</span>
-                </div>
-                <span className="text-[10px] font-bold text-purple-600 text-right">
-                  {policy.dailyMaxRate.toLocaleString('vi-VN')}đ
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ── Parking Summary Card ── */}
       <div className="rounded-2xl bg-blue-50/70 border border-blue-100 p-5">
@@ -1163,6 +1164,7 @@ function ConfirmationPopup({
   vehicles,
   floorLabel,
   myVehicles,
+  policy,
 }: {
   lot: ParkingLot;
   state: WizardState;
@@ -1171,6 +1173,7 @@ function ConfirmationPopup({
   vehicles: ApiVehicleType[];
   floorLabel: string;
   myVehicles: VehicleResponse[];
+  policy: PricingPolicyResponse | null;
 }) {
   const [phase, setPhase] = useState<PopupPhase>('confirm');
   const [createdReservation, setCreatedReservation] = useState<any>(null);
@@ -1184,8 +1187,8 @@ function ConfirmationPopup({
   const [pollSeconds, setPollSeconds] = useState(0);
 
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
-  const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
-  const total = pricePerHour * state.duration;
+  const costResult = computeEstimatedCostHelper(state, vehicles, policy);
+  const total = costResult.total;
 
   const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
     selectedVehicle?.name.toLowerCase().includes('xe máy') ||
@@ -1451,12 +1454,21 @@ function ConfirmationPopup({
                   </div>
                 ))}
               </div>
-              <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-2xl p-4 flex items-center justify-between">
-                <div>
+              <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-2xl p-4 flex items-start justify-between">
+                <div className="flex-1 mr-4">
                   <p className="text-xs text-stone-400 font-bold mb-0.5">Estimated Total Cost</p>
-                  <p className="text-xs text-stone-400 font-medium">{state.duration}h × {formatCurrency(pricePerHour)}</p>
+                  <p className="text-xs text-stone-500 font-medium leading-relaxed">
+                    Cách tính: {costResult.breakdown}
+                  </p>
                 </div>
-                <p className="text-2xl font-black text-[#FF4C4C]">{formatCurrency(total)}</p>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-2xl font-black text-[#FF4C4C]">{formatCurrency(costResult.total)}</p>
+                  {costResult.isCapped && (
+                    <span className="text-[9px] font-bold text-purple-500 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded-full mt-1 inline-block">
+                      Giá trần/ngày
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -2081,6 +2093,7 @@ export default function BookingWizard({ lot, onClose }: BookingWizardProps) {
           vehicles={vehicles}
           floorLabel={floorLabel}
           myVehicles={myVehicles}
+          policy={policy}
         />
       )}
     </>
