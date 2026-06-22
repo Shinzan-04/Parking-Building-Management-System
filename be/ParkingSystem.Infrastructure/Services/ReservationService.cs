@@ -248,7 +248,8 @@ public class ReservationService : IReservationService
 
                 if (driver.Balance < fee)
                 {
-                    throw new InvalidOperationException("Số dư ví không đủ. Vui lòng nạp thêm tiền vào ví để thanh toán phí đặt chỗ.");
+                    var required = fee - driver.Balance;
+                    throw new InvalidOperationException($"INSUFFICIENT_BALANCE:{required}:{fee}:{driver.Balance}");
                 }
 
                 // Trừ ví và tạo Transaction

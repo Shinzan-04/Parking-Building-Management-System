@@ -70,12 +70,19 @@ public class WalletsController : ControllerBase
 
             var userId = GetUserId();
 
+            // Lấy origin từ Referer hoặc Origin header để build returnUrl về /wallet
+            var origin = Request.Headers["Origin"].FirstOrDefault()
+                      ?? Request.Headers["Referer"].FirstOrDefault()?.Split('/').Take(3).Aggregate((a, b) => a + "/" + b)
+                      ?? "http://localhost:5173";
+
             var payosResult = await paymentService.CreatePayOSPaymentAsync(new ParkingSystem.Application.DTOs.Payment.CreatePayOSPaymentRequest
             {
                 Amount = request.Amount,
                 Description = "Nap tien vao vi",
                 IsWalletDeposit = true,
-                UserId = userId
+                UserId = userId,
+                ReturnUrl = $"{origin}/wallet?deposited=1",
+                CancelUrl = $"{origin}/wallet?deposited=0",
             });
 
             return Ok(new 

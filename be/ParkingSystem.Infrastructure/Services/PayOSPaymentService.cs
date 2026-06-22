@@ -40,17 +40,20 @@ public class PayOSPaymentService : IPaymentService
     private readonly ILogger<PayOSPaymentService> _logger;
     private readonly PayOSClient _payOSClient;
     private readonly IRealtimeService _realtimeService;
+    private readonly INotificationService _notificationService;
 
     public PayOSPaymentService(
         ApplicationDbContext context,
         IOptions<PayOSOptions> options,
         ILogger<PayOSPaymentService> logger,
-        IRealtimeService realtimeService)
+        IRealtimeService realtimeService,
+        INotificationService notificationService)
     {
         _context = context;
         _options = options.Value;
         _logger = logger;
         _realtimeService = realtimeService;
+        _notificationService = notificationService;
         _payOSClient = new PayOSClient(_options.ClientId, _options.ApiKey, _options.ChecksumKey);
     }
 
@@ -94,8 +97,8 @@ public class PayOSPaymentService : IPaymentService
                 OrderCode = orderCode,
                 Amount = (int)request.Amount,
                 Description = safeDescription.Trim(),
-                ReturnUrl = _options.ReturnUrl,
-                CancelUrl = _options.CancelUrl,
+                ReturnUrl = !string.IsNullOrWhiteSpace(request.ReturnUrl) ? request.ReturnUrl : _options.ReturnUrl,
+                CancelUrl = !string.IsNullOrWhiteSpace(request.CancelUrl) ? request.CancelUrl : _options.CancelUrl,
                 ExpiredAt = expiredAt
             };
 
@@ -212,12 +215,16 @@ public class PayOSPaymentService : IPaymentService
             }
 
             // Xử lý nạp tiền vào ví (Top-up Wallet)
+            Guid? walletUserId = null;
+            decimal walletNewBalance = 0;
             if (payment.Status == PaymentStatus.Success && payment.UserId.HasValue && !payment.ReservationId.HasValue && !payment.ParkingSessionId.HasValue)
             {
                 var user = await _context.Users.FindAsync(payment.UserId.Value);
                 if (user != null)
                 {
                     user.Balance += payment.Amount;
+                    walletNewBalance = user.Balance;
+                    walletUserId = user.Id;
                     _context.WalletTransactions.Add(new WalletTransaction
                     {
                         Id = Guid.NewGuid(),
@@ -233,6 +240,12 @@ public class PayOSPaymentService : IPaymentService
             }
 
             await _context.SaveChangesAsync();
+
+            // Push balance mới xuống client ngay sau khi cộng tiền thành công
+            if (walletUserId.HasValue)
+            {
+                await _realtimeService.SendWalletUpdateAsync(walletUserId.Value, walletNewBalance);
+            }
 
             // Bắn thông báo Realtime SignalR cho App Driver SAU KHI đã lưu DB thành công
             if (shouldNotifyPaymentSuccess)
@@ -348,24 +361,9 @@ public class PayOSPaymentService : IPaymentService
         
         try
         {
-            if (_options.PayoutMode == "Demo")
+            // Cả Demo lẫn Production đều hoàn tiền vào ví người dùng
             {
-                // Giả lập chế độ Demo
-                _logger.LogInformation("Bắt đầu hoàn tiền chế độ Demo cho PaymentId={Id}, Amount={Amount}", payment.Id, payment.Amount);
-                await Task.Delay(1500); // Giả lập network delay
-
-                payment.Status = PaymentStatus.Refunded;
-                payment.RefundedAt = DateTime.UtcNow;
-                payment.RefundReferenceId = referenceId;
-                payment.RefundProvider = "PayOS_Demo";
-                payment.RefundTransactionId = $"DEMO_TX_{DateTime.UtcNow.Ticks}";
-                
-                _logger.LogInformation("Hoàn tiền Demo thành công cho PaymentId={Id}", payment.Id);
-            }
-            else
-            {
-                // Chế độ Production thực tế
-                _logger.LogInformation("Bắt đầu hoàn tiền chế độ Production cho PaymentId={Id}", payment.Id);
+                _logger.LogInformation("Bắt đầu hoàn tiền vào ví cho PaymentId={Id}, Amount={Amount}, Mode={Mode}", payment.Id, payment.Amount, _options.PayoutMode);
 
                 Guid? driverId = payment.Reservation?.DriverId ?? payment.ParkingSession?.DriverId;
 
@@ -399,6 +397,18 @@ public class PayOSPaymentService : IPaymentService
                 payment.RefundTransactionId = walletTx.Id.ToString();
 
                 _logger.LogInformation("Hoàn tiền vào Ví thành công cho PaymentId={Id}, UserId={UserId}", payment.Id, user.Id);
+            }
+
+            // Gửi notification cho driver
+            Guid? notifyDriverId = payment.Reservation?.DriverId ?? payment.ParkingSession?.DriverId;
+            if (notifyDriverId.HasValue)
+            {
+                await _notificationService.SendAsync(
+                    notifyDriverId.Value,
+                    "💰 Hoàn tiền thành công",
+                    $"Số tiền {payment.Amount:N0} VND đã được hoàn vào ví của bạn.",
+                    "RefundSuccess",
+                    payment.ReservationId);
             }
 
             if (payment.Reservation != null)
@@ -533,6 +543,24 @@ public class PayOSPaymentService : IPaymentService
         payment.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        // Notify driver
+        var paymentFull = await _context.Payments
+            .IgnoreQueryFilters()
+            .Include(p => p.Reservation)
+            .Include(p => p.ParkingSession)
+            .FirstOrDefaultAsync(p => p.Id == paymentId);
+
+        Guid? driverId = paymentFull?.Reservation?.DriverId ?? paymentFull?.ParkingSession?.DriverId;
+        if (driverId.HasValue)
+        {
+            await _notificationService.SendAsync(
+                driverId.Value,
+                "❌ Yêu cầu hoàn tiền bị từ chối",
+                $"Yêu cầu hoàn tiền {payment.Amount:N0} VND đã bị từ chối. Lý do: {payment.RefundFailureReason}",
+                "RefundRejected",
+                paymentFull?.ReservationId);
+        }
 
         _logger.LogInformation("Refund rejected for PaymentId={PaymentId}. Reason={Reason}", paymentId, reason);
     }

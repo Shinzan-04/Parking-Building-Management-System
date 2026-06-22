@@ -45,4 +45,12 @@ public class RealtimeService : IRealtimeService
     {
         await _hubContext.Clients.All.SendAsync("ReceiveNotification", message);
     }
+
+    /// <summary>
+    /// Push số dư ví mới cho user cụ thể ngay sau khi webhook cộng tiền
+    /// </summary>
+    public async Task SendWalletUpdateAsync(Guid userId, decimal newBalance)
+    {
+        await _hubContext.Clients.User(userId.ToString()).SendAsync("ReceiveWalletUpdate", newBalance);
+    }
 }

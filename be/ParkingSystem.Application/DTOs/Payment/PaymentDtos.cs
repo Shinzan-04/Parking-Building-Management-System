@@ -53,6 +53,8 @@ public class CreatePayOSPaymentRequest
     public Guid? ReservationId { get; set; }
     public Guid? UserId { get; set; }
     public bool IsWalletDeposit { get; set; }
+    public string? ReturnUrl { get; set; }
+    public string? CancelUrl { get; set; }
 }
 
 public class PaymentStatusResult
