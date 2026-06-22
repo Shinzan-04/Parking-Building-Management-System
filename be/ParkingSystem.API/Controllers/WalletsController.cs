@@ -35,7 +35,9 @@ public class WalletsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { Message = ex.Message });
+            var msg = ex.Message;
+            if (ex.InnerException != null) msg += " | Inner: " + ex.InnerException.Message;
+            return BadRequest(new { Message = msg });
         }
     }
 
@@ -49,7 +51,9 @@ public class WalletsController : ControllerBase
         }
         catch (Exception ex)
         {
-            return BadRequest(new { Message = ex.Message });
+            var msg = ex.Message;
+            if (ex.InnerException != null) msg += " | Inner: " + ex.InnerException.Message;
+            return BadRequest(new { Message = msg });
         }
     }
     [HttpPost("deposit")]

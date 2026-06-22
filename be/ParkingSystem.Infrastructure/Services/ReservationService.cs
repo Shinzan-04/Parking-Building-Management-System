@@ -58,7 +58,7 @@ public class ReservationService : IReservationService
         var vehicleTypeId = vehicle.VehicleTypeId;
 
         // 3. Kiểm tra xe đã có booking nào trùng giờ chưa
-        var activeStatuses = new[]
+        var activeStatuses = new List<ReservationStatus>
         {
             ReservationStatus.PaymentPending,
             ReservationStatus.Paid,
@@ -66,6 +66,9 @@ public class ReservationService : IReservationService
             ReservationStatus.Confirmed,
             ReservationStatus.CheckedIn
         };
+
+        var reqStartTime = request.StartTime;
+        var reqEndTime = request.EndTime;
 
         // --- ANTI-SPAM BOOKING: 1 Driver <= 3 Active Reservations ---
         var activeReservationCount = await _context.Reservations
@@ -76,8 +79,8 @@ public class ReservationService : IReservationService
         var hasExistingBooking = await _context.Reservations
             .AnyAsync(r => r.LicensePlate == licensePlate
                         && activeStatuses.Contains(r.Status)
-                        && r.StartTime < request.EndTime
-                        && r.EndTime > request.StartTime);
+                        && r.StartTime < reqEndTime
+                        && r.EndTime > reqStartTime);
         if (hasExistingBooking)
             throw new InvalidOperationException($"Biển số {licensePlate} đã có lịch đặt chỗ trong khoảng thời gian này.");
 
@@ -145,8 +148,8 @@ public class ReservationService : IReservationService
             var hasOverlapping = await _context.Reservations
                 .AnyAsync(r => r.ParkingSlotId == slot.Id
                             && activeStatuses.Contains(r.Status)
-                            && r.StartTime < request.EndTime
-                            && r.EndTime > request.StartTime);
+                            && r.StartTime < reqEndTime
+                            && r.EndTime > reqStartTime);
             if (hasOverlapping)
             {
                 // Có trùng giờ thật sự → gợi ý slot khác
@@ -282,6 +285,7 @@ public class ReservationService : IReservationService
                     PaymentDate = DateTime.UtcNow,
                     PaymentMethod = PaymentMethod.Wallet,
                     Status = PaymentStatus.Success,
+                    PayOSOrderCode = long.Parse($"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{Random.Shared.Next(1000, 9999)}"),
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -639,7 +643,8 @@ public class ReservationService : IReservationService
 
         if (staff != null && staff.AssignedBuildingId.HasValue)
         {
-            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == staff.AssignedBuildingId.Value);
+            var assignedBuildingId = staff.AssignedBuildingId.Value;
+            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == assignedBuildingId);
         }
 
         var reservations = await query
@@ -653,7 +658,7 @@ public class ReservationService : IReservationService
     {
         var staff = await _context.Users.FindAsync(staffId);
 
-        var validStatuses = new[] { ReservationStatus.PendingReview, ReservationStatus.Confirmed, ReservationStatus.Paid, ReservationStatus.CheckedIn };
+        var validStatuses = new List<ReservationStatus> { ReservationStatus.PendingReview, ReservationStatus.Confirmed, ReservationStatus.Paid, ReservationStatus.CheckedIn };
         var query = _context.Reservations
             .Include(r => r.ParkingSlot)
             .ThenInclude(ps => ps.Floor)
@@ -661,7 +666,8 @@ public class ReservationService : IReservationService
 
         if (staff != null && staff.AssignedBuildingId.HasValue)
         {
-            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == staff.AssignedBuildingId.Value);
+            var assignedBuildingId = staff.AssignedBuildingId.Value;
+            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == assignedBuildingId);
         }
 
         var reservations = await query
@@ -755,11 +761,8 @@ public class ReservationService : IReservationService
             payment.Status = PaymentStatus.Refunding;
             payment.UpdatedAt = DateTime.UtcNow;
             
-            // Lưu trạng thái Refunding xuống DB trước khi gọi RefundPaymentAsync
+            // Lưu trạng thái Refunding xuống DB và chờ Admin/Staff duyệt (gọi API /api/payments/{id}/refund)
             await _context.SaveChangesAsync();
-            
-            // Gọi API hoàn tiền thực tế (chuyển tiền vào Ví Tài xế)
-            await _paymentService.RefundPaymentAsync(payment.Id);
         }
     }
 
