@@ -14,31 +14,35 @@ export function useNotification(token: string | null) {
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [unreadCount, setUnreadCount]     = useState(0);
   const [loading, setLoading]             = useState(false);
-  const hubRef         = useRef<signalR.HubConnection | null>(null);
-  const tokenRef       = useRef(token);
-  const unreadCountRef = useRef(0);
+  const hubRef   = useRef<signalR.HubConnection | null>(null);
+  const tokenRef = useRef(token);
   useEffect(() => { tokenRef.current = token; }, [token]);
-  useEffect(() => { unreadCountRef.current = unreadCount; }, [unreadCount]);
 
-  const fetchAll = useCallback(async () => {
+  // Fetch danh sách — không set unreadCount vì markAllAsRead sẽ set về 0
+  const fetchNotifications = useCallback(async () => {
     const t = tokenRef.current;
     if (!t) return;
     setLoading(true);
     try {
-      const [notiRes, countRes] = await Promise.all([
-        getNotifications(t, 1, 20),
-        getUnreadCount(t),
-      ]);
+      const notiRes = await getNotifications(t, 1, 20);
       const items = Array.isArray(notiRes.items) ? notiRes.items : [];
       setNotifications(items);
-      setUnreadCount(countRes.unreadCount);
-    } catch {
-      // silently ignore
-    } finally {
+    } catch { /* ignore */ } finally {
       setLoading(false);
     }
-  }, []); // không depend vào token — đọc qua ref
+  }, []);
 
+  // Chỉ lấy badge count — dùng lúc initial load
+  const refreshCount = useCallback(async () => {
+    const t = tokenRef.current;
+    if (!t) return;
+    try {
+      const res = await getUnreadCount(t);
+      setUnreadCount(res.unreadCount);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Mark 1 notification đã đọc
   const handleMarkAsRead = useCallback(async (id: string) => {
     const t = tokenRef.current;
     if (!t) return;
@@ -46,35 +50,26 @@ export function useNotification(token: string | null) {
       await markAsRead(id, t);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch {
-      // silently ignore
-    }
+    } catch { /* ignore */ }
   }, []);
 
+  // Mark tất cả đã đọc — update UI ngay, gọi API song song
   const handleMarkAllAsRead = useCallback(async () => {
     const t = tokenRef.current;
     if (!t) return;
-    // Không làm gì nếu không có unread
-    if (unreadCountRef.current === 0) return;
-    // Optimistic update ngay trước khi gọi API
+    // Optimistic: update UI ngay lập tức
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     setUnreadCount(0);
-    try {
-      await markAllAsRead(t);
-    } catch (err) {
-      console.error('[Notification] markAllAsRead thất bại:', err);
-      // Rollback nếu API lỗi — fetch lại từ server
-      fetchAll();
-    }
-  }, [fetchAll]);
+    markAllAsRead(t).catch(() => { /* ignore */ });
+  }, []);
 
-  // Initial load — chỉ chạy 1 lần khi token xuất hiện
+  // Initial load: chỉ lấy unread count để hiện badge, KHÔNG mark gì cả
   useEffect(() => {
     if (!token) return;
-    fetchAll();
-  }, [token, fetchAll]);
+    refreshCount();
+  }, [token, refreshCount]);
 
-  // SignalR — chỉ tạo lại connection khi token thay đổi
+  // SignalR: nhận notification mới — cập nhật badge + prepend vào list nếu đang mở
   useEffect(() => {
     if (!token) return;
 
@@ -89,7 +84,6 @@ export function useNotification(token: string | null) {
       .build();
 
     hub.on('ReceiveNotification', async () => {
-      // Chỉ prepend notification mới (chưa có trong list) — không reset toàn bộ
       const t = tokenRef.current;
       if (!t) return;
       try {
@@ -104,9 +98,7 @@ export function useNotification(token: string | null) {
           const brandNew = fresh.filter(n => !existingIds.has(n.id));
           return brandNew.length > 0 ? [...brandNew, ...prev] : prev;
         });
-      } catch {
-        // silently ignore
-      }
+      } catch { /* ignore */ }
     });
 
     hub.on('ReceiveDashboardUpdate', () => {
@@ -124,11 +116,8 @@ export function useNotification(token: string | null) {
     const timer = setTimeout(() => {
       if (cancelled) return;
       hub.start()
-        .then(() => {
-          if (cancelled) { hub.stop(); return; }
-          hubRef.current = hub;
-        })
-        .catch(() => { /* silently ignore */ });
+        .then(() => { if (cancelled) { hub.stop(); return; } hubRef.current = hub; })
+        .catch(() => { /* ignore */ });
     }, 100);
 
     return () => {
@@ -136,13 +125,13 @@ export function useNotification(token: string | null) {
       clearTimeout(timer);
       hub.stop();
     };
-  }, [token]); // chỉ depend vào token, không depend vào callbacks
+  }, [token]);
 
   return {
     notifications,
     unreadCount,
     loading,
-    fetchNotifications: fetchAll,
+    fetchNotifications,   // gọi khi mở bell để load danh sách
     markAsRead: handleMarkAsRead,
     markAllAsRead: handleMarkAllAsRead,
   };
