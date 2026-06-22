@@ -37,23 +37,23 @@ export default function FloatingSessionBanner() {
     const intervalId = setInterval(fetchActiveSession, 60000);
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5237'}/hub`, {
+      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5237'}/parking-hub`, {
         accessTokenFactory: () => token
       })
       .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
       .build();
 
-    connection.start().then(() => {
-      console.log("SignalR Connected for Floating Banner");
-      connection.on("ReceiveNotification", (message: string) => {
-        if (message === "SESSION_STARTED" || message === "SESSION_COMPLETED") {
-          fetchActiveSession();
-          if (message === "SESSION_STARTED") {
-            setIsCollapsed(false);
-          }
+    connection.on("ReceiveNotification", (message: string) => {
+      if (message === "SESSION_STARTED" || message === "SESSION_COMPLETED") {
+        fetchActiveSession();
+        if (message === "SESSION_STARTED") {
+          setIsCollapsed(false);
         }
-      });
-    }).catch(err => console.error("SignalR Connection Error: ", err));
+      }
+    });
+
+    connection.start().catch(() => { /* ignore — server may not be running */ });
 
     return () => {
       clearInterval(intervalId);

@@ -162,7 +162,7 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
   const btnRef   = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
+  const { notifications, unreadCount, loading, fetchNotifications, markAsRead, markAllAsRead } =
     useNotification(token);
 
   // Close on outside click
@@ -202,9 +202,9 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
     }
     const opening = !open;
     setOpen(opening);
-    // Khi mở panel: mark all as read (optimistic update trong hook)
+    // Khi mở panel: chỉ fetch danh sách, KHÔNG tự mark as read
     if (opening) {
-      markAllAsRead();
+      fetchNotifications();
     }
   };
 

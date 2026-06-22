@@ -100,16 +100,10 @@ public class NotificationService : INotificationService
     /// </summary>
     public async Task MarkAllAsReadAsync(Guid userId)
     {
-        var unread = await _context.Notifications
+        await _context.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
-            .ToListAsync();
-
-        foreach (var n in unread)
-        {
-            n.IsRead = true;
-            n.UpdatedAt = DateTime.UtcNow;
-        }
-
-        await _context.SaveChangesAsync();
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(n => n.IsRead, true)
+                .SetProperty(n => n.UpdatedAt, DateTime.UtcNow));
     }
 }
