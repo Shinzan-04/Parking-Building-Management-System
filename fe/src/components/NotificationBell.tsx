@@ -202,8 +202,8 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
     }
     const opening = !open;
     setOpen(opening);
-    // Khi mở panel: mark all as read ngay (optimistic) để badge về 0
-    if (opening && unreadCount > 0) {
+    // Khi mở panel: mark all as read (optimistic update trong hook)
+    if (opening) {
       markAllAsRead();
     }
   };

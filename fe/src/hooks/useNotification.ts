@@ -14,10 +14,11 @@ export function useNotification(token: string | null) {
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [unreadCount, setUnreadCount]     = useState(0);
   const [loading, setLoading]             = useState(false);
-  const hubRef    = useRef<signalR.HubConnection | null>(null);
-  // Dùng ref để SignalR handler luôn có token mới nhất mà không cần re-subscribe
-  const tokenRef  = useRef(token);
+  const hubRef         = useRef<signalR.HubConnection | null>(null);
+  const tokenRef       = useRef(token);
+  const unreadCountRef = useRef(0);
   useEffect(() => { tokenRef.current = token; }, [token]);
+  useEffect(() => { unreadCountRef.current = unreadCount; }, [unreadCount]);
 
   const fetchAll = useCallback(async () => {
     const t = tokenRef.current;
@@ -53,14 +54,19 @@ export function useNotification(token: string | null) {
   const handleMarkAllAsRead = useCallback(async () => {
     const t = tokenRef.current;
     if (!t) return;
+    // Không làm gì nếu không có unread
+    if (unreadCountRef.current === 0) return;
+    // Optimistic update ngay trước khi gọi API
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    setUnreadCount(0);
     try {
       await markAllAsRead(t);
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch {
-      // silently ignore
+    } catch (err) {
+      console.error('[Notification] markAllAsRead thất bại:', err);
+      // Rollback nếu API lỗi — fetch lại từ server
+      fetchAll();
     }
-  }, []);
+  }, [fetchAll]);
 
   // Initial load — chỉ chạy 1 lần khi token xuất hiện
   useEffect(() => {
