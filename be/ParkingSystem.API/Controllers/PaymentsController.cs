@@ -153,6 +153,43 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>
+    /// Từ chối yêu cầu hoàn tiền, chuyển trạng thái về RefundFailed (Admin/Staff)
+    /// </summary>
+    [HttpPost("{paymentId}/reject-refund")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Staff")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> RejectRefund(Guid paymentId, [FromBody] RejectRefundRequest request)
+    {
+        try
+        {
+            await _paymentService.RejectRefundAsync(paymentId, request.Reason);
+            return Ok(new { message = "Đã từ chối yêu cầu hoàn tiền." });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Lấy danh sách tất cả giao dịch thanh toán, có thể lọc theo trạng thái (Admin/Staff)
+    /// </summary>
+    [HttpGet("list")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Manager,Staff")]
+    [ProducesResponseType(typeof(PaymentListResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetPayments([FromQuery] PaymentListQuery query)
+    {
+        var result = await _paymentService.GetPaymentsAsync(query);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Thực hiện hoàn tiền cho giao dịch (Chỉ Admin/Staff)
     /// </summary>
     [HttpPost("{paymentId}/refund")]

@@ -518,6 +518,85 @@ public class PayOSPaymentService : IPaymentService
     }
 
 
+    public async Task RejectRefundAsync(Guid paymentId, string reason)
+    {
+        var payment = await _context.Payments
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(p => p.Id == paymentId)
+            ?? throw new KeyNotFoundException("Không tìm thấy giao dịch Payment.");
+
+        if (payment.Status != PaymentStatus.Refunding)
+            throw new InvalidOperationException($"Không thể từ chối hoàn tiền. Trạng thái hiện tại: {payment.Status}");
+
+        payment.Status = PaymentStatus.RefundFailed;
+        payment.RefundFailureReason = string.IsNullOrWhiteSpace(reason) ? "Bị từ chối bởi quản trị viên." : reason;
+        payment.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Refund rejected for PaymentId={PaymentId}. Reason={Reason}", paymentId, reason);
+    }
+
+    public async Task<PaymentListResult> GetPaymentsAsync(PaymentListQuery query)
+    {
+        var q = _context.Payments
+            .IgnoreQueryFilters()
+            .Include(p => p.Reservation).ThenInclude(r => r != null ? r.Driver : null!)
+            .Include(p => p.ParkingSession).ThenInclude(s => s != null ? s.Driver : null!)
+            .Include(p => p.User)
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(query.Status) &&
+            Enum.TryParse<PaymentStatus>(query.Status, ignoreCase: true, out var statusEnum))
+        {
+            q = q.Where(p => p.Status == statusEnum);
+        }
+
+        var totalCount = await q.CountAsync();
+
+        var items = await q
+            .OrderByDescending(p => p.PaymentDate)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(p => new PaymentListItemDto
+            {
+                PaymentId = p.Id,
+                PayOSOrderCode = p.PayOSOrderCode,
+                Amount = p.Amount,
+                Description = p.Description,
+                Status = p.Status.ToString(),
+                PaymentMethod = p.PaymentMethod.ToString(),
+                PaymentDate = p.PaymentDate,
+                ReservationId = p.ReservationId,
+                ParkingSessionId = p.ParkingSessionId,
+                UserId = p.UserId
+                    ?? (p.Reservation != null ? p.Reservation.DriverId : (Guid?)null)
+                    ?? (p.ParkingSession != null ? p.ParkingSession.DriverId : (Guid?)null),
+                UserFullName = p.User != null ? p.User.FullName
+                    : p.Reservation != null && p.Reservation.Driver != null ? p.Reservation.Driver.FullName
+                    : p.ParkingSession != null && p.ParkingSession.Driver != null ? p.ParkingSession.Driver.FullName
+                    : null,
+                UserEmail = p.User != null ? p.User.Email
+                    : p.Reservation != null && p.Reservation.Driver != null ? p.Reservation.Driver.Email
+                    : p.ParkingSession != null && p.ParkingSession.Driver != null ? p.ParkingSession.Driver.Email
+                    : null,
+                RefundedAt = p.RefundedAt,
+                RefundReferenceId = p.RefundReferenceId,
+                RefundProvider = p.RefundProvider,
+                RefundTransactionId = p.RefundTransactionId,
+                RefundFailureReason = p.RefundFailureReason,
+            })
+            .ToListAsync();
+
+        return new PaymentListResult
+        {
+            Items = items,
+            TotalCount = totalCount,
+            Page = query.Page,
+            PageSize = query.PageSize,
+        };
+    }
+
     private string CreateSignature(string data, string key)
     {
         // Cách 1: Dùng key dạng UTF-8 string (cách hiện tại)
