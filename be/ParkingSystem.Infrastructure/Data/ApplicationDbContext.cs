@@ -16,7 +16,6 @@ public class ApplicationDbContext : DbContext
     public DbSet<VehicleType> VehicleTypes { get; set; }
     public DbSet<ParkingSlot> ParkingSlots { get; set; }
     public DbSet<PricingPolicy> PricingPolicies { get; set; }
-    public DbSet<PriceSetting> PriceSettings { get; set; }
     public DbSet<ParkingSession> ParkingSessions { get; set; }
     public DbSet<Reservation> Reservations { get; set; }
     public DbSet<Payment> Payments { get; set; }
@@ -82,6 +81,22 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<PricingPolicy>()
             .Property(p => p.DailyMaxRate)
             .HasColumnType("decimal(18,2)");
+
+        modelBuilder.Entity<PricingPolicy>()
+            .Property(p => p.DayBlockRate)
+            .HasColumnType("decimal(18,2)");
+            
+        modelBuilder.Entity<PricingPolicy>()
+            .Property(p => p.NightBlockRate)
+            .HasColumnType("decimal(18,2)");
+            
+        modelBuilder.Entity<PricingPolicy>()
+            .Property(p => p.DailyRate)
+            .HasColumnType("decimal(18,2)");
+            
+        modelBuilder.Entity<PricingPolicy>()
+            .Property(p => p.OvertimeMultiplier)
+            .HasColumnType("decimal(18,2)");
             
         modelBuilder.Entity<Payment>()
             .Property(p => p.Amount)
@@ -111,31 +126,7 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(p => p.UserId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        // PriceSetting → VehicleType
-        modelBuilder.Entity<PriceSetting>()
-            .HasOne(ps => ps.VehicleType)
-            .WithMany(vt => vt.PriceSettings)
-            .HasForeignKey(ps => ps.VehicleTypeId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        // PriceSetting → User (UpdatedBy)
-        modelBuilder.Entity<PriceSetting>()
-            .HasOne(ps => ps.UpdatedByUser)
-            .WithMany()
-            .HasForeignKey(ps => ps.UpdatedBy)
-            .OnDelete(DeleteBehavior.SetNull);
-
-        modelBuilder.Entity<PriceSetting>()
-            .Property(p => p.DayPassPrice)
-            .HasColumnType("decimal(18,2)");
-
-        modelBuilder.Entity<PriceSetting>()
-            .Property(p => p.NightPassPrice)
-            .HasColumnType("decimal(18,2)");
-
-        modelBuilder.Entity<PriceSetting>()
-            .Property(p => p.DailyMaxPrice)
-            .HasColumnType("decimal(18,2)");
+        // PriceSetting entity đã bị xóa - logic giá được gộp vào PricingPolicy
 
         // WalletTransaction
         modelBuilder.Entity<WalletTransaction>()

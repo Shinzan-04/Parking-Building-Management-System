@@ -182,15 +182,7 @@ public class ReservationService : IReservationService
             long? payOSOrderCode = null;
             var initialStatus = ReservationStatus.PaymentPending;
 
-            var totalHours = Math.Ceiling((request.EndTime - request.StartTime).TotalHours);
-            var pricingPolicy = await _context.PricingPolicies.FirstOrDefaultAsync(p => p.VehicleTypeId == vehicleTypeId);
-            var priceSetting = await _context.PriceSettings.FirstOrDefaultAsync(p => p.VehicleTypeId == vehicleTypeId);
-
-            decimal fee = 0;
-            if (pricingPolicy != null)
-                fee = (decimal)totalHours * pricingPolicy.HourlyRate;
-            else if (priceSetting != null)
-                fee = (decimal)totalHours * priceSetting.DayPassPrice;
+            decimal fee = await EstimateFeeAsync(vehicleTypeId, request.StartTime, request.EndTime);
 
             var approvalMode = slot.Floor?.Building?.ApprovalMode ?? ReservationApprovalMode.Manual;
 
@@ -870,4 +862,46 @@ public class ReservationService : IReservationService
             BookingFee = bookingFee,
             PayOSOrderCode = payOSOrderCode
         };
+
+    public async Task<decimal> EstimateFeeAsync(Guid vehicleTypeId, DateTime startTime, DateTime endTime)
+    {
+        var pricingPolicy = await _context.PricingPolicies.FirstOrDefaultAsync(p => p.VehicleTypeId == vehicleTypeId);
+        if (pricingPolicy == null) return 0;
+
+        decimal fee = 0;
+        var duration = endTime - startTime;
+        if (duration.TotalMinutes > 0)
+        {
+            var currentMilli = startTime;
+            var blockTimeSpan = TimeSpan.FromHours(pricingPolicy.BlockDurationHours > 0 ? pricingPolicy.BlockDurationHours : 4);
+
+            while (currentMilli < endTime)
+            {
+                var currentVnTime = TimeZoneInfo.ConvertTimeFromUtc(currentMilli, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
+                var currentHour = currentVnTime.Hour;
+
+                bool isNight = currentHour >= pricingPolicy.NightStartHour || currentHour < pricingPolicy.NightEndHour;
+
+                if (isNight) fee += pricingPolicy.NightBlockRate;
+                else fee += pricingPolicy.DayBlockRate;
+
+                currentMilli = currentMilli.Add(blockTimeSpan);
+            }
+
+            int durationDays = (int)Math.Floor(duration.TotalHours / 24.0);
+            if (pricingPolicy.DailyRate > 0)
+            {
+                if (durationDays > 0)
+                {
+                    decimal capFee = (durationDays + 1) * pricingPolicy.DailyRate;
+                    if (fee > capFee) fee = capFee;
+                }
+                else if (fee > pricingPolicy.DailyRate)
+                {
+                    fee = pricingPolicy.DailyRate;
+                }
+            }
+        }
+        return fee;
+    }
 }

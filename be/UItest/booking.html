@@ -59,6 +59,12 @@
     }
     input:focus, select:focus { border-color: #38bdf8; }
 
+    /* Fix lịch chọn ngày giờ bị ẩn màu đen trên nền tối */
+    ::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      cursor: pointer;
+    }
+
     button {
       margin-top: 16px;
       width: 100%;
@@ -198,9 +204,9 @@
     </select>
     <button class="btn-secondary" onclick="loadVehiclesAndSlots()">🔄 Tải xe & slot</button>
     <label>Thời gian bắt đầu</label>
-    <input id="startTime" type="datetime-local" />
+    <input id="startTime" type="datetime-local" lang="en-GB" />
     <label>Thời gian kết thúc</label>
-    <input id="endTime" type="datetime-local" />
+    <input id="endTime" type="datetime-local" lang="en-GB" />
     <div class="log" id="log-data" style="min-height:40px;"></div>
   </div>
 
