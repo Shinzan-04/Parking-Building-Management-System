@@ -21,13 +21,11 @@ import type { CheckInResult, SmartCheckInRequest } from '../services/checkInServ
 import type { ScanPlateResponse } from '../services/ocrService';
 import { getAllSlots } from '../services/parkingService';
 import type { ParkingSlotDetail } from '../services/parkingService';
+import { searchCheckOut, confirmCheckOut, ocrCheckOut } from '../services/checkOutService';
+import type { CheckOutSearchResult } from '../services/checkOutService';
 import { MapPin, X } from 'lucide-react';
 type VehicleType = 'car' | 'motorbike' | 'ev';
 
-type SessionSummary = {
-  duration: string;
-  fee: number;
-};
 
 type ExceptionAction = 'manual-open' | 'incident' | 'lost-ticket';
 
@@ -164,7 +162,8 @@ export default function GateControlPage() {
   const [entryVehicleType, setEntryVehicleType] = useState<VehicleType>('car');
   const [entryImageBase64, setEntryImageBase64] = useState<string | null>(null);
   const [exitLicensePlate, setExitLicensePlate] = useState('');
-  const [exitSessionData, setExitSessionData] = useState<SessionSummary | null>(null);
+  const [exitSessionData, setExitSessionData] = useState<CheckOutSearchResult | null>(null);
+  const [exitLoading, setExitLoading] = useState(false);
   const [notification, setNotification] = useState<{ kind: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [exceptionAction, setExceptionAction] = useState<ExceptionAction | null>(null);
@@ -186,7 +185,7 @@ export default function GateControlPage() {
     if (user?.assignedBuildingId && token) {
       setLoadingSlots(true);
       getAllSlots(user.assignedBuildingId)
-        .then(res => setSlots(res.filter(s => s.status === 'Available' || s.status === 0)))
+        .then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0)))
         .catch(() => {})
         .finally(() => setLoadingSlots(false));
     }
@@ -265,7 +264,7 @@ export default function GateControlPage() {
       setSelectedSlotId(null);
       setSelectedSlotNumber(null);
       if (user?.assignedBuildingId) {
-        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || s.status === 0))).catch(() => {});
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => {});
       }
       entryInputRef.current?.focus();
     } catch (err) {
@@ -273,33 +272,55 @@ export default function GateControlPage() {
     }
   };
 
-  const handleSearchExit = () => {
+  const handleSearchExit = async () => {
     if (!exitLicensePlate.trim()) {
       showNotification('error', 'Please enter a license plate for exit lookup.');
       return;
     }
+    if (!token) return;
 
-    const durationHours = Math.floor(Math.random() * 5) + 1;
-    const durationMinutes = Math.floor(Math.random() * 60);
-    const fee = Number((Math.random() * 50 + 10).toFixed(2));
-
-    setExitSessionData({
-      duration: `${durationHours}h ${durationMinutes}m`,
-      fee,
-    });
-    showNotification('info', `Session loaded for ${exitLicensePlate}.`);
+    setExitLoading(true);
+    try {
+      const result = await searchCheckOut(exitLicensePlate, token);
+      setExitSessionData(result);
+      showNotification('success', `Đã tìm thấy phiên đỗ xe của biển số: ${result.licensePlate}`);
+    } catch (err: any) {
+      showNotification('error', err.message || 'Không tìm thấy phiên gửi xe hợp lệ.');
+      setExitSessionData(null);
+    } finally {
+      setExitLoading(false);
+    }
   };
 
-  const handleCollectAndOpen = () => {
+  const handleCollectAndOpen = async () => {
     if (!exitSessionData) {
       showNotification('error', 'No active session found for this vehicle.');
       return;
     }
+    if (!token || !user) {
+      showNotification('error', 'Bạn cần đăng nhập để thực hiện.');
+      return;
+    }
 
-    showNotification('success', `Payment collected: $${exitSessionData.fee.toFixed(2)}. Barrier opening.`);
-    setExitLicensePlate('');
-    setExitSessionData(null);
-    exitInputRef.current?.focus();
+    try {
+      const result = await confirmCheckOut({
+        sessionId: exitSessionData.sessionId,
+        staffId: user.id,
+        paymentMethod: 0, // Cash
+        paymentAmount: exitSessionData.estimatedFee,
+      }, token);
+
+      showNotification('success', `Thanh toán thành công: $${result.totalFee.toFixed(2)}. Mở Barrier!`);
+      setExitLicensePlate('');
+      setExitSessionData(null);
+      exitInputRef.current?.focus();
+
+      if (user.assignedBuildingId) {
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => {});
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Lỗi khi xác nhận thanh toán.');
+    }
   };
 
   const openExceptionModal = (action: ExceptionAction) => {
@@ -318,13 +339,47 @@ export default function GateControlPage() {
     entryInputRef.current?.focus();
   };
 
-  const handleExitCameraResult = (result: ScanPlateResponse) => {
+  const handleExitCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
     setExitLicensePlate(result.licensePlate);
-    showNotification(
-      'success',
-      `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
-    );
-    exitInputRef.current?.focus();
+    if (!token) return;
+
+    setExitLoading(true);
+    try {
+      const ocrResult = await ocrCheckOut({ imageBase64 }, token);
+      
+      const mappedData: CheckOutSearchResult = {
+        sessionId: ocrResult.sessionId,
+        licensePlate: ocrResult.entryLicensePlate,
+        slotNumber: ocrResult.slotNumber,
+        floorName: ocrResult.floorName,
+        entryTime: ocrResult.entryTime,
+        estimatedExitTime: ocrResult.estimatedExitTime,
+        totalHours: ocrResult.totalHours,
+        vehicleTypeName: ocrResult.vehicleTypeName,
+        hourlyRate: ocrResult.hourlyRate,
+        estimatedFee: ocrResult.estimatedFee,
+        pricingModel: ocrResult.pricingModel,
+        dayPassPrice: ocrResult.dayPassPrice,
+        nightPassPrice: ocrResult.nightPassPrice,
+        dailyMaxPrice: ocrResult.dailyMaxPrice,
+        feeBreakdown: ocrResult.feeBreakdown,
+        message: ocrResult.message
+      };
+
+      setExitSessionData(mappedData);
+      
+      if (ocrResult.isMatch) {
+        showNotification('success', `Biển số khớp: ${result.licensePlate} (${(result.confidence * 100).toFixed(1)}%)`);
+      } else {
+        showNotification('error', `Cảnh báo: OCR (${ocrResult.exitLicensePlate}) khác DB (${ocrResult.entryLicensePlate})`);
+      }
+      exitInputRef.current?.focus();
+    } catch (err: any) {
+      showNotification('error', err.message || 'Không tìm thấy phiên gửi xe cho biển số này.');
+      setExitSessionData(null);
+    } finally {
+      setExitLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -608,7 +663,7 @@ export default function GateControlPage() {
                     {/* Exit Camera capture */}
                     <div className="relative mb-6 overflow-hidden rounded-3xl border border-gray-200/60 bg-gray-150">
                       <CameraCapture
-                        onSuccess={(res, img) => handleExitCameraResult(res)}
+                        onSuccess={handleExitCameraResult}
                         onCancel={() => {}}
                         token={token}
                         inline
@@ -648,15 +703,19 @@ export default function GateControlPage() {
 
                     {/* Session data display */}
                     <div className="mt-5 rounded-2xl bg-gray-50 border border-gray-200/50 p-5 min-h-[140px] flex flex-col justify-center">
-                      {exitSessionData ? (
+                      {exitLoading ? (
+                        <div className="text-center text-xs text-stone-400 font-semibold leading-relaxed">
+                          Đang tải dữ liệu...
+                        </div>
+                      ) : exitSessionData ? (
                         <div className="space-y-4">
                           <div className="flex justify-between">
                             <span className="text-xs text-stone-400 font-bold">Duration</span>
-                            <span className="text-sm font-bold text-stone-800">{exitSessionData.duration}</span>
+                            <span className="text-sm font-bold text-stone-800">{exitSessionData.totalHours.toFixed(2)}h</span>
                           </div>
                           <div className="border-t border-gray-200/80 pt-3 flex items-center justify-between">
                             <span className="text-xs text-stone-400 font-bold">Total fee</span>
-                            <span className="text-3xl font-black text-emerald-600">${exitSessionData.fee.toFixed(2)}</span>
+                            <span className="text-3xl font-black text-emerald-600">${exitSessionData.estimatedFee.toFixed(2)}</span>
                           </div>
                         </div>
                       ) : (

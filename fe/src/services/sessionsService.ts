@@ -67,6 +67,7 @@ export interface SessionDto {
 export interface SessionSummary {
   totalActive: number;
   totalOverdue: number;
+  totalCompletedToday: number;
   totalRevenueToday: number;
 }
 
