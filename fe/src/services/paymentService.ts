@@ -79,3 +79,80 @@ export interface VerifyPaymentResult {
 export const verifyPayment = (orderCode: number, token: string): Promise<VerifyPaymentResult> =>
   authFetch(`/api/payments/verify/${orderCode}`, token);
 
+// ─── Refund Management (Admin / Manager / Staff) ────────────────────────────
+
+export type PaymentStatus =
+  | 'Pending'
+  | 'Success'
+  | 'Failed'
+  | 'Refunding'
+  | 'Refunded'
+  | 'RefundFailed';
+
+export interface PaymentListItem {
+  paymentId: string;
+  payOSOrderCode: number;
+  amount: number;
+  description: string | null;
+  status: PaymentStatus;
+  paymentMethod: string;
+  paymentDate: string;
+  reservationId: string | null;
+  parkingSessionId: string | null;
+  userId: string | null;
+  userFullName: string | null;
+  userEmail: string | null;
+  refundedAt: string | null;
+  refundReferenceId: string | null;
+  refundProvider: string | null;
+  refundTransactionId: string | null;
+  refundFailureReason: string | null;
+}
+
+export interface PaymentListResult {
+  items: PaymentListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+}
+
+export const getPaymentList = (
+  token: string,
+  params: { status?: string; page?: number; pageSize?: number } = {}
+): Promise<PaymentListResult> => {
+  const qs = new URLSearchParams();
+  if (params.status)   qs.set('status',   params.status);
+  if (params.page)     qs.set('page',     String(params.page));
+  if (params.pageSize) qs.set('pageSize', String(params.pageSize));
+  const query = qs.toString() ? `?${qs}` : '';
+  return authFetch(`/api/payments/list${query}`, token);
+};
+
+export interface PaymentRefundResponse {
+  paymentId: string;
+  reservationId: string | null;
+  amount: number;
+  status: PaymentStatus;
+  provider: string | null;
+  referenceId: string | null;
+  transactionId: string | null;
+  refundedAt: string | null;
+  message: string | null;
+}
+
+export const refundPayment = (
+  paymentId: string,
+  token: string
+): Promise<PaymentRefundResponse> =>
+  authFetch(`/api/payments/${paymentId}/refund`, token, { method: 'POST' });
+
+export const rejectRefund = (
+  paymentId: string,
+  reason: string,
+  token: string
+): Promise<{ message: string }> =>
+  authFetch(`/api/payments/${paymentId}/reject-refund`, token, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  });
+
