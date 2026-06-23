@@ -44,7 +44,7 @@ export interface ParkingSlotSummary {
 }
 
 export function isSlotOccupied(status: string | number): boolean {
-  return status === 'Occupied' || status === 3 || status === 'Reserved' || status === 2 || status === 'TemporaryHeld' || status === 1;
+  return status === 'Occupied' || status === 3 || status === 'Reserved' || status === 2;
 }
 
 export function isSlotMaintenance(status: string | number): boolean {
@@ -146,6 +146,15 @@ export const getParkingSlots = (): Promise<ParkingSlotSummary[]> =>
 
 export const getParkingSlotsByBuilding = (buildingId: string): Promise<ParkingSlotSummary[]> =>
   apiFetch(`/api/parkingslots?buildingId=${buildingId}`);
+
+export interface CurrentVehicleResponse {
+  licensePlate: string | null;
+  status: string;
+  expectedEndTime: string | null;
+}
+
+export const getCurrentVehicle = (slotId: string, token?: string): Promise<CurrentVehicleResponse> =>
+  apiFetch(`/api/parkingslots/${slotId}/current-vehicle`, undefined, token);
 
 export interface StaffResponse {
   id: string;

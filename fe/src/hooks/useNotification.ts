@@ -14,103 +14,98 @@ export function useNotification(token: string | null) {
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [unreadCount, setUnreadCount]     = useState(0);
   const [loading, setLoading]             = useState(false);
-  const hubRef = useRef<signalR.HubConnection | null>(null);
+  const hubRef   = useRef<signalR.HubConnection | null>(null);
+  const tokenRef = useRef(token);
+  useEffect(() => { tokenRef.current = token; }, [token]);
 
-  const fetchUnreadCount = useCallback(async () => {
-    if (!token) return;
-    try {
-      const res = await getUnreadCount(token);
-      setUnreadCount(res.unreadCount);
-    } catch {
-      // silently ignore — badge stays at last known count
-    }
-  }, [token]);
-
-  const fetchNotifications = useCallback(async (page = 1) => {
-    if (!token) return;
+  // Fetch danh sách — không set unreadCount vì markAllAsRead sẽ set về 0
+  const fetchNotifications = useCallback(async () => {
+    const t = tokenRef.current;
+    if (!t) return;
     setLoading(true);
     try {
-      const res = await getNotifications(token, page);
-      const items = Array.isArray(res.items) ? res.items : [];
-      setNotifications(page === 1 ? items : prev => [...prev, ...items]);
-    } catch {
-      // silently ignore
-    } finally {
+      const notiRes = await getNotifications(t, 1, 20);
+      const items = Array.isArray(notiRes.items) ? notiRes.items : [];
+      setNotifications(items);
+    } catch { /* ignore */ } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, []);
 
+  // Chỉ lấy badge count — dùng lúc initial load
+  const refreshCount = useCallback(async () => {
+    const t = tokenRef.current;
+    if (!t) return;
+    try {
+      const res = await getUnreadCount(t);
+      setUnreadCount(res.unreadCount);
+    } catch { /* ignore */ }
+  }, []);
+
+  // Mark 1 notification đã đọc
   const handleMarkAsRead = useCallback(async (id: string) => {
-    if (!token) return;
+    const t = tokenRef.current;
+    if (!t) return;
     try {
-      await markAsRead(id, token);
-      setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, isRead: true } : n),
-      );
+      await markAsRead(id, t);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch {
-      // silently ignore
-    }
-  }, [token]);
+    } catch { /* ignore */ }
+  }, []);
 
+  // Mark tất cả đã đọc — update UI ngay, gọi API song song
   const handleMarkAllAsRead = useCallback(async () => {
-    if (!token) return;
-    try {
-      await markAllAsRead(token);
-      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch {
-      // silently ignore
-    }
-  }, [token]);
+    const t = tokenRef.current;
+    if (!t) return;
+    // Optimistic: update UI ngay lập tức
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+    markAllAsRead(t).catch(() => { /* ignore */ });
+  }, []);
 
-  // Initial load
+  // Initial load: chỉ lấy unread count để hiện badge, KHÔNG mark gì cả
   useEffect(() => {
     if (!token) return;
-    fetchNotifications();
-    fetchUnreadCount();
-  }, [token, fetchNotifications, fetchUnreadCount]);
+    refreshCount();
+  }, [token, refreshCount]);
 
-  // SignalR connection
+  // SignalR: nhận notification mới — cập nhật badge + prepend vào list nếu đang mở
   useEffect(() => {
     if (!token) return;
 
-    // Cờ để phát hiện React Strict Mode cleanup chạy trước khi connect xong
     let cancelled = false;
 
     const hub = new signalR.HubConnectionBuilder()
       .withUrl(`${BASE_URL}/parking-hub`, {
-        accessTokenFactory: () => token,
+        accessTokenFactory: () => tokenRef.current ?? '',
       })
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
     hub.on('ReceiveNotification', async () => {
-      // Chỉ fetch noti mới nhất (page 1, size 5) rồi prepend vào list hiện tại
-      // Không reset toàn bộ list để tránh các noti cũ hiện lại như mới
+      const t = tokenRef.current;
+      if (!t) return;
       try {
-        const res = await getNotifications(token, 1, 5);
-        const fresh = Array.isArray(res.items) ? res.items : [];
+        const [notiRes, countRes] = await Promise.all([
+          getNotifications(t, 1, 5),
+          getUnreadCount(t),
+        ]);
+        const fresh = Array.isArray(notiRes.items) ? notiRes.items : [];
+        setUnreadCount(countRes.unreadCount);
         setNotifications(prev => {
           const existingIds = new Set(prev.map(n => n.id));
-          const newItems = fresh.filter(n => !existingIds.has(n.id));
-          if (newItems.length === 0) return prev;
-          setUnreadCount(c => c + newItems.filter(n => !n.isRead).length);
-          return [...newItems, ...prev];
+          const brandNew = fresh.filter(n => !existingIds.has(n.id));
+          return brandNew.length > 0 ? [...brandNew, ...prev] : prev;
         });
-      } catch {
-        // fallback: chỉ tăng badge, không reset list
-        fetchUnreadCount();
-      }
+      } catch { /* ignore */ }
     });
 
-    // Phát sự kiện toàn cục để các màn hình khác (Dashboard, SlotList) bắt lấy
     hub.on('ReceiveDashboardUpdate', () => {
       window.dispatchEvent(new CustomEvent('dashboardUpdate'));
     });
 
-    hub.on('ReceiveSlotUpdate', (data: { slotId: string, status: string }) => {
+    hub.on('ReceiveSlotUpdate', (data: { slotId: string; status: string }) => {
       window.dispatchEvent(new CustomEvent('slotUpdate', { detail: data }));
     });
 
@@ -118,25 +113,11 @@ export function useNotification(token: string | null) {
       window.dispatchEvent(new CustomEvent('walletUpdate', { detail: { balance: newBalance } }));
     });
 
-    // Dùng setTimeout nhỏ để tránh lỗi "connection stopped during negotiation" 
-    // do React Strict Mode unmount ngay lập tức khi vừa mount
     const timer = setTimeout(() => {
       if (cancelled) return;
-
       hub.start()
-        .then(() => {
-          if (cancelled) {
-            hub.stop();
-            return;
-          }
-          hubRef.current = hub;
-          console.log('[SignalR] Kết nối thành công');
-        })
-        .catch((err) => {
-          if (!cancelled) {
-            console.error('[SignalR] Kết nối thất bại:', err);
-          }
-        });
+        .then(() => { if (cancelled) { hub.stop(); return; } hubRef.current = hub; })
+        .catch(() => { /* ignore */ });
     }, 100);
 
     return () => {
@@ -144,13 +125,13 @@ export function useNotification(token: string | null) {
       clearTimeout(timer);
       hub.stop();
     };
-  }, [token, fetchUnreadCount, fetchNotifications]);
+  }, [token]);
 
   return {
     notifications,
     unreadCount,
     loading,
-    fetchNotifications,
+    fetchNotifications,   // gọi khi mở bell để load danh sách
     markAsRead: handleMarkAsRead,
     markAllAsRead: handleMarkAllAsRead,
   };

@@ -89,9 +89,9 @@ public class ReservationCleanupService : BackgroundService
         // ===== RULE 2: PendingReview > 30 phút → Rejected + Refund =====
         var expiredReview = await context.Reservations
             .Where(r => r.Status == ReservationStatus.PendingReview
-                     && r.UpdatedAt.HasValue
+                     && (r.UpdatedAt.HasValue
                         ? r.UpdatedAt.Value.AddMinutes(ReviewTimeoutMinutes) < now
-                        : r.CreatedAt.AddMinutes(ReviewTimeoutMinutes) < now)
+                        : r.CreatedAt.AddMinutes(ReviewTimeoutMinutes) < now))
             .ToListAsync();
 
         foreach (var reservation in expiredReview)

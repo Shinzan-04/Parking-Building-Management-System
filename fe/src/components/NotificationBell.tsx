@@ -162,7 +162,7 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
   const btnRef   = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
+  const { notifications, unreadCount, loading, fetchNotifications, markAsRead, markAllAsRead } =
     useNotification(token);
 
   // Close on outside click
@@ -200,7 +200,14 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
       setTop(r.bottom + 8);
       setRight(Math.max(8, window.innerWidth - r.right));
     }
-    setOpen(v => !v);
+    const opening = !open;
+    setOpen(opening);
+    if (opening) {
+      // Fetch danh sách để hiện trong panel
+      fetchNotifications();
+      // Auto mark all as read ngay khi mở — gọi API riêng song song
+      markAllAsRead();
+    }
   };
 
   return (
