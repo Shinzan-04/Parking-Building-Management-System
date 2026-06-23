@@ -72,10 +72,10 @@ export default function UserLandingPage() {
 
             {/* Nav links */}
             <div className="hidden md:flex items-center gap-10">
-              {['My Ticket', 'Book a Slot', 'Support'].map(label => (
+              {['My Ticket', 'Find Parking'].map(label => (
                 <span
                   key={label}
-                  onClick={label === 'Book a Slot' ? () => navigate('/booking') : label === 'My Ticket' ? () => navigate('/my-tickets') : undefined}
+                  onClick={label === 'Find Parking' ? () => navigate('/find-parking') : label === 'My Ticket' ? () => navigate('/my-tickets') : undefined}
                   className="text-sm font-semibold hover:text-[#FF4C4C] transition-colors cursor-pointer"
                   style={{ color: 'var(--lp-text-muted)' }}
                 >
@@ -259,7 +259,7 @@ export default function UserLandingPage() {
               </p>
               <div>
                 <button
-                  onClick={() => navigate('/booking')}
+                  onClick={() => navigate('/find-parking')}
                   className="border-2 hover:text-white hover:bg-[#FF4C4C] hover:border-[#FF4C4C] font-bold px-7 py-3 rounded-full text-xs tracking-wider uppercase transition-all duration-200 shadow-sm"
                   style={{ borderColor: 'var(--lp-text)', color: 'var(--lp-text)' }}
                 >
@@ -284,7 +284,7 @@ export default function UserLandingPage() {
               </p>
             </div>
             <button
-              onClick={() => navigate('/booking')}
+              onClick={() => navigate('/find-parking')}
               className="text-xs font-bold text-[#FF4C4C] hover:text-[#E13B3B] uppercase tracking-widest flex items-center gap-2 group self-start md:self-auto transition-colors"
             >
               Explore All Features
@@ -386,7 +386,7 @@ export default function UserLandingPage() {
           </p>
           <div className="pt-4">
             <button
-              onClick={() => navigate('/booking')}
+              onClick={() => navigate('/find-parking')}
               className="hover:bg-[#FF4C4C] text-white font-bold px-8 py-4 rounded-full text-xs uppercase tracking-widest shadow-md hover:shadow-[#FF4C4C]/25 transition-all duration-300"
               style={{ backgroundColor: 'var(--lp-btn-primary)', color: 'var(--lp-btn-primary-text)' }}
             >
@@ -419,8 +419,8 @@ export default function UserLandingPage() {
             <div>
               <h3 className="font-extrabold text-[10px] mb-4 uppercase tracking-widest font-mono" style={{ color: 'var(--lp-text)' }}>Services</h3>
               <ul className="space-y-2.5 text-xs">
-                <li><span onClick={() => navigate('/booking')} className="hover:text-[#FF4C4C] transition-colors cursor-pointer font-bold">Find Parking</span></li>
-                <li><span onClick={() => navigate('/booking')} className="hover:text-[#FF4C4C] transition-colors cursor-pointer font-bold">Reserve a Slot</span></li>
+                <li><span onClick={() => navigate('/find-parking')} className="hover:text-[#FF4C4C] transition-colors cursor-pointer font-bold">Find Parking</span></li>
+                <li><span onClick={() => navigate('/find-parking')} className="hover:text-[#FF4C4C] transition-colors cursor-pointer font-bold">Reserve a Slot</span></li>
                 <li><span className="hover:text-[#FF4C4C] transition-colors cursor-pointer font-bold">Support & Feedback</span></li>
               </ul>
             </div>

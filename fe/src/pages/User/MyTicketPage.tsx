@@ -224,12 +224,10 @@ export default function MyTicketPage() {
               <Link to="/my-tickets" className="text-sm font-semibold text-[#FF4C4C] transition-colors cursor-pointer">
                 My Ticket
               </Link>
-              <Link to="/booking" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
-                Book a Slot
+              <Link to="/find-parking" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
+                Find Parking
               </Link>
-              <span className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
-                Support
-              </span>
+
             </div>
 
             <div className="flex items-center gap-3">
@@ -370,7 +368,7 @@ export default function MyTicketPage() {
             </p>
             {activeTab === 'active' && (
               <button
-                onClick={() => navigate('/booking')}
+                onClick={() => navigate('/find-parking')}
                 className="bg-stone-900 hover:bg-[#FF4C4C] text-white font-bold px-6 py-3 rounded-full text-xs uppercase tracking-widest transition-all shadow-sm shadow-[#FF4C4C]/10"
               >
                 Đặt chỗ đỗ xe ngay

@@ -179,12 +179,10 @@ export default function ProfilePage() {
               <Link to="/my-tickets" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
                 My Ticket
               </Link>
-              <Link to="/booking" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
-                Book a Slot
+              <Link to="/find-parking" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
+                Find Parking
               </Link>
-              <span className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
-                Support
-              </span>
+
             </div>
 
             <div className="flex items-center gap-3">

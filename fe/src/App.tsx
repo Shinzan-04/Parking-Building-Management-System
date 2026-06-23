@@ -37,12 +37,13 @@ const StaffDashboard   = lazy(() => import('./pages/Staff/Dashboard'));
 const StaffSlotList    = lazy(() => import('./pages/Staff/SlotList'));
 const StaffReservations = lazy(() => import('./pages/Staff/Reservations'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
-const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
+const FindParkingPage  = lazy(() => import('./pages/User/FindParkingPage'));
 const MyTicketPage     = lazy(() => import('./pages/User/MyTicketPage'));
 const ProfilePage      = lazy(() => import('./pages/User/ProfilePage'));
 const MyVehiclePage    = lazy(() => import('./pages/User/MyVehiclePage'));
 const PaymentResultPage= lazy(() => import('./pages/User/PaymentResult'));
 const LiveSessionPage  = lazy(() => import('./pages/User/LiveSessionPage'));
+const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
 const WalletPage       = lazy(() => import('./pages/User/WalletPage'));
 
 export default function App() {
@@ -51,7 +52,8 @@ export default function App() {
       <Suspense fallback={<div className="loading-screen" />}>
         <Routes>
           <Route path="/" element={<UserLandingPage />} />
-          <Route path="/booking" element={<BookingPage />} />
+          <Route path="/find-parking" element={<FindParkingPage />} />
+          <Route path="/booking" element={<ProtectedRoute element={<BookingPage />} />} />
           <Route path="/my-tickets" element={<ProtectedRoute element={<MyTicketPage />} />} />
           <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
           <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
