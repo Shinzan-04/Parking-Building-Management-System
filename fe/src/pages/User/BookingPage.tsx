@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   X,
@@ -31,6 +31,10 @@ import { createReservation, getAiSuggestions } from '../../services/reservations
 import { createPayOSPayment, verifyPayment } from '../../services/paymentService';
 import { getMyVehicles, createVehicle } from '../../services/vehiclesService';
 import type { VehicleResponse } from '../../services/vehiclesService';
+import type { ApiVehicleType } from '../../services/vehicleTypesService';
+import type { WalletResponse } from '../../services/walletService';
+import DatePickerModal from '../../components/DatePickerModal';
+import TimePickerModal from '../../components/TimePickerModal';
 
 // ─────────────────────────────────────────────
 // Types
@@ -47,6 +51,7 @@ interface WizardState {
   licensePlate: string;
   entryDate: string;
   entryTime: string;
+  exitTime?: string;
   duration: number; // hours
   floor: string | null;
   slot: string | null;
@@ -154,15 +159,15 @@ function StepVehicleType({
               key={v.id}
               onClick={() => setState((s) => ({ ...s, vehicleType: v.id }))}
               className={`flex-1 flex flex-col items-center gap-5 py-8 rounded-2xl border-2 transition-all duration-200 group ${selected
-                  ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
-                  : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
+                ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
                 }`}
             >
               {/* Icon container */}
               <div
                 className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-200 ${selected
-                    ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]/30'
-                    : 'bg-gray-100 border-2 border-gray-200/60 group-hover:bg-[#FF4C4C]/10 group-hover:border-[#FF4C4C]/20'
+                  ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]/30'
+                  : 'bg-gray-100 border-2 border-gray-200/60 group-hover:bg-[#FF4C4C]/10 group-hover:border-[#FF4C4C]/20'
                   }`}
               >
                 <Icon
@@ -353,7 +358,7 @@ function StepLicensePlate({
                             <div className="text-left">
                               <p className={`text-xs font-black tracking-wider ${isSelected ? 'text-[#FF4C4C]' : 'text-stone-800'}`}>{v.plateNumber}</p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                <p className="text-[9px] text-stone-450 font-bold uppercase">{v.vehicleTypeName || 'Phương tiện'}</p>
+                                <p className="text-[9px] text-stone-500 font-bold uppercase">{v.vehicleTypeName || 'Phương tiện'}</p>
                                 {v.isPrimary && (
                                   <span className="bg-amber-500/10 text-amber-600 text-[8px] font-bold px-1 rounded-sm">Mặc định</span>
                                 )}
@@ -393,7 +398,7 @@ function StepLicensePlate({
                   setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
                 }
                 maxLength={12}
-                className="w-full bg-gray-50 border-2 border-gray-200/80 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-850 text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
+                className="w-full bg-gray-50 border-2 border-gray-200/80 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-800 text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
               />
             </div>
 
@@ -422,7 +427,7 @@ export function computeEstimatedCostHelper(
   state: WizardState,
   vehicles: ApiVehicleType[],
   policy: PricingPolicyResponse | null
-): { total: number; isCapped: boolean; breakdown: string } {
+): { total: number; isCapped: boolean; breakdown: string; blocksDetails?: { startTime: string; endTime: string; isNight: boolean; price: number }[] } {
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   if (!selectedVehicle) return { total: 0, isCapped: false, breakdown: '' };
 
@@ -430,35 +435,44 @@ export function computeEstimatedCostHelper(
     const blocksRequired = Math.ceil(state.duration / policy.blockDurationHours);
     const [h, m] = (state.entryTime || '00:00').split(':').map(Number);
     let currentHour = h + m / 60;
-    
+
     let dayBlocks = 0;
     let nightBlocks = 0;
-    
+
+    const blocksDetails: { startTime: string; endTime: string; isNight: boolean; price: number }[] = [];
+    let currentDate = new Date(`${state.entryDate || todayDateStr()}T${state.entryTime || '00:00'}:00`);
+
     for (let i = 0; i < blocksRequired; i++) {
+      let currentHourDec = currentDate.getHours() + currentDate.getMinutes() / 60;
       const isNight = policy.nightStartHour <= policy.nightEndHour
-        ? (currentHour >= policy.nightStartHour && currentHour < policy.nightEndHour)
-        : (currentHour >= policy.nightStartHour || currentHour < policy.nightEndHour);
-        
+        ? (currentHourDec >= policy.nightStartHour && currentHourDec < policy.nightEndHour)
+        : (currentHourDec >= policy.nightStartHour || currentHourDec < policy.nightEndHour);
+
+      const startTimeStr = `${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+      currentDate = new Date(currentDate.getTime() + policy.blockDurationHours * 60 * 60 * 1000);
+      const endTimeStr = `${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+
+      const price = isNight ? policy.nightBlockRate : policy.dayBlockRate;
+      blocksDetails.push({ startTime: startTimeStr, endTime: endTimeStr, isNight, price });
+
       if (isNight) nightBlocks++;
       else dayBlocks++;
-      
-      currentHour = (currentHour + policy.blockDurationHours) % 24;
     }
-    
+
     const raw = (dayBlocks * policy.dayBlockRate) + (nightBlocks * policy.nightBlockRate);
-    
-  const days = Math.ceil(state.duration / 24) || 1;
+
+    const days = Math.ceil(state.duration / 24) || 1;
     const maxAllowed = policy.dailyRate > 0 ? (days * policy.dailyRate) : raw;
-    
+
     const capped = Math.min(raw, maxAllowed);
     const isCapped = raw > maxAllowed;
-    
+
     const breakdownArr = [];
     if (dayBlocks > 0) breakdownArr.push(`${dayBlocks} Block Ngày (${policy.dayBlockRate.toLocaleString('vi-VN')}đ/bl)`);
     if (nightBlocks > 0) breakdownArr.push(`${nightBlocks} Block Đêm (${policy.nightBlockRate.toLocaleString('vi-VN')}đ/bl)`);
     const breakdown = breakdownArr.join(' + ');
 
-    return { total: capped, isCapped, breakdown };
+    return { total: capped, isCapped, breakdown, blocksDetails };
   }
 
   // Fallback: dùng hourlyRate từ vehicle data
@@ -486,19 +500,35 @@ function StepDateTime({
   vehicles: ApiVehicleType[];
   policy: PricingPolicyResponse | null;
 }) {
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+  const [isExitTimePickerOpen, setIsExitTimePickerOpen] = useState(false);
   const durations = [1, 2, 3, 4, 6, 8, 12, 24];
 
-  // ── Tính giờ ra dựa trên giờ vào + duration ──
-  const computeExitTime = (): { time: string; date: string } => {
+  const exitInfo = useMemo(() => {
     if (!state.entryDate || !state.entryTime) return { time: '--:--', date: '--/--/----' };
     const [h, m] = state.entryTime.split(':').map(Number);
     const entry = new Date(state.entryDate);
     entry.setHours(h, m, 0, 0);
-    const exit = new Date(entry.getTime() + state.duration * 60 * 60 * 1000);
-    const exitTime = `${String(exit.getHours()).padStart(2, '0')}:${String(exit.getMinutes()).padStart(2, '0')}`;
-    const exitDate = `${String(exit.getDate()).padStart(2, '0')}/${String(exit.getMonth() + 1).padStart(2, '0')}/${exit.getFullYear()}`;
-    return { time: exitTime, date: exitDate };
-  };
+
+    let exit: Date;
+    if (state.exitTime) {
+      const [exH, exM] = state.exitTime.split(':').map(Number);
+      exit = new Date(entry);
+      exit.setHours(exH, exM, 0, 0);
+      
+      // If exit time is earlier than or equal to entry time, it means next day
+      if (exit.getTime() <= entry.getTime()) {
+        exit.setDate(exit.getDate() + 1);
+      }
+    } else {
+      exit = new Date(entry.getTime() + state.duration * 60 * 60 * 1000);
+    }
+
+    const exTime = `${String(exit.getHours()).padStart(2, '0')}:${String(exit.getMinutes()).padStart(2, '0')}`;
+    const exDate = `${String(exit.getDate()).padStart(2, '0')}/${String(exit.getMonth() + 1).padStart(2, '0')}/${exit.getFullYear()}`;
+    return { time: exTime, date: exDate };
+  }, [state.entryDate, state.entryTime, state.duration, state.exitTime]);
 
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return '--/--/----';
@@ -514,11 +544,9 @@ function StepDateTime({
     const year = d.getFullYear();
     return `${day} ${month}, ${year}`;
   };
-
-  const exitInfo = computeExitTime();
   const costResult = computeEstimatedCostHelper(state, vehicles, policy);
 
-  const durationOptions = policy && policy.blockDurationHours > 0 
+  const durationOptions = policy && policy.blockDurationHours > 0
     ? [1, 2, 3, 4, 5, 6].map(b => b * policy.blockDurationHours)
     : durations;
 
@@ -526,28 +554,17 @@ function StepDateTime({
 
   return (
     <div className="flex flex-col gap-6">
-      
+
       {/* Booking Date */}
       <div className="flex flex-col gap-2">
         <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
           Booking Date
         </label>
         <div className="relative">
-          <input
-            type="date"
-            value={state.entryDate}
-            min={todayDateStr()}
-            onChange={(e) => setState((s) => ({ ...s, entryDate: e.target.value }))}
-            onClick={(e) => {
-              try {
-                if ('showPicker' in HTMLInputElement.prototype) {
-                  e.currentTarget.showPicker();
-                }
-              } catch (err) {
-                console.error(err);
-              }
-            }}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          <button
+            type="button"
+            onClick={() => setIsDatePickerOpen(true)}
+            className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
           />
           <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm group-hover:border-gray-300 transition-colors">
             <span className="text-[15px] font-bold text-stone-800">
@@ -564,20 +581,10 @@ function StepDateTime({
           Arrival Time
         </label>
         <div className="relative">
-          <input
-            type="time"
-            value={state.entryTime}
-            onChange={(e) => setState((s) => ({ ...s, entryTime: e.target.value }))}
-            onClick={(e) => {
-              try {
-                if ('showPicker' in HTMLInputElement.prototype) {
-                  e.currentTarget.showPicker();
-                }
-              } catch (err) {
-                console.error(err);
-              }
-            }}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          <button
+            type="button"
+            onClick={() => setIsTimePickerOpen(true)}
+            className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
           />
           <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm transition-colors">
             <span className="text-[15px] font-bold text-stone-800">
@@ -594,28 +601,14 @@ function StepDateTime({
           Exit Time
         </label>
         <div className="relative">
-          <select
-            value={state.duration}
-            onChange={(e) => setState((s) => ({ ...s, duration: Number(e.target.value) }))}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-          >
-            {durationOptions.map((hrs) => {
-               const [h, m] = (state.entryTime || '00:00').split(':').map(Number);
-               const entry = new Date(state.entryDate || todayDateStr());
-               entry.setHours(h, m, 0, 0);
-               const exit = new Date(entry.getTime() + hrs * 60 * 60 * 1000);
-               const exTime = `${String(exit.getHours()).padStart(2, '0')}:${String(exit.getMinutes()).padStart(2, '0')}`;
-               const exDate = `${String(exit.getDate()).padStart(2, '0')}/${String(exit.getMonth() + 1).padStart(2, '0')}/${exit.getFullYear()}`;
-               return (
-                 <option key={hrs} value={hrs}>
-                   {exTime} ({exDate}) - {hrs}h
-                 </option>
-               );
-            })}
-          </select>
-          <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm transition-colors">
+          <button
+            type="button"
+            onClick={() => setIsExitTimePickerOpen(true)}
+            className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
+          />
+          <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm transition-colors hover:border-blue-300">
             <span className="text-[15px] font-bold text-stone-800">
-              {exitInfo.time} <span className="text-stone-500 font-medium ml-1 text-sm">({exitInfo.date})</span>
+              {state.exitTime || exitInfo.time} <span className="text-stone-500 font-medium ml-1 text-sm">({exitInfo.date})</span>
             </span>
             <ChevronDown size={16} className="text-stone-400" />
           </div>
@@ -623,14 +616,18 @@ function StepDateTime({
       </div>
 
       {/* Block Breakdown */}
-      {costResult.total > 0 && (
+      {costResult.total > 0 && costResult.blocksDetails && costResult.blocksDetails.length > 0 && (
         <div className="mt-1 border border-dashed border-gray-300 rounded-xl p-4 bg-white/50">
           <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3">
             Block Breakdown ({totalBlocks} Blocks)
           </p>
-          <div className="inline-flex items-center gap-2 bg-[#1A1E29] text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm">
-            <Moon size={13} className="text-stone-300" />
-            <span>{state.entryTime || '--:--'} - {exitInfo.time} <span className="text-stone-400 font-medium ml-0.5">({costResult.total.toLocaleString('vi-VN')}đ)</span></span>
+          <div className="flex flex-row flex-wrap gap-2">
+            {costResult.blocksDetails.map((block, idx) => (
+              <div key={idx} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm w-fit ${block.isNight ? 'bg-[#1A1E29] text-white' : 'bg-white text-stone-800 border border-gray-200'}`}>
+                {block.isNight ? <Moon size={13} className="text-stone-300" /> : <Sun size={13} className="text-orange-500" />}
+                <span>{block.startTime} - {block.endTime} <span className={block.isNight ? 'text-stone-400 font-medium ml-0.5' : 'text-stone-500 font-bold ml-0.5'}>({block.price.toLocaleString('vi-VN')}đ)</span></span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -642,18 +639,18 @@ function StepDateTime({
             <span className="text-[10px] font-bold text-stone-600 uppercase tracking-widest mb-3">
               Your Parking
             </span>
-            
+
             <div className="flex items-center gap-3 mt-1">
               <div className="flex flex-col items-start gap-1">
                 <span className="text-3xl font-black text-blue-700 leading-none tracking-tight">{state.entryTime || '--:--'}</span>
                 <span className="text-[11px] text-stone-500 font-semibold">{formatDateDisplay(state.entryDate)}</span>
               </div>
-              
+
               <div className="flex flex-col items-center justify-center -mt-3 mx-1">
                 <span className="text-[11px] font-bold text-stone-600 mb-1">{state.duration}h</span>
                 <div className="w-5 h-[2px] bg-blue-600" />
               </div>
-              
+
               <div className="flex flex-col items-start gap-1">
                 <span className="text-3xl font-black text-blue-700 leading-none tracking-tight">{exitInfo.time}</span>
                 <span className="text-[11px] text-stone-500 font-semibold">{exitInfo.date}</span>
@@ -669,12 +666,51 @@ function StepDateTime({
               {costResult.total.toLocaleString('vi-VN')}đ
             </span>
             <p className="text-[9px] text-stone-500 font-medium leading-relaxed text-right max-w-[120px]">
-              Phí tính theo block. {state.duration}h =<br/>
+              Phí tính theo block. {state.duration}h =<br />
               {totalBlocks} block(s).
             </p>
           </div>
         </div>
       </div>
+
+      <DatePickerModal
+        isOpen={isDatePickerOpen}
+        onClose={() => setIsDatePickerOpen(false)}
+        selectedDate={state.entryDate}
+        onSelectDate={(date) => setState((s) => ({ ...s, entryDate: date }))}
+      />
+
+      <TimePickerModal
+        isOpen={isTimePickerOpen}
+        onClose={() => setIsTimePickerOpen(false)}
+        selectedDate={state.entryDate}
+        selectedTime={state.entryTime}
+        onSelectTime={(time) => {
+          // Reset exitTime if arrival time changes to ensure constraints
+          setState((s) => ({ ...s, entryTime: time, exitTime: undefined, duration: 1 }));
+        }}
+      />
+
+      <TimePickerModal
+        isOpen={isExitTimePickerOpen}
+        onClose={() => setIsExitTimePickerOpen(false)}
+        selectedDate={state.entryDate}
+        selectedTime={state.exitTime || exitInfo.time}
+        title="Select Exit Time"
+        confirmText="Confirm Exit Time"
+        solidTheme={true}
+        disablePastTime={false}
+        onSelectTime={(time) => {
+          const [enH, enM] = state.entryTime.split(':').map(Number);
+          const [exH, exM] = time.split(':').map(Number);
+
+          let diffMins = (exH * 60 + exM) - (enH * 60 + enM);
+          if (diffMins <= 0) diffMins += 24 * 60; // Next day
+
+          const diffHours = Number((diffMins / 60).toFixed(2));
+          setState((s) => ({ ...s, exitTime: time, duration: diffHours }));
+        }}
+      />
     </div>
   );
 }
@@ -735,33 +771,33 @@ function StepSelectFloor({
               key={floor.id}
               onClick={() => setState((s) => ({ ...s, floor: floor.id, zone: null, slot: null, slotId: null }))}
               className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all group ${selected
-                  ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
-                  : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
+                ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
                 }`}
             >
               <div
                 className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${selected
-                    ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]/30'
-                    : 'bg-gray-100 border-2 border-gray-200/60 group-hover:bg-[#FF4C4C]/10 group-hover:border-[#FF4C4C]/20'
+                  ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]/30'
+                  : 'bg-gray-100 border-2 border-gray-200/60 group-hover:bg-[#FF4C4C]/10 group-hover:border-[#FF4C4C]/20'
                   }`}
               >
                 <FloorIcon
                   size={24}
                   strokeWidth={1.5}
-                  className={`transition-colors ${selected ? 'text-[#FF4C4C]' : 'text-stone-450 group-hover:text-[#FF4C4C]'
+                  className={`transition-colors ${selected ? 'text-[#FF4C4C]' : 'text-stone-500 group-hover:text-[#FF4C4C]'
                     }`}
                 />
               </div>
               <div className="text-center">
-                <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-850'}`}>
+                <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-800'}`}>
                   {floor.name}
                 </p>
                 <p className="text-xs text-stone-400 mt-0.5">
                   {(() => {
                     const availableSpots = allBuildingSlots.filter(
                       (s) => s.floorId === floor.id &&
-                             s.vehicleTypeId === state.vehicleType &&
-                             (s.status === 'Available' || String(s.status) === '0')
+                        s.vehicleTypeId === state.vehicleType &&
+                        (s.status === 'Available' || String(s.status) === '0')
                     ).length;
                     return `${availableSpots} spots available`;
                   })()}
@@ -829,8 +865,8 @@ function StepSelectSlot({
   }
 
   const availableCount = filteredSlots.filter(s => s.status === 'Available' || String(s.status) === '0').length;
-  const occupiedCount  = filteredSlots.filter(s => s.status === 'Occupied' || String(s.status) === '3').length;
-  const reservedCount  = filteredSlots.filter(s => s.status === 'Reserved' || String(s.status) === '2' || s.status === 'TemporaryHeld' || String(s.status) === '1').length;
+  const occupiedCount = filteredSlots.filter(s => s.status === 'Occupied' || String(s.status) === '3').length;
+  const reservedCount = filteredSlots.filter(s => s.status === 'Reserved' || String(s.status) === '2' || s.status === 'TemporaryHeld' || String(s.status) === '1').length;
 
   // Helper hàm để xác định màu hiển thị cho mỗi Slot
   const getSlotStyle = (slot: ParkingSlotDetail): string => {
@@ -838,7 +874,7 @@ function StepSelectSlot({
     if (isSelected) {
       return 'bg-[#FF4C4C] border-[#FF4C4C] text-white shadow-md shadow-[#FF4C4C]/30 scale-105 z-10';
     }
-    
+
     // Một số backend serialize enum thành integer string, cần kiểm tra cả hai
     const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
     const isOccupied = slot.status === 'Occupied' || String(slot.status) === '3';
@@ -906,10 +942,10 @@ function StepSelectSlot({
       {/* ── Stats Thống kê nhanh ── */}
       <div className="flex items-center gap-4 flex-wrap">
         {[
-          { label: 'Còn trống',  count: availableCount, dot: 'bg-emerald-400' },
-          { label: 'Đang dùng',  count: occupiedCount,  dot: 'bg-red-400' },
-          { label: 'Đặt trước', count: reservedCount,   dot: 'bg-amber-400' },
-          { label: 'Tổng',       count: filteredSlots.length, dot: 'bg-stone-400' },
+          { label: 'Còn trống', count: availableCount, dot: 'bg-emerald-400' },
+          { label: 'Đang dùng', count: occupiedCount, dot: 'bg-red-400' },
+          { label: 'Đặt trước', count: reservedCount, dot: 'bg-amber-400' },
+          { label: 'Tổng', count: filteredSlots.length, dot: 'bg-stone-400' },
         ].map(({ label, count, dot }) => (
           <div key={label} className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${dot}`} />
@@ -1103,7 +1139,7 @@ function BookingSummary({
         {/* Header */}
         <div className="px-5 py-4 border-b border-gray-200/80 flex items-center gap-2">
           <ClipboardList size={16} className="text-[#FF4C4C]" />
-          <h3 className="text-sm font-bold text-stone-850">Booking Summary</h3>
+          <h3 className="text-sm font-bold text-stone-800">Booking Summary</h3>
         </div>
 
         {/* Rows */}
@@ -1322,13 +1358,13 @@ function ConfirmationPopup({
 
         if (result.isPaid) {
           clearInterval(interval);
-          try { payosTabRef.current?.close(); } catch {}
+          try { payosTabRef.current?.close(); } catch { }
           payosTabRef.current = null;
           setPendingOrderCode(null);
           setPhase('qr');
         } else if (result.status === 'Failed') {
           clearInterval(interval);
-          try { payosTabRef.current?.close(); } catch {}
+          try { payosTabRef.current?.close(); } catch { }
           payosTabRef.current = null;
           setPendingOrderCode(null);
           setError('Thanh toán thất bại. Vui lòng thử lại.');
@@ -1413,7 +1449,7 @@ function ConfirmationPopup({
                 {headerConfig.icon}
               </div>
               <div>
-                <h2 className="text-base font-bold text-stone-850">{headerConfig.title}</h2>
+                <h2 className="text-base font-bold text-stone-800">{headerConfig.title}</h2>
                 <p className="text-xs text-stone-400 font-medium">{headerConfig.subtitle}</p>
               </div>
             </div>
@@ -1658,7 +1694,7 @@ function ConfirmationPopup({
           {phase === 'checkout' && (
             <button
               onClick={() => {
-                try { payosTabRef.current?.close(); } catch {}
+                try { payosTabRef.current?.close(); } catch { }
                 payosTabRef.current = null;
                 setPendingOrderCode(null);
                 setPhase('payment');
@@ -1699,10 +1735,10 @@ function StepperBar({ currentStep }: { currentStep: number }) {
             <div className="flex flex-col items-center gap-1.5">
               <div
                 className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black border-2 transition-all duration-300 ${done
-                    ? 'bg-[#FF4C4C] border-[#FF4C4C] text-white'
-                    : active
-                      ? 'bg-[#FF4C4C]/10 border-[#FF4C4C] text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
-                      : 'bg-gray-50 border-gray-200 text-stone-400'
+                  ? 'bg-[#FF4C4C] border-[#FF4C4C] text-white'
+                  : active
+                    ? 'bg-[#FF4C4C]/10 border-[#FF4C4C] text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                    : 'bg-gray-50 border-gray-200 text-stone-400'
                   }`}
               >
                 {done ? <CheckCircle2 size={16} /> : step.id}
@@ -1892,7 +1928,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
             sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
           );
         }
-        
+
         const flatSlots = slotsArrays.flat();
         setAllBuildingSlots(flatSlots);
       } catch (err) {
@@ -1916,20 +1952,20 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
       try {
         setLoadingSlots(true);
         let data: ParkingSlotDetail[];
-        
+
         if (state.entryDate && state.entryTime && state.duration) {
           const [h, m] = state.entryTime.split(':').map(Number);
           const entry = new Date(state.entryDate);
           entry.setHours(h, m, 0, 0);
           const exit = new Date(entry.getTime() + state.duration * 3600000);
-          
+
           // Dùng API mới tính toán overlap
           data = await getAvailableSlotsByFloor(currentFloor, entry.toISOString(), exit.toISOString());
         } else {
           // Fallback nếu thiếu thời gian
           data = await getSlotsByFloor(currentFloor);
         }
-        
+
         setSlots(data);
       } catch (err) {
         console.error('Lỗi khi tải ô đỗ xe:', err);
@@ -2000,15 +2036,22 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
 
   return (
     <>
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#F3F3F5] p-4 sm:p-6">
-      <div
-        className="relative w-full max-w-3xl bg-white border border-gray-200 rounded-3xl shadow-xl flex flex-col overflow-hidden h-[90vh]"
-      >
-        {/* ── Modal Header ── */}
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#F3F3F5] p-4 sm:p-6 relative">
+        <button
+          onClick={step === 1 ? onClose : handleBack}
+          className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-stone-600 bg-white border-2 border-gray-200/60 hover:border-gray-300 hover:text-stone-900 transition-all shadow-sm z-10"
+        >
+          <ChevronLeft size={18} strokeWidth={2.5} />
+          {step === 1 ? 'Exit' : 'Back'}
+        </button>
+        <div
+          className="relative w-full max-w-3xl bg-white border border-gray-200 rounded-3xl shadow-xl flex flex-col overflow-hidden h-[90vh]"
+        >
+          {/* ── Modal Header ── */}
           <div className="flex-shrink-0 px-6 pt-6 pb-5 border-b border-gray-150">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h1 className="text-base font-bold text-stone-850">Book a Parking Spot</h1>
+                <h1 className="text-base font-bold text-stone-800">Book a Parking Spot</h1>
                 <p className="text-xs text-stone-400 font-semibold mt-0.5 truncate max-w-xs">{lot.name}</p>
               </div>
               <button
@@ -2032,15 +2075,9 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
 
           {/* ── Modal Footer ── */}
           <div className="flex-shrink-0 px-6 py-4 border-t border-gray-150 flex items-center justify-between gap-3 bg-gray-50/50">
-            <button
-              onClick={step === 1 ? onClose : handleBack}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all"
-            >
-              <ChevronLeft size={16} />
-              {step === 1 ? 'Close' : 'Back'}
-            </button>
+            <div className="w-24"></div> {/* Placeholder to keep center alignment */}
 
-            <span className="text-xs text-stone-450 font-bold">
+            <span className="text-xs text-stone-500 font-bold">
               {step} / {STEPS.length}
             </span>
 
@@ -2049,8 +2086,8 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
                 onClick={handleNext}
                 disabled={!canAdvance()}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
-                    ? 'bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-sm shadow-[#FF4C4C]/10'
-                    : 'bg-gray-100 text-stone-300 border-gray-200/80 cursor-not-allowed'
+                  ? 'bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-sm shadow-[#FF4C4C]/10'
+                  : 'bg-gray-100 text-stone-300 border-gray-200/80 cursor-not-allowed'
                   }`}
               >
                 Continue
@@ -2061,8 +2098,8 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
                 onClick={handleConfirm}
                 disabled={!canAdvance()}
                 className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
-                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
-                    : 'bg-gray-100 text-stone-300 border-gray-200/80 cursor-not-allowed'
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
+                  : 'bg-gray-100 text-stone-300 border-gray-200/80 cursor-not-allowed'
                   }`}
               >
                 <CheckCircle2 size={16} />
