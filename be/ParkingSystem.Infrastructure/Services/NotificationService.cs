@@ -37,6 +37,15 @@ public class NotificationService : INotificationService
             if (exists) return;
         }
 
+        // Auto-cleanup: xóa noti cũ hơn 30 ngày của user này (chạy 1% xác suất để không ảnh hưởng perf)
+        if (Random.Shared.Next(100) == 0)
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-30);
+            await _context.Notifications
+                .Where(n => n.UserId == userId && n.CreatedAt < cutoff)
+                .ExecuteDeleteAsync();
+        }
+
         var notification = new Notification
         {
             Id = Guid.NewGuid(),

@@ -187,9 +187,9 @@ public class ReservationService : IReservationService
             var approvalMode = slot.Floor?.Building?.ApprovalMode ?? ReservationApprovalMode.Manual;
 
             bool isAutoApprove = false;
-            if (approvalMode == ReservationApprovalMode.AutoReject)
+            if (approvalMode != ReservationApprovalMode.AutoReject)
             {
-                // Nếu không có phí (fee = 0), kiểm tra Auto-Approve và Noti cho Staff
+                // Manual hoặc AutoApprove: kiểm tra isAutoApprove để set initialStatus
                 // Load Floor để lấy BuildingId chính xác
                 var slotWithFloor = await _context.ParkingSlots
                     .Include(s => s.Floor)
@@ -203,7 +203,8 @@ public class ReservationService : IReservationService
                              || !u.AssignedBuildingId.HasValue || !buildingId.HasValue || u.AssignedBuildingId == buildingId)
                     .ToListAsync();
 
-                isAutoApprove = assignedStaffs.Any(u => u.IsAutoApproveReservations);
+                isAutoApprove = approvalMode == ReservationApprovalMode.AutoApprove
+                    || assignedStaffs.Any(u => u.IsAutoApproveReservations);
 
                 if (isAutoApprove)
                 {

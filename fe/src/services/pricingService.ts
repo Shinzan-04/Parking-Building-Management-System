@@ -1,6 +1,9 @@
 /**
  * pricingService.ts
- * Service cho PricingPolicies & PriceSettings — dùng cho Manager Portal
+ * Service cho PricingPolicies — dùng cho Manager/Admin Portal
+ *
+ * PriceSetting đã bị gộp vào PricingPolicy kể từ migration 20260622100041.
+ * Tất cả fields (cũ + block ngày/đêm mới) đều nằm trong PricingPolicyResponse.
  */
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
@@ -23,33 +26,63 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
   return data as T;
 }
 
-// ─── PricingPolicy (Chính sách tính giá theo block/giờ) ───────────────────────
+// ─── PricingPolicy ─────────────────────────────────────────────────────────────
+// Chứa cả chính sách giá cũ (block/giờ/ngày) lẫn block ngày/đêm mới (dùng cho Booking)
 
 export interface PricingPolicyResponse {
   id: string;
   vehicleTypeId: string;
   vehicleTypeName: string;
-  blockPrice: number;       // Giá theo block (VD: 5.000đ / 15 phút)
-  blockMinutes: number;     // Thời lượng 1 block (phút)
+
+  // Giá cũ — dùng cho checkout Parking thường
+  blockPrice: number;       // Giá mỗi block
   hourlyRate: number;       // Giá theo giờ
   dailyMaxRate: number;     // Giá tối đa 1 ngày
+
+  // Block Ngày/Đêm — dùng cho Booking
+  blockDurationHours: number;   // Thời lượng 1 block (giờ, mặc định 4)
+  dayBlockRate: number;          // Giá block ban ngày
+  nightBlockRate: number;        // Giá block ban đêm
+  nightStartHour: number;        // Giờ bắt đầu đêm (mặc định 22)
+  nightEndHour: number;          // Giờ kết thúc đêm / bắt đầu ngày (mặc định 6)
+  dailyRate: number;             // Giá trọn ngày
+  overtimeMultiplier: number;    // Hệ số tính phí overtime (mặc định 1.5)
+
   createdAt: string;
 }
 
 export interface CreatePricingPolicyRequest {
   vehicleTypeId: string;
+
+  // Cũ
   blockPrice: number;
-  blockMinutes: number;
   hourlyRate: number;
   dailyMaxRate: number;
+
+  // Mới
+  blockDurationHours: number;
+  dayBlockRate: number;
+  nightBlockRate: number;
+  nightStartHour: number;
+  nightEndHour: number;
+  dailyRate: number;
+  overtimeMultiplier: number;
 }
 
 export interface UpdatePricingPolicyRequest {
-  vehicleTypeId?: string;
+  // Cũ
   blockPrice: number;
-  blockMinutes: number;
   hourlyRate: number;
   dailyMaxRate: number;
+
+  // Mới
+  blockDurationHours: number;
+  dayBlockRate: number;
+  nightBlockRate: number;
+  nightStartHour: number;
+  nightEndHour: number;
+  dailyRate: number;
+  overtimeMultiplier: number;
 }
 
 export const getAllPolicies = (token?: string): Promise<PricingPolicyResponse[]> =>
@@ -69,51 +102,3 @@ export const updatePolicy = (id: string, payload: UpdatePricingPolicyRequest, to
 
 export const deletePolicy = (id: string, token: string): Promise<void> =>
   apiFetch(`/api/PricingPolicies/${id}`, { method: 'DELETE' }, token);
-
-// ─── PriceSetting (Bảng giá vé ngày/đêm) ─────────────────────────────────────
-
-export interface PriceSettingResponse {
-  id: string;
-  vehicleTypeId: string;
-  vehicleTypeName: string;
-  dayPassPrice: number;     // Giá vé theo giờ ban ngày
-  nightPassPrice: number;   // Giá vé theo giờ ban đêm
-  dailyMaxPrice: number;    // Giá trần cả ngày
-  dayStartHour: number;     // Bắt đầu giờ ban ngày (mặc định 6)
-  nightStartHour: number;   // Bắt đầu giờ ban đêm (mặc định 18)
-  updatedByName?: string;
-  updatedAt?: string;
-  createdAt: string;
-}
-
-export interface CreatePriceSettingRequest {
-  vehicleTypeId: string;
-  dayPassPrice: number;
-  nightPassPrice: number;
-  dailyMaxPrice: number;
-  dayStartHour: number;
-  nightStartHour: number;
-}
-
-export interface UpdatePriceSettingRequest {
-  dayPassPrice: number;
-  nightPassPrice: number;
-  dailyMaxPrice: number;
-  dayStartHour: number;
-  nightStartHour: number;
-}
-
-export const getAllPriceSettings = (token: string): Promise<PriceSettingResponse[]> =>
-  apiFetch('/api/PriceSettings', undefined, token);
-
-export const getPriceSettingByVehicleType = (vehicleTypeId: string, token: string): Promise<PriceSettingResponse> =>
-  apiFetch(`/api/PriceSettings/${vehicleTypeId}`, undefined, token);
-
-export const createPriceSetting = (payload: CreatePriceSettingRequest, token: string): Promise<PriceSettingResponse> =>
-  apiFetch('/api/PriceSettings', { method: 'POST', body: JSON.stringify(payload) }, token);
-
-export const updatePriceSetting = (vehicleTypeId: string, payload: UpdatePriceSettingRequest, token: string): Promise<PriceSettingResponse> =>
-  apiFetch(`/api/PriceSettings/${vehicleTypeId}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
-
-export const deletePriceSetting = (vehicleTypeId: string, token: string): Promise<void> =>
-  apiFetch(`/api/PriceSettings/${vehicleTypeId}`, { method: 'DELETE' }, token);
