@@ -113,6 +113,19 @@ public class UserService : IUserService
         return true;
     }
 
+    public async Task<bool> UnlockAsync(Guid id)
+    {
+        var user = await _repository.GetByIdAsync(id);
+        if (user == null) return false;
+
+        user.FailedLoginCount = 0;
+        user.LockoutEnd = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _repository.UpdateAsync(user);
+        return true;
+    }
+
     private static UserResponse MapToResponse(User u) => new()
     {
         Id = u.Id,
@@ -123,6 +136,8 @@ public class UserService : IUserService
         Email = u.Email,
         QrCode = u.DriverCode,
         CreatedAt = u.CreatedAt,
-        AssignedBuildingId = u.AssignedBuildingId
+        AssignedBuildingId = u.AssignedBuildingId,
+        FailedLoginCount = u.FailedLoginCount,
+        LockoutEnd = u.LockoutEnd,
     };
 }

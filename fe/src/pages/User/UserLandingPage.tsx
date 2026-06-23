@@ -72,10 +72,10 @@ export default function UserLandingPage() {
 
             {/* Nav links */}
             <div className="hidden md:flex items-center gap-10">
-              {['Find Parking', 'Book a Slot', 'Support'].map(label => (
+              {['My Ticket', 'Book a Slot', 'Support'].map(label => (
                 <span
                   key={label}
-                  onClick={label === 'Book a Slot' ? () => navigate('/booking') : undefined}
+                  onClick={label === 'Book a Slot' ? () => navigate('/booking') : label === 'My Ticket' ? () => navigate('/my-tickets') : undefined}
                   className="text-sm font-semibold hover:text-[#FF4C4C] transition-colors cursor-pointer"
                   style={{ color: 'var(--lp-text-muted)' }}
                 >
@@ -164,16 +164,6 @@ export default function UserLandingPage() {
                       >
                         <Car size={16} />
                         <span>My Vehicles</span>
-                      </button>
-                      <div className="my-1" style={{ borderTop: '1px solid var(--lp-border)' }} />
-                      <button
-                        type="button"
-                        onClick={() => { setIsDropdownOpen(false); navigate('/myticket'); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/5 transition-colors text-left"
-                        style={{ color: 'var(--lp-text-muted)' }}
-                      >
-                        <Ticket size={16} />
-                        <span>My Tickets</span>
                       </button>
                       <div className="my-1" style={{ borderTop: '1px solid var(--lp-border)' }} />
                       <button

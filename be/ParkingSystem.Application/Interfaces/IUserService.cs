@@ -13,4 +13,5 @@ public interface IUserService
     Task<IEnumerable<UserResponse>> GetStaffByBuildingAsync(Guid buildingId);
     Task<bool> AssignStaffToBuildingAsync(Guid staffId, Guid buildingId);
     Task<bool> UnassignStaffFromBuildingAsync(Guid staffId);
+    Task<bool> UnlockAsync(Guid id);
 }

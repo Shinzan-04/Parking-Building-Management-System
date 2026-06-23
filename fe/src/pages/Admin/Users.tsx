@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
-  getUsers, createUser, updateUser, deleteUser, assignRole, normalizeRole,
+  getUsers, createUser, updateUser, deleteUser, assignRole, unlockUser, normalizeRole,
   type ApiRole, type UserResponse,
 } from '../../services/usersService';
 
@@ -24,6 +24,8 @@ interface UserAccount {
   role: Role;
   status: Status;
   createdAt: string;
+  isLocked: boolean;
+  lockoutEnd: string | null;
 }
 
 const API_TO_UI: Record<string, Role> = {
@@ -35,6 +37,8 @@ const UI_TO_API: Record<Role, ApiRole> = {
 
 function mapApiUser(u: UserResponse): UserAccount {
   const roleStr = normalizeRole(u.role as ApiRole | number);
+  const now = new Date();
+  const locked = !!u.lockoutEnd && new Date(u.lockoutEnd) > now;
   return {
     id: u.id,
     username: u.username,
@@ -44,6 +48,8 @@ function mapApiUser(u: UserResponse): UserAccount {
     role: API_TO_UI[roleStr] ?? 'User',
     status: 'active',
     createdAt: u.createdAt.slice(0, 10),
+    isLocked: locked,
+    lockoutEnd: u.lockoutEnd ?? null,
   };
 }
 
@@ -218,6 +224,14 @@ export default function UsersPage() {
     }
   };
 
+  const handleUnlock = async (userId: string) => {
+    if (!token) return;
+    try {
+      await unlockUser(userId, token);
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, isLocked: false, lockoutEnd: null } : u));
+    } catch { /* ignore */ }
+  };
+
   const counts = useMemo(() => ({
     all:     users.length,
     Admin:   users.filter(u => u.role === 'Admin').length,
@@ -379,7 +393,15 @@ export default function UsersPage() {
                         <div className="flex items-center gap-3">
                           <AvatarIcon name={u.fullName} role={u.role} />
                           <div>
-                            <p className="text-sm font-medium text-white">{u.fullName}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-white">{u.fullName}</p>
+                              {u.isLocked && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-400/15 text-red-400 text-[10px] font-medium">
+                                  <Lock size={9} />
+                                  Bị khóa
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-white/40">{u.email || u.username}</p>
                           </div>
                         </div>
@@ -397,7 +419,7 @@ export default function UsersPage() {
                             <ChevronDown size={12} className="text-white/30 ml-0.5" />
                           </button>
                           {showRoleDropdown === u.id && (
-                            <div className="absolute top-8 left-0 z-20 border border-white/10 rounded-xl py-1 shadow-2xl min-w-[150px]" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
+                            <div className="absolute top-0 left-full ml-2 z-20 border border-white/10 rounded-xl py-1 shadow-2xl min-w-[150px]" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
                               {allRoles.map(r => (
                                 <button
                                   key={r}
@@ -417,6 +439,15 @@ export default function UsersPage() {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1">
+                          {u.isLocked && (
+                            <button
+                              onClick={() => handleUnlock(u.id)}
+                              className="p-2 rounded-lg text-red-400 hover:text-emerald-400 hover:bg-emerald-400/10 transition-all"
+                              title="Mở khóa tài khoản"
+                            >
+                              <Lock size={14} />
+                            </button>
+                          )}
                           <button onClick={() => openEdit(u)} className="p-2 rounded-lg text-white/40 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all" title="Chỉnh sửa">
                             <Pencil size={14} />
                           </button>
