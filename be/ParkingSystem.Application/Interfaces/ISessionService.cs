@@ -28,4 +28,14 @@ public interface ISessionService
     /// Lấy thông tin phiên đỗ xe hiện tại (Live Session) của user (Driver)
     /// </summary>
     Task<MyActiveSessionResponse?> GetMyActiveSessionAsync(Guid driverId);
+
+    /// <summary>
+    /// Dev tool: Tua nhanh thời gian đỗ xe bằng cách lùi EntryTime (và Reservation.EndTime) về quá khứ
+    /// </summary>
+    Task DevFastForwardAsync(Guid driverId, int minutes);
+
+    /// <summary>
+    /// Dev tool: Khôi phục lại thời gian về lúc hiện tại (Reset timer)
+    /// </summary>
+    Task DevResetTimeAsync(Guid driverId);
 }

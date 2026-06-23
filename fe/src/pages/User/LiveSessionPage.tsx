@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Car, MapPin, Clock, CreditCard, AlertTriangle,
-  ChevronLeft, Navigation, Flag
+  ChevronLeft, Navigation, Flag, FastForward, RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { getMyActiveSession } from '../../services/sessionsService';
+import { getMyActiveSession, devFastForwardTime, devResetTime } from '../../services/sessionsService';
 import type { MyActiveSessionResponse } from '../../services/sessionsService';
 
 export default function LiveSessionPage() {
@@ -15,6 +15,7 @@ export default function LiveSessionPage() {
   const [session, setSession] = useState<MyActiveSessionResponse | null>(null);
   const [elapsedString, setElapsedString] = useState('00:00:00');
   const [dynamicFee, setDynamicFee] = useState(0);
+  const [isDevMenuOpen, setIsDevMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -37,44 +38,46 @@ export default function LiveSessionPage() {
     fetchSession();
   }, [token, navigate]);
 
-  // Timer & Fee Calculator
+  // Timer & API Polling
   useEffect(() => {
     if (!session) return;
 
     const entryTime = new Date(session.entryTime).getTime();
 
-    const updateTimeAndFee = () => {
+    // Cập nhật đồng hồ mỗi giây
+    const updateTime = () => {
       const now = new Date().getTime();
       const diffMs = Math.max(0, now - entryTime);
 
-      // Time formatting
       const totalSeconds = Math.floor(diffMs / 1000);
       const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
       const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
       const s = (totalSeconds % 60).toString().padStart(2, '0');
       setElapsedString(`${h}:${m}:${s}`);
-
-      let newFee = 0;
-      if (session.isPrepaid) {
-        if (session.prepaidEndTime) {
-          const endTimeMs = new Date(session.prepaidEndTime).getTime();
-          if (now > endTimeMs) {
-            const overdueMs = now - endTimeMs;
-            const overdueHours = Math.ceil(overdueMs / (1000 * 60 * 60));
-            newFee = Math.max(1, overdueHours) * session.pricePerHour;
-          }
-        }
-      } else {
-        const hours = Math.ceil(diffMs / (1000 * 60 * 60));
-        newFee = Math.max(1, hours) * session.pricePerHour;
-      }
-      setDynamicFee(newFee);
     };
 
-    updateTimeAndFee();
-    const interval = setInterval(updateTimeAndFee, 1000);
-    return () => clearInterval(interval);
-  }, [session]);
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+
+    // Poll backend mỗi 60 giây để cập nhật lại fee chính xác từ hệ thống
+    const fetchSessionFee = async () => {
+      if (!token) return;
+      try {
+        const data = await getMyActiveSession(token);
+        if (data) {
+          setDynamicFee(data.currentFee);
+        }
+      } catch (err) {
+        console.error('Lỗi khi lấy fee:', err);
+      }
+    };
+    const feeInterval = setInterval(fetchSessionFee, 60000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(feeInterval);
+    };
+  }, [session?.entryTime, token]);
 
   const handlePayment = () => {
     alert(`Đang tiến hành thanh toán ${dynamicFee.toLocaleString('vi-VN')} đ`);
@@ -83,6 +86,38 @@ export default function LiveSessionPage() {
 
   const handleReport = () => {
     alert('Mở form báo cáo sự cố (Sẽ tích hợp sau)');
+  };
+
+  const handleDevFastForward = async (minutes: number) => {
+    if (!token || !session) return;
+    try {
+      await devFastForwardTime(minutes, token);
+      const data = await getMyActiveSession(token);
+      if (data) {
+        setSession(data);
+        setDynamicFee(data.currentFee);
+      }
+      alert(`Đã tua nhanh ${minutes} phút! Giờ vào và Giờ đặt trước đã bị lùi về ${minutes} phút trước. Phí đã được tính toán lại!`);
+      setIsDevMenuOpen(false);
+    } catch (err: any) {
+      alert('Lỗi tua thời gian: ' + err.message);
+    }
+  };
+
+  const handleDevReset = async () => {
+    if (!token || !session) return;
+    try {
+      await devResetTime(token);
+      const data = await getMyActiveSession(token);
+      if (data) {
+        setSession(data);
+        setDynamicFee(data.currentFee);
+      }
+      alert('Đã khôi phục thời gian về hiện tại!');
+      setIsDevMenuOpen(false);
+    } catch (err: any) {
+      alert('Lỗi khôi phục thời gian: ' + err.message);
+    }
   };
 
   if (!session) {
@@ -98,13 +133,54 @@ export default function LiveSessionPage() {
   const formattedEntryDate = `${entryDate.toLocaleDateString('vi-VN')} ${entryDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
 
   return (
-    <div className="min-h-screen bg-[#F4F7F9] text-slate-800 font-sans pb-10">
+    <div className="min-h-screen bg-[#F4F7F9] text-slate-800 font-sans pb-10 relative">
       {/* Header */}
       <div className="bg-white px-4 py-4 flex items-center shadow-sm sticky top-0 z-50 lg:px-8">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-500 hover:text-slate-800 transition-colors">
           <ChevronLeft size={24} />
         </button>
         <h1 className="text-lg font-bold flex-1 text-center pr-8 lg:pr-0 lg:text-left lg:ml-4">Phiên đỗ xe hiện tại</h1>
+        
+        <div className="relative">
+          <button 
+            onClick={() => setIsDevMenuOpen(!isDevMenuOpen)} 
+            className="flex items-center gap-2 bg-indigo-100 text-indigo-700 p-2 rounded-lg text-sm font-bold hover:bg-indigo-200 transition-colors"
+            title="Dev Tools"
+          >
+            <FastForward size={18} />
+          </button>
+          
+          {isDevMenuOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setIsDevMenuOpen(false)}></div>
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-slate-100 z-50 overflow-hidden py-2">
+                <div className="px-4 py-2 text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-50 mb-1">DEV TOOLS</div>
+                <button 
+                  onClick={() => handleDevFastForward(15)}
+                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-2"
+                >
+                  <FastForward size={14} className="text-indigo-400" />
+                  Tua 15 phút
+                </button>
+                <button 
+                  onClick={() => handleDevFastForward(240)}
+                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center gap-2"
+                >
+                  <FastForward size={14} className="text-indigo-400" />
+                  Tua 4 tiếng
+                </button>
+                <div className="my-1 border-t border-slate-100"></div>
+                <button 
+                  onClick={handleDevReset}
+                  className="w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-2"
+                >
+                  <RotateCcw size={14} />
+                  Reset về hiện tại
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Main Grid Container for Desktop */}

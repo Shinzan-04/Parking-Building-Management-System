@@ -16,11 +16,13 @@ public class SessionService : ISessionService
 {
     private readonly ApplicationDbContext _context;
     private readonly IQrCodeService _qrCodeService;
+    private readonly ICheckOutService _checkOutService;
 
-    public SessionService(ApplicationDbContext context, IQrCodeService qrCodeService)
+    public SessionService(ApplicationDbContext context, IQrCodeService qrCodeService, ICheckOutService checkOutService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
+        _checkOutService = checkOutService;
     }
 
     /// <summary>
@@ -226,31 +228,20 @@ public class SessionService : ISessionService
 
         if (session == null) return null;
 
-        // Lấy đơn giá theo giờ từ PricingPolicy
-        var pricing = await _context.PricingPolicies
-            .FirstOrDefaultAsync(p => p.VehicleTypeId == session.VehicleTypeId && !p.IsDeleted);
-
-        var pricePerHour = pricing?.HourlyRate ?? 0;
+        // Tái sử dụng logic tính phí chính xác (Block Day/Night) từ CheckOutService
+        decimal currentFee = 0;
+        try
+        {
+            var feeResult = await _checkOutService.CalculateFeeBySessionIdAsync(session.Id);
+            currentFee = feeResult.EstimatedFee;
+        }
+        catch
+        {
+            currentFee = 0;
+        }
 
         bool isPrepaid = session.CheckInMethod == CheckInMethod.Booking && session.Reservation != null;
         DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : null;
-        
-        decimal currentFee = 0;
-        if (isPrepaid)
-        {
-            if (prepaidEndTime.HasValue && DateTime.UtcNow > prepaidEndTime.Value)
-            {
-                var overdueDuration = DateTime.UtcNow - prepaidEndTime.Value;
-                var overdueHours = Math.Ceiling(overdueDuration.TotalHours);
-                currentFee = (decimal)Math.Max(1, overdueHours) * pricePerHour;
-            }
-        }
-        else
-        {
-            var duration = DateTime.UtcNow - session.EntryTime;
-            var hours = Math.Ceiling(duration.TotalHours);
-            currentFee = (decimal)Math.Max(1, hours) * pricePerHour;
-        }
 
         return new MyActiveSessionResponse
         {
@@ -263,10 +254,64 @@ public class SessionService : ISessionService
             BuildingName = session.ParkingSlot?.Floor?.Building?.Name ?? "",
             FloorName = session.ParkingSlot?.Floor?.Name ?? "",
             SlotNumber = session.ParkingSlot?.SlotNumber ?? "",
-            PricePerHour = pricePerHour,
+            PricePerHour = 0, // Dùng Block thay vì HourlyRate
             CurrentFee = currentFee,
             IsPrepaid = isPrepaid,
             PrepaidEndTime = prepaidEndTime
         };
+    }
+
+    /// <summary>
+    /// Dev tool: Tua nhanh thời gian đỗ xe bằng cách lùi EntryTime (và Reservation.EndTime) về quá khứ
+    /// </summary>
+    public async Task DevFastForwardAsync(Guid driverId, int minutes)
+    {
+        var session = await _context.ParkingSessions
+            .Include(s => s.Reservation)
+            .Where(s => s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted)
+            .OrderByDescending(s => s.EntryTime)
+            .FirstOrDefaultAsync();
+
+        if (session == null)
+            throw new InvalidOperationException("Không có phiên đỗ xe nào đang hoạt động để tua thời gian.");
+
+        var timeToSubtract = TimeSpan.FromMinutes(minutes);
+        
+        session.EntryTime = session.EntryTime.Subtract(timeToSubtract);
+        
+        if (session.Reservation != null)
+        {
+            session.Reservation.StartTime = session.Reservation.StartTime.Subtract(timeToSubtract);
+            session.Reservation.EndTime = session.Reservation.EndTime.Subtract(timeToSubtract);
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Dev tool: Khôi phục lại thời gian về lúc hiện tại (Reset timer)
+    /// </summary>
+    public async Task DevResetTimeAsync(Guid driverId)
+    {
+        var session = await _context.ParkingSessions
+            .Include(s => s.Reservation)
+            .Where(s => s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted)
+            .OrderByDescending(s => s.EntryTime)
+            .FirstOrDefaultAsync();
+
+        if (session == null)
+            throw new InvalidOperationException("Không có phiên đỗ xe nào đang hoạt động để reset thời gian.");
+
+        var now = DateTime.UtcNow;
+        session.EntryTime = now;
+        
+        if (session.Reservation != null)
+        {
+            var originalDuration = session.Reservation.EndTime - session.Reservation.StartTime;
+            session.Reservation.StartTime = now;
+            session.Reservation.EndTime = now.Add(originalDuration);
+        }
+
+        await _context.SaveChangesAsync();
     }
 }

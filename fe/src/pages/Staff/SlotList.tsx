@@ -13,9 +13,10 @@ type SlotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
 
 function getStatusLabel(status: string | number): SlotStatus {
   if (status === 'Available'    || status === 0) return 'Available';
-  if (status === 'Occupied'     || status === 1) return 'Occupied';
+  if (status === 'TemporaryHeld'|| status === 1) return 'TemporaryHeld';
   if (status === 'Reserved'     || status === 2) return 'Reserved';
-  if (status === 'Maintenance'  || status === 3) return 'Maintenance';
+  if (status === 'Occupied'     || status === 3) return 'Occupied';
+  if (status === 'Maintenance'  || status === 4) return 'Maintenance';
   return 'Available';
 }
 

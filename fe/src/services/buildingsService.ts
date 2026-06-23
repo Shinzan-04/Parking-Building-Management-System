@@ -44,11 +44,11 @@ export interface ParkingSlotSummary {
 }
 
 export function isSlotOccupied(status: string | number): boolean {
-  return status === 'Occupied' || status === 1 || status === 'Reserved' || status === 2;
+  return status === 'Occupied' || status === 3 || status === 'Reserved' || status === 2 || status === 'TemporaryHeld' || status === 1;
 }
 
 export function isSlotMaintenance(status: string | number): boolean {
-  return status === 'Maintenance' || status === 3;
+  return status === 'Maintenance' || status === 4;
 }
 
 async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {

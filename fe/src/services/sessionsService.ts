@@ -142,3 +142,11 @@ export const findSessionByPlate = (plate: string, token: string): Promise<Sessio
 /** Lấy Live Session (phiên đang đỗ) của User/Driver */
 export const getMyActiveSession = (token: string): Promise<MyActiveSessionResponse | null> =>
   apiFetch(`/api/sessions/my-active`, undefined, token);
+
+/** [DEV ONLY] Tua thời gian để kiểm tra phí */
+export const devFastForwardTime = (minutes: number, token: string): Promise<{ message: string }> =>
+  apiFetch(`/api/sessions/dev/fast-forward?minutes=${minutes}`, { method: 'POST' }, token);
+
+/** [DEV ONLY] Reset thời gian đỗ về hiện tại */
+export const devResetTime = (token: string): Promise<{ message: string }> =>
+  apiFetch(`/api/sessions/dev/reset-time`, { method: 'POST' }, token);

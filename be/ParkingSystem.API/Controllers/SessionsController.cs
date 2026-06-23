@@ -126,4 +126,49 @@ public class SessionsController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+    /// <summary>
+    /// Dev tool: Tua nhanh thời gian đỗ xe để test tính phí
+    /// </summary>
+    [HttpPost("dev/fast-forward")]
+    [Authorize]
+    public async Task<IActionResult> DevFastForward([FromQuery] int minutes = 60)
+    {
+        try
+        {
+            var driverIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(driverIdClaim)) return Unauthorized();
+
+            var driverId = Guid.Parse(driverIdClaim);
+            await _sessionService.DevFastForwardAsync(driverId, minutes);
+
+            return Ok(new { message = $"Đã tua nhanh {minutes} phút thành công." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Dev tool: Khôi phục lại thời gian về lúc hiện tại
+    /// </summary>
+    [HttpPost("dev/reset-time")]
+    [Authorize]
+    public async Task<IActionResult> DevResetTime()
+    {
+        try
+        {
+            var driverIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(driverIdClaim)) return Unauthorized();
+
+            var driverId = Guid.Parse(driverIdClaim);
+            await _sessionService.DevResetTimeAsync(driverId);
+
+            return Ok(new { message = "Đã khôi phục thời gian đỗ xe về hiện tại." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

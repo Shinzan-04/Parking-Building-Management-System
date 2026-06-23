@@ -827,7 +827,7 @@ function StepSelectSlot({
 
   // Lọc slots theo loại xe đã chọn (không hiển thị slots bảo trì)
   const filteredSlots = slots.filter(
-    (s) => s.vehicleTypeId === state.vehicleType && s.status !== 'Maintenance'
+    (s) => s.vehicleTypeId === state.vehicleType && s.status !== 'Maintenance' && String(s.status) !== '4'
   );
 
   // Nhóm các slots thành từng hàng (COLS ô mỗi hàng)
@@ -837,8 +837,8 @@ function StepSelectSlot({
   }
 
   const availableCount = filteredSlots.filter(s => s.status === 'Available' || String(s.status) === '0').length;
-  const occupiedCount  = filteredSlots.filter(s => s.status === 'Occupied' || String(s.status) === '1').length;
-  const reservedCount  = filteredSlots.filter(s => s.status === 'Reserved' || String(s.status) === '2').length;
+  const occupiedCount  = filteredSlots.filter(s => s.status === 'Occupied' || String(s.status) === '3').length;
+  const reservedCount  = filteredSlots.filter(s => s.status === 'Reserved' || String(s.status) === '2' || s.status === 'TemporaryHeld' || String(s.status) === '1').length;
 
   // Helper hàm để xác định màu hiển thị cho mỗi Slot
   const getSlotStyle = (slot: ParkingSlotDetail): string => {
@@ -849,8 +849,8 @@ function StepSelectSlot({
     
     // Một số backend serialize enum thành integer string, cần kiểm tra cả hai
     const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
-    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '1';
-    const isReserved = slot.status === 'Reserved' || String(slot.status) === '2';
+    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '3';
+    const isReserved = slot.status === 'Reserved' || String(slot.status) === '2' || slot.status === 'TemporaryHeld' || String(slot.status) === '1';
 
     if (isAvailable) {
       return 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-105 cursor-pointer';
@@ -972,7 +972,7 @@ function StepSelectSlot({
                   {row.map((slot) => {
                     const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
                     const isSelected = state.slotId === slot.id;
-                    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '1';
+                    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '3';
 
                     const colIdx = filteredSlots.indexOf(slot) % COLS;
                     const colLetter = String.fromCharCode(65 + colIdx);
