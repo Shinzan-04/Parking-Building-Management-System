@@ -39,11 +39,12 @@ public class RealtimeService : IRealtimeService
     }
 
     /// <summary>
-    /// Báo động cho toàn bộ Staff
+    /// Báo động cho toàn bộ Staff — dùng event ReceiveAlert riêng, KHÔNG dùng ReceiveNotification
+    /// để tránh trigger badge counter trên toàn bộ client
     /// </summary>
     public async Task BroadcastNotificationToStaffAsync(string message)
     {
-        await _hubContext.Clients.All.SendAsync("ReceiveNotification", message);
+        await _hubContext.Clients.All.SendAsync("ReceiveAlert", message);
     }
 
     /// <summary>

@@ -76,24 +76,23 @@ export function useNotification(token: string | null) {
     let cancelled = false;
 
     const hub = new signalR.HubConnectionBuilder()
-      .withUrl(`${BASE_URL}/parking-hub`, {
-        accessTokenFactory: () => tokenRef.current ?? '',
-      })
+      .withUrl(`${BASE_URL}/parking-hub?access_token=${encodeURIComponent(tokenRef.current ?? '')}`)
       .withAutomaticReconnect()
       .configureLogging(signalR.LogLevel.Warning)
       .build();
 
     hub.on('ReceiveNotification', async () => {
+      // Luôn lấy count thực từ API — không tự tăng để tránh đếm sai khi broadcast
       const t = tokenRef.current;
       if (!t) return;
       try {
-        const [notiRes, countRes] = await Promise.all([
-          getNotifications(t, 1, 5),
-          getUnreadCount(t),
-        ]);
-        const fresh = Array.isArray(notiRes.items) ? notiRes.items : [];
+        const countRes = await getUnreadCount(t);
         setUnreadCount(countRes.unreadCount);
+        // Chỉ prepend noti mới nếu panel đang mở (notifications.length > 0)
+        const notiRes = await getNotifications(t, 1, 5);
+        const fresh = Array.isArray(notiRes.items) ? notiRes.items : [];
         setNotifications(prev => {
+          if (prev.length === 0) return prev; // panel chưa mở, không load
           const existingIds = new Set(prev.map(n => n.id));
           const brandNew = fresh.filter(n => !existingIds.has(n.id));
           return brandNew.length > 0 ? [...brandNew, ...prev] : prev;

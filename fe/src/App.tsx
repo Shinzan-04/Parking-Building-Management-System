@@ -52,7 +52,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<UserLandingPage />} />
           <Route path="/booking" element={<BookingPage />} />
-          <Route path="/myticket" element={<ProtectedRoute element={<MyTicketPage />} />} />
+          <Route path="/my-tickets" element={<ProtectedRoute element={<MyTicketPage />} />} />
           <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
           <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
           <Route path="/live-session" element={<ProtectedRoute element={<LiveSessionPage />} />} />

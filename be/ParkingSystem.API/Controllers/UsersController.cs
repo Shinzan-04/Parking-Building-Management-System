@@ -78,4 +78,13 @@ public class UsersController : ControllerBase
         if (!result) return NotFound(new { message = "Không tìm thấy người dùng." });
         return Ok(new { message = $"Cấp quyền {request.Role} thành công." });
     }
+
+    [HttpPatch("{id}/unlock")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Unlock(Guid id)
+    {
+        var result = await _userService.UnlockAsync(id);
+        if (!result) return NotFound(new { message = "Không tìm thấy người dùng." });
+        return Ok(new { message = "Tài khoản đã được mở khóa." });
+    }
 }
