@@ -31,7 +31,6 @@ import { createReservation, getAiSuggestions } from '../../services/reservations
 import { createPayOSPayment, verifyPayment } from '../../services/paymentService';
 import { getMyVehicles, createVehicle } from '../../services/vehiclesService';
 import type { VehicleResponse } from '../../services/vehiclesService';
-import type { ApiVehicleType } from '../../services/vehicleTypesService';
 import { getWallet, depositWallet } from '../../services/walletService';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotification } from '../../hooks/useNotification';

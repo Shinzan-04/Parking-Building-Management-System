@@ -5,7 +5,7 @@ import {
   ChevronLeft, Navigation, Flag, FastForward, RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { getMyActiveSession } from '../../services/sessionsService';
+import { getMyActiveSession, devFastForwardTime, devResetTime } from '../../services/sessionsService';
 import type { MyActiveSessionResponse } from '../../services/sessionsService';
 import DevPanel from '../../components/dev/DevPanel';
 
