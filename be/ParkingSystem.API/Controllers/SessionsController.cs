@@ -26,6 +26,15 @@ public class SessionsController : ControllerBase
     {
         try
         {
+            if (User.IsInRole("Staff"))
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+                if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+                {
+                    filter.StaffId = userId;
+                }
+            }
+
             var result = await _sessionService.GetActiveSessionsAsync(filter);
             return Ok(result);
         }
@@ -44,6 +53,15 @@ public class SessionsController : ControllerBase
     {
         try
         {
+            if (User.IsInRole("Staff"))
+            {
+                var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+                if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+                {
+                    filter.StaffId = userId;
+                }
+            }
+
             var result = await _sessionService.SearchSessionsAsync(filter);
             return Ok(result);
         }

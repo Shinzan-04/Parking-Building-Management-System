@@ -62,6 +62,11 @@ public class SessionFilterRequest
     public Guid? BuildingId { get; set; }
     
     /// <summary>
+    /// Nội bộ: Lọc theo tòa nhà được phân công của Staff
+    /// </summary>
+    public Guid? StaffId { get; set; }
+
+    /// <summary>
     /// Lọc theo tầng
     /// </summary>
     public Guid? FloorId { get; set; }

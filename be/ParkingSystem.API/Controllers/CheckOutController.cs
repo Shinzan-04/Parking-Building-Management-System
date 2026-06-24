@@ -29,7 +29,7 @@ public class CheckOutController : ControllerBase
     /// </summary>
     /// <param name="licensePlate">Bien so xe can tim (khong can chuan hoa truoc)</param>
     [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string licensePlate)
+    public async Task<IActionResult> Search([FromQuery] string licensePlate, [FromQuery] Guid? buildingId)
     {
         if (string.IsNullOrWhiteSpace(licensePlate))
         {
@@ -38,7 +38,14 @@ public class CheckOutController : ControllerBase
 
         try
         {
-            var result = await _checkOutService.SearchByLicensePlateAsync(licensePlate);
+            Guid? staffId = null;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                staffId = userId;
+            }
+
+            var result = await _checkOutService.SearchByLicensePlateAsync(licensePlate, staffId, buildingId);
             return Ok(result);
         }
         catch (InvalidOperationException ex)

@@ -33,7 +33,7 @@ public class CheckOutService : ICheckOutService
         _logger = logger;
     }
 
-    public async Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate)
+    public async Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
     {
         var cleanedInput = CleanLicensePlate(licensePlate);
 
@@ -51,6 +51,30 @@ public class CheckOutService : ICheckOutService
         {
             throw new InvalidOperationException(
                 $"Khong tim thay phien gui xe dang hoat dong cho bien so: {cleanedInput}.");
+        }
+
+        Guid? effectiveBuildingId = requestBuildingId;
+        if (staffId.HasValue)
+        {
+            var staff = await _context.Users.FindAsync(staffId.Value);
+            if (staff != null && staff.AssignedBuildingId.HasValue)
+            {
+                if (requestBuildingId.HasValue && requestBuildingId.Value != staff.AssignedBuildingId.Value)
+                {
+                    throw new InvalidOperationException("Ban khong co quyen check-out xe cho toa nha khac voi toa nha duoc phan cong.");
+                }
+                effectiveBuildingId = staff.AssignedBuildingId;
+            }
+        }
+
+        if (!effectiveBuildingId.HasValue)
+        {
+            throw new InvalidOperationException("Vui long chon toa nha de thuc hien thao tac (Admin/Manager).");
+        }
+
+        if (session.ParkingSlot.Floor!.BuildingId != effectiveBuildingId.Value)
+        {
+            throw new InvalidOperationException("Khong the check-out xe khong thuoc toa nha ma ban duoc phan cong hoac lua chon.");
         }
 
         var exitTime = DateTime.UtcNow;
@@ -88,6 +112,30 @@ public class CheckOutService : ICheckOutService
         if (session == null)
         {
             throw new InvalidOperationException("Khong tim thay phien gui xe hoac xe da thanh toan.");
+        }
+
+        Guid? effectiveBuildingId = request.BuildingId;
+        if (request.StaffId != Guid.Empty)
+        {
+            var staff = await _context.Users.FindAsync(request.StaffId);
+            if (staff != null && staff.AssignedBuildingId.HasValue)
+            {
+                if (request.BuildingId.HasValue && request.BuildingId.Value != staff.AssignedBuildingId.Value)
+                {
+                    throw new InvalidOperationException("Ban khong co quyen xac nhan check-out cho toa nha khac voi toa nha duoc phan cong.");
+                }
+                effectiveBuildingId = staff.AssignedBuildingId;
+            }
+        }
+
+        if (!effectiveBuildingId.HasValue)
+        {
+            throw new InvalidOperationException("Vui long chon toa nha de thuc hien thao tac (Admin/Manager).");
+        }
+
+        if (session.ParkingSlot.Floor!.BuildingId != effectiveBuildingId.Value)
+        {
+            throw new InvalidOperationException("Khong the xac nhan check-out cho xe khong thuoc toa nha ma ban duoc phan cong hoac lua chon.");
         }
 
         var exitTime = DateTime.UtcNow;
@@ -264,6 +312,30 @@ public class CheckOutService : ICheckOutService
         {
             throw new InvalidOperationException(
                 $"Khong tim thay phien gui xe dang hoat dong cho bien so: {exitPlate}.");
+        }
+
+        Guid? effectiveBuildingId = request.BuildingId;
+        if (request.StaffId != Guid.Empty)
+        {
+            var staff = await _context.Users.FindAsync(request.StaffId);
+            if (staff != null && staff.AssignedBuildingId.HasValue)
+            {
+                if (request.BuildingId.HasValue && request.BuildingId.Value != staff.AssignedBuildingId.Value)
+                {
+                    throw new InvalidOperationException("Ban khong co quyen check-out xe cho toa nha khac voi toa nha duoc phan cong.");
+                }
+                effectiveBuildingId = staff.AssignedBuildingId;
+            }
+        }
+
+        if (!effectiveBuildingId.HasValue)
+        {
+            throw new InvalidOperationException("Vui long chon toa nha de thuc hien thao tac (Admin/Manager).");
+        }
+
+        if (session.ParkingSlot.Floor!.BuildingId != effectiveBuildingId.Value)
+        {
+            throw new InvalidOperationException("Khong the check-out xe khong thuoc toa nha ma ban duoc phan cong hoac lua chon.");
         }
 
         var normalizedEntryPlate = CleanLicensePlate(session.LicensePlate);
@@ -561,7 +633,7 @@ public class CheckOutService : ICheckOutService
 
     private static string BuildFeeMessage(PriceCalculationResult result)
     {
-        if (result.PricingModel == "DayNight" && result.FeeBreakdown != null)
+        if (result.PricingModel.Contains("DayNight") && result.FeeBreakdown != null)
         {
             return $"Gui ngay x{result.FeeBreakdown.DayPassCount} = {result.FeeBreakdown.DayPassTotal:N0} VND, " +
                    $"gui dem x{result.FeeBreakdown.NightPassCount} = {result.FeeBreakdown.NightPassTotal:N0} VND. " +

@@ -11,7 +11,7 @@ public interface ICheckOutService
     /// Tim kiem phien gui xe dang hoat dong theo bien so xe da chuan hoa.
     /// Su dung exact match 100% tren bien so da chuan hoa.
     /// </summary>
-    Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate);
+    Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null);
 
     /// <summary>
     /// Xac nhan thanh toan va giai phong o do khi xe ra bai.

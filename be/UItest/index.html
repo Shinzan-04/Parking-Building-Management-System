@@ -207,6 +207,9 @@
         <input type="password" id="loginPassword" placeholder="Password" style="flex:1" />
         <button class="btn btn-primary" onclick="uiLogin()" style="padding:0 16px">Login</button>
       </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" id="configBuildingId" placeholder="BuildingId (Optional - Dành cho Admin/Manager đổi tòa nhà)" style="flex:1" />
+      </div>
     </div>
   </div>
 
@@ -805,6 +808,7 @@
           LicensePlate: plate,
           VehicleTypeId: vehicleTypeId,
           StaffId: staffId || null,
+          BuildingId: document.getElementById('configBuildingId').value.trim() || null,
           SlotId: null,
         }),
       });
@@ -991,7 +995,10 @@
     document.getElementById('alertBox').classList.remove('show');
 
     try {
-      const data = await apiFetch(`/api/CheckOut/search?licensePlate=${encodeURIComponent(plate)}`);
+      const bid = document.getElementById('configBuildingId').value.trim();
+      let url = `/api/CheckOut/search?licensePlate=${encodeURIComponent(plate)}`;
+      if (bid) url += `&buildingId=${encodeURIComponent(bid)}`;
+      const data = await apiFetch(url);
       if (!data) { setCoLoading(false, 'search'); return; }
 
       coCurrentSession = data;
@@ -1021,11 +1028,11 @@
     document.getElementById('coDispExit').textContent = 'Ra: ' + fmtDateTime(rk(s, 'EstimatedExitTime', null));
     document.getElementById('coDispDuration').textContent = fmtDuration(rk(s, 'TotalHours', 0));
     const pm = rk(s, 'PricingModel', 'Hourly');
-    document.getElementById('coDispPricingModel').textContent = pm === 'DayNight' ? 'Ngày/Đêm' : 'Theo giờ';
-    document.getElementById('coDispMessage').textContent = rk(s, 'Message', '');
-
+    document.getElementById('coDispPricingModel').textContent = pm === 'BlockDayNight' || pm === 'DayNight' ? 'Ngày/Đêm (Block)' : 'Theo giờ';
+    const dispDayPass = document.getElementById('coDispDayPass');
+    if (dispDayPass) dispDayPass.textContent = (pm === 'BlockDayNight' || pm === 'DayNight') ? (rk(s, 'DayPassPrice') || '0') + ' đ' : '-';  
     const feeDiv = document.getElementById('coFeeDetails');
-    if (pm === 'DayNight' && rk(s, 'FeeBreakdown', null)) {
+    if (pm.includes('DayNight') && rk(s, 'FeeBreakdown', null)) {
       const fb = rk(s, 'FeeBreakdown', {});
       feeDiv.innerHTML = `
         <div class="fee-row"><span class="label">Ngày x${rk(fb, 'DayPassCount', 0)}</span><span class="amount">${fmtMoney(rk(fb, 'DayPassTotal', 0))}</span></div>
@@ -1175,6 +1182,7 @@
         body: JSON.stringify({
           SessionId: coCurrentSession.sessionId || coCurrentSession.SessionId,
           StaffId: staffId,
+          BuildingId: document.getElementById('configBuildingId').value.trim() || null,
           PaymentMethod: coSelectedPm,
           PaymentAmount: coSelectedPm === 0 ? parseFloat(document.getElementById('coPaymentAmount').value) || null : null,
           ExitLicensePlateOcr: coOcrPlate || null,

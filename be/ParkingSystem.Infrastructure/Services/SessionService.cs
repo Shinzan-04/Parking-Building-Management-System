@@ -54,6 +54,16 @@ public class SessionService : ISessionService
         if (filter.Status.HasValue)
             query = query.Where(s => s.Status == filter.Status.Value);
 
+        // Lọc ngầm định theo Tòa nhà của Staff (nếu có)
+        if (filter.StaffId.HasValue)
+        {
+            var staff = await _context.Users.FindAsync(filter.StaffId.Value);
+            if (staff != null && staff.AssignedBuildingId.HasValue)
+            {
+                query = query.Where(s => s.ParkingSlot.Floor.BuildingId == staff.AssignedBuildingId.Value);
+            }
+        }
+
         // Tìm theo biển số (gần đúng — LIKE '%keyword%')
         if (!string.IsNullOrWhiteSpace(filter.LicensePlate))
         {
