@@ -15,10 +15,14 @@ namespace ParkingSystem.Infrastructure.Services;
 public class SessionService : ISessionService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IQrCodeService _qrCodeService;
+    private readonly ICheckOutService _checkOutService;
 
-    public SessionService(ApplicationDbContext context)
+    public SessionService(ApplicationDbContext context, IQrCodeService qrCodeService, ICheckOutService checkOutService)
     {
         _context = context;
+        _qrCodeService = qrCodeService;
+        _checkOutService = checkOutService;
     }
 
     /// <summary>
@@ -215,5 +219,111 @@ public class SessionService : ISessionService
             Duration = durationText,
             EntryImageUrl = s.EntryImageUrl
         };
+    }
+
+    /// <summary>
+    /// Lấy thông tin phiên đỗ xe hiện tại (Live Session) của user (Driver)
+    /// </summary>
+    public async Task<MyActiveSessionResponse?> GetMyActiveSessionAsync(Guid driverId)
+    {
+        var session = await _context.ParkingSessions
+            .Include(s => s.VehicleType)
+            .Include(s => s.ParkingSlot)
+                .ThenInclude(ps => ps.Floor)
+                    .ThenInclude(f => f.Building)
+            .Include(s => s.Reservation)
+            .Where(s => s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted)
+            .OrderByDescending(s => s.EntryTime)
+            .FirstOrDefaultAsync();
+
+        if (session == null) return null;
+
+        // Tái sử dụng logic tính phí chính xác (Block Day/Night) từ CheckOutService
+        decimal currentFee = 0;
+        try
+        {
+            var feeResult = await _checkOutService.CalculateFeeBySessionIdAsync(session.Id);
+            currentFee = feeResult.EstimatedFee;
+        }
+        catch
+        {
+            currentFee = 0;
+        }
+
+        bool isPrepaid = session.CheckInMethod == CheckInMethod.Booking && session.Reservation != null;
+        DateTime? prepaidStartTime = isPrepaid ? session.Reservation!.StartTime : null;
+        DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : null;
+
+        return new MyActiveSessionResponse
+        {
+            Id = session.Id,
+            SessionCode = session.SessionCode,
+            SessionQrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(session.Id.ToString()),
+            LicensePlate = session.LicensePlate,
+            VehicleTypeName = session.VehicleType?.Name ?? "",
+            EntryTime = session.EntryTime,
+            BuildingName = session.ParkingSlot?.Floor?.Building?.Name ?? "",
+            FloorName = session.ParkingSlot?.Floor?.Name ?? "",
+            SlotNumber = session.ParkingSlot?.SlotNumber ?? "",
+            PricePerHour = 0, // Dùng Block thay vì HourlyRate
+            CurrentFee = currentFee,
+            IsPrepaid = isPrepaid,
+            PrepaidStartTime = prepaidStartTime,
+            PrepaidEndTime = prepaidEndTime
+        };
+    }
+
+    /// <summary>
+    /// Dev tool: Tua nhanh thời gian đỗ xe bằng cách lùi EntryTime (và Reservation.EndTime) về quá khứ
+    /// </summary>
+    public async Task DevFastForwardAsync(Guid driverId, int minutes)
+    {
+        var session = await _context.ParkingSessions
+            .Include(s => s.Reservation)
+            .Where(s => s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted)
+            .OrderByDescending(s => s.EntryTime)
+            .FirstOrDefaultAsync();
+
+        if (session == null)
+            throw new InvalidOperationException("Không có phiên đỗ xe nào đang hoạt động để tua thời gian.");
+
+        var timeToSubtract = TimeSpan.FromMinutes(minutes);
+        
+        session.EntryTime = session.EntryTime.Subtract(timeToSubtract);
+        
+        if (session.Reservation != null)
+        {
+            session.Reservation.StartTime = session.Reservation.StartTime.Subtract(timeToSubtract);
+            session.Reservation.EndTime = session.Reservation.EndTime.Subtract(timeToSubtract);
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Dev tool: Khôi phục lại thời gian về lúc hiện tại (Reset timer)
+    /// </summary>
+    public async Task DevResetTimeAsync(Guid driverId)
+    {
+        var session = await _context.ParkingSessions
+            .Include(s => s.Reservation)
+            .Where(s => s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted)
+            .OrderByDescending(s => s.EntryTime)
+            .FirstOrDefaultAsync();
+
+        if (session == null)
+            throw new InvalidOperationException("Không có phiên đỗ xe nào đang hoạt động để reset thời gian.");
+
+        var offset = session.CreatedAt - session.EntryTime;
+        
+        session.EntryTime = session.EntryTime.Add(offset);
+        
+        if (session.Reservation != null)
+        {
+            session.Reservation.StartTime = session.Reservation.StartTime.Add(offset);
+            session.Reservation.EndTime = session.Reservation.EndTime.Add(offset);
+        }
+
+        await _context.SaveChangesAsync();
     }
 }

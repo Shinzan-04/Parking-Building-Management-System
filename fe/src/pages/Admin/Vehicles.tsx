@@ -47,7 +47,7 @@ export default function Vehicles() {
         }, token),
       ]);
 
-      let activeAll = [...activePage.items];
+      const activeAll = [...activePage.items];
       if (activePage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: activePage.totalPages - 1 }, (_, i) =>
@@ -57,7 +57,7 @@ export default function Vehicles() {
         rest.forEach(r => activeAll.push(...r.items));
       }
 
-      let completedAll = [...completedPage.items];
+      const completedAll = [...completedPage.items];
       if (completedPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: completedPage.totalPages - 1 }, (_, i) =>
@@ -101,10 +101,10 @@ export default function Vehicles() {
   const vnd = (n: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n);
 
   const stats = [
-    { label: 'Tổng xe hôm nay',   value: totalToday,             unit: 'xe',  icon: TrendingUp,  color: '#F59E0B', bg: 'from-[#F59E0B]/20 to-[#F59E0B]/5' },
-    { label: 'Đang đỗ',            value: parkedCount,            unit: 'xe',  icon: Car,         color: '#F97316', bg: 'from-[#F97316]/20 to-[#F97316]/5' },
+    { label: 'Tổng xe hôm nay',   value: totalToday,             unit: 'xe',  icon: TrendingUp,  color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+    { label: 'Đang đỗ',            value: parkedCount,            unit: 'xe',  icon: Car,         color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
     { label: 'Đã ra về hôm nay',   value: exitedCount,            unit: 'xe',  icon: CheckCircle2,color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-    { label: 'Doanh thu hôm nay',  value: `${vnd(totalRevToday)}đ`, unit: '',  icon: TrendingUp,  color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
+    { label: 'Doanh thu hôm nay',  value: `${vnd(totalRevToday)}đ`, unit: '',  icon: TrendingUp,  color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
   ];
 
   const filtered = useMemo(() => {
@@ -125,7 +125,7 @@ export default function Vehicles() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 size={28} className="text-amber-500 animate-spin" />
+        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
       </div>
     );
   }
@@ -184,7 +184,7 @@ export default function Vehicles() {
             placeholder="Tìm biển số, chủ xe, tòa nhà..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#F59E0B]/50 transition-colors"
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
           />
         </div>
 
@@ -200,7 +200,7 @@ export default function Vehicles() {
               }`}
             >
               {t.label}
-              <span className={`ml-1.5 text-xs ${activeTab === t.key ? 'text-[#F59E0B]' : 'text-white/20'}`}>
+              <span className={`ml-1.5 text-xs ${activeTab === t.key ? 'text-[#FF4C4C]' : 'text-white/20'}`}>
                 {t.key === 'all' ? totalToday : t.key === 'parked' ? parkedCount : exitedCount}
               </span>
             </button>
@@ -252,8 +252,8 @@ export default function Vehicles() {
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5">
                           {moto
-                            ? <Bike size={13} className="text-[#F97316]" />
-                            : <Car  size={13} className="text-[#F59E0B]" />}
+                            ? <Bike size={13} className="text-[#FF4C4C]" />
+                            : <Car  size={13} className="text-[#FF4C4C]" />}
                           <span className="text-sm text-white/60">{v.vehicleTypeName}</span>
                         </div>
                       </td>
@@ -284,8 +284,8 @@ export default function Vehicles() {
                       </td>
                       <td className="px-4 py-3.5">
                         {v._tab === 'parked' ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#F97316]/10 text-[#F97316]">
-                            <span className="w-1.5 h-1.5 bg-[#F97316] rounded-full animate-pulse" />
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FF4C4C]/10 text-[#FF4C4C]">
+                            <span className="w-1.5 h-1.5 bg-[#FF4C4C] rounded-full animate-pulse" />
                             Đang đỗ
                           </span>
                         ) : (

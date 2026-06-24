@@ -7,13 +7,18 @@ const AuthPage            = lazy(() => import('./pages/AuthPage'));
 const VerifyEmailPage     = lazy(() => import('./pages/VerifyEmailPage'));
 const ForgotPasswordPage  = lazy(() => import('./pages/ForgotPasswordPage'));
 
-const AdminLayout      = lazy(() => import('./pages/Admin/AdminLayout'));
-const AdminDashboard   = lazy(() => import('./pages/Admin/Dashboard'));
-const AdminParkingLots = lazy(() => import('./pages/Admin/ParkingLots'));
-const AdminVehicles    = lazy(() => import('./pages/Admin/Vehicles'));
-const AdminUsers       = lazy(() => import('./pages/Admin/Users'));
-const AdminReports     = lazy(() => import('./pages/Admin/Reports'));
-const AdminSettings    = lazy(() => import('./pages/Admin/Settings'));
+const AdminLayout       = lazy(() => import('./pages/Admin/AdminLayout'));
+const AdminDashboard    = lazy(() => import('./pages/Admin/Dashboard'));
+const AdminParkingLots  = lazy(() => import('./pages/Admin/ParkingLots'));
+const AdminVehicles     = lazy(() => import('./pages/Admin/Vehicles'));
+const AdminUsers        = lazy(() => import('./pages/Admin/Users'));
+const AdminReports      = lazy(() => import('./pages/Admin/Reports'));
+const AdminSettings     = lazy(() => import('./pages/Admin/Settings'));
+const AdminRefunds      = lazy(() => import('./pages/Admin/Refunds'));
+const AdminPricing      = lazy(() => import('./pages/Admin/Pricing'));
+const AdminSessions     = lazy(() => import('./pages/Admin/Sessions'));
+const AdminReservations = lazy(() => import('./pages/Admin/Reservations'));
+const AdminVehicleTypes = lazy(() => import('./pages/Admin/VehicleTypes'));
 
 const ManagerLayout       = lazy(() => import('./pages/Manager/ManagerLayout'));
 const ManagerDashboard    = lazy(() => import('./pages/Manager/Dashboard'));
@@ -23,11 +28,23 @@ const ManagerPricing      = lazy(() => import('./pages/Manager/Pricing'));
 const ManagerSessions     = lazy(() => import('./pages/Manager/Sessions'));
 const ManagerReports      = lazy(() => import('./pages/Manager/Reports'));
 const ManagerReservations = lazy(() => import('./pages/Manager/Reservations'));
+const ManagerStaff        = lazy(() => import('./pages/Manager/Staff'));
+const ManagerRefunds      = lazy(() => import('./pages/Manager/Refunds'));
 
 const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
+const StaffLayout      = lazy(() => import('./pages/Staff/StaffLayout'));
+const StaffDashboard   = lazy(() => import('./pages/Staff/Dashboard'));
+const StaffSlotList    = lazy(() => import('./pages/Staff/SlotList'));
+const StaffReservations = lazy(() => import('./pages/Staff/Reservations'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
-const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
+const FindParkingPage  = lazy(() => import('./pages/User/FindParkingPage'));
 const MyTicketPage     = lazy(() => import('./pages/User/MyTicketPage'));
+const ProfilePage      = lazy(() => import('./pages/User/ProfilePage'));
+const MyVehiclePage    = lazy(() => import('./pages/User/MyVehiclePage'));
+const PaymentResultPage= lazy(() => import('./pages/User/PaymentResult'));
+const LiveSessionPage  = lazy(() => import('./pages/User/LiveSessionPage'));
+const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
+const WalletPage       = lazy(() => import('./pages/User/WalletPage'));
 
 export default function App() {
   return (
@@ -35,8 +52,16 @@ export default function App() {
       <Suspense fallback={<div className="loading-screen" />}>
         <Routes>
           <Route path="/" element={<UserLandingPage />} />
-          <Route path="/booking" element={<BookingPage />} />
-          <Route path="/myticket" element={<ProtectedRoute element={<MyTicketPage />} />} />
+          <Route path="/find-parking" element={<FindParkingPage />} />
+          <Route path="/booking" element={<ProtectedRoute element={<BookingPage />} />} />
+          <Route path="/my-tickets" element={<ProtectedRoute element={<MyTicketPage />} />} />
+          <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
+          <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
+          <Route path="/live-session" element={<ProtectedRoute element={<LiveSessionPage />} />} />
+          <Route path="/wallet" element={<ProtectedRoute element={<WalletPage />} />} />
+          <Route path="/payment-result" element={<PaymentResultPage />} />
+          <Route path="/payment-success" element={<PaymentResultPage />} />
+          <Route path="/payment-cancel" element={<PaymentResultPage />} />
           <Route path="/auth" element={<AuthPage />} />
           <Route path="/verify-email" element={<VerifyEmailPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -52,6 +77,11 @@ export default function App() {
             <Route path="users"        element={<AdminUsers />} />
             <Route path="reports"      element={<AdminReports />} />
             <Route path="settings"     element={<AdminSettings />} />
+            <Route path="refunds"       element={<AdminRefunds />} />
+            <Route path="pricing"       element={<AdminPricing />} />
+            <Route path="sessions"      element={<AdminSessions />} />
+            <Route path="reservations"  element={<AdminReservations />} />
+            <Route path="vehicle-types" element={<AdminVehicleTypes />} />
           </Route>
 
           {/* Manager Portal - chỉ Manager */}
@@ -63,12 +93,24 @@ export default function App() {
             <Route path="parking-lots" element={<ManagerParkingLots />} />
             <Route path="vehicles"     element={<ManagerVehicleTypes />} />
             <Route path="pricing"      element={<ManagerPricing />} />
+            <Route path="staff"         element={<ManagerStaff />} />
             <Route path="sessions"      element={<ManagerSessions />} />
             <Route path="reservations"  element={<ManagerReservations />} />
             <Route path="reports"       element={<ManagerReports />} />
+            <Route path="refunds"       element={<ManagerRefunds />} />
           </Route>
 
-          {/* Gate Control - chỉ Staff (standalone) */}
+          {/* Staff Portal */}
+          <Route
+            path="/staff"
+            element={<ProtectedRoute element={<StaffLayout />} requiredRoles={["Staff"]} />}
+          >
+            <Route index element={<StaffDashboard />} />
+            <Route path="slots" element={<StaffSlotList />} />
+            <Route path="reservations" element={<StaffReservations />} />
+          </Route>
+
+          {/* Gate Control - Staff standalone */}
           <Route
             path="/gate-control"
             element={<ProtectedRoute element={<GateControlPage />} requiredRoles={["Staff"]} />}

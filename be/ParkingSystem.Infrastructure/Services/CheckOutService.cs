@@ -12,25 +12,23 @@ namespace ParkingSystem.Infrastructure.Services;
 public class CheckOutService : ICheckOutService
 {
     private readonly ApplicationDbContext _context;
-    // Từ nhánh dev: nhận diện biển số bằng AI pipeline
     private readonly ILicensePlateRecognizer _lprService;
-    private readonly IRealtimeService _realtimeService;
-    // Từ HEAD: xử lý thanh toán PayOS và logging
     private readonly IPaymentService _paymentService;
     private readonly ILogger<CheckOutService> _logger;
+    private readonly IRealtimeService _realtimeService;
 
     public CheckOutService(
         ApplicationDbContext context,
         ILicensePlateRecognizer lprService,
-        IRealtimeService realtimeService,
         IPaymentService paymentService,
-        ILogger<CheckOutService> logger)
+        ILogger<CheckOutService> logger,
+        IRealtimeService realtimeService)
     {
         _context = context;
         _lprService = lprService;
-        _realtimeService = realtimeService;
         _paymentService = paymentService;
         _logger = logger;
+        _realtimeService = realtimeService;
     }
 
     public async Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
@@ -41,6 +39,7 @@ public class CheckOutService : ICheckOutService
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
+            .Include(s => s.Reservation)
             .Where(s => s.Status == SessionStatus.Active)
             .ToListAsync();
 
@@ -80,6 +79,21 @@ public class CheckOutService : ICheckOutService
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
 
+        if (session.ReservationId != null && session.Reservation != null)
+        {
+            if (exitTime <= session.Reservation.EndTime)
+            {
+                priceResult.TotalFee = 0;
+                priceResult.FeeBreakdown = null;
+            }
+            else
+            {
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true);
+                priceResult.TotalFee = overdueResult.TotalFee;
+                priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
+            }
+        }
+
         return new CheckOutSearchResult
         {
             SessionId = session.Id,
@@ -107,6 +121,7 @@ public class CheckOutService : ICheckOutService
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
+            .Include(s => s.Reservation)
             .FirstOrDefaultAsync(s => s.Id == request.SessionId && s.Status == SessionStatus.Active);
 
         if (session == null)
@@ -140,6 +155,21 @@ public class CheckOutService : ICheckOutService
 
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+
+        if (session.ReservationId != null && session.Reservation != null)
+        {
+            if (exitTime <= session.Reservation.EndTime)
+            {
+                priceResult.TotalFee = 0;
+                priceResult.FeeBreakdown = null;
+            }
+            else
+            {
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true);
+                priceResult.TotalFee = overdueResult.TotalFee;
+                priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
+            }
+        }
 
         // Neu la PayOS, kiem tra payment da duoc xu ly chua
         if (request.PaymentMethod == PaymentMethod.PayOS)
@@ -194,7 +224,26 @@ public class CheckOutService : ICheckOutService
             psSlot.UpdatedAt = exitTime;
             _context.Entry(psSlot).State = EntityState.Modified;
 
+            if (session.Reservation != null)
+            {
+                session.Reservation.Status = ReservationStatus.Completed;
+                session.Reservation.UpdatedAt = exitTime;
+                
+                _context.ReservationLogs.Add(new ReservationLog
+                {
+                    Id = Guid.NewGuid(),
+                    ReservationId = session.Reservation.Id,
+                    Action = "CheckOut",
+                    StatusSnapshot = ReservationStatus.Completed,
+                    Note = "Tài xế đã hoàn thành chuyến đi và rời bãi",
+                    CreatedAt = exitTime
+                });
+            }
+
             await _context.SaveChangesAsync();
+
+            await _realtimeService.SendSlotStatusUpdateAsync(psSlot.Id, psSlot.Status.ToString());
+            await _realtimeService.SendDashboardUpdateAsync();
 
             return new CheckOutConfirmResponse
             {
@@ -253,8 +302,27 @@ public class CheckOutService : ICheckOutService
         slot.UpdatedAt = exitTime;
         _context.Entry(slot).State = EntityState.Modified;
 
+        if (session.Reservation != null)
+        {
+            session.Reservation.Status = ReservationStatus.Completed;
+            session.Reservation.UpdatedAt = exitTime;
+            
+            _context.ReservationLogs.Add(new ReservationLog
+            {
+                Id = Guid.NewGuid(),
+                ReservationId = session.Reservation.Id,
+                Action = "CheckOut",
+                StatusSnapshot = ReservationStatus.Completed,
+                Note = "Tài xế đã hoàn thành chuyến đi và rời bãi",
+                CreatedAt = exitTime
+            });
+        }
+
         _context.Payments.Add(payment);
         await _context.SaveChangesAsync();
+
+        await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+        await _realtimeService.SendDashboardUpdateAsync();
 
         decimal? changeAmount = null;
         if (request.PaymentMethod == PaymentMethod.Cash && request.PaymentAmount.HasValue)
@@ -302,6 +370,7 @@ public class CheckOutService : ICheckOutService
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
+            .Include(s => s.Reservation)
             .Where(s => s.Status == SessionStatus.Active)
             .ToListAsync();
 
@@ -344,6 +413,21 @@ public class CheckOutService : ICheckOutService
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
 
+        if (session.ReservationId != null && session.Reservation != null)
+        {
+            if (exitTime <= session.Reservation.EndTime)
+            {
+                priceResult.TotalFee = 0;
+                priceResult.FeeBreakdown = null;
+            }
+            else
+            {
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true);
+                priceResult.TotalFee = overdueResult.TotalFee;
+                priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
+            }
+        }
+
         var matchStatus = isMatch ? "KHỚP" : "KHÔNG KHỚP";
         var warningMsg = isMatch
             ? ""
@@ -382,6 +466,7 @@ public class CheckOutService : ICheckOutService
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
+            .Include(s => s.Reservation)
             .FirstOrDefaultAsync(s => s.Id == sessionId && s.Status == SessionStatus.Active);
 
         if (session == null)
@@ -391,6 +476,21 @@ public class CheckOutService : ICheckOutService
 
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+
+        if (session.ReservationId != null && session.Reservation != null)
+        {
+            if (exitTime <= session.Reservation.EndTime)
+            {
+                priceResult.TotalFee = 0;
+                priceResult.FeeBreakdown = null;
+            }
+            else
+            {
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true);
+                priceResult.TotalFee = overdueResult.TotalFee;
+                priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
+            }
+        }
 
         return new CheckOutSearchResult
         {
@@ -413,210 +513,98 @@ public class CheckOutService : ICheckOutService
         };
     }
 
-    private async Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime)
+    private async Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime, bool isOverdue = false)
     {
-        var priceSetting = await _context.PriceSettings
-            .FirstOrDefaultAsync(p => p.VehicleTypeId == vehicleTypeId);
-
         var pricingPolicy = await _context.PricingPolicies
             .FirstOrDefaultAsync(p => p.VehicleTypeId == vehicleTypeId);
 
-        if (priceSetting != null)
+        if (pricingPolicy == null)
         {
-            if ((exitTime - entryTime).TotalMinutes <= priceSetting.GracePeriodMinutes)
-            {
-                return new PriceCalculationResult
-                {
-                    TotalHours = (exitTime - entryTime).TotalHours,
-                    TotalFee = 0,
-                    PricingModel = "GracePeriod",
-                    HourlyRate = 0,
-                    DayPassPrice = priceSetting.DayPassPrice,
-                    NightPassPrice = priceSetting.NightPassPrice,
-                    DailyMaxPrice = priceSetting.DailyMaxPrice,
-                    FeeBreakdown = null
-                };
-            }
-            return CalculateDayNightFee(priceSetting, entryTime, exitTime);
+            throw new InvalidOperationException("Khong tim thay bang gia (Pricing Policy) cho loai xe nay.");
         }
 
-        if (pricingPolicy != null)
+        var duration = exitTime - entryTime;
+        if (duration.TotalMinutes <= 0)
         {
-            if ((exitTime - entryTime).TotalMinutes <= pricingPolicy.GracePeriodMinutes)
-            {
-                return new PriceCalculationResult
-                {
-                    TotalHours = (exitTime - entryTime).TotalHours,
-                    TotalFee = 0,
-                    PricingModel = "GracePeriod",
-                    HourlyRate = pricingPolicy.HourlyRate,
-                    DayPassPrice = null,
-                    NightPassPrice = null,
-                    DailyMaxPrice = pricingPolicy.DailyMaxRate,
-                    FeeBreakdown = null
-                };
-            }
-
-            // Bỏ qua phần giây lẻ (Floor) để tránh lỗi làm tròn sai (VD: 120 phút 5 giây bị tính thành 3 tiếng)
-            var totalMinutes = Math.Floor((exitTime - entryTime).TotalMinutes);
-            var totalHours = totalMinutes / 60.0;
-            decimal totalFee = 0;
-            
-            if (pricingPolicy.DailyMaxRate > 0)
-            {
-                int full24hDays = (int)Math.Floor(totalHours / 24);
-                decimal base24hFee = full24hDays * pricingPolicy.DailyMaxRate;
-                
-                var remainingMinutes = totalMinutes - (full24hDays * 24 * 60);
-                decimal remainderFee = 0;
-                
-                if (remainingMinutes > 0)
-                {
-                    if (pricingPolicy.BlockMinutes > 0 && remainingMinutes <= pricingPolicy.BlockMinutes)
-                    {
-                        remainderFee = pricingPolicy.BlockPrice;
-                    }
-                    else
-                    {
-                        var extraMinutes = remainingMinutes;
-                        if (pricingPolicy.BlockMinutes > 0)
-                        {
-                            remainderFee = pricingPolicy.BlockPrice;
-                            extraMinutes -= pricingPolicy.BlockMinutes;
-                        }
-                        
-                        var extraHours = Math.Ceiling(extraMinutes / 60.0);
-                        remainderFee += (decimal)extraHours * pricingPolicy.HourlyRate;
-                    }
-                    
-                    if (remainderFee > pricingPolicy.DailyMaxRate)
-                        remainderFee = pricingPolicy.DailyMaxRate;
-                }
-                
-                totalFee = base24hFee + remainderFee;
-            }
-            else
-            {
-                if (totalMinutes > 0)
-                {
-                    if (pricingPolicy.BlockMinutes > 0 && totalMinutes <= pricingPolicy.BlockMinutes)
-                    {
-                        totalFee = pricingPolicy.BlockPrice;
-                    }
-                    else
-                    {
-                        var extraMinutes = totalMinutes;
-                        if (pricingPolicy.BlockMinutes > 0)
-                        {
-                            totalFee = pricingPolicy.BlockPrice;
-                            extraMinutes -= pricingPolicy.BlockMinutes;
-                        }
-                        
-                        var extraHours = Math.Ceiling(extraMinutes / 60.0);
-                        totalFee += (decimal)extraHours * pricingPolicy.HourlyRate;
-                    }
-                }
-            }
-
             return new PriceCalculationResult
             {
-                TotalHours = totalHours,
-                TotalFee = totalFee,
-                PricingModel = "Hourly",
-                HourlyRate = pricingPolicy.HourlyRate,
-                DayPassPrice = null,
-                NightPassPrice = null,
-                DailyMaxPrice = pricingPolicy.DailyMaxRate,
+                TotalHours = 0,
+                TotalFee = 0,
+                PricingModel = "BlockDayNight",
+                HourlyRate = 0,
+                DailyMaxPrice = pricingPolicy.DailyRate,
                 FeeBreakdown = null
             };
         }
 
-        throw new InvalidOperationException("Khong tim thay bang gia cho loai xe nay.");
-    }
-
-    private PriceCalculationResult CalculateDayNightFee(PriceSetting setting, DateTime entryTime, DateTime exitTime)
-    {
-        var dayStart = setting.DayStartHour;
-        var nightStart = setting.NightStartHour;
-
-        int dayPassCount = 0;
-        int nightPassCount = 0;
+        double totalHours = duration.TotalHours;
         decimal totalFee = 0;
-        decimal base24hFee = 0;
 
-        DateTime calculationStart = entryTime;
-        int full24hDays = 0;
+        int dayBlockCount = 0;
+        int nightBlockCount = 0;
 
-        // FIX: Tính trần (cap) theo từng block 24h
-        if (setting.DailyMaxPrice > 0)
+        // Vòng lặp duyệt qua từng block
+        var currentMilli = entryTime;
+        var blockTimeSpan = TimeSpan.FromHours(pricingPolicy.BlockDurationHours > 0 ? pricingPolicy.BlockDurationHours : 4);
+
+        while (currentMilli < exitTime)
         {
-            full24hDays = (int)Math.Floor((exitTime - entryTime).TotalHours / 24);
-            base24hFee = full24hDays * setting.DailyMaxPrice;
-            calculationStart = entryTime.AddDays(full24hDays);
-        }
+            // Lấy giờ hiện tại theo Local (vì CSDL/Yêu cầu tính Day/Night dựa trên giờ địa phương - UTC+7 ở VN, hoặc giả định currentMilli đang lưu UTC thì phải cẩn thận)
+            // LƯU Ý: entryTime lưu ở DB là UTC. Để check giờ Day/Night đúng chuẩn Việt Nam, ta nên đổi sang local hoặc cộng 7.
+            // Để an toàn, giả định hệ thống dùng UTC, giờ đêm 22h -> 6h tính theo giờ VN thì UTC sẽ là 15h -> 23h.
+            // Tuy nhiên, để linh hoạt, ta convert sang múi giờ VN (SE Asia Standard Time) để check số giờ thực tế:
+            var currentVnTime = TimeZoneInfo.ConvertTimeFromUtc(currentMilli, TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time"));
+            var currentHour = currentVnTime.Hour;
 
-        DateTime currentTime = calculationStart;
-        while (currentTime < exitTime)
-        {
-            DateTime blockEnd;
-            bool isDay;
+            bool isNight = currentHour >= pricingPolicy.NightStartHour || currentHour < pricingPolicy.NightEndHour;
 
-            // Kiểm tra xem currentTime đang nằm trong block Ngày hay block Đêm
-            if (currentTime.TimeOfDay.TotalHours >= dayStart && currentTime.TimeOfDay.TotalHours < nightStart)
+            if (isNight)
             {
-                isDay = true;
-                // Nếu đang ban ngày, block này sẽ kết thúc khi bắt đầu giờ ban đêm hôm nay
-                blockEnd = currentTime.Date.AddHours(nightStart);
+                totalFee += pricingPolicy.NightBlockRate;
+                nightBlockCount++;
             }
             else
             {
-                isDay = false;
-                if (currentTime.TimeOfDay.TotalHours < dayStart)
-                {
-                    // Từ nửa đêm đến sáng (VD 0h-6h), block đêm kết thúc vào sáng hôm nay
-                    blockEnd = currentTime.Date.AddHours(dayStart);
-                }
-                else
-                {
-                    // Từ tối đến khuya (VD 18h-24h), block đêm vắt qua sáng ngày hôm sau
-                    blockEnd = currentTime.Date.AddDays(1).AddHours(dayStart);
-                }
+                totalFee += pricingPolicy.DayBlockRate;
+                dayBlockCount++;
             }
 
-            if (isDay) dayPassCount++;
-            else nightPassCount++;
-
-            currentTime = blockEnd;
+            currentMilli = currentMilli.Add(blockTimeSpan);
         }
 
-        var dayPassTotal = dayPassCount * setting.DayPassPrice;
-        var nightPassTotal = nightPassCount * setting.NightPassPrice;
-        var remainderFee = dayPassTotal + nightPassTotal;
-
-        // Cắt trần (cap) số tiền dư còn lại
-        if (setting.DailyMaxPrice > 0 && remainderFee > setting.DailyMaxPrice)
+        // Kiểm tra trần theo ngày (Daily Rate)
+        int durationDays = (int)Math.Floor(totalHours / 24.0);
+        if (pricingPolicy.DailyRate > 0)
         {
-            remainderFee = setting.DailyMaxPrice;
+            if (durationDays > 0)
+            {
+                decimal capFee = (durationDays + 1) * pricingPolicy.DailyRate;
+                if (totalFee > capFee) totalFee = capFee;
+            }
+            else if (totalFee > pricingPolicy.DailyRate)
+            {
+                totalFee = pricingPolicy.DailyRate;
+            }
         }
 
-        totalFee = base24hFee + remainderFee;
-        var totalHours = (exitTime - entryTime).TotalHours;
+        if (isOverdue && pricingPolicy.OvertimeMultiplier > 0)
+        {
+            totalFee *= pricingPolicy.OvertimeMultiplier;
+        }
 
         return new PriceCalculationResult
         {
             TotalHours = totalHours,
             TotalFee = totalFee,
-            PricingModel = "DayNight",
-            HourlyRate = 0,
-            DayPassPrice = setting.DayPassPrice,
-            NightPassPrice = setting.NightPassPrice,
-            DailyMaxPrice = setting.DailyMaxPrice,
+            PricingModel = "BlockDayNight",
+            HourlyRate = 0, // Không dùng Hourly
+            DailyMaxPrice = pricingPolicy.DailyRate,
             FeeBreakdown = new FeeBreakdownDto
             {
-                DayPassCount = dayPassCount,
-                NightPassCount = nightPassCount,
-                DayPassTotal = dayPassTotal,
-                NightPassTotal = nightPassTotal,
+                DayPassCount = dayBlockCount,
+                NightPassCount = nightBlockCount,
+                DayPassTotal = dayBlockCount * pricingPolicy.DayBlockRate,
+                NightPassTotal = nightBlockCount * pricingPolicy.NightBlockRate,
                 TotalFee = totalFee
             }
         };

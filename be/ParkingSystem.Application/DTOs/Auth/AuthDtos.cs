@@ -27,6 +27,7 @@ public class AuthResponse
     public string? Email { get; set; }
     public string DriverCode { get; set; } = string.Empty;
     public string? QrCodeImageBase64 { get; set; }
+    public Guid? AssignedBuildingId { get; set; }
 }
 
 
@@ -61,6 +62,7 @@ public class ProfileResponse
     public string? PhoneNumber { get; set; }
     public string DriverCode { get; set; } = string.Empty;
     public string? QrCodeImageBase64 { get; set; }
+    public Guid? AssignedBuildingId { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 

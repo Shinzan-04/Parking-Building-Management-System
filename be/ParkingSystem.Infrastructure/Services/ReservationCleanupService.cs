@@ -89,9 +89,9 @@ public class ReservationCleanupService : BackgroundService
         // ===== RULE 2: PendingReview > 30 phút → Rejected + Refund =====
         var expiredReview = await context.Reservations
             .Where(r => r.Status == ReservationStatus.PendingReview
-                     && r.UpdatedAt.HasValue
+                     && (r.UpdatedAt.HasValue
                         ? r.UpdatedAt.Value.AddMinutes(ReviewTimeoutMinutes) < now
-                        : r.CreatedAt.AddMinutes(ReviewTimeoutMinutes) < now)
+                        : r.CreatedAt.AddMinutes(ReviewTimeoutMinutes) < now))
             .ToListAsync();
 
         foreach (var reservation in expiredReview)
@@ -138,8 +138,47 @@ public class ReservationCleanupService : BackgroundService
             noShowCount++;
         }
 
+        // ===== RULE 4: Khóa Slot cho xe sắp đến (trước 30 phút) =====
+        var upcomingReservations = await context.Reservations
+            .Where(r => r.Status == ReservationStatus.Confirmed
+                     && r.StartTime <= now.AddMinutes(30)
+                     && r.StartTime >= now.AddMinutes(-30)) // Không lấy quá khứ xa
+            .ToListAsync();
+
+        int lockedCount = 0;
+        foreach (var reservation in upcomingReservations)
+        {
+            var slot = await context.ParkingSlots.FindAsync(reservation.ParkingSlotId);
+            if (slot != null)
+            {
+                if (slot.Status == SlotStatus.Available)
+                {
+                    // Chỗ trống -> Khóa lại an toàn
+                    slot.Status = SlotStatus.Reserved;
+                    slot.UpdatedAt = now;
+                    lockedCount++;
+
+                    // Bắn SignalR cập nhật UI nếu có IRealtimeService
+                    var realtimeService = scope.ServiceProvider.GetService<Application.Interfaces.IRealtimeService>();
+                    if (realtimeService != null)
+                    {
+                        await realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
+                    }
+                }
+                else if (slot.Status == SlotStatus.Occupied || slot.Status == SlotStatus.TemporaryHeld)
+                {
+                    // CHỖ ĐANG BỊ KẸT (Occupied/TemporaryHeld) -> Báo động cho Staff
+                    var realtimeService = scope.ServiceProvider.GetService<Application.Interfaces.IRealtimeService>();
+                    if (realtimeService != null)
+                    {
+                        await realtimeService.BroadcastNotificationToStaffAsync($"[BÁO ĐỘNG] Ô đỗ {slot.SlotNumber} đã được đặt trước bởi biển số {reservation.LicensePlate} (sắp tới giờ) nhưng hiện đang có xe khác đỗ. Vui lòng xử lý!");
+                    }
+                }
+            }
+        }
+
         // Lưu tất cả thay đổi
-        var totalChanged = cancelledCount + rejectedCount + noShowCount;
+        var totalChanged = cancelledCount + rejectedCount + noShowCount + lockedCount;
         if (totalChanged > 0)
         {
             // Ghi log cho tất cả các thay đổi
@@ -175,11 +214,11 @@ public class ReservationCleanupService : BackgroundService
                     var (title, body) = reservation.Status switch
                     {
                         ReservationStatus.Cancelled => (
-                            "⏰ Đặt chỗ bị hủy — Hết hạn thanh toán",
+                            "Đặt chỗ bị hủy — Hết hạn thanh toán",
                             $"Đặt chỗ {reservation.BookingCode} đã bị hủy vì không thanh toán trong {PaymentTimeoutMinutes} phút."
                         ),
                         ReservationStatus.Rejected => (
-                            "⏰ Đặt chỗ bị từ chối — Hết thời gian duyệt",
+                            "Đặt chỗ bị từ chối — Hết thời gian duyệt",
                             $"Đặt chỗ {reservation.BookingCode} đã bị từ chối tự động. Tiền sẽ được hoàn lại."
                         ),
                         ReservationStatus.NoShow => (

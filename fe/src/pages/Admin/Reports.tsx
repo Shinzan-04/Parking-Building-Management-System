@@ -52,7 +52,7 @@ function ChartTooltip({ active, payload, label, color, formatter }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[#121214] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
+    <div className="bg-[var(--admin-bg-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
       <p className="text-white/60 mb-1">{label}</p>
       <p className="font-semibold" style={{ color }}>{formatter(payload[0].value)}</p>
     </div>
@@ -112,7 +112,7 @@ export default function AdminReports() {
       ]);
 
       // Nếu có nhiều trang, fetch song song các trang còn lại
-      let allItems = [...firstPage.items];
+      const allItems = [...firstPage.items];
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
@@ -176,7 +176,7 @@ export default function AdminReports() {
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-[#F59E0B] animate-spin" />
+        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
         <p className="text-sm text-white/40">Đang tải báo cáo...</p>
       </div>
     );
@@ -221,10 +221,10 @@ export default function AdminReports() {
       {/* System KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Tài khoản hệ thống', value: totalUsers.toLocaleString('vi-VN'), unit: 'người dùng', icon: Users,     color: '#F59E0B', bg: 'from-[#F59E0B]/20 to-[#F59E0B]/5' },
+          { label: 'Tài khoản hệ thống', value: totalUsers.toLocaleString('vi-VN'), unit: 'người dùng', icon: Users,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
           { label: 'Tòa nhà quản lý',    value: totalBuildings.toLocaleString('vi-VN'), unit: `${totalCapacity} chỗ tổng`, icon: Building2, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-          { label: 'Xe đang đỗ (real-time)', value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% lấp đầy`, icon: Car, color: '#F97316', bg: 'from-[#F97316]/20 to-[#F97316]/5' },
-          { label: 'Doanh thu hôm nay',  value: vnd(todayRevenue),                      unit: todayCompleted + ' lượt · hôm nay', icon: Banknote, color: '#F59E0B', bg: 'from-amber-400/20 to-amber-400/5' },
+          { label: 'Xe đang đỗ (real-time)', value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% lấp đầy`, icon: Car, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'Doanh thu hôm nay',  value: vnd(todayRevenue),                      unit: todayCompleted + ' lượt · hôm nay', icon: Banknote, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
         ].map(card => {
           const Icon = card.icon;
           return (
@@ -268,12 +268,12 @@ export default function AdminReports() {
               <XAxis dataKey="label" tick={{ fill: '#ffffff66', fontSize: 12 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false}
                 tickFormatter={v => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v)} />
-              <Tooltip content={<ChartTooltip color="#F59E0B" formatter={v => `${vnd(v)}đ`} />}
+              <Tooltip content={<ChartTooltip color="#FF4C4C" formatter={v => `${vnd(v)}đ`} />}
                 cursor={{ fill: '#ffffff05' }} />
               <Bar dataKey="revenue" radius={[6,6,0,0]}>
                 {revenueData.map((entry, i) => (
                   <Cell key={i}
-                    fill={entry.revenue === Math.max(...revenueData.map(d => d.revenue)) ? '#F59E0B' : '#F59E0B99'} />
+                    fill={entry.revenue === Math.max(...revenueData.map(d => d.revenue)) ? '#FF4C4C' : '#FF4C4C99'} />
                 ))}
               </Bar>
             </BarChart>
@@ -300,9 +300,9 @@ export default function AdminReports() {
                 <XAxis type="number" tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fill: '#ffffff88', fontSize: 12 }}
                   axisLine={false} tickLine={false} width={80} />
-                <Tooltip content={<ChartTooltip color="#F97316" formatter={v => `${v} lượt`} />}
+                <Tooltip content={<ChartTooltip color="#FF4C4C" formatter={v => `${v} lượt`} />}
                   cursor={{ fill: '#ffffff05' }} />
-                <Bar dataKey="count" fill="#F97316" radius={[0,6,6,0]} />
+                <Bar dataKey="count" fill="#FF4C4C" radius={[0,6,6,0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -334,7 +334,7 @@ export default function AdminReports() {
                   <tr key={s.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors">
                     <td className="px-6 py-3"><span className="font-mono font-semibold text-sm text-white">{s.licensePlate}</span></td>
                     <td className="px-4 py-3">
-                      <span className="text-xs bg-[#F59E0B]/10 text-[#F59E0B] px-2 py-0.5 rounded-full">{s.vehicleTypeName}</span>
+                      <span className="text-xs bg-[#FF4C4C]/10 text-[#FF4C4C] px-2 py-0.5 rounded-full">{s.vehicleTypeName}</span>
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-xs text-white/60">{s.buildingName}</p>
@@ -349,14 +349,14 @@ export default function AdminReports() {
                     <td className="px-4 py-3">
                       {s.exitTime ? (
                         <div className="flex items-center gap-1.5 text-xs text-white/60">
-                          <CheckCircle2 size={11} className="text-[#F97316]" />
+                          <CheckCircle2 size={11} className="text-[#FF4C4C]" />
                           {new Date(s.exitTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       ) : <span className="text-white/30 text-sm">—</span>}
                     </td>
                     <td className="px-4 py-3"><span className="text-xs text-white/60">{s.duration || '—'}</span></td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 text-sm font-semibold text-[#F59E0B]">
+                      <div className="flex items-center gap-1 text-sm font-semibold text-[#FF4C4C]">
                         <ArrowUpRight size={13} />{vnd(s.totalFee)}đ
                       </div>
                     </td>

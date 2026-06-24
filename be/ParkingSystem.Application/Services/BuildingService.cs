@@ -48,6 +48,10 @@ public class BuildingService : IBuildingService
         building.Name = request.Name;
         building.Address = request.Address;
         building.TotalCapacity = request.TotalCapacity;
+        if (request.ApprovalMode.HasValue)
+        {
+            building.ApprovalMode = request.ApprovalMode.Value;
+        }
         building.UpdatedAt = DateTime.UtcNow;
 
         await _repository.UpdateAsync(building);
@@ -70,6 +74,7 @@ public class BuildingService : IBuildingService
         Address = b.Address,
         TotalCapacity = b.TotalCapacity,
         FloorCount = b.Floors?.Count ?? 0,
+        ApprovalMode = b.ApprovalMode,
         CreatedAt = b.CreatedAt
     };
 }

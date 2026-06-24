@@ -25,22 +25,22 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
-export type SessionStatus   = 'Active' | 'Completed' | 'Overdue';
-export type CheckInMethod   = 'WalkIn' | 'Booking';
-export type IssueType       = 'None' | 'LostTicket' | 'WrongPlate' | 'WrongSlot' | 'Unpaid';
+export type SessionStatus = 'Active' | 'Completed' | 'Overdue';
+export type CheckInMethod = 'WalkIn' | 'Booking';
+export type IssueType = 'None' | 'LostTicket' | 'WrongPlate' | 'WrongSlot' | 'Unpaid';
 
 export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
-  Active:    'Đang đỗ',
+  Active: 'Đang đỗ',
   Completed: 'Đã ra',
-  Overdue:   'Quá giờ',
+  Overdue: 'Quá giờ',
 };
 
 export const ISSUE_TYPE_LABELS: Record<IssueType, string> = {
-  None:        'Bình thường',
-  LostTicket:  'Mất vé',
-  WrongPlate:  'Sai biển số',
-  WrongSlot:   'Sai khu vực',
-  Unpaid:      'Chưa thanh toán',
+  None: 'Bình thường',
+  LostTicket: 'Mất vé',
+  WrongPlate: 'Sai biển số',
+  WrongSlot: 'Sai khu vực',
+  Unpaid: 'Chưa thanh toán',
 };
 
 export interface SessionDto {
@@ -71,6 +71,29 @@ export interface SessionSummary {
   totalRevenueToday: number;
 }
 
+export interface MyActiveSessionResponse {
+  id: string;
+  sessionCode: string;
+  sessionQrCodeBase64: string;
+  licensePlate: string;
+  vehicleTypeName: string;
+  entryTime: string;
+  buildingName: string;
+  floorName: string;
+  slotNumber: string;
+  pricePerHour: number;
+  currentFee: number;
+  isPrepaid: boolean;
+  prepaidStartTime?: string;
+  prepaidEndTime?: string;
+  surchargeLogs?: {
+    name: string;
+    timestamp: string;
+    amount: number;
+  }[];
+}
+
+
 export interface SessionListResponse {
   items: SessionDto[];
   totalCount: number;
@@ -96,13 +119,13 @@ export interface SessionFilterParams {
 function buildQueryString(params: SessionFilterParams): string {
   const q = new URLSearchParams();
   if (params.licensePlate) q.set('licensePlate', params.licensePlate);
-  if (params.status)       q.set('status', params.status);
-  if (params.buildingId)   q.set('buildingId', params.buildingId);
-  if (params.floorId)      q.set('floorId', params.floorId);
-  if (params.fromDate)     q.set('fromDate', params.fromDate);
-  if (params.toDate)       q.set('toDate', params.toDate);
-  if (params.page)         q.set('page', String(params.page));
-  if (params.pageSize)     q.set('pageSize', String(params.pageSize));
+  if (params.status) q.set('status', params.status);
+  if (params.buildingId) q.set('buildingId', params.buildingId);
+  if (params.floorId) q.set('floorId', params.floorId);
+  if (params.fromDate) q.set('fromDate', params.fromDate);
+  if (params.toDate) q.set('toDate', params.toDate);
+  if (params.page) q.set('page', String(params.page));
+  if (params.pageSize) q.set('pageSize', String(params.pageSize));
   return q.toString() ? `?${q.toString()}` : '';
 }
 
@@ -121,3 +144,15 @@ export const getSessionById = (id: string, token: string): Promise<SessionDto> =
 /** Tìm session Active theo biển số */
 export const findSessionByPlate = (plate: string, token: string): Promise<SessionDto | null> =>
   apiFetch(`/api/sessions/find-by-plate?plate=${encodeURIComponent(plate)}`, undefined, token);
+
+/** Lấy Live Session (phiên đang đỗ) của User/Driver */
+export const getMyActiveSession = (token: string): Promise<MyActiveSessionResponse | null> =>
+  apiFetch(`/api/sessions/my-active`, undefined, token);
+
+/** [DEV ONLY] Tua thời gian để kiểm tra phí */
+export const devFastForwardTime = (minutes: number, token: string): Promise<{ message: string }> =>
+  apiFetch(`/api/sessions/dev/fast-forward?minutes=${minutes}`, { method: 'POST' }, token);
+
+/** [DEV ONLY] Reset thời gian đỗ về hiện tại */
+export const devResetTime = (token: string): Promise<{ message: string }> =>
+  apiFetch(`/api/sessions/dev/reset-time`, { method: 'POST' }, token);

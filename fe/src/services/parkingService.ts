@@ -8,10 +8,11 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
 // ─── Enums (khớp với backend ParkingEnums.cs) ─────────────────────────────────
 
-export type SlotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
+export type SlotStatus = 'Available' | 'TemporaryHeld' | 'Reserved' | 'Occupied' | 'Maintenance';
 
 export const SLOT_STATUS_LABELS: Record<SlotStatus, string> = {
   Available:   'Còn trống',
+  TemporaryHeld: 'Đang giữ chỗ',
   Occupied:    'Đang sử dụng',
   Reserved:    'Đã đặt trước',
   Maintenance: 'Bảo trì',
@@ -19,6 +20,7 @@ export const SLOT_STATUS_LABELS: Record<SlotStatus, string> = {
 
 export const SLOT_STATUS_COLORS: Record<SlotStatus, { bg: string; text: string; dot: string }> = {
   Available:   { bg: 'bg-[#3BFFA4]/10', text: 'text-[#3BFFA4]',  dot: 'bg-[#3BFFA4]' },
+  TemporaryHeld: { bg: 'bg-purple-400/10', text: 'text-purple-400', dot: 'bg-purple-400' },
   Occupied:    { bg: 'bg-[#00C2FF]/10', text: 'text-[#00C2FF]',  dot: 'bg-[#00C2FF]' },
   Reserved:    { bg: 'bg-amber-400/10', text: 'text-amber-400',   dot: 'bg-amber-400' },
   Maintenance: { bg: 'bg-red-400/10',   text: 'text-red-400',     dot: 'bg-red-400' },
@@ -64,16 +66,18 @@ export interface SlotRecommendation {
 
 export const SLOT_STATUS_ENUM: Record<SlotStatus, number> = {
   Available:   0,
-  Occupied:    1,
+  TemporaryHeld: 1,
   Reserved:    2,
-  Maintenance: 3,
+  Occupied:    3,
+  Maintenance: 4,
 };
 
 export const SLOT_STATUS_FROM_ENUM: Record<number, SlotStatus> = {
   0: 'Available',
-  1: 'Occupied',
+  1: 'TemporaryHeld',
   2: 'Reserved',
-  3: 'Maintenance',
+  3: 'Occupied',
+  4: 'Maintenance',
 };
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
@@ -108,12 +112,18 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
 // ─── ParkingSlots API ─────────────────────────────────────────────────────────
 
 /** Lấy tất cả slots */
-export const getAllSlots = (): Promise<ParkingSlotDetail[]> =>
-  apiFetch('/api/parkingslots');
+export const getAllSlots = (buildingId?: string): Promise<ParkingSlotDetail[]> => {
+  const query = buildingId ? `?buildingId=${buildingId}` : '';
+  return apiFetch(`/api/parkingslots${query}`);
+};
 
-/** Lấy slots theo tầng */
+/** Lấy slots theo tầng (thực tế - vật lý) */
 export const getSlotsByFloor = (floorId: string): Promise<ParkingSlotDetail[]> =>
   apiFetch(`/api/parkingslots/floor/${floorId}`);
+
+/** Lấy slots theo tầng có tính toán đặt chỗ tương lai */
+export const getAvailableSlotsByFloor = (floorId: string, startTime: string, endTime: string): Promise<ParkingSlotDetail[]> =>
+  apiFetch(`/api/parkingslots/floor/${floorId}/availability?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}`);
 
 /** Lấy slots còn trống theo loại xe */
 export const getAvailableSlotsByVehicleType = (vehicleTypeId: string): Promise<ParkingSlotDetail[]> =>

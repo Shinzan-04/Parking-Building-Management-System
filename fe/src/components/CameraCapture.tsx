@@ -25,7 +25,7 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
         });
-        
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           streamRef.current = stream;
@@ -68,7 +68,7 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
       if (result) {
         onSuccess(result, imageBase64);
       } else {
-        setError(result?.message || 'No license plate detected. Please try again.');
+        setError('No license plate detected. Please try again.');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to scan plate');
@@ -164,7 +164,7 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
             playsInline
             className="h-full w-full object-cover"
           />
-          
+
           {/* Scanning Frame Overlay */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="relative h-32 w-64 border-2 border-cyan-400 rounded-lg">

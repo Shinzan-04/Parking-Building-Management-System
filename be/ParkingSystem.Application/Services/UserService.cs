@@ -83,6 +83,49 @@ public class UserService : IUserService
         return true;
     }
 
+    public async Task<IEnumerable<UserResponse>> GetStaffByBuildingAsync(Guid buildingId)
+    {
+        var users = await _repository.FindAsync(u => u.AssignedBuildingId == buildingId && u.Role == Domain.Enums.Role.Staff);
+        return users.Select(u => MapToResponse(u));
+    }
+
+    public async Task<bool> AssignStaffToBuildingAsync(Guid staffId, Guid buildingId)
+    {
+        var user = await _repository.GetByIdAsync(staffId);
+        if (user == null || user.Role != Domain.Enums.Role.Staff) return false;
+
+        user.AssignedBuildingId = buildingId;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _repository.UpdateAsync(user);
+        return true;
+    }
+
+    public async Task<bool> UnassignStaffFromBuildingAsync(Guid staffId)
+    {
+        var user = await _repository.GetByIdAsync(staffId);
+        if (user == null) return false;
+
+        user.AssignedBuildingId = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _repository.UpdateAsync(user);
+        return true;
+    }
+
+    public async Task<bool> UnlockAsync(Guid id)
+    {
+        var user = await _repository.GetByIdAsync(id);
+        if (user == null) return false;
+
+        user.FailedLoginCount = 0;
+        user.LockoutEnd = null;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _repository.UpdateAsync(user);
+        return true;
+    }
+
     private static UserResponse MapToResponse(User u) => new()
     {
         Id = u.Id,
@@ -92,6 +135,9 @@ public class UserService : IUserService
         PhoneNumber = u.PhoneNumber,
         Email = u.Email,
         QrCode = u.DriverCode,
-        CreatedAt = u.CreatedAt
+        CreatedAt = u.CreatedAt,
+        AssignedBuildingId = u.AssignedBuildingId,
+        FailedLoginCount = u.FailedLoginCount,
+        LockoutEnd = u.LockoutEnd,
     };
 }

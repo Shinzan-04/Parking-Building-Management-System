@@ -12,10 +12,16 @@ export interface CheckInResult {
   sessionCode: string;
   sessionQrCodeBase64?: string;
   licensePlate: string;
+  checkInMethod: string; // 'Booking' | 'WalkIn'
+  bookingCode?: string | null;
   slotNumber: string;
   floorName: string;
+  buildingName: string;
   vehicleTypeName: string;
   isAIAssigned: boolean;
+  slotScore?: number;
+  slotReason?: string;
+  entryImageUrl?: string;
   entryTime: string;
   message: string;
 }
@@ -59,3 +65,14 @@ export interface BookingCheckInRequest {
 
 export const checkInWithBooking = (payload: BookingCheckInRequest, token: string): Promise<CheckInResult> =>
   authFetch('/api/checkin/booking', token, { method: 'POST', body: JSON.stringify(payload) });
+
+// ★ SMART CHECK-IN — API duy nhất cho cổng vào ★
+export interface SmartCheckInRequest {
+  licensePlate: string;
+  vehicleTypeId: string;
+  entryImageBase64?: string;
+  slotId?: string;
+}
+
+export const smartCheckIn = (payload: SmartCheckInRequest, token: string): Promise<CheckInResult> =>
+  authFetch('/api/checkin/smart', token, { method: 'POST', body: JSON.stringify(payload) });

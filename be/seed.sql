@@ -32,16 +32,11 @@ VALUES
 ('7db80362-1bbb-40e4-b892-ec5879d614fb', 'Xe máy', 'Xe gắn máy 2 bánh', NOW(), false)
 ON CONFLICT ("Id") DO NOTHING;
 
--- 4. CHÈN BẢNG GIÁ & CÀI ĐẶT GIÁ (PRICING)
-INSERT INTO "PricingPolicies" ("Id", "VehicleTypeId", "BlockPrice", "BlockMinutes", "HourlyRate", "DailyMaxRate", "CreatedAt", "IsDeleted")
+-- 4. CHÈN BẢNG GIÁ CƯỚC (PRICING)
+INSERT INTO "PricingPolicies" ("Id", "VehicleTypeId", "BlockDurationHours", "DayBlockRate", "NightBlockRate", "NightStartHour", "NightEndHour", "DailyRate", "OvertimeMultiplier", "CreatedAt", "IsDeleted")
 VALUES 
-(gen_random_uuid(), '6db80362-1bbb-40e4-b892-ec5879d614fa', 20000, 60, 20000, 150000, NOW(), false),
-(gen_random_uuid(), '7db80362-1bbb-40e4-b892-ec5879d614fb', 5000, 60, 5000, 30000, NOW(), false);
-
-INSERT INTO "PriceSettings" ("Id", "VehicleTypeId", "DayPassPrice", "NightPassPrice", "DailyMaxPrice", "DayStartHour", "NightStartHour", "CreatedAt", "IsDeleted")
-VALUES 
-(gen_random_uuid(), '6db80362-1bbb-40e4-b892-ec5879d614fa', 100000, 50000, 150000, 6, 18, NOW(), false),
-(gen_random_uuid(), '7db80362-1bbb-40e4-b892-ec5879d614fb', 20000, 10000, 30000, 6, 18, NOW(), false);
+(gen_random_uuid(), '6db80362-1bbb-40e4-b892-ec5879d614fa', 4, 20000, 30000, 22, 6, 150000, 1.5, NOW(), false),
+(gen_random_uuid(), '7db80362-1bbb-40e4-b892-ec5879d614fb', 4, 5000, 8000, 22, 6, 30000, 1.5, NOW(), false);
 
 -- 5. CHÈN HẠ TẦNG (BUILDING -> FLOOR -> PARKING SLOTS)
 INSERT INTO "Buildings" ("Id", "Name", "Address", "TotalCapacity", "CreatedAt", "IsDeleted")

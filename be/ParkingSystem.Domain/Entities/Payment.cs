@@ -13,6 +13,16 @@ public class Payment : BaseEntity
     public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.PayOS;
     public PaymentStatus Status { get; set; } = PaymentStatus.Pending;
 
+    // --- Thông tin hoàn tiền (Refund) ---
+    public DateTime? RefundedAt { get; set; }
+    public string? RefundReferenceId { get; set; }
+    public string? RefundProvider { get; set; }
+    public string? RefundTransactionId { get; set; }
+    public string? RefundFailureReason { get; set; }
+
+    public Guid? UserId { get; set; } // Dành cho nạp tiền vào ví
+    public User? User { get; set; }
+
     public ParkingSession? ParkingSession { get; set; }
     public Reservation? Reservation { get; set; }
 }

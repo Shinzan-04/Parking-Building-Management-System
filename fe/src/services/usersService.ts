@@ -21,6 +21,9 @@ export interface UserResponse {
   email?: string | null;
   qrCode: string;
   createdAt: string;
+  assignedBuildingId?: string | null;
+  failedLoginCount?: number;
+  lockoutEnd?: string | null;
 }
 
 export interface CreateUserRequest {
@@ -96,3 +99,6 @@ export interface AssignRoleRequest {
 
 export const assignRole = (id: string, payload: AssignRoleRequest, token: string): Promise<void> =>
   authFetch(`/api/users/${id}/role`, token, { method: 'PATCH', body: JSON.stringify(payload) });
+
+export const unlockUser = (id: string, token: string): Promise<void> =>
+  authFetch(`/api/users/${id}/unlock`, token, { method: 'PATCH' });

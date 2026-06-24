@@ -30,6 +30,9 @@ public class UserResponse
     public string? Email { get; set; }
     public string QrCode { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public Guid? AssignedBuildingId { get; set; }
+    public int FailedLoginCount { get; set; }
+    public DateTime? LockoutEnd { get; set; }
 }
 
 public class AssignRoleRequest

@@ -1,59 +1,84 @@
-/**
- * Manager/ParkingLots.tsx
- * Trang quản lý bãi đỗ xe cho Manager
- * Tính năng:
- *  - Xem danh sách tòa nhà với thống kê real-time
- *  - Xem chi tiết sơ đồ slot theo tầng (phân màu theo trạng thái)
- *  - Thêm/Sửa/Xoá tòa nhà
- *  - Thêm/Xoá tầng với tự động tạo slot
- *  - Thêm/Xoá slot đơn lẻ
- *  - Cập nhật trạng thái slot (Available / Maintenance / v.v.)
- */
-
 /* eslint-disable react-hooks/set-state-in-effect */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Building2, ParkingSquare, CircleCheck, Wrench,
   Plus, Search, Pencil, Trash2, MapPin,
-  X, AlertTriangle, Eye, Loader2, Car, Save,
-  Layers, Info, RefreshCw,
+  X, AlertTriangle, Eye, Loader2, Car, Save, RefreshCw,
+  Users, UserMinus, UserPlus,
 } from 'lucide-react';
+import { FaMotorcycle } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import {
-  getBuildings, getFloors,
+  getBuildings, getFloors, getParkingSlots, isSlotOccupied, isSlotMaintenance,
   createBuilding, updateBuilding, deleteBuilding,
-  createFloor, updateFloor, deleteFloor, getFloorsByBuilding,
-  getVehicleTypes,
+  createFloor, deleteFloor, getFloorsByBuilding,
+  getVehicleTypes, createParkingSlot, updateFloor,
+  getBuildingStaff, assignStaffToBuilding, unassignStaffFromBuilding,
 } from '../../services/buildingsService';
-import type { FloorResponse, VehicleTypeResponse } from '../../services/buildingsService';
-import {
-  getAllSlots, getSlotsByFloor, createSlot, updateSlotStatus,
-  SLOT_STATUS_LABELS, SLOT_STATUS_COLORS,
-} from '../../services/parkingService';
-import type { ParkingSlotDetail, SlotStatus } from '../../services/parkingService';
+import type { FloorResponse, ParkingSlotSummary, VehicleTypeResponse, StaffResponse } from '../../services/buildingsService';
+import { getSlotsByFloor, updateSlotStatus } from '../../services/parkingService';
+import type { ParkingSlotDetail } from '../../services/parkingService';
+import { getUsers, normalizeRole } from '../../services/usersService';
+import type { UserResponse } from '../../services/usersService';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface BuildingVM {
+interface ParkingLot {
   id: string;
   name: string;
   address: string;
   floorCount: number;
-  totalCapacity: number;
-  occupiedCount: number;
-  reservedCount: number;
-  maintenanceCount: number;
+  totalSpots: number;   // totalCapacity from API (registered max)
+  actualSlots: number;  // real active slots created across all floors
+  usedSpots: number;
+  status: 'active' | 'maintenance' | 'full';
 }
 
-const emptyBuildingForm = { name: '', address: '', totalCapacity: '' };
+type SlotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
+
+const SLOT_STATUS_LABELS: Record<SlotStatus, string> = {
+  Available:   'Còn trống',
+  Occupied:    'Có xe',
+  Reserved:    'Đặt trước',
+  Maintenance: 'Bảo trì',
+};
+
+const SLOT_STATUS_COLORS: Record<SlotStatus, { bg: string; text: string }> = {
+  Available:   { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  Occupied:    { bg: 'bg-blue-500/15',    text: 'text-blue-400' },
+  Reserved:    { bg: 'bg-fuchsia-500/15', text: 'text-fuchsia-400' },
+  Maintenance: { bg: 'bg-zinc-500/15',    text: 'text-zinc-400' },
+};
+
+const statusConfig = {
+  active:      { label: 'Hoạt động', bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-400' },
+  full:        { label: 'Đầy chỗ',   bg: 'bg-blue-500/10',    text: 'text-blue-400',    dot: 'bg-blue-400' },
+  maintenance: { label: 'Bảo trì',   bg: 'bg-zinc-400/10',    text: 'text-zinc-400',    dot: 'bg-zinc-400' },
+};
+
+const emptyForm = { name: '', address: '', totalSpots: '', status: 'active' as ParkingLot['status'] };
 
 const COLS = 8;
 
-// ─── Occupancy bar ────────────────────────────────────────────────────────────
+function floorPrefix(floorName: string): string {
+  const trimmed = floorName.trim();
+  // Extract last word/token as prefix (e.g. "Tầng G" → "G", "Floor 1" → "1", "Tầng 1" → "1")
+  const parts = trimmed.split(/\s+/);
+  const last = parts[parts.length - 1];
+  return last.toUpperCase();
+}
+
+function VehicleIcon({ name, size = 14, className = '' }: { name?: string; size?: number; className?: string }) {
+  const n = (name ?? '').toLowerCase();
+  const isMotor = n.includes('motor') || n.includes('xe máy') || n.includes('xe may') || n.includes('moto') || n.includes('bike') || n.includes('scooter');
+  if (isMotor) {
+    return <FaMotorcycle size={size} className={className} />;
+  }
+  return <Car size={size} className={className} />;
+}
 
 function OccupancyBar({ used, total }: { used: number; total: number }) {
   const pct = total === 0 ? 0 : Math.round((used / total) * 100);
-  const color = pct >= 90 ? '#F87171' : pct >= 70 ? '#F59E0B' : '#F97316';
+  const color = pct >= 90 ? '#F87171' : '#FF4C4C';
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-xs">
@@ -61,31 +86,35 @@ function OccupancyBar({ used, total }: { used: number; total: number }) {
         <span className="font-semibold" style={{ color }}>{pct}%</span>
       </div>
       <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, backgroundColor: color }} />
+        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
     </div>
   );
 }
 
-// ─── Slot Map Component ───────────────────────────────────────────────────────
-
 function SlotMap({
-  floors, buildingId, selectedSlotId, onSelectSlot, onStatusChange,
+  floors, slots, buildingId, selectedSlotId, onSelectSlot, onConfirm, onBulkRelease, loadingSlots, onStatusChange, vehicleTypes,
 }: {
   floors: FloorResponse[];
+  slots: ParkingSlotSummary[];
   buildingId: string;
   selectedSlotId: string | null;
   onSelectSlot: (id: string | null) => void;
-  onStatusChange: (slot: ParkingSlotDetail) => void;
-  token?: string | null;
+  onConfirm?: (slotId: string, action: 'occupy' | 'release' | 'maintain', vehicleTypeId?: string) => void | Promise<void>;
+  onBulkRelease?: (slotIds: string[], action?: 'maintain' | 'release') => Promise<void>;
+  loadingSlots?: boolean;
+  onStatusChange?: (slot: ParkingSlotSummary) => void;
+  vehicleTypes?: VehicleTypeResponse[];
 }) {
   const buildingFloors = floors
     .filter(f => f.buildingId === buildingId)
     .sort((a, b) => a.floorIndex - b.floorIndex);
 
   const [activeFloorId, setActiveFloorId] = useState<string>(buildingFloors[0]?.id ?? '');
-  const [floorSlots, setFloorSlots] = useState<ParkingSlotDetail[]>([]);
-  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [selectedVehicleTypeId, setSelectedVehicleTypeId] = useState('');
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (buildingFloors.length && !buildingFloors.find(f => f.id === activeFloorId)) {
@@ -94,39 +123,62 @@ function SlotMap({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildingId]);
 
-  useEffect(() => {
-    if (!activeFloorId) return;
-    setLoadingSlots(true);
-    getSlotsByFloor(activeFloorId)
-      .then(setFloorSlots)
-      .catch(() => setFloorSlots([]))
-      .finally(() => setLoadingSlots(false));
-  }, [activeFloorId]);
-
   if (buildingFloors.length === 0) {
-    return <p className="text-sm text-white/40 text-center py-6">Chưa có tầng nào cho tòa nhà này.</p>;
+    return <p className="text-sm text-gray-400 dark:text-white/40 text-center py-6">Chưa có tầng nào cho tòa nhà này.</p>;
   }
 
-  const rows: ParkingSlotDetail[][] = [];
+  const normalizeStatus = (s: string | number): SlotStatus => {
+    if (s === 0 || s === 'Available')   return 'Available';
+    if (s === 2 || s === 'Reserved')    return 'Reserved';
+    if (s === 3 || s === 'Occupied')    return 'Occupied';
+    if (s === 4 || s === 'Maintenance') return 'Maintenance';
+    return 'Available';
+  };
+
+  const floorSlots = slots
+    .filter(s => s.floorId === activeFloorId)
+    .sort((a, b) => (a.slotNumber ?? '').localeCompare(b.slotNumber ?? '', undefined, { numeric: true, sensitivity: 'base' }))
+    .map((s, i) => ({ ...s, index: i, status: normalizeStatus(s.status) as string }));
+
+  const rows: (typeof floorSlots[0])[][] = [];
   for (let i = 0; i < floorSlots.length; i += COLS) {
     rows.push(floorSlots.slice(i, i + COLS));
   }
 
   const activeFloor = buildingFloors.find(f => f.id === activeFloorId);
-  const availableCount = floorSlots.filter(s => s.status === 'Available').length;
-  const occupiedCount  = floorSlots.filter(s => s.status === 'Occupied').length;
-  const reservedCount  = floorSlots.filter(s => s.status === 'Reserved').length;
-  const maintCount     = floorSlots.filter(s => s.status === 'Maintenance').length;
 
-  const slotColorClass = (status: SlotStatus, isSelected: boolean) => {
-    if (isSelected) return 'bg-white border-white text-[#121214] scale-110 z-10 shadow-lg shadow-white/20';
+  const activeFloorSlots = slots.filter(s => s.floorId === activeFloorId);
+  const availableCount = activeFloorSlots.filter(s => normalizeStatus(s.status) === 'Available').length;
+  const occupiedCount  = activeFloorSlots.filter(s => normalizeStatus(s.status) === 'Occupied').length;
+  const reservedCount  = activeFloorSlots.filter(s => normalizeStatus(s.status) === 'Reserved').length;
+  const maintCount     = activeFloorSlots.filter(s => normalizeStatus(s.status) === 'Maintenance').length;
+
+  const slotColorClass = (status: SlotStatus, isSelected: boolean, isBulkPicked: boolean) => {
+    if (isBulkPicked && status === 'Available')   return 'bg-zinc-500 border-zinc-400 text-white scale-105 z-10 shadow-md ring-2 ring-zinc-400/60';
+    if (isBulkPicked && status === 'Maintenance') return 'bg-emerald-500 border-emerald-400 text-white scale-105 z-10 shadow-md ring-2 ring-emerald-400/60';
+    if (isSelected) return 'bg-white border-white text-black scale-110 z-10 shadow-lg';
+    
     switch (status) {
-      case 'Available':   return 'bg-orange-500/10 border-orange-500/30 text-orange-500/80 hover:bg-orange-500/20 cursor-pointer';
-      case 'Occupied':    return 'bg-amber-500/15 border-amber-500/40 text-amber-500/80 cursor-default';
-      case 'Reserved':    return 'bg-amber-400/15 border-amber-400/40 text-amber-400/80 cursor-default';
-      case 'Maintenance': return 'bg-red-400/15 border-red-400/40 text-red-400/80 cursor-default';
+      case 'Available':   return bulkMode
+        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer ring-1 ring-emerald-500/30'
+        : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer';
+      case 'Occupied':    return 'bg-blue-500/20 border-blue-500/60 text-blue-400 cursor-default';
+      case 'Reserved':    return 'bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-400 cursor-default';
+      case 'Maintenance': return bulkMode
+        ? 'bg-zinc-500/20 border-zinc-500/70 text-zinc-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 cursor-pointer ring-1 ring-zinc-400/40'
+        : 'bg-zinc-500/20 border-zinc-500/70 text-zinc-400 hover:bg-zinc-500/30 cursor-pointer';
     }
   };
+
+  const selectedSlot = floorSlots.find(s => s.id === selectedSlotId);
+  const selectedIsOccupied = selectedSlot ? isSlotOccupied(selectedSlot.status) : false;
+  const totalFloorSlots = activeFloorSlots.length;
+  const freeCount = availableCount;
+
+  const bulkMaintIds = floorSlots.filter(s => s.status === 'Maintenance').map(s => s.id);
+  const bulkAvailIds = floorSlots.filter(s => s.status === 'Available').map(s => s.id);
+  const pickedMaint  = floorSlots.filter(s => bulkSelected.has(s.id) && s.status === 'Maintenance');
+  const pickedAvail  = floorSlots.filter(s => bulkSelected.has(s.id) && s.status === 'Available');
 
   return (
     <div className="space-y-4">
@@ -135,11 +187,11 @@ function SlotMap({
         {buildingFloors.map(f => (
           <button
             key={f.id}
-            onClick={() => { setActiveFloorId(f.id); onSelectSlot(null); }}
+            onClick={() => { setActiveFloorId(f.id); onSelectSlot(null); setBulkSelected(new Set()); }}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
               f.id === activeFloorId
-                ? 'bg-orange-500 text-[#121214]'
-                : 'bg-white/5 text-white/50 hover:bg-white/10 hover:text-white'
+                ? 'bg-[#FF4C4C] text-white'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 dark:bg-white/5 dark:text-white/50 dark:hover:bg-white/10 dark:hover:text-white'
             }`}
           >
             {f.name}
@@ -147,27 +199,10 @@ function SlotMap({
         ))}
       </div>
 
-      {/* Stats mini */}
-      <div className="flex gap-3 flex-wrap text-xs">
-        {[
-          { label: 'Trống',    count: availableCount, color: '#F97316' },
-          { label: 'Có xe',   count: occupiedCount,   color: '#F59E0B' },
-          { label: 'Đặt trước', count: reservedCount, color: '#F59E0B' },
-          { label: 'Bảo trì', count: maintCount,      color: '#F87171' },
-        ].map(s => (
-          <div key={s.label} className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-            <span className="text-white/50">{s.label}</span>
-            <span className="font-bold text-white">{s.count}</span>
-          </div>
-        ))}
-        <span className="ml-auto text-white/30">{activeFloor?.name} · {floorSlots.length} chỗ</span>
-      </div>
-
       {/* Slot grid */}
       {loadingSlots ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 size={20} className="text-orange-500 animate-spin" />
+          <Loader2 size={20} className="text-[#FF4C4C] animate-spin" />
         </div>
       ) : (
         <>
@@ -175,7 +210,7 @@ function SlotMap({
           <div className="grid gap-1" style={{ gridTemplateColumns: `1.5rem repeat(${COLS}, minmax(0,1fr))` }}>
             <div />
             {Array.from({ length: COLS }, (_, c) => (
-              <div key={c} className="text-center text-[10px] text-white/25 font-semibold">
+              <div key={c} className="text-center text-[10px] text-gray-300 dark:text-white/25 font-semibold">
                 {String.fromCharCode(65 + c)}
               </div>
             ))}
@@ -183,28 +218,39 @@ function SlotMap({
 
           <div className="space-y-1">
             {rows.length === 0 ? (
-              <p className="text-sm text-white/40 text-center py-4">Tầng này chưa có chỗ đỗ.</p>
+              <p className="text-sm text-gray-400 dark:text-white/40 text-center py-4">Tầng này chưa có chỗ đỗ.</p>
             ) : (
               rows.map((row, rowIdx) => (
                 <div key={rowIdx} className="grid gap-1 items-center"
                   style={{ gridTemplateColumns: `1.5rem repeat(${COLS}, minmax(0,1fr))` }}>
-                  <div className="text-center text-[10px] text-white/25 font-semibold">{rowIdx + 1}</div>
+                  <div className="text-center text-[10px] text-gray-300 dark:text-white/25 font-semibold">{rowIdx + 1}</div>
                   {row.map((slot) => {
                     const isSelected = slot.id === selectedSlotId;
+                    const isBulkPicked = bulkSelected.has(slot.id);
+                    const isMaint = slot.status === 'Maintenance';
                     const colIdx = floorSlots.indexOf(slot) % COLS;
                     const colLetter = String.fromCharCode(65 + colIdx);
                     const rowNum = Math.floor(floorSlots.indexOf(slot) / COLS) + 1;
                     return (
                       <button
                         key={slot.id}
-                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${SLOT_STATUS_LABELS[slot.status]} · ${slot.vehicleTypeName}`}
+                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${SLOT_STATUS_LABELS[slot.status as SlotStatus] ?? slot.status}${slot.vehicleTypeName ? ' · ' + slot.vehicleTypeName : ''}`}
                         onClick={() => {
+                          if (bulkMode && (isMaint || slot.status === 'Available')) {
+                            setBulkSelected(prev => {
+                              const next = new Set(prev);
+                              next.has(slot.id) ? next.delete(slot.id) : next.add(slot.id);
+                              return next;
+                            });
+                            return;
+                          }
                           onSelectSlot(isSelected ? null : slot.id);
-                          if (!isSelected) onStatusChange(slot);
+                          setSelectedVehicleTypeId('');
+                          if (!isSelected && onStatusChange) onStatusChange(slot);
                         }}
-                        className={`h-10 rounded-md flex flex-col items-center justify-center gap-0.5 border text-[8px] font-bold transition-all select-none ${slotColorClass(slot.status, isSelected)}`}
+                        className={`h-10 rounded-md flex flex-col items-center justify-center gap-0.5 border text-[8px] font-bold transition-all select-none ${slotColorClass(slot.status as SlotStatus, isSelected, isBulkPicked)}`}
                       >
-                        {slot.status === 'Occupied' && <Car size={8} />}
+                        {slot.status === 'Occupied' && <VehicleIcon name={slot.vehicleTypeName} size={8} />}
                         {slot.status === 'Maintenance' && <Wrench size={8} />}
                         <span>{slot.slotNumber}</span>
                       </button>
@@ -218,20 +264,216 @@ function SlotMap({
             )}
           </div>
 
-          {/* Legend */}
-          <div className="flex items-center flex-wrap gap-4 pt-2 border-t border-white/5 text-xs text-white/40">
-            {(Object.entries(SLOT_STATUS_COLORS) as [SlotStatus, typeof SLOT_STATUS_COLORS[SlotStatus]][]).map(([status, cfg]) => (
-              <div key={status} className="flex items-center gap-1.5">
-                <span className={`w-3 h-3 rounded ${cfg.bg} border border-white/10`} />
-                {SLOT_STATUS_LABELS[status]}
+          {/* Legend + bulk controls */}
+          <div className="flex items-center flex-wrap gap-x-4 gap-y-2 pt-2 border-t border-black/10 dark:border-white/5 text-xs text-gray-500 dark:text-white/40">
+            {/* Stats — always visible */}
+            {[
+              { label: 'Trống',     count: availableCount, colorClass: 'bg-emerald-500/20 border-emerald-500/40' },
+              { label: 'Có xe',     count: occupiedCount,  colorClass: 'bg-blue-500/20 border-blue-500/40' },
+              { label: 'Đặt trước', count: reservedCount,  colorClass: 'bg-fuchsia-500/20 border-fuchsia-500/40' },
+              { label: 'Bảo trì',   count: maintCount,     colorClass: 'bg-zinc-500/20 border-zinc-500/40' },
+            ].map(s => (
+              <div key={s.label} className="flex items-center gap-1.5">
+                <span className={`w-3 h-3 rounded border ${s.colorClass}`} />
+                <span>{s.label}</span>
+                <span className="font-bold text-gray-700 dark:text-white/80">{s.count}</span>
               </div>
             ))}
+
+            {/* Right side — bulk controls or floor info */}
+            <div className="ml-auto flex items-center gap-2 flex-wrap justify-end">
+              {bulkMode ? (
+                <>
+                  {bulkSelected.size === 0 && (
+                    <span className="text-gray-400 dark:text-white/30 italic">Click ô để chọn</span>
+                  )}
+                  {pickedAvail.length > 0 && (
+                    <button
+                      disabled={confirming}
+                      onClick={async () => {
+                        setConfirming(true);
+                        const ids = pickedAvail.map(s => s.id);
+                        if (onBulkRelease) {
+                          await (onBulkRelease as (ids: string[], action: 'maintain' | 'release') => Promise<void>)(ids, 'maintain');
+                        } else {
+                          await Promise.all(ids.map(id => onConfirm?.(id, 'maintain')));
+                        }
+                        setConfirming(false);
+                        setBulkSelected(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n; });
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-500 text-white font-semibold hover:opacity-90 disabled:opacity-60 transition-opacity"
+                    >
+                      {confirming ? <Loader2 size={11} className="animate-spin" /> : <Wrench size={11} />}
+                      Bảo trì ({pickedAvail.length})
+                    </button>
+                  )}
+                  {pickedMaint.length > 0 && (
+                    <button
+                      disabled={confirming}
+                      onClick={async () => {
+                        setConfirming(true);
+                        const ids = pickedMaint.map(s => s.id);
+                        if (onBulkRelease) {
+                          await onBulkRelease(ids);
+                        } else {
+                          await Promise.all(ids.map(id => onConfirm?.(id, 'release')));
+                        }
+                        setConfirming(false);
+                        setBulkSelected(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n; });
+                      }}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-600 text-white font-semibold hover:opacity-90 disabled:opacity-60 transition-opacity"
+                    >
+                      {confirming ? <Loader2 size={11} className="animate-spin" /> : <CircleCheck size={11} />}
+                      Kết thúc ({pickedMaint.length})
+                    </button>
+                  )}
+                  {bulkSelected.size > 0 && (
+                    <button onClick={() => setBulkSelected(new Set())} className="underline underline-offset-2 text-gray-400 hover:text-gray-600 dark:text-white/30 dark:hover:text-white/50 transition-colors">
+                      Bỏ chọn
+                    </button>
+                  )}
+                  <button onClick={() => setBulkSelected(new Set([...bulkMaintIds, ...bulkAvailIds]))} className="underline underline-offset-2 text-gray-400 hover:text-gray-600 dark:text-white/30 dark:hover:text-white/50 transition-colors">
+                    Chọn tất cả
+                  </button>
+                  <button onClick={() => { setBulkMode(false); setBulkSelected(new Set()); }} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:text-white/40 dark:hover:text-white/60 transition-all">
+                    <X size={13} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => { setBulkMode(true); onSelectSlot(null); }}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg font-medium transition-all bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-white/5 dark:text-white/50 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10"
+                  >
+                    <Wrench size={11} />
+                    Hàng loạt
+                  </button>
+                  <span>{activeFloor?.name} · {totalFloorSlots} chỗ · {freeCount} trống</span>
+                </>
+              )}
+            </div>
           </div>
         </>
+      )}
+
+      {/* Selected slot banner */}
+      {!bulkMode && selectedSlotId && selectedSlot && (
+        selectedSlot.status === 'Maintenance' ? (
+          /* ── Maintenance banner ── */
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl">
+            <div className="flex items-center gap-2 text-sm text-red-500">
+              <Wrench size={14} />
+              <span className="font-medium">Đang bảo trì · {selectedSlot.slotNumber}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={confirming}
+                onClick={async () => {
+                  setConfirming(true);
+                  await onConfirm?.(selectedSlotId, 'release');
+                  setConfirming(false);
+                  onSelectSlot(null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+              >
+                {confirming ? <Loader2 size={12} className="animate-spin" /> : <CircleCheck size={12} />}
+                Kết thúc bảo trì
+              </button>
+              <button onClick={() => onSelectSlot(null)} className="p-1.5 rounded-lg text-red-400/60 hover:text-red-400 transition-all">
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        ) : selectedIsOccupied ? (
+          /* ── Release banner ── */
+          <div className="flex items-center justify-between gap-3 px-4 py-3 bg-amber-400/10 border border-amber-400/30 rounded-xl">
+            <div className="flex flex-col gap-0.5">
+              <div className="flex items-center gap-2 text-sm text-amber-500">
+                <VehicleIcon name={selectedSlot.vehicleTypeName} size={14} />
+                <span className="font-medium">Đang có xe · {selectedSlot.slotNumber}</span>
+              </div>
+              {selectedSlot.vehicleTypeName && (
+                <span className="text-xs text-amber-400/70 ml-6">Loại xe: <span className="font-semibold text-amber-500">{selectedSlot.vehicleTypeName}</span></span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={confirming}
+                onClick={async () => {
+                  setConfirming(true);
+                  await onConfirm?.(selectedSlotId, 'release');
+                  setConfirming(false);
+                  onSelectSlot(null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400 text-[#121214] text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
+              >
+                {confirming ? <Loader2 size={12} className="animate-spin" /> : <CircleCheck size={12} />}
+                Giải phóng chỗ
+              </button>
+              <button onClick={() => onSelectSlot(null)} className="p-1.5 rounded-lg text-amber-400/60 hover:text-amber-400 transition-all">
+                <X size={13} />
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ── Available banner: assign or set maintenance ── */
+          <div className="flex flex-col gap-2.5 px-4 py-3 bg-[#FF4C4C]/10 border border-[#FF4C4C]/30 rounded-xl">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-[#FF4C4C]">Chỗ trống · {selectedSlot.slotNumber}</span>
+              <button
+                onClick={() => { onSelectSlot(null); setSelectedVehicleTypeId(''); }}
+                className="p-1.5 rounded-lg text-[#FF4C4C]/60 hover:text-[#FF4C4C] transition-all"
+              >
+                <X size={13} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedVehicleTypeId}
+                onChange={e => setSelectedVehicleTypeId(e.target.value)}
+                className="flex-1 bg-white border border-[#FF4C4C]/30 rounded-lg px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:border-[#FF4C4C]/60 transition-colors"
+              >
+                <option value="">-- Chọn loại xe --</option>
+                {(vehicleTypes ?? []).map(vt => (
+                  <option key={vt.id} value={vt.id}>{vt.name}</option>
+                ))}
+              </select>
+              <button
+                disabled={confirming || !selectedVehicleTypeId}
+                onClick={async () => {
+                  if (!selectedVehicleTypeId) return;
+                  setConfirming(true);
+                  await onConfirm?.(selectedSlotId, 'occupy', selectedVehicleTypeId);
+                  setConfirming(false);
+                  setSelectedVehicleTypeId('');
+                  onSelectSlot(null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FF4C4C] text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
+              >
+                {confirming ? <Loader2 size={12} className="animate-spin" /> : <CircleCheck size={12} />}
+                Phân bổ
+              </button>
+              <button
+                disabled={confirming}
+                onClick={async () => {
+                  setConfirming(true);
+                  await onConfirm?.(selectedSlotId, 'maintain');
+                  setConfirming(false);
+                  onSelectSlot(null);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-500 text-xs font-semibold hover:bg-red-500/20 transition-colors disabled:opacity-40"
+              >
+                <Wrench size={12} />
+                Bảo trì
+              </button>
+            </div>
+          </div>
+        )
       )}
     </div>
   );
 }
+
 
 // ─── Status Change Panel ──────────────────────────────────────────────────────
 
@@ -261,7 +503,7 @@ function SlotStatusPanel({
   };
 
   return (
-    <div className="bg-[#121214] border border-white/10 rounded-xl p-4 space-y-3 shadow-xl">
+    <div className="border border-white/10 rounded-xl p-4 space-y-3 shadow-xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-white">Slot {slot.slotNumber}</p>
@@ -288,179 +530,293 @@ function SlotStatusPanel({
                   : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
               }`}
             >
-              <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+              {loading ? <Loader2 size={13} className="animate-spin" /> : null}
               {SLOT_STATUS_LABELS[s]}
-              {isCurrent && <span className="ml-auto text-xs opacity-60">(hiện tại)</span>}
             </button>
           );
         })}
+        {error && <p className="text-xs text-red-400">{error}</p>}
       </div>
-
-      {error && (
-        <p className="text-xs text-red-400 flex items-center gap-1.5">
-          <AlertTriangle size={11} /> {error}
-        </p>
-      )}
     </div>
   );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ManagerParkingLots() {
-  const { token } = useAuth();
+function getActiveToken(_reactToken?: string | null): string | null {
+  try {
+    const raw = localStorage.getItem('sp_user');
+    const parsed = JSON.parse(raw ?? '{}');
+    const t = parsed?.accessToken ?? parsed?.token ?? null;
+    console.log('[getActiveToken] result:', t?.slice(0, 30));
+    return t;
+  } catch { return null; }
+}
 
-  // Buildings
-  const [buildings, setBuildings]   = useState<BuildingVM[]>([]);
-  const [allFloors, setAllFloors]   = useState<FloorResponse[]>([]);
-  const [allSlots, setAllSlots]     = useState<ParkingSlotDetail[]>([]);
-  const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeResponse[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [apiError, setApiError]     = useState('');
+export default function ParkingLots() {
+  const { token, user } = useAuth();
+  const isAdmin = user?.role === 'Admin' || user?.role === 0;
+
+  const [lots, setLots]           = useState<ParkingLot[]>([]);
+  const [allFloors, setAllFloors] = useState<FloorResponse[]>([]);
+  const [allSlots, setAllSlots]   = useState<ParkingSlotSummary[]>([]);
+  const [loading, setLoading]     = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // UI state
-  const [search, setSearch]         = useState('');
-  const [modalType, setModalType]   = useState<'add' | 'detail' | 'edit' | 'delete' | null>(null);
-  const [selected, setSelected]     = useState<BuildingVM | null>(null);
-  const [form, setForm]             = useState(emptyBuildingForm);
-  const [formError, setFormError]   = useState('');
+  const [apiError, setApiError]   = useState('');
+  const [search, setSearch]       = useState('');
+  const [modalType, setModalType] = useState<'add' | 'detail' | 'edit' | 'delete' | 'staff' | null>(null);
+  const [selected, setSelected]   = useState<ParkingLot | null>(null);
+  const [form, setForm]           = useState(emptyForm);
+  const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  // Detail / slot view
-  const [selectedSlotId, setSelectedSlotId]   = useState<string | null>(null);
-  const [activeSlot, setActiveSlot]           = useState<ParkingSlotDetail | null>(null);
-
-  // Floor management (in edit modal)
-  const [editFloors, setEditFloors]             = useState<FloorResponse[]>([]);
-  const [floorLoading, setFloorLoading]         = useState(false);
-  const [newFloorName, setNewFloorName]         = useState('');
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [editFloors, setEditFloors]         = useState<FloorResponse[]>([]);
+  const [floorLoading, setFloorLoading]     = useState(false);
+  const [newFloorName, setNewFloorName]     = useState('');
   const [newFloorSlotCount, setNewFloorSlotCount] = useState('');
   const [newFloorVehicleTypeId, setNewFloorVehicleTypeId] = useState('');
-  const [floorError, setFloorError]             = useState('');
-
+  const [floorError, setFloorError]         = useState('');
+  const [vehicleTypes, setVehicleTypes]     = useState<VehicleTypeResponse[]>([]);
   const [editingFloorId, setEditingFloorId] = useState<string | null>(null);
   const [editFloorName, setEditFloorName]   = useState('');
   const [editFloorAddedSlots, setEditFloorAddedSlots] = useState('');
   const [editFloorVehicleTypeId, setEditFloorVehicleTypeId] = useState('');
+  const [editFloorActualCount, setEditFloorActualCount] = useState<number | null>(null);
+  const [editFloorError, setEditFloorError] = useState('');
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [buildingStaff, setBuildingStaff] = useState<StaffResponse[]>([]);
+  const [allStaffList, setAllStaffList]   = useState<StaffResponse[]>([]);
+  const [staffLoading, setStaffLoading]   = useState(false);
+  const [assigningStaffId, setAssigningStaffId] = useState('');
+  const [staffActionLoading, setStaffActionLoading] = useState(false);
 
-  // ─── Load data ──────────────────────────────────────────────────────────────
+  const showToast = (type: 'success' | 'error', msg: string) => {
+    setToast({ type, msg });
+    setTimeout(() => setToast(null), 4000);
+  };
 
-  const loadData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-    setApiError('');
+  async function loadData(isRefresh = false) {
+    if (isRefresh) setRefreshing(true);
     try {
-      const [rawBuildings, floors, slots, vts] = await Promise.all([
-        getBuildings(), getFloors(), getAllSlots(), getVehicleTypes(),
+      const [buildings, floors, slots] = await Promise.all([
+        getBuildings(), getFloors(), getParkingSlots(),
       ]);
 
       setAllFloors(floors);
-      setAllSlots(slots);
-      setVehicleTypes(vts);
+      const statusMap: Record<string | number, string> = { 0: 'Available', 1: 'TemporaryHeld', 2: 'Reserved', 3: 'Occupied', 4: 'Maintenance' };
+      setAllSlots(slots.map(s => ({ ...s, status: statusMap[s.status] ?? s.status })));
 
-      // Build floorId → buildingId map
-      const floorBuildingMap: Record<string, string> = {};
-      floors.forEach(f => { floorBuildingMap[f.id] = f.buildingId; });
+      const fbMap: Record<string, string> = {};
+      floors.forEach(f => { fbMap[f.id] = f.buildingId; });
 
-      // Count slots per building per status
-      const counts: Record<string, { occupied: number; reserved: number; maintenance: number }> = {};
-      rawBuildings.forEach(b => { counts[b.id] = { occupied: 0, reserved: 0, maintenance: 0 }; });
-      slots.forEach(s => {
-        const bid = floorBuildingMap[s.floorId];
-        if (!bid || !counts[bid]) return;
-        if (s.status === 'Occupied')    counts[bid].occupied++;
-        if (s.status === 'Reserved')    counts[bid].reserved++;
-        if (s.status === 'Maintenance') counts[bid].maintenance++;
-      });
+      const occupiedCountPerBuilding: Record<string, number> = {};
+      const actualSlotsPerBuilding: Record<string, number> = {};
+      buildings.forEach(b => { occupiedCountPerBuilding[b.id] = 0; actualSlotsPerBuilding[b.id] = 0; });
+      slots
+        .filter(s => !isSlotMaintenance(s.status))
+        .forEach(s => {
+          const bid = fbMap[s.floorId];
+          if (bid) {
+            actualSlotsPerBuilding[bid] = (actualSlotsPerBuilding[bid] ?? 0) + 1;
+            if (isSlotOccupied(s.status)) {
+              occupiedCountPerBuilding[bid] = (occupiedCountPerBuilding[bid] ?? 0) + 1;
+            }
+          }
+        });
 
-      setBuildings(rawBuildings.map(b => ({
-        id:               b.id,
-        name:             b.name,
-        address:          b.address,
-        floorCount:       b.floorCount,
-        totalCapacity:    b.totalCapacity,
-        occupiedCount:    counts[b.id]?.occupied    ?? 0,
-        reservedCount:    counts[b.id]?.reserved    ?? 0,
-        maintenanceCount: counts[b.id]?.maintenance ?? 0,
-      })));
-    } catch (err) {
+      setLots(buildings.map(b => {
+        const used = occupiedCountPerBuilding[b.id] ?? 0;
+        const actual = actualSlotsPerBuilding[b.id] ?? 0;
+        const pct = actual > 0 ? used / actual : 0;
+        return {
+          id: b.id,
+          name: b.name,
+          address: b.address,
+          floorCount: b.floorCount,
+          totalSpots: b.totalCapacity,
+          actualSlots: actual,
+          usedSpots: used,
+          status: pct >= 1 ? 'full' : 'active',
+        };
+      }));
+    } catch (err: unknown) {
       setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu.');
     } finally {
       setLoading(false);
-      setRefreshing(false);
+      if (isRefresh) setRefreshing(false);
     }
+  }
+
+  useEffect(() => {
+    loadData();
+    getVehicleTypes().then(setVehicleTypes).catch(() => {});
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // Lắng nghe sự kiện Realtime (SignalR) được phát từ useNotification
+  useEffect(() => {
+    const handleUpdate = () => {
+      // Refresh ngầm
+      loadData(true);
+    };
 
-  // ─── Modal helpers ───────────────────────────────────────────────────────────
+    window.addEventListener('dashboardUpdate', handleUpdate);
+    window.addEventListener('slotUpdate', handleUpdate);
 
+    return () => {
+      window.removeEventListener('dashboardUpdate', handleUpdate);
+      window.removeEventListener('slotUpdate', handleUpdate);
+    };
+  }, []);
+
+  const openAdd    = () => { setForm(emptyForm); setFormError(''); setModalType('add'); };
+  const openDetail = (lot: ParkingLot) => {
+    setSelected(lot);
+    setSelectedSlotId(null);
+    setAssigningStaffId('');
+    setModalType('detail');
+    const activeToken = getActiveToken(token);
+    if (!activeToken) return;
+    setStaffLoading(true);
+    Promise.all([
+      getBuildingStaff(lot.id, activeToken),
+      getUsers(activeToken),
+    ]).then(([assigned, allUsers]) => {
+      const uniqueAssigned = assigned.filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
+      setBuildingStaff(uniqueAssigned);
+      setAllStaffList(
+        allUsers
+          .filter(u => normalizeRole(u.role as any) === 'Staff')
+          .map(u => ({ id: u.id, username: u.username, fullName: u.fullName, email: u.email ?? null, phoneNumber: u.phoneNumber ?? null, createdAt: u.createdAt, assignedBuildingId: (u as any).assignedBuildingId ?? null }))
+      );
+    }).catch((err) => {
+      console.error('[Staff] load error:', err);
+      setBuildingStaff([]);
+      setAllStaffList([]);
+    }).finally(() => setStaffLoading(false));
+  };
+
+  const openStaff = (lot: ParkingLot) => {
+    setSelected(lot);
+    setAssigningStaffId('');
+    setModalType('staff');
+    const activeToken = getActiveToken(token);
+    if (!activeToken) return;
+    setStaffLoading(true);
+    Promise.all([
+      getBuildingStaff(lot.id, activeToken),
+      getUsers(activeToken),
+      // Fetch staff for ALL other buildings so we can exclude already-assigned staff
+      ...lots.filter(l => l.id !== lot.id).map(l => getBuildingStaff(l.id, activeToken).catch(() => [] as StaffResponse[])),
+    ]).then(([assigned, allUsers, ...otherBuildingStaffArrays]) => {
+      const uniqueAssigned2 = (assigned as StaffResponse[]).filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
+      setBuildingStaff(uniqueAssigned2);
+
+      // Build a set of all staff IDs already assigned to ANY building
+      const assignedInCurrentBuilding = new Set(uniqueAssigned2.map(s => s.id));
+      const assignedElsewhere = new Set(
+        (otherBuildingStaffArrays as StaffResponse[][]).flat().map(s => s.id)
+      );
+
+      setAllStaffList(
+        (allUsers as UserResponse[])
+          .filter(u => normalizeRole(u.role as any) === 'Staff')
+          .map(u => ({
+            id: u.id,
+            username: u.username,
+            fullName: u.fullName,
+            email: u.email ?? null,
+            phoneNumber: u.phoneNumber ?? null,
+            createdAt: u.createdAt,
+            // Mark as assigned if BE returns assignedBuildingId, or if found in any building's staff list
+            assignedBuildingId: u.assignedBuildingId ?? (assignedInCurrentBuilding.has(u.id) || assignedElsewhere.has(u.id) ? 'assigned' : null),
+          }))
+      );
+    }).catch((err) => {
+      console.error('[Staff] load error:', err);
+      setBuildingStaff([]);
+      setAllStaffList([]);
+    }).finally(() => setStaffLoading(false));
+  };
+
+  const openEdit   = (lot: ParkingLot) => {
+    setSelected(lot);
+    setForm({ name: lot.name, address: lot.address, totalSpots: String(lot.totalSpots), status: lot.status });
+    setFormError('');
+    setNewFloorName('');
+    setFloorError('');
+    setFloorLoading(true);
+    setModalType('edit');
+    getFloorsByBuilding(lot.id)
+      .then(async floors => {
+        const sorted = floors.sort((a, b) => a.floorIndex - b.floorIndex);
+        const synced = await Promise.all(sorted.map(async fl => {
+          try {
+            const slots = await getSlotsByFloor(fl.id);
+            return { ...fl, slotCount: slots.filter(s => !isSlotMaintenance(s.status)).length };
+          } catch {
+            return fl;
+          }
+        }));
+        setEditFloors(synced);
+        setFloorLoading(false);
+      })
+      .catch(() => {
+        setFloorError('Không thể tải danh sách tầng.');
+        setFloorLoading(false);
+      });
+  };
+  const openDelete = (lot: ParkingLot) => { setSelected(lot); setModalType('delete'); };
   const closeModal = () => {
     setModalType(null); setSelected(null); setFormError(''); setSubmitting(false);
-    setSelectedSlotId(null); setActiveSlot(null);
-    setEditFloors([]); setNewFloorName(''); setNewFloorSlotCount('');
-    setNewFloorVehicleTypeId(''); setFloorError('');
+    setSelectedSlotId(null); setEditFloors([]); setNewFloorName('');
+    setNewFloorSlotCount(''); setNewFloorVehicleTypeId(''); setFloorError('');
     setEditingFloorId(null);
   };
 
-  const openAdd = () => { setForm(emptyBuildingForm); setFormError(''); setModalType('add'); };
-
-  const openDetail = (b: BuildingVM) => {
-    setSelected(b); setSelectedSlotId(null); setActiveSlot(null); setModalType('detail');
-  };
-
-  const openEdit = (b: BuildingVM) => {
-    setSelected(b);
-    setForm({ name: b.name, address: b.address, totalCapacity: String(b.totalCapacity) });
-    setFormError(''); setNewFloorName(''); setFloorError('');
-    setEditingFloorId(null);
-    setFloorLoading(true); setModalType('edit');
-    getFloorsByBuilding(b.id)
-      .then(f => setEditFloors(f.sort((a, b) => a.floorIndex - b.floorIndex)))
-      .catch(() => setFloorError('Không thể tải danh sách tầng.'))
-      .finally(() => setFloorLoading(false));
-  };
-
-  const openDelete = (b: BuildingVM) => { setSelected(b); setModalType('delete'); };
-
-  // ─── Floor handlers ──────────────────────────────────────────────────────────
+  const usedCapacity = editFloors.reduce((s, f) => s + (f.slotCount ?? 0), 0);
+  const remainingCapacity = selected ? selected.totalSpots - usedCapacity : 0;
 
   const handleAddFloor = async () => {
     if (!selected || !token) return;
     const name = newFloorName.trim();
     if (!name) { setFloorError('Vui lòng nhập tên tầng.'); return; }
     const slotCount = Number(newFloorSlotCount);
-    if (newFloorSlotCount && (isNaN(slotCount) || slotCount < 0 || slotCount > 100)) {
-      setFloorError('Số chỗ phải từ 0 đến 100.'); return;
+    if (!newFloorSlotCount || isNaN(slotCount) || slotCount < 20) {
+      setFloorError('Số chỗ mỗi tầng phải ít nhất 20.'); return;
     }
-    if (slotCount > 0 && !newFloorVehicleTypeId) {
-      setFloorError('Vui lòng chọn loại xe khi thêm chỗ đỗ.'); return;
+    if (slotCount > 100) {
+      setFloorError('Số chỗ mỗi tầng không vượt quá 100.'); return;
+    }
+    if (slotCount > remainingCapacity) {
+      setFloorError(`Vượt quá sức chứa còn lại (${remainingCapacity} chỗ).`); return;
+    }
+    if (!newFloorVehicleTypeId) {
+      setFloorError('Vui lòng chọn loại xe cho các chỗ đỗ.'); return;
     }
     setFloorLoading(true); setFloorError('');
     try {
-      const nextIndex = editFloors.length > 0
-        ? Math.max(...editFloors.map(f => f.floorIndex)) + 1 : 0;
+      const nextIndex = editFloors.length > 0 ? Math.max(...editFloors.map(f => f.floorIndex)) + 1 : 0;
       const created = await createFloor({ buildingId: selected.id, name, floorIndex: nextIndex }, token);
 
-      if (slotCount > 0) {
-        await Promise.all(
-          Array.from({ length: slotCount }, (_, i) =>
-            createSlot({
-              floorId: created.id,
-              vehicleTypeId: newFloorVehicleTypeId,
-              slotNumber: String(i + 1).padStart(3, '0'),
-            }, token)
-          )
-        );
-        created.slotCount = slotCount;
-      }
+      const prefix = floorPrefix(created.name);
+      await Promise.all(
+        Array.from({ length: slotCount }, (_, i) =>
+          createParkingSlot({
+            floorId: created.id,
+            vehicleTypeId: newFloorVehicleTypeId,
+            slotNumber: `${prefix}-${String(i + 1).padStart(3, '0')}`,
+          }, token)
+        )
+      );
+      created.slotCount = slotCount;
 
       setEditFloors(prev => [...prev, created].sort((a, b) => a.floorIndex - b.floorIndex));
       setAllFloors(prev => [...prev, created]);
-      setBuildings(prev => prev.map(b => b.id === selected.id ? { ...b, floorCount: b.floorCount + 1 } : b));
-      setNewFloorName(''); setNewFloorSlotCount(''); setNewFloorVehicleTypeId('');
-    } catch (e) {
+      setLots(prev => prev.map(l => l.id === selected.id ? { ...l, floorCount: l.floorCount + 1 } : l));
+      setNewFloorName('');
+      setNewFloorSlotCount('');
+      setNewFloorVehicleTypeId('');
+      getParkingSlots().then(setAllSlots).catch(() => {});
+    } catch (e: unknown) {
       setFloorError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
     } finally {
       setFloorLoading(false);
@@ -472,104 +828,161 @@ export default function ManagerParkingLots() {
     setEditFloorName(f.name);
     setEditFloorAddedSlots('');
     setEditFloorVehicleTypeId('');
+    setEditFloorActualCount(null);
+    setEditFloorError('');
+    getSlotsByFloor(f.id).then(slots => {
+      const actual = slots.filter(s => !isSlotMaintenance(s.status)).length;
+      setEditFloorActualCount(actual);
+      setEditFloors(prev => prev.map(fl => fl.id === f.id ? { ...fl, slotCount: actual } : fl));
+      setAllFloors(prev => prev.map(fl => fl.id === f.id ? { ...fl, slotCount: actual } : fl));
+    }).catch(() => { setEditFloorActualCount(f.slotCount); });
   };
 
   const saveFloorEdit = async (f: FloorResponse) => {
-    if (!token || !selected) return;
-    setFloorLoading(true); setFloorError('');
+    const activeToken = getActiveToken(token);
+    if (!activeToken) { setEditFloorError('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.'); return; }
+    if (!selected) return;
+    const newName = editFloorName.trim();
+    const targetCount = Number(editFloorAddedSlots);
+    const isChangingSlots = editFloorAddedSlots !== '';
+    setFloorLoading(true); setFloorError(''); setEditFloorError('');
     try {
-      if (editFloorName.trim() && editFloorName.trim() !== f.name) {
-        await updateFloor(f.id, { name: editFloorName.trim(), floorIndex: f.floorIndex }, token);
-      }
-      
-      const addedSlots = Number(editFloorAddedSlots);
-      if (editFloorAddedSlots && (isNaN(addedSlots) || addedSlots < 0)) {
-        setFloorError('Số chỗ thêm phải là số nguyên không âm.');
-        setFloorLoading(false);
-        return;
-      }
-      
-      if (addedSlots > 0) {
-        if (f.slotCount + addedSlots > 100) {
-          setFloorError(`Tổng số chỗ không được vượt quá 100 (hiện tại: ${f.slotCount}).`);
-          setFloorLoading(false);
-          return;
-        }
-        if (!editFloorVehicleTypeId) {
-          setFloorError('Vui lòng chọn loại xe cho các chỗ mới.');
-          setFloorLoading(false);
-          return;
-        }
-        await Promise.all(
-          Array.from({ length: addedSlots }, (_, i) =>
-            createSlot({
-              floorId: f.id,
-              vehicleTypeId: editFloorVehicleTypeId,
-              slotNumber: String(f.slotCount + i + 1).padStart(3, '0'),
-            }, token)
-          )
-        );
+      // ── Rename ──
+      if (newName && newName !== f.name) {
+        await updateFloor(f.id, { name: newName, floorIndex: f.floorIndex }, activeToken);
       }
 
-      const updatedFloor = { 
-        ...f, 
-        name: editFloorName.trim() || f.name, 
-        slotCount: f.slotCount + (isNaN(addedSlots) ? 0 : addedSlots) 
+      // ── Adjust slot count ──
+      if (isChangingSlots) {
+        if (isNaN(targetCount) || targetCount < 20) {
+          setEditFloorError('Số chỗ tối thiểu mỗi tầng là 20.'); setFloorLoading(false); return;
+        }
+        if (targetCount > 100) {
+          setEditFloorError('Số chỗ tối đa mỗi tầng là 100.'); setFloorLoading(false); return;
+        }
+        const currentSlots: ParkingSlotDetail[] = await getSlotsByFloor(f.id);
+        const activeSlots = currentSlots.filter(s => !isSlotMaintenance(s.status));
+        const activeCount = activeSlots.length;
+        const diff = targetCount - activeCount;
+
+        if (diff > 0) {
+          const maintenanceSlots = currentSlots.filter(s => isSlotMaintenance(s.status));
+          const toRestore = maintenanceSlots.slice(0, diff);
+          const toCreate = diff - toRestore.length;
+
+          const otherActual = editFloors.reduce((s, fl) => fl.id === f.id ? s : s + (fl.slotCount ?? 0), 0);
+          const remaining = selected.totalSpots - otherActual - activeCount;
+          if (diff > remaining) {
+            setEditFloorError(`Chỉ còn ${remaining} chỗ có thể thêm cho tầng này.`); setFloorLoading(false); return;
+          }
+          if (toCreate > 0 && !editFloorVehicleTypeId) {
+            setEditFloorError('Vui lòng chọn loại xe để thêm chỗ mới.'); setFloorLoading(false); return;
+          }
+          if (toRestore.length > 0) {
+            const BATCH = 10;
+            for (let i = 0; i < toRestore.length; i += BATCH) {
+              await Promise.all(toRestore.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Available', activeToken)));
+            }
+          }
+          if (toCreate > 0) {
+            const totalExisting = currentSlots.length;
+            const prefix = floorPrefix(f.name);
+            await Promise.all(
+              Array.from({ length: toCreate }, (_, i) =>
+                createParkingSlot({
+                  floorId: f.id,
+                  vehicleTypeId: editFloorVehicleTypeId,
+                  slotNumber: `${prefix}-${String(totalExisting + i + 1).padStart(3, '0')}`,
+                }, activeToken)
+              )
+            );
+          }
+        } else if (diff < 0) {
+          const freeSlots = activeSlots.filter(s => !isSlotOccupied(s.status));
+          const toDisable = freeSlots.slice(0, Math.abs(diff));
+          if (toDisable.length < Math.abs(diff)) {
+            const inUse = Math.abs(diff) - toDisable.length;
+            setEditFloorError(`Không thể giảm xuống ${targetCount} chỗ — còn ${inUse} chỗ đang được sử dụng.`);
+            setFloorLoading(false); return;
+          }
+          const BATCH = 10;
+          for (let i = 0; i < toDisable.length; i += BATCH) {
+            await Promise.all(toDisable.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Maintenance', activeToken)));
+          }
+        }
+      }
+
+      const updatedFloor = {
+        ...f,
+        name: newName || f.name,
+        slotCount: isChangingSlots ? targetCount : f.slotCount,
       };
-      
-      setEditFloors(prev => prev.map(floor => floor.id === f.id ? updatedFloor : floor));
-      setAllFloors(prev => prev.map(floor => floor.id === f.id ? updatedFloor : floor));
+      setEditFloors(prev => prev.map(fl => fl.id === f.id ? updatedFloor : fl));
+      setAllFloors(prev => prev.map(fl => fl.id === f.id ? updatedFloor : fl));
       setEditingFloorId(null);
-    } catch (e) {
-      setFloorError(e instanceof Error ? e.message : 'Đã xảy ra lỗi khi sửa tầng.');
+      setEditFloorAddedSlots('');
+      setEditFloorVehicleTypeId('');
+      getParkingSlots().then(setAllSlots).catch(() => {});
+      showToast('success', `Đã lưu tầng "${newName || f.name}" · ${isChangingSlots ? targetCount : f.slotCount} chỗ`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Đã xảy ra lỗi khi sửa tầng.';
+      setEditFloorError(msg);
+      showToast('error', msg);
     } finally {
       setFloorLoading(false);
     }
   };
 
   const handleDeleteFloor = async (floorId: string) => {
-    if (!token) return;
+    const activeToken = getActiveToken(token);
+    if (!activeToken) return;
     setFloorLoading(true); setFloorError('');
     try {
-      await deleteFloor(floorId, token);
+      await deleteFloor(floorId, activeToken);
       setEditFloors(prev => prev.filter(f => f.id !== floorId));
       setAllFloors(prev => prev.filter(f => f.id !== floorId));
-      if (selected) setBuildings(prev => prev.map(b => b.id === selected.id ? { ...b, floorCount: b.floorCount - 1 } : b));
-    } catch (e) {
+      if (selected) setLots(prev => prev.map(l => l.id === selected.id ? { ...l, floorCount: l.floorCount - 1 } : l));
+      getParkingSlots().then(setAllSlots).catch(() => {});
+    } catch (e: unknown) {
       setFloorError(e instanceof Error ? e.message : 'Không thể xoá tầng.');
     } finally {
       setFloorLoading(false);
     }
   };
 
-  // ─── Building CRUD ───────────────────────────────────────────────────────────
-
   const validateForm = () => {
-    if (!form.name.trim())       return 'Vui lòng nhập tên tòa nhà.';
-    if (!form.address.trim())    return 'Vui lòng nhập địa chỉ.';
-    if (!form.totalCapacity || isNaN(Number(form.totalCapacity)) || Number(form.totalCapacity) <= 0)
-      return 'Sức chứa phải là số nguyên dương.';
+    if (!form.name.trim()) return 'Vui lòng nhập tên tòa nhà.';
+    if (!form.address.trim()) return 'Vui lòng nhập địa chỉ.';
+    if (!form.totalSpots || isNaN(Number(form.totalSpots)) || Number(form.totalSpots) <= 0)
+      return 'Tổng sức chứa phải là số nguyên dương.';
     return '';
   };
 
   const handleAdd = async () => {
     const err = validateForm();
     if (err) { setFormError(err); return; }
-    if (!token) return;
+    const activeToken = token ?? getActiveToken(token);
+    if (!activeToken) { setFormError('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.'); return; }
     setSubmitting(true);
     try {
       const created = await createBuilding({
         name: form.name.trim(),
         address: form.address.trim(),
-        totalCapacity: Number(form.totalCapacity),
-      }, token);
-      setBuildings(prev => [...prev, {
-        id: created.id, name: created.name, address: created.address,
-        floorCount: created.floorCount, totalCapacity: created.totalCapacity,
-        occupiedCount: 0, reservedCount: 0, maintenanceCount: 0,
+        totalCapacity: Number(form.totalSpots),
+      }, activeToken);
+      setLots(prev => [...prev, {
+        id: created.id,
+        name: created.name,
+        address: created.address,
+        floorCount: created.floorCount,
+        totalSpots: created.totalCapacity,
+        actualSlots: 0,
+        usedSpots: 0,
+        status: 'active',
       }]);
       closeModal();
-    } catch (e) {
+    } catch (e: unknown) {
+      console.error('[handleAdd] error:', e);
       setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
       setSubmitting(false);
     }
@@ -578,71 +991,66 @@ export default function ManagerParkingLots() {
   const handleEdit = async () => {
     const err = validateForm();
     if (err) { setFormError(err); return; }
-    if (!selected || !token) return;
+    const activeToken = token ?? getActiveToken(token);
+    if (!selected || !activeToken) { setFormError('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.'); return; }
     setSubmitting(true);
     try {
       const updated = await updateBuilding(selected.id, {
         name: form.name.trim(),
         address: form.address.trim(),
-        totalCapacity: Number(form.totalCapacity),
-      }, token);
-      setBuildings(prev => prev.map(b => b.id !== selected.id ? b : {
-        ...b, name: updated.name, address: updated.address,
-        totalCapacity: updated.totalCapacity, floorCount: updated.floorCount,
+        totalCapacity: Number(form.totalSpots),
+      }, activeToken);
+      setLots(prev => prev.map(l => l.id !== selected.id ? l : {
+        ...l,
+        name: updated.name,
+        address: updated.address,
+        totalSpots: updated.totalCapacity,
+        floorCount: updated.floorCount,
+        status: form.status,
       }));
       closeModal();
-    } catch (e) {
+    } catch (e: unknown) {
       setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
       setSubmitting(false);
     }
   };
 
   const handleDelete = async () => {
-    if (!selected || !token) return;
+    const activeToken = token ?? getActiveToken(token);
+    if (!selected || !activeToken) { setFormError('Phiên đăng nhập hết hạn, vui lòng đăng nhập lại.'); return; }
     setSubmitting(true);
     try {
-      await deleteBuilding(selected.id, token);
-      setBuildings(prev => prev.filter(b => b.id !== selected.id));
+      await deleteBuilding(selected.id, activeToken);
+      setLots(prev => prev.filter(l => l.id !== selected.id));
       closeModal();
-    } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Không thể xoá tòa nhà.');
+    } catch (e: unknown) {
+      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
       setSubmitting(false);
     }
   };
 
-  // ─── Slot status updated callback ────────────────────────────────────────────
+  const totalSpots    = lots.reduce((s, l) => s + l.totalSpots, 0);
+  const totalActual   = lots.reduce((s, l) => s + l.actualSlots, 0);
+  const usedSpots     = lots.reduce((s, l) => s + l.usedSpots, 0);
+  const activeLots    = lots.filter(l => l.status === 'active').length;
+  const inMaintenance = lots.filter(l => l.status === 'maintenance').length;
 
-  const handleSlotStatusUpdated = (updated: ParkingSlotDetail) => {
-    setAllSlots(prev => prev.map(s => s.id === updated.id ? updated : s));
-    // Reload building counts silently
-    loadData(true);
-  };
-
-  // ─── Computed ────────────────────────────────────────────────────────────────
-
-  const filtered = buildings.filter(b =>
-    b.name.toLowerCase().includes(search.toLowerCase()) ||
-    b.address.toLowerCase().includes(search.toLowerCase())
+  const filtered = lots.filter(l =>
+    l.name.toLowerCase().includes(search.toLowerCase()) ||
+    l.address.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalCapacity   = buildings.reduce((s, b) => s + b.totalCapacity, 0);
-  const totalOccupied   = buildings.reduce((s, b) => s + b.occupiedCount, 0);
-  const totalAvailable  = totalCapacity - buildings.reduce((s, b) => s + b.occupiedCount + b.reservedCount + b.maintenanceCount, 0);
-  const totalMaintenance = buildings.reduce((s, b) => s + b.maintenanceCount, 0);
-
   const summaryStats = [
-    { label: 'Tổng sức chứa',    value: totalCapacity,    unit: 'chỗ', icon: ParkingSquare, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-    { label: 'Đang sử dụng',     value: totalOccupied,    unit: 'chỗ', icon: Car,           color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5' },
-    { label: 'Còn trống',        value: totalAvailable,   unit: 'chỗ', icon: CircleCheck,   color: '#F97316', bg: 'from-orange-500/20 to-orange-500/5' },
-    { label: 'Đang bảo trì',     value: totalMaintenance, unit: 'chỗ', icon: Wrench,        color: '#F87171', bg: 'from-red-400/20 to-red-400/5' },
+    { label: 'Tổng số tòa',    value: lots.length,           unit: 'tòa', icon: Building2,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+    { label: 'Tổng sức chứa',  value: totalSpots,             unit: 'chỗ', icon: ParkingSquare, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+    { label: 'Đang còn trống', value: totalActual - usedSpots, unit: 'chỗ', icon: CircleCheck,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+    { label: 'Đang bảo trì',   value: inMaintenance,          unit: 'tòa', icon: Wrench,        color: '#F87171', bg: 'from-red-400/20 to-red-400/5' },
   ];
-
-  // ─── Render ───────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-orange-500 animate-spin" />
+        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
         <p className="text-sm text-white/40">Đang tải dữ liệu bãi đỗ xe...</p>
       </div>
     );
@@ -650,13 +1058,12 @@ export default function ManagerParkingLots() {
 
   return (
     <div className="space-y-6">
-
-      {/* ── Header ── */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Quản lý bãi đỗ xe</h2>
+          <h2 className="text-2xl font-bold text-white">Bãi đỗ xe</h2>
           <p className="text-sm text-white/40 mt-0.5">
-            {buildings.length} tòa nhà · {allFloors.length} tầng · {allSlots.length} chỗ đỗ
+            Quản lý {lots.length} tòa nhà · {activeLots} đang hoạt động
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -668,13 +1075,15 @@ export default function ManagerParkingLots() {
           >
             <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
           </button>
-          <button
-            onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-black font-semibold text-sm hover:opacity-90 transition-opacity"
-          >
-            <Plus size={16} />
-            Thêm tòa nhà
-          </button>
+          {isAdmin && (
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FF4C4C] hover:bg-[#ff3333] text-white font-semibold text-sm hover:opacity-90 transition-opacity"
+            >
+              <Plus size={16} />
+              Thêm tòa nhà
+            </button>
+          )}
         </div>
       </div>
 
@@ -685,9 +1094,9 @@ export default function ManagerParkingLots() {
         </div>
       )}
 
-      {/* ── Summary stats ── */}
+      {/* Stats */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        {summaryStats.map(s => {
+        {summaryStats.map((s) => {
           const Icon = s.icon;
           return (
             <div key={s.label} className="glass-card p-5 rounded-2xl">
@@ -695,7 +1104,7 @@ export default function ManagerParkingLots() {
                 <Icon size={19} style={{ color: s.color }} />
               </div>
               <p className="text-2xl font-bold text-white">
-                {s.value.toLocaleString('vi-VN')}
+                {s.value}
                 <span className="text-sm font-normal text-white/40 ml-1">{s.unit}</span>
               </p>
               <p className="text-sm text-white/50 mt-0.5">{s.label}</p>
@@ -704,7 +1113,7 @@ export default function ManagerParkingLots() {
         })}
       </div>
 
-      {/* ── Search ── */}
+      {/* Search */}
       <div className="relative max-w-sm">
         <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
         <input
@@ -712,293 +1121,657 @@ export default function ManagerParkingLots() {
           placeholder="Tìm kiếm tòa nhà..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-orange-500/50 transition-colors"
+          className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
         />
       </div>
 
-      {/* ── Building cards ── */}
+      {/* Lot cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.length === 0 && (
           <p className="col-span-3 text-center py-12 text-white/30 text-sm">Không tìm thấy tòa nhà nào.</p>
         )}
-        {filtered.map(b => {
-          const available = b.totalCapacity - b.occupiedCount - b.reservedCount - b.maintenanceCount;
-          const usedForBar = b.occupiedCount + b.reservedCount;
+        {filtered.map((lot) => {
+          const cfg = statusConfig[lot.status];
+          const available = lot.actualSlots - lot.usedSpots;
           return (
-            <div key={b.id} className="glass-card p-5 rounded-2xl flex flex-col gap-4 hover:border-white/20 transition-all">
-              {/* Title */}
+            <div key={lot.id} className="glass-card p-5 rounded-2xl flex flex-col gap-4 hover:border-white/20 transition-colors">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/10 flex items-center justify-center">
-                    <Building2 size={18} className="text-orange-500" />
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FF4C4C]/20 to-[#FF4C4C]/5 flex items-center justify-center">
+                    <Building2 size={18} className="text-[#FF4C4C]" />
                   </div>
                   <div>
-                    <p className="font-semibold text-white">{b.name}</p>
+                    <p className="font-semibold text-white">{lot.name}</p>
                     <div className="flex items-center gap-1 mt-0.5">
                       <MapPin size={11} className="text-white/30" />
-                      <span className="text-xs text-white/40 truncate max-w-[160px]">{b.address}</span>
+                      <span className="text-xs text-white/40 truncate max-w-[160px]">{lot.address}</span>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-1.5 text-xs bg-white/5 px-2.5 py-1 rounded-full text-white/50">
-                  <Layers size={11} />
-                  {b.floorCount} tầng
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text} shrink-0`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                  {cfg.label}
+                </span>
+              </div>
+
+              <OccupancyBar used={lot.usedSpots} total={lot.actualSlots} />
+
+              {/* Slot stats */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/5 rounded-xl px-3 py-2 text-center col-span-2">
+                  <p className="text-xs text-white/30 mb-1">Sức chứa tối đa</p>
+                  <p className="text-lg font-bold text-white">{lot.totalSpots} <span className="text-xs font-normal text-white/30">chỗ</span></p>
+                </div>
+                <div className="bg-white/5 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đã tạo</p>
+                  <p className="text-lg font-bold text-white/70">{lot.actualSlots}</p>
+                </div>
+                <div className="bg-white/5 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Chưa tạo</p>
+                  <p className="text-lg font-bold text-white/40">{lot.totalSpots - lot.actualSlots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Đang đỗ</p>
+                  <p className="text-lg font-bold text-[#FF4C4C]">{lot.usedSpots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl px-3 py-2 text-center">
+                  <p className="text-xs text-white/30 mb-1">Còn trống</p>
+                  <p className="text-lg font-bold text-[#FF4C4C]">{available}</p>
                 </div>
               </div>
 
-              <OccupancyBar used={usedForBar} total={b.totalCapacity} />
-
-              {/* Slot counts */}
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { label: 'Tổng',     value: b.totalCapacity,    color: 'text-white' },
-                  { label: 'Trống',    value: available,           color: 'text-orange-500' },
-                  { label: 'Có xe',    value: b.occupiedCount,     color: 'text-amber-500' },
-                  { label: 'Bảo trì', value: b.maintenanceCount,  color: 'text-red-400' },
-                ].map(item => (
-                  <div key={item.label} className="bg-white/5 rounded-xl px-2 py-2 text-center">
-                    <p className={`text-base font-bold ${item.color}`}>{item.value}</p>
-                    <p className="text-[10px] text-white/40 mt-0.5">{item.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Actions */}
               <div className="flex items-center gap-2 pt-1 border-t border-white/5">
                 <button
-                  onClick={() => openDetail(b)}
+                  onClick={() => openDetail(lot)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-white/60 hover:text-white hover:bg-white/5 transition-all"
                 >
-                  <Eye size={13} /> Sơ đồ
+                  <Eye size={13} />
+                  Chi tiết
                 </button>
                 <button
-                  onClick={() => openEdit(b)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-orange-500/70 hover:text-orange-500 hover:bg-orange-500/10 transition-all"
+                  onClick={() => openStaff(lot)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-blue-400/70 hover:text-blue-400 hover:bg-blue-400/10 transition-all"
                 >
-                  <Pencil size={13} /> Sửa
+                  <Users size={13} />
+                  Nhân viên
                 </button>
                 <button
-                  onClick={() => openDelete(b)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-red-400/60 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                  onClick={() => openEdit(lot)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-[#FF4C4C]/70 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all"
                 >
-                  <Trash2 size={13} /> Xoá
+                  <Pencil size={13} />
+                  Sửa
                 </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => openDelete(lot)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-red-400/60 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                  >
+                    <Trash2 size={13} />
+                    Xoá
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* ══════════════════════════════════════════════
-          DETAIL MODAL — Sơ đồ slot + đổi trạng thái
-      ══════════════════════════════════════════════ */}
-      {modalType === 'detail' && selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-4xl shadow-2xl max-h-[90vh] flex flex-col">
-
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+      {/* ── STAFF MODAL ── */}
+      {modalType === 'staff' && selected && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh] bg-white dark:bg-[#0E0E10]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/10">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                  <Building2 size={17} className="text-orange-500" />
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                  <Users size={15} className="text-blue-500" />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold text-white">{selected.name}</h3>
+                  <h3 className="text-sm font-semibold text-gray-800 dark:text-white">Nhân viên phụ trách</h3>
+                  <p className="text-[11px] text-gray-400 dark:text-white/35 mt-0.5">{selected.name}</p>
+                </div>
+              </div>
+              <button onClick={closeModal} className="p-1.5 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/10 transition-all">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+              {staffLoading ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 size={20} className="animate-spin text-gray-300 dark:text-white/30" />
+                </div>
+              ) : (
+                <>
+                  {buildingStaff.length === 0 ? (
+                    <div className="flex items-center justify-center py-6 bg-gray-50 dark:bg-white/[0.03] rounded-xl border border-gray-100 dark:border-white/5">
+                      <p className="text-xs text-gray-400 dark:text-white/30">Chưa có nhân viên nào được phân công</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {buildingStaff.map(s => (
+                        <div key={s.id} className="flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-white/[0.04] rounded-xl border border-gray-100 dark:border-white/[0.08]">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center shrink-0">
+                              <span className="text-xs font-semibold text-blue-500">{s.fullName.charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium text-gray-800 dark:text-white truncate">{s.fullName}</p>
+                              <p className="text-[10px] text-gray-400 dark:text-white/35 truncate">@{s.username}</p>
+                            </div>
+                          </div>
+                          <button
+                            disabled={staffActionLoading}
+                            onClick={async () => {
+                              const activeToken = getActiveToken(token);
+                              if (!activeToken) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
+                              setStaffActionLoading(true);
+                              try {
+                                await unassignStaffFromBuilding(selected.id, s.id, activeToken);
+                                setBuildingStaff(prev => prev.filter(x => x.id !== s.id));
+                                setAllStaffList(prev => prev.map(x =>
+                                  x.id === s.id ? { ...x, assignedBuildingId: null } : x
+                                ));
+                                showToast('success', `Đã gỡ ${s.fullName} khỏi tòa nhà.`);
+                              } catch (e) {
+                                showToast('error', e instanceof Error ? e.message : 'Không thể gỡ nhân viên.');
+                              } finally {
+                                setStaffActionLoading(false);
+                              }
+                            }}
+                            className="shrink-0 p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 dark:text-white/25 dark:hover:text-red-400 dark:hover:bg-red-400/10 transition-all disabled:opacity-40"
+                            title="Gỡ khỏi tòa nhà"
+                          >
+                            <UserMinus size={13} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Assign row */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <select
+                      value={assigningStaffId}
+                      onChange={e => setAssigningStaffId(e.target.value)}
+                      disabled={allStaffList.filter(s => !s.assignedBuildingId).length === 0}
+                      className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-gray-700 dark:text-white focus:outline-none focus:border-blue-400 transition-colors disabled:opacity-40"
+                    >
+                      <option value="">
+                        {allStaffList.filter(s => !s.assignedBuildingId).length === 0
+                          ? '-- Không có nhân viên khả dụng --'
+                          : '-- Chọn nhân viên --'}
+                      </option>
+                      {allStaffList
+                        .filter(s => !s.assignedBuildingId)
+                        .map(s => (
+                          <option key={s.id} value={s.id}>{s.fullName} (@{s.username})</option>
+                        ))}
+                    </select>
+                    <button
+                      disabled={!assigningStaffId || staffActionLoading}
+                      onClick={async () => {
+                        if (!assigningStaffId) return;
+                        const activeToken = getActiveToken(token);
+                        if (!activeToken) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
+                        setStaffActionLoading(true);
+                        try {
+                          await assignStaffToBuilding(selected.id, assigningStaffId, activeToken);
+                          const staffMember = allStaffList.find(s => s.id === assigningStaffId);
+                          if (staffMember) {
+                            setBuildingStaff(prev => [...prev, staffMember]);
+                            setAllStaffList(prev => prev.map(s =>
+                              s.id === assigningStaffId ? { ...s, assignedBuildingId: selected.id } : s
+                            ));
+                          }
+                          setAssigningStaffId('');
+                          showToast('success', 'Đã phân công nhân viên thành công!');
+                        } catch (e) {
+                          showToast('error', e instanceof Error ? e.message : 'Không thể phân công nhân viên.');
+                        } finally {
+                          setStaffActionLoading(false);
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-white bg-blue-500 hover:bg-blue-400 transition-colors disabled:opacity-40 shrink-0"
+                    >
+                      {staffActionLoading ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} />}
+                      Phân công
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-3 border-t border-gray-100 dark:border-white/10 flex justify-end">
+              <button onClick={closeModal} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 dark:text-white/60 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+
+      {/* ── DETAIL MODAL ── */}
+      {modalType === 'detail' && selected && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-3xl shadow-2xl max-h-[90vh] flex flex-col bg-white dark:bg-[#0E0E10]">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#FF4C4C]/10 flex items-center justify-center">
+                  <Building2 size={17} className="text-[#FF4C4C]" />
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-800 dark:text-white">{selected.name}</h3>
                   <div className="flex items-center gap-1 mt-0.5">
-                    <MapPin size={11} className="text-white/30" />
-                    <span className="text-xs text-white/40">{selected.address}</span>
+                    <MapPin size={11} className="text-gray-400 dark:text-white/30" />
+                    <span className="text-xs text-gray-400 dark:text-white/40">{selected.address}</span>
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusConfig[selected.status].bg} ${statusConfig[selected.status].text}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusConfig[selected.status].dot}`} />
+                  {statusConfig[selected.status].label}
+                </span>
                 <button
                   onClick={() => { closeModal(); openEdit(selected); }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-orange-500 bg-orange-500/10 hover:bg-orange-500/20 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-[#FF4C4C] bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 transition-all"
                 >
                   <Pencil size={12} /> Chỉnh sửa
                 </button>
-                <button onClick={closeModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
+                <button onClick={closeModal} className="p-1.5 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:text-white/40 dark:hover:text-white dark:hover:bg-white/10 transition-all">
                   <X size={16} />
                 </button>
               </div>
             </div>
 
-            {/* Modal body */}
             <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-              {/* Stats row */}
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  { label: 'Sức chứa',   value: selected.totalCapacity,    color: 'text-white' },
-                  { label: 'Còn trống',  value: selected.totalCapacity - selected.occupiedCount - selected.reservedCount - selected.maintenanceCount, color: 'text-orange-500' },
-                  { label: 'Đang dùng',  value: selected.occupiedCount,     color: 'text-amber-500' },
-                  { label: 'Bảo trì',   value: selected.maintenanceCount,  color: 'text-red-400' },
-                ].map(item => (
-                  <div key={item.label} className="bg-white/5 rounded-xl p-3 text-center">
-                    <p className={`text-2xl font-bold ${item.color}`}>{item.value}</p>
-                    <p className="text-xs text-white/40 mt-0.5">{item.label}</p>
-                  </div>
-                ))}
+              {/* Capacity summary */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 text-center col-span-2">
+                  <p className="text-xs text-gray-400 dark:text-white/30 mb-1">Sức chứa tối đa đăng ký</p>
+                  <p className="text-2xl font-bold text-gray-800 dark:text-white">{selected.totalSpots} <span className="text-sm font-normal text-gray-400 dark:text-white/30">chỗ</span></p>
+                </div>
+                <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-xs text-gray-400 dark:text-white/30 mb-1">Đã tạo slot</p>
+                  <p className="text-xl font-bold text-gray-700 dark:text-white/70">{selected.actualSlots}</p>
+                </div>
+                <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-3 text-center">
+                  <p className="text-xs text-gray-400 dark:text-white/30 mb-1">Chưa tạo</p>
+                  <p className="text-xl font-bold text-gray-400 dark:text-white/40">{selected.totalSpots - selected.actualSlots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl p-3 text-center">
+                  <p className="text-xs text-gray-400 dark:text-white/30 mb-1">Đang đỗ</p>
+                  <p className="text-xl font-bold text-[#FF4C4C]">{selected.usedSpots}</p>
+                </div>
+                <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl p-3 text-center">
+                  <p className="text-xs text-gray-400 dark:text-white/30 mb-1">Còn trống</p>
+                  <p className="text-xl font-bold text-[#FF4C4C]">{selected.actualSlots - selected.usedSpots}</p>
+                </div>
               </div>
 
-              <OccupancyBar used={selected.occupiedCount + selected.reservedCount} total={selected.totalCapacity} />
-
-              {/* Tip */}
-              <div className="flex items-start gap-2.5 px-4 py-3 bg-orange-500/5 border border-orange-500/15 rounded-xl">
-                <Info size={14} className="text-orange-500 shrink-0 mt-0.5" />
-                <p className="text-xs text-white/60">
-                  Click vào ô slot <span className="text-orange-500">còn trống</span> để xem tùy chọn đổi trạng thái (chuyển sang Bảo trì hoặc ngược lại).
-                </p>
-              </div>
+              <OccupancyBar used={selected.usedSpots} total={selected.actualSlots} />
 
               {/* Slot map */}
               <div>
-                <p className="text-sm font-medium text-white mb-3 flex items-center gap-2">
-                  <ParkingSquare size={15} className="text-orange-500" />
+                <p className="text-sm font-medium text-gray-700 dark:text-white mb-3 flex items-center gap-2">
+                  <ParkingSquare size={15} className="text-[#FF4C4C]" />
                   Sơ đồ chỗ đỗ xe
                 </p>
-                <div className="bg-white/[0.03] rounded-xl p-4 space-y-4">
+                <div className="bg-gray-50 dark:bg-white/[0.03] rounded-xl p-4 space-y-4">
                   <SlotMap
                     floors={allFloors}
+                    slots={allSlots}
                     buildingId={selected.id}
                     selectedSlotId={selectedSlotId}
                     onSelectSlot={setSelectedSlotId}
-                    onStatusChange={setActiveSlot}
-                    token={token}
+                    vehicleTypes={vehicleTypes}
+                    onConfirm={async (slotId, action, vehicleTypeId) => {
+                      const activeToken = getActiveToken(token);
+                      if (!activeToken) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
+                      const newStatus = action === 'release' ? 'Available' : action === 'maintain' ? 'Maintenance' : 'Occupied';
+                      try {
+                        await updateSlotStatus(slotId, newStatus, activeToken);
+                        const selectedVt = vehicleTypeId ? vehicleTypes.find(v => v.id === vehicleTypeId) : undefined;
+                        const updatedSlots = allSlots.map(s => s.id === slotId ? {
+                          ...s,
+                          status: newStatus,
+                          ...(selectedVt ? { vehicleTypeName: selectedVt.name, vehicleTypeId: selectedVt.id } : {}),
+                          ...(newStatus === 'Available' || newStatus === 'Maintenance' ? { vehicleTypeName: undefined, vehicleTypeId: undefined } : {}),
+                        } : s);
+                        setAllSlots(updatedSlots);
+                        const fbMap: Record<string, string> = {};
+                        allFloors.forEach(f => { fbMap[f.id] = f.buildingId; });
+                        const usedByBuilding: Record<string, number> = {};
+                        updatedSlots.filter(s => isSlotOccupied(s.status)).forEach(s => {
+                          const bid = fbMap[s.floorId];
+                          if (bid) usedByBuilding[bid] = (usedByBuilding[bid] ?? 0) + 1;
+                        });
+                        setLots(prev => prev.map(l => ({
+                          ...l,
+                          usedSpots: usedByBuilding[l.id] ?? 0,
+                          status: (usedByBuilding[l.id] ?? 0) >= l.actualSlots ? 'full' : l.status === 'full' ? 'active' : l.status,
+                        })));
+                        if (selected) setSelected(s => s ? { ...s, usedSpots: usedByBuilding[s.id] ?? 0 } : s);
+                        const toastMsg = action === 'release' ? 'Đã giải phóng chỗ đỗ!' : action === 'maintain' ? 'Đã chuyển sang bảo trì!' : 'Đã phân bổ chỗ đỗ thành công!';
+                        showToast('success', toastMsg);
+                      } catch (e) {
+                        showToast('error', e instanceof Error ? e.message : 'Không thể cập nhật chỗ đỗ.');
+                      }
+                    }}
+                    onBulkRelease={async (slotIds, action = 'release') => {
+                      const activeToken = getActiveToken(token);
+                      if (!activeToken) { showToast('error', 'Phiên đăng nhập hết hạn.'); return; }
+                      const newStatus = action === 'maintain' ? 'Maintenance' : 'Available';
+                      try {
+                        const BATCH = 10;
+                        for (let i = 0; i < slotIds.length; i += BATCH) {
+                          await Promise.all(slotIds.slice(i, i + BATCH).map(id => updateSlotStatus(id, newStatus, activeToken)));
+                        }
+                        const updatedSlots = allSlots.map(s =>
+                          slotIds.includes(s.id) ? { ...s, status: newStatus, vehicleTypeName: undefined, vehicleTypeId: undefined } : s
+                        );
+                        setAllSlots(updatedSlots);
+                        const msg = action === 'maintain'
+                          ? `Đã chuyển ${slotIds.length} chỗ sang bảo trì!`
+                          : `Đã kết thúc bảo trì ${slotIds.length} chỗ đỗ!`;
+                        showToast('success', msg);
+                      } catch (e) {
+                        showToast('error', e instanceof Error ? e.message : 'Không thể cập nhật chỗ đỗ.');
+                      }
+                    }}
                   />
-
-                  {/* Slot action panel */}
-                  {activeSlot && token && (
-                    <SlotStatusPanel
-                      slot={activeSlot}
-                      onClose={() => { setActiveSlot(null); setSelectedSlotId(null); }}
-                      onUpdated={handleSlotStatusUpdated}
-                      token={token}
-                    />
-                  )}
                 </div>
               </div>
+
+              {selected.status === 'maintenance' && (
+                <div className="flex items-center gap-3 px-4 py-3 bg-red-400/10 border border-red-400/20 rounded-xl">
+                  <AlertTriangle size={16} className="text-red-400 shrink-0" />
+                  <p className="text-sm text-red-400">Tòa nhà này đang trong quá trình bảo trì, không nhận xe.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-white/10 flex justify-end gap-3">
+              <button onClick={closeModal} className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-600 dark:text-white/60 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+                Đóng
+              </button>
+              <button
+                onClick={() => { closeModal(); openEdit(selected); }}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity"
+              >
+                Chỉnh sửa
+              </button>
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
-      {/* ══════════════════════════════════════════════
-          ADD / EDIT MODAL
-      ══════════════════════════════════════════════ */}
-      {(modalType === 'add' || modalType === 'edit') && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <h3 className="text-base font-semibold text-white">
-                {modalType === 'add' ? 'Thêm tòa nhà mới' : `Chỉnh sửa · ${selected?.name}`}
-              </h3>
-              <button onClick={closeModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
+      {/* ── ADD / EDIT MODAL ── */}
+      {(modalType === 'add' || modalType === 'edit') && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-[#0E0E10] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/10 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#FF4C4C]/10 flex items-center justify-center">
+                  <Building2 size={17} className="text-[#FF4C4C]" />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-semibold text-gray-800 dark:text-white leading-tight">
+                    {modalType === 'add' ? 'Thêm tòa nhà mới' : 'Chỉnh sửa tòa nhà'}
+                  </h3>
+                  {modalType === 'edit' && selected && (
+                    <p className="text-[11px] text-gray-400 dark:text-white/35 mt-0.5">{selected.name}</p>
+                  )}
+                </div>
+              </div>
+              <button onClick={closeModal} className="p-1.5 rounded-xl text-gray-400 dark:text-white/35 hover:text-gray-600 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
-              {/* Basic fields */}
-              {[
-                { key: 'name' as const,          label: 'Tên tòa nhà',         placeholder: 'Ví dụ: Tòa A',            type: 'text'   },
-                { key: 'address' as const,       label: 'Địa chỉ',             placeholder: 'Ví dụ: 123 Lê Lợi, Q.1',  type: 'text'   },
-                { key: 'totalCapacity' as const, label: 'Sức chứa tối đa (chỗ)', placeholder: 'Ví dụ: 200',             type: 'number' },
-              ].map(f => (
-                <div key={f.key}>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">{f.label}</label>
+            {/* Body */}
+            <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+
+              {/* ── Section: Thông tin cơ bản ── */}
+              <div className="space-y-3">
+                <p className="text-[10px] font-semibold text-gray-400 dark:text-white/25 uppercase tracking-widest">Thông tin cơ bản</p>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Tên tòa nhà</label>
                   <input
-                    type={f.type}
-                    placeholder={f.placeholder}
-                    value={form[f.key]}
-                    onChange={e => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500/50 transition-colors"
+                    type="text"
+                    placeholder="Ví dụ: Tòa A"
+                    value={form.name}
+                    onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
-              ))}
-
-              {/* Floor management — only in edit mode */}
-              {modalType === 'edit' && (
                 <div>
-                  <label className="block text-xs font-medium text-white/50 mb-2">
-                    Quản lý tầng ({editFloors.length} tầng)
-                  </label>
+                  <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Địa chỉ</label>
+                  <input
+                    type="text"
+                    placeholder="Ví dụ: 123 Đường Lê Lợi"
+                    value={form.address}
+                    onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                  />
+                </div>
+                <div className={`grid gap-3 ${modalType === 'edit' ? 'grid-cols-2' : ''}`}>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Tổng sức chứa (chỗ)</label>
+                    <input
+                      type="number"
+                      placeholder="Ví dụ: 300"
+                      value={form.totalSpots}
+                      onChange={e => setForm(prev => ({ ...prev, totalSpots: e.target.value }))}
+                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    />
+                  </div>
+                  {modalType === 'edit' && (
+                    <div>
+                      <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Trạng thái</label>
+                      <select
+                        value={form.status}
+                        onChange={e => setForm(prev => ({ ...prev, status: e.target.value as ParkingLot['status'] }))}
+                        className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
+                      >
+                        <option value="active">Hoạt động</option>
+                        <option value="maintenance">Bảo trì</option>
+                        <option value="full">Đầy chỗ</option>
+                      </select>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-                  {/* Existing floors list */}
-                  <div className="space-y-1.5 mb-3 max-h-40 overflow-y-auto">
+              {/* ── Section: Quản lý tầng (edit only) ── */}
+              {modalType === 'edit' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-semibold text-gray-400 dark:text-white/25 uppercase tracking-widest">Quản lý tầng</p>
+                    <span className={`text-xs font-semibold ${remainingCapacity === 0 ? 'text-red-400' : 'text-gray-400 dark:text-white/40'}`}>
+                      {usedCapacity} / {selected?.totalSpots ?? 0}
+                      <span className="font-normal text-gray-400 dark:text-white/30"> chỗ phân bổ</span>
+                    </span>
+                  </div>
+
+                  {/* Capacity bar */}
+                  <div className="space-y-1">
+                    <div className="h-1.5 bg-gray-200 dark:bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${Math.min(100, selected ? (usedCapacity / selected.totalSpots) * 100 : 0)}%`,
+                          backgroundColor: remainingCapacity === 0 ? '#F87171'
+                            : remainingCapacity < (selected?.totalSpots ?? 0) * 0.15 ? '#F59E0B'
+                            : '#FF4C4C',
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-gray-400 dark:text-white/25">
+                      <span>0</span>
+                      {remainingCapacity > 0
+                        ? <span className="text-[#FF4C4C]/70">còn {remainingCapacity} chỗ</span>
+                        : <span className="text-red-400/70">đã phân bổ đầy</span>}
+                      <span>{selected?.totalSpots ?? 0}</span>
+                    </div>
+                  </div>
+
+                  {/* Floor list */}
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto">
                     {floorLoading && editFloors.length === 0 ? (
-                      <div className="flex items-center gap-2 py-2 text-xs text-white/30">
-                        <Loader2 size={12} className="animate-spin" /> Đang tải...
+                      <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-400 dark:text-white/25">
+                        <Loader2 size={13} className="animate-spin" /> Đang tải danh sách tầng...
                       </div>
                     ) : editFloors.length === 0 ? (
-                      <p className="text-xs text-white/30 py-2">Chưa có tầng nào.</p>
+                      <div className="py-5 text-center text-xs text-gray-400 dark:text-white/25">Chưa có tầng nào</div>
                     ) : (
                       editFloors.map(f => (
-                        <div key={f.id} className="flex flex-col gap-2 px-3 py-2 bg-white/5 rounded-lg">
+                        <div
+                          key={f.id}
+                          className={`rounded-xl border transition-all ${
+                            editingFloorId === f.id
+                              ? 'border-[#FF4C4C]/25 bg-[#FF4C4C]/5'
+                              : 'border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5'
+                          }`}
+                        >
                           {editingFloorId === f.id ? (
-                            <div className="space-y-2">
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={editFloorName}
-                                  onChange={e => { setEditFloorName(e.target.value); setFloorError(''); }}
-                                  className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/50"
-                                  placeholder="Tên tầng"
-                                />
-                                <input
-                                  type="number"
-                                  placeholder="+ thêm chỗ"
-                                  min={0}
-                                  max={100 - f.slotCount}
-                                  value={editFloorAddedSlots}
-                                  onChange={e => { setEditFloorAddedSlots(e.target.value); setFloorError(''); }}
-                                  className="w-24 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/50"
-                                />
+                            /* ── Inline edit panel ── */
+                            <div className="p-4 space-y-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-[#FF4C4C] flex items-center gap-1.5">
+                                  <Pencil size={10} /> Chỉnh sửa tầng
+                                </span>
+                                <span className="text-[11px] text-gray-400 dark:text-white/35">
+                                  {editFloorActualCount === null
+                                    ? <span className="flex items-center gap-1"><Loader2 size={10} className="animate-spin" />đang tải...</span>
+                                    : `Hiện có ${editFloorActualCount} chỗ`}
+                                </span>
                               </div>
+
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <p className="text-[11px] text-gray-400 dark:text-white/35 mb-1">Tên tầng</p>
+                                  <input
+                                    type="text"
+                                    value={editFloorName}
+                                    onChange={e => { setEditFloorName(e.target.value); setEditFloorError(''); }}
+                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                                    placeholder="Tên tầng"
+                                  />
+                                </div>
+                                {editFloorActualCount !== null && (() => {
+                                  const cur = editFloorActualCount;
+                                  const maxSlots = Math.min(100, cur + remainingCapacity);
+                                  return (
+                                    <div>
+                                      <p className="text-[11px] text-gray-400 dark:text-white/35 mb-1">Số chỗ <span className="text-gray-300 dark:text-white/20">(20–{maxSlots})</span></p>
+                                      <input
+                                        type="number"
+                                        placeholder={String(cur)}
+                                        min={20}
+                                        max={maxSlots}
+                                        value={editFloorAddedSlots}
+                                        onChange={e => { setEditFloorAddedSlots(e.target.value); setEditFloorError(''); }}
+                                        className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                                      />
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+
+                              {/* Vehicle type — only when adding slots */}
+                              {editFloorActualCount !== null
+                                && editFloorAddedSlots !== ''
+                                && Number(editFloorAddedSlots) > editFloorActualCount && (
+                                <div>
+                                  <p className="text-[11px] text-gray-400 dark:text-white/35 mb-1">Loại xe (cho chỗ mới)</p>
+                                  <select
+                                    value={editFloorVehicleTypeId}
+                                    onChange={e => { setEditFloorVehicleTypeId(e.target.value); setEditFloorError(''); }}
+                                    className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
+                                  >
+                                    <option value="">-- Chọn loại xe --</option>
+                                    {vehicleTypes.map(vt => (
+                                      <option key={vt.id} value={vt.id}>{vt.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
+
+                              {/* Change preview */}
+                              {editFloorActualCount !== null && editFloorAddedSlots !== '' && Number(editFloorAddedSlots) !== editFloorActualCount && (
+                                <div className={`px-3 py-2 rounded-lg text-xs flex items-center gap-2 ${
+                                  Number(editFloorAddedSlots) > editFloorActualCount
+                                    ? 'bg-[#FF4C4C]/8 text-[#FF4C4C]'
+                                    : 'bg-amber-400/8 text-amber-500'
+                                }`}>
+                                  {Number(editFloorAddedSlots) > editFloorActualCount
+                                    ? `+${Number(editFloorAddedSlots) - editFloorActualCount} chỗ sẽ được thêm`
+                                    : `-${editFloorActualCount - Number(editFloorAddedSlots)} chỗ trống sẽ bị vô hiệu hoá`}
+                                </div>
+                              )}
+
+                              {/* Error */}
+                              {editFloorError && (
+                                <div className="flex items-start gap-2 px-3 py-2 bg-red-50 dark:bg-red-400/8 border border-red-200 dark:border-red-400/18 rounded-lg">
+                                  <AlertTriangle size={11} className="text-red-400 mt-0.5 shrink-0" />
+                                  <p className="text-xs text-red-500 dark:text-red-400 leading-relaxed">{editFloorError}</p>
+                                </div>
+                              )}
+
                               <div className="flex gap-2">
-                                <select
-                                  value={editFloorVehicleTypeId}
-                                  onChange={e => { setEditFloorVehicleTypeId(e.target.value); setFloorError(''); }}
-                                  className="flex-1 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500/50 appearance-none"
-                                >
-                                  <option value="" className="bg-[#121214]">-- Loại xe (nếu thêm chỗ) --</option>
-                                  {vehicleTypes.map(vt => (
-                                    <option key={vt.id} value={vt.id} className="bg-[#121214]">{vt.name}</option>
-                                  ))}
-                                </select>
                                 <button
                                   onClick={() => saveFloorEdit(f)}
-                                  disabled={floorLoading}
-                                  className="p-1.5 rounded-lg text-orange-500 hover:bg-orange-500/10 transition-all disabled:opacity-30"
+                                  disabled={floorLoading || !editFloorName.trim()}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 text-[#FF4C4C] text-xs font-semibold hover:bg-[#FF4C4C]/20 transition-all disabled:opacity-40"
                                 >
-                                  <Save size={14} />
+                                  {floorLoading ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                                  Lưu thay đổi
                                 </button>
                                 <button
-                                  onClick={() => { setEditingFloorId(null); setFloorError(''); }}
+                                  onClick={() => { setEditingFloorId(null); setFloorError(''); setEditFloorError(''); setEditFloorAddedSlots(''); setEditFloorActualCount(null); }}
                                   disabled={floorLoading}
-                                  className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/10 transition-all disabled:opacity-30"
+                                  className="px-4 py-2 rounded-lg text-gray-500 dark:text-white/35 text-xs hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all disabled:opacity-30"
                                 >
-                                  <X size={14} />
+                                  Huỷ
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-white">{f.name}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-white/30">{f.slotCount} / 100 chỗ</span>
+                            /* ── Floor row (view) ── */
+                            <div className="flex items-center justify-between px-3.5 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-7 h-7 rounded-lg bg-gray-200 dark:bg-white/10 flex items-center justify-center shrink-0">
+                                  <span className="text-[9px] font-bold text-gray-500 dark:text-white/40">{f.floorIndex + 1}F</span>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-gray-800 dark:text-white leading-tight">{f.name}</p>
+                                  <p className="text-[11px] text-gray-400 dark:text-white/30 mt-0.5">{f.slotCount} chỗ đỗ</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-0.5">
                                 <button
                                   onClick={() => startEditFloor(f)}
                                   disabled={floorLoading}
-                                  className="p-1 rounded-lg text-amber-500/50 hover:text-amber-500 hover:bg-amber-500/10 transition-all disabled:opacity-30"
+                                  className="p-2 rounded-lg text-gray-300 dark:text-white/25 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/8 transition-all disabled:opacity-30"
+                                  title="Chỉnh sửa"
                                 >
-                                  <Pencil size={12} />
+                                  <Pencil size={13} />
                                 </button>
                                 <button
                                   onClick={() => handleDeleteFloor(f.id)}
                                   disabled={floorLoading}
-                                  className="p-1 rounded-lg text-red-400/50 hover:text-red-400 hover:bg-red-400/10 transition-all disabled:opacity-30"
+                                  className="p-2 rounded-lg text-gray-300 dark:text-white/25 hover:text-red-400 hover:bg-red-400/8 transition-all disabled:opacity-30"
+                                  title="Xoá tầng"
                                 >
-                                  <Trash2 size={12} />
+                                  <Trash2 size={13} />
                                 </button>
                               </div>
                             </div>
@@ -1008,126 +1781,154 @@ export default function ManagerParkingLots() {
                     )}
                   </div>
 
-                  {/* Add new floor row */}
-                  <div className="space-y-2 pt-2 border-t border-white/5">
-                    <p className="text-xs text-white/40">Thêm tầng mới:</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Tên tầng (vd: Tầng B1)"
-                        value={newFloorName}
-                        onChange={e => { setNewFloorName(e.target.value); setFloorError(''); }}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500/50 transition-colors"
-                      />
-                      <input
-                        type="number"
-                        placeholder="Số chỗ (tối đa 100)"
-                        min={0}
-                        max={100}
-                        value={newFloorSlotCount}
-                        onChange={e => { setNewFloorSlotCount(e.target.value); setFloorError(''); }}
-                        className="w-32 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/20 focus:outline-none focus:border-orange-500/50 transition-colors"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <select
-                        value={newFloorVehicleTypeId}
-                        onChange={e => { setNewFloorVehicleTypeId(e.target.value); setFloorError(''); }}
-                        className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500/50 transition-colors appearance-none"
-                      >
-                        <option value="" className="bg-[#121214]">-- Loại xe (nếu có chỗ) --</option>
-                        {vehicleTypes.map(vt => (
-                          <option key={vt.id} value={vt.id} className="bg-[#121214]">{vt.name}</option>
-                        ))}
-                      </select>
-                      <button
-                        onClick={handleAddFloor}
-                        disabled={floorLoading || !newFloorName.trim()}
-                        className="px-3 py-2 rounded-xl bg-orange-500/20 border border-orange-500/30 text-orange-500 hover:bg-orange-500/30 transition-all disabled:opacity-40 flex items-center gap-1.5 text-sm font-medium whitespace-nowrap"
-                      >
-                        {floorLoading ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
-                        Thêm tầng
-                      </button>
-                    </div>
-                    {floorError && (
-                      <p className="text-xs text-red-400 flex items-center gap-1.5">
-                        <AlertTriangle size={11} /> {floorError}
+                  {/* Add new floor */}
+                  {remainingCapacity > 0 ? (
+                    <div className="rounded-xl border border-dashed border-gray-300 dark:border-white/20 p-3.5 space-y-2.5">
+                      <p className="text-[10px] font-semibold text-gray-400 dark:text-white/25 uppercase tracking-widest flex items-center gap-1.5">
+                        <Plus size={10} />
+                        Thêm tầng mới
+                        <span className="normal-case tracking-normal font-normal text-gray-300 dark:text-white/20">· còn {remainingCapacity} chỗ · 20–100/tầng</span>
                       </p>
-                    )}
-                  </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Tên tầng"
+                          value={newFloorName}
+                          onChange={e => { setNewFloorName(e.target.value); setFloorError(''); }}
+                          className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/40 transition-colors"
+                        />
+                        <input
+                          type="number"
+                          placeholder={`20–${Math.min(100, remainingCapacity)} chỗ`}
+                          min={20}
+                          max={Math.min(100, remainingCapacity)}
+                          value={newFloorSlotCount}
+                          onChange={e => { setNewFloorSlotCount(e.target.value); setFloorError(''); }}
+                          className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/40 transition-colors"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <select
+                          value={newFloorVehicleTypeId}
+                          onChange={e => { setNewFloorVehicleTypeId(e.target.value); setFloorError(''); }}
+                          className="flex-1 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/40 transition-colors appearance-none"
+                        >
+                          <option value="">-- Chọn loại xe --</option>
+                          {vehicleTypes.map(vt => (
+                            <option key={vt.id} value={vt.id}>{vt.name}</option>
+                          ))}
+                        </select>
+                        <button
+                          onClick={handleAddFloor}
+                          disabled={floorLoading || !newFloorName.trim()}
+                          className="px-4 py-2 rounded-lg bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 text-[#FF4C4C] text-xs font-semibold hover:bg-[#FF4C4C]/20 transition-all disabled:opacity-40 flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                          {floorLoading ? <Loader2 size={11} className="animate-spin" /> : <Plus size={11} />}
+                          Thêm tầng
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2.5 px-3.5 py-3 bg-red-50 dark:bg-red-400/6 border border-red-200 dark:border-red-400/15 rounded-xl">
+                      <AlertTriangle size={13} className="text-red-400 shrink-0" />
+                      <p className="text-xs text-red-500 dark:text-red-400">Đã phân bổ đủ {selected?.totalSpots} chỗ. Tăng tổng sức chứa để thêm tầng.</p>
+                    </div>
+                  )}
+
+                  {floorError && (
+                    <div className="flex items-center gap-1.5 text-xs text-red-500 dark:text-red-400">
+                      <AlertTriangle size={11} /> {floorError}
+                    </div>
+                  )}
                 </div>
               )}
 
               {formError && (
-                <div className="flex items-center gap-2 px-3 py-2.5 bg-red-400/10 border border-red-400/20 rounded-xl">
-                  <AlertTriangle size={13} className="text-red-400 shrink-0" />
-                  <p className="text-xs text-red-400">{formError}</p>
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-red-50 dark:bg-red-400/8 border border-red-200 dark:border-red-400/15 rounded-xl text-xs text-red-500 dark:text-red-400">
+                  <AlertTriangle size={12} className="shrink-0" />
+                  {formError}
                 </div>
               )}
             </div>
 
-            <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
+            {/* Footer */}
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-100 dark:border-white/10 shrink-0">
               <button
                 onClick={closeModal}
-                className="px-5 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors"
+                disabled={submitting}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/45 bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors disabled:opacity-50"
               >
-                Hủy
+                Huỷ
               </button>
               <button
                 onClick={modalType === 'add' ? handleAdd : handleEdit}
-                disabled={submitting || editingFloorId !== null}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 transition-opacity disabled:opacity-50"
+                disabled={submitting || (modalType === 'edit' && editingFloorId !== null)}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity disabled:opacity-55"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                {editingFloorId !== null ? 'Đang sửa tầng...' : (modalType === 'add' ? 'Tạo tòa nhà' : 'Lưu thay đổi')}
+                {modalType === 'add' ? 'Thêm mới' : editingFloorId !== null ? 'Đang sửa tầng...' : 'Lưu thay đổi'}
               </button>
             </div>
           </div>
         </div>
+      , document.body)}
+
+      {/* ── TOAST NOTIFICATION ── */}
+      {toast && (
+        <div className={`fixed top-5 right-5 z-[9999] flex items-center gap-3 px-4 py-3 rounded-xl border shadow-2xl text-sm font-medium max-w-sm
+          ${toast.type === 'success'
+            ? 'border-[#FF4C4C]/40 text-[#FF4C4C]'
+            : 'border-red-400/40 text-red-400'}`}
+          style={{ backgroundColor: 'var(--admin-bg-surface)' }}
+        >
+          {toast.type === 'success' ? <CircleCheck size={16} className="shrink-0" /> : <AlertTriangle size={16} className="shrink-0" />}
+          <span className="flex-1">{toast.msg}</span>
+          <button onClick={() => setToast(null)} className="ml-1 opacity-50 hover:opacity-100 transition-opacity">
+            <X size={13} />
+          </button>
+        </div>
       )}
 
-      {/* ══════════════════════════════════════════════
-          DELETE CONFIRM MODAL
-      ══════════════════════════════════════════════ */}
-      {modalType === 'delete' && selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
-                <AlertTriangle size={18} className="text-red-400" />
+      {/* ── DELETE CONFIRM MODAL ── */}
+      {modalType === 'delete' && selected && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
+            <div className="px-6 pt-6 pb-4 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-red-400/10 flex items-center justify-center mx-auto mb-4">
+                <Trash2 size={24} className="text-red-400" />
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-white">Xoá tòa nhà</h3>
-                <p className="text-xs text-white/40 mt-0.5">Hành động này không thể hoàn tác</p>
-              </div>
+              <h3 className="text-base font-semibold text-white">Xoá tòa nhà?</h3>
+              <p className="text-sm text-white/50 mt-2 leading-relaxed">
+                Bạn sắp xoá <span className="text-white font-medium">{selected.name}</span> ({selected.address}).
+                <br />Hành động này không thể hoàn tác.
+              </p>
+              {selected.usedSpots > 0 && (
+                <div className="flex items-center gap-2 mt-3 px-3 py-2.5 bg-amber-400/10 border border-amber-400/20 rounded-xl text-left">
+                  <AlertTriangle size={14} className="text-amber-400 shrink-0" />
+                  <p className="text-xs text-amber-400">
+                    Tòa nhà này hiện có <strong>{selected.usedSpots} xe đang đỗ</strong>. Hãy chắc chắn trước khi xoá.
+                  </p>
+                </div>
+              )}
+              {formError && (
+                <p className="text-xs text-red-400 flex items-center justify-center gap-1.5 mt-2">
+                  <AlertTriangle size={12} />
+                  {formError}
+                </p>
+              )}
             </div>
-
-            <p className="text-sm text-white/70">
-              Bạn sắp xoá tòa nhà <span className="font-semibold text-white">"{selected.name}"</span>.
-              Tất cả tầng và chỗ đỗ xe liên quan sẽ bị xoá vĩnh viễn.
-            </p>
-
-            {formError && <p className="text-xs text-red-400">{formError}</p>}
-
-            <div className="flex gap-3">
-              <button
-                onClick={closeModal}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors"
-              >
-                Hủy bỏ
+            <div className="flex gap-3 px-6 pb-6">
+              <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50">
+                Huỷ
               </button>
-              <button
-                onClick={handleDelete}
-                disabled={submitting}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
-              >
+              <button onClick={handleDelete} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
                 {submitting && <Loader2 size={14} className="animate-spin" />}
                 Xác nhận xoá
               </button>
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   );
 }

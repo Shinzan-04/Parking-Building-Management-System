@@ -7,5 +7,4 @@ public class VehicleType : BaseEntity
 
     public ICollection<ParkingSlot> ParkingSlots { get; set; } = new List<ParkingSlot>();
     public ICollection<PricingPolicy> PricingPolicies { get; set; } = new List<PricingPolicy>();
-    public ICollection<PriceSetting> PriceSettings { get; set; } = new List<PriceSetting>();
 }

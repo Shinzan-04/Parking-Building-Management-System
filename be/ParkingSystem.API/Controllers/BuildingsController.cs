@@ -10,10 +10,12 @@ namespace ParkingSystem.API.Controllers;
 public class BuildingsController : ControllerBase
 {
     private readonly IBuildingService _buildingService;
+    private readonly IUserService _userService;
 
-    public BuildingsController(IBuildingService buildingService)
+    public BuildingsController(IBuildingService buildingService, IUserService userService)
     {
         _buildingService = buildingService;
+        _userService = userService;
     }
 
     [HttpGet]
@@ -46,11 +48,58 @@ public class BuildingsController : ControllerBase
         return building == null ? NotFound() : Ok(building);
     }
 
+    [HttpPut("{id}/approval-mode")]
+    [Authorize(Roles = "Admin,Manager,Staff")]
+    public async Task<IActionResult> UpdateApprovalMode(Guid id, [FromBody] int mode)
+    {
+        var building = await _buildingService.GetByIdAsync(id);
+        if (building == null) return NotFound();
+
+        var request = new UpdateBuildingRequest
+        {
+            Name = building.Name,
+            Address = building.Address,
+            TotalCapacity = building.TotalCapacity,
+            ApprovalMode = (ParkingSystem.Domain.Enums.ReservationApprovalMode)mode
+        };
+
+        var updated = await _buildingService.UpdateAsync(id, request);
+        return Ok(updated);
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var result = await _buildingService.DeleteAsync(id);
         return result ? NoContent() : NotFound();
+    }
+
+    // ── Staff Assignment ──────────────────────────────────────────────────
+
+    [HttpGet("{id}/staff")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> GetStaff(Guid id)
+    {
+        var staff = await _userService.GetStaffByBuildingAsync(id);
+        return Ok(staff);
+    }
+
+    [HttpPost("{id}/staff/{staffId}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> AssignStaff(Guid id, Guid staffId)
+    {
+        var result = await _userService.AssignStaffToBuildingAsync(staffId, id);
+        if (!result) return BadRequest(new { message = "Không tìm thấy nhân viên hoặc người dùng không phải Staff." });
+        return Ok(new { message = "Đã phân công nhân viên vào tòa nhà." });
+    }
+
+    [HttpDelete("{id}/staff/{staffId}")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> UnassignStaff(Guid id, Guid staffId)
+    {
+        var result = await _userService.UnassignStaffFromBuildingAsync(staffId);
+        if (!result) return NotFound(new { message = "Không tìm thấy nhân viên." });
+        return Ok(new { message = "Đã gỡ nhân viên khỏi tòa nhà." });
     }
 }

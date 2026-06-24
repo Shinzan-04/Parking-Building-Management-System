@@ -13,6 +13,7 @@
 
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ClipboardList, Search, RefreshCw, ChevronLeft,
   ChevronRight, Eye, Clock, CheckCircle2, AlertTriangle,
@@ -47,7 +48,7 @@ function toLocalDateStr(d: Date) {
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_CFG: Record<SessionStatus, { bg: string; text: string; dot: string }> = {
-  Active:    { bg: 'bg-orange-500/10', text: 'text-orange-500',  dot: 'bg-orange-500'  },
+  Active:    { bg: 'bg-[#FF4C4C]/10', text: 'text-[#FF4C4C]',  dot: 'bg-[#FF4C4C]'  },
   Overdue:   { bg: 'bg-red-400/10',   text: 'text-red-400',    dot: 'bg-red-400'    },
   Completed: { bg: 'bg-white/10',     text: 'text-white/60',   dot: 'bg-white/40'   },
 };
@@ -104,18 +105,18 @@ function SessionDetailModal({
     })();
   }, [sessionId, token]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#121214] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg shadow-2xl bg-white dark:bg-[#0E0E10]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
           <div className="flex items-center gap-2.5">
-            <ClipboardList size={16} className="text-orange-500" />
-            <h3 className="text-base font-semibold text-white">
+            <ClipboardList size={16} className="text-[#FF4C4C]" />
+            <h3 className="text-base font-semibold text-gray-800 dark:text-white">
               Chi tiết phiên đỗ xe
             </h3>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
+          <button onClick={onClose} className="p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
             <X size={16} />
           </button>
         </div>
@@ -123,7 +124,7 @@ function SessionDetailModal({
         {/* Body */}
         <div className="px-6 py-5">
           {loading && (
-            <div className="flex items-center justify-center py-12 gap-2 text-white/40">
+            <div className="flex items-center justify-center py-12 gap-2 text-gray-400 dark:text-white/40">
               <Loader2 size={18} className="animate-spin" />
               <span className="text-sm">Đang tải...</span>
             </div>
@@ -134,10 +135,10 @@ function SessionDetailModal({
               {/* License plate + status */}
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-2xl font-bold font-mono text-white tracking-wider">
+                  <p className="text-2xl font-bold font-mono text-gray-800 dark:text-white tracking-wider">
                     {session.licensePlate}
                   </p>
-                  <p className="text-xs text-white/40 mt-0.5">{session.sessionCode}</p>
+                  <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">{session.sessionCode}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1.5">
                   <StatusBadge status={session.status} />
@@ -155,26 +156,26 @@ function SessionDetailModal({
                   { label: 'Thời gian',  value: session.duration || '—' },
                   { label: 'Nhân viên',  value: session.staffName ?? '—' },
                 ].map(row => (
-                  <div key={row.label} className="bg-white/[0.04] rounded-xl px-3.5 py-3">
-                    <p className="text-[10px] text-white/40 uppercase tracking-wider mb-0.5">{row.label}</p>
-                    <p className="text-sm text-white font-medium">{row.value}</p>
+                  <div key={row.label} className="bg-gray-50 dark:bg-white/[0.04] rounded-xl px-3.5 py-3">
+                    <p className="text-[10px] text-gray-400 dark:text-white/40 uppercase tracking-wider mb-0.5">{row.label}</p>
+                    <p className="text-sm text-gray-800 dark:text-white font-medium">{row.value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Fee */}
-              <div className="flex items-center justify-between px-4 py-3.5 bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/20 rounded-xl">
-                <div className="flex items-center gap-2 text-sm text-white/60">
-                  <Banknote size={15} className="text-orange-500" />
+              <div className="flex items-center justify-between px-4 py-3.5 bg-[#FF4C4C]/5 border border-[#FF4C4C]/20 rounded-xl">
+                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/60">
+                  <Banknote size={15} className="text-[#FF4C4C]" />
                   Phí gửi xe
                 </div>
-                <p className="text-lg font-bold text-orange-500">{vnd(session.totalFee)}đ</p>
+                <p className="text-lg font-bold text-[#FF4C4C]">{vnd(session.totalFee)}đ</p>
               </div>
 
               {/* Entry image */}
               {session.entryImageUrl && (
-                <div className="rounded-xl overflow-hidden border border-white/10">
-                  <p className="text-[10px] text-white/40 px-3 py-2 bg-white/5 uppercase tracking-wider">Ảnh xe vào</p>
+                <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-white/10">
+                  <p className="text-[10px] text-gray-400 dark:text-white/40 px-3 py-2 bg-gray-50 dark:bg-white/5 uppercase tracking-wider">Ảnh xe vào</p>
                   <img src={session.entryImageUrl} alt="entry" className="w-full object-cover max-h-48" />
                 </div>
               )}
@@ -182,14 +183,14 @@ function SessionDetailModal({
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-white/10">
-          <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">
+        <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10">
+          <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
             Đóng
           </button>
         </div>
       </div>
     </div>
-  );
+  , document.body);
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
@@ -303,7 +304,7 @@ export default function ManagerSessions() {
       {/* KPI mini-banner */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {[
-          { icon: Car,          label: 'Đang đỗ',       value: summary.totalActive,            color: '#F97316', alert: false },
+          { icon: Car,          label: 'Đang đỗ',       value: summary.totalActive,            color: '#FF4C4C', alert: false },
           { icon: AlertTriangle, label: 'Quá giờ',      value: summary.totalOverdue,            color: '#F87171', alert: summary.totalOverdue > 0 },
           { icon: CheckCircle2, label: 'Ra hôm nay',    value: summary.totalCompletedToday,    color: '#F59E0B', alert: false },
           { icon: Banknote,     label: 'Doanh thu hôm nay', value: null,                       color: '#F59E0B', alert: false },
@@ -339,7 +340,7 @@ export default function ManagerSessions() {
             placeholder="Tìm biển số xe..."
             value={search}
             onChange={e => handleSearchChange(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-orange-500/50 transition-colors"
+            className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
           />
         </div>
 
@@ -356,7 +357,7 @@ export default function ManagerSessions() {
               onClick={() => setStatusFilter(opt.value)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 statusFilter === opt.value
-                  ? 'bg-orange-500 text-black'
+                  ? 'bg-[#FF4C4C] text-white'
                   : 'text-white/50 hover:text-white'
               }`}
             >
@@ -384,7 +385,7 @@ export default function ManagerSessions() {
       <div className="glass-card rounded-2xl overflow-hidden">
         {loading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-white/40">
-            <Loader2 size={22} className="animate-spin text-orange-500" />
+            <Loader2 size={22} className="animate-spin text-[#FF4C4C]" />
             <span className="text-sm">Đang tải...</span>
           </div>
         ) : sessions.length === 0 ? (
@@ -413,7 +414,7 @@ export default function ManagerSessions() {
                         <p className="text-[10px] text-white/30 mt-0.5">{s.sessionCode}</p>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-xs bg-orange-500/10 text-orange-500 px-2 py-0.5 rounded-full">{s.vehicleTypeName}</span>
+                        <span className="text-xs bg-[#FF4C4C]/10 text-[#FF4C4C] px-2 py-0.5 rounded-full">{s.vehicleTypeName}</span>
                       </td>
                       <td className="px-4 py-3">
                         <p className="text-xs text-white/70">{s.buildingName}</p>
@@ -435,7 +436,7 @@ export default function ManagerSessions() {
                         <span className="text-xs text-white/60">{s.duration || '—'}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-sm font-semibold text-orange-500">{vnd(s.totalFee)}đ</span>
+                        <span className="text-sm font-semibold text-[#FF4C4C]">{vnd(s.totalFee)}đ</span>
                         {s.estimatedFee > 0 && s.status !== 'Completed' && (
                           <p className="text-[10px] text-white/30">~{vnd(s.estimatedFee)}đ</p>
                         )}
@@ -446,7 +447,7 @@ export default function ManagerSessions() {
                       <td className="pr-6 py-3">
                         <button
                           onClick={() => setDetailId(s.id)}
-                          className="p-2 rounded-xl text-white/30 hover:text-orange-500 hover:bg-orange-500/10 transition-all"
+                          className="p-2 rounded-xl text-white/30 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all"
                           title="Xem chi tiết"
                         >
                           <Eye size={15} />
@@ -484,7 +485,7 @@ export default function ManagerSessions() {
                       onClick={() => setPage(pg)}
                       className={`w-8 h-8 rounded-xl text-xs font-medium transition-all ${
                         page === pg
-                          ? 'bg-orange-500 text-black'
+                          ? 'bg-[#FF4C4C] text-white'
                           : 'text-white/50 hover:text-white hover:bg-white/10'
                       }`}
                     >

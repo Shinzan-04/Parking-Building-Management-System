@@ -1,559 +1,2304 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import BookingWizard from './BookingWizard';
-import { useNavigate, Link } from 'react-router-dom';
-import { MapContainer, TileLayer, Marker, Popup, useMap, Circle, Polyline } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { useAuth } from '../../hooks/useAuth';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
-  Search,
-  MapPin,
-  ChevronDown,
+  X,
   ChevronRight,
+  ChevronLeft,
   Car,
   Bike,
-  Zap,
-  Star,
-  LogOut,
-  ArrowLeft,
-  Navigation,
-  Navigation2,
+  Calendar,
+  Clock,
+  Layers,
+  LayoutGrid,
+  ParkingSquare,
+  CheckCircle2,
+  ClipboardList,
+  Building2,
   Loader2,
-  Route,
-  X,
-  CalendarCheck,
-  Ticket
+  Sparkles,
+  ChevronDown,
+  Sun,
+  Moon,
+  User,
+  LogOut,
 } from 'lucide-react';
+import { getVehicleTypes } from '../../services/vehicleTypesService';
+import { getAllPolicies, getPolicyByVehicleType } from '../../services/pricingService';
+import type { PricingPolicyResponse } from '../../services/pricingService';
+import { getFloorsByBuilding, getBuildings } from '../../services/buildingsService';
+import type { FloorResponse } from '../../services/buildingsService';
+import { getAvailableSlotsByVehicleType, getRecommendedSlots, getSlotsByFloor, getAvailableSlotsByFloor } from '../../services/parkingService';
+import type { ParkingSlotDetail } from '../../services/parkingService';
+import { createReservation, getAiSuggestions } from '../../services/reservationsService';
+import { createPayOSPayment, verifyPayment } from '../../services/paymentService';
+import { getMyVehicles, createVehicle } from '../../services/vehiclesService';
+import type { VehicleResponse } from '../../services/vehiclesService';
+import { getWallet, depositWallet } from '../../services/walletService';
+import { useAuth } from '../../hooks/useAuth';
+import { useNotification } from '../../hooks/useNotification';
+import DatePickerModal from '../../components/DatePickerModal';
+import TimePickerModal from '../../components/TimePickerModal';
 
-// ---------- Leaflet icon fix ----------
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl:
-    'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
-
-// Custom parking marker - Redesigned with white border and modern shadow
-const createParkingIcon = (color: string = '#FF4C4C') =>
-  L.divIcon({
-    className: '',
-    html: `
-      <div style="
-        width: 36px; height: 36px;
-        background: ${color};
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-        border: 3px solid #ffffff;
-        box-shadow: 0 6px 16px rgba(0,0,0,0.12);
-        display: flex; align-items: center; justify-content: center;
-      ">
-        <span style="
-          transform: rotate(45deg);
-          color: #ffffff;
-          font-weight: 800;
-          font-size: 14px;
-          line-height: 1;
-        ">P</span>
-      </div>
-    `,
-    iconSize: [36, 36],
-    iconAnchor: [18, 36],
-    popupAnchor: [0, -40],
-  });
-
-// ---------- Hàm tính khoảng cách Haversine (km) ----------
-function calcDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// ---------- Kiểu dữ liệu OSM ----------
-interface OsmParkingLot {
-  id: string; // osm element id
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  access: string; // 'yes' | 'private' | 'customers' ...
-  capacity: string | null;
-  osmType: 'node' | 'way' | 'relation';
-}
-
-// ---------- Hàm fetch Overpass API ----------
-async function fetchOsmParking(lat: number, lng: number, radiusM: number): Promise<OsmParkingLot[]> {
-  const query = `
-    [out:json][timeout:20];
-    (
-      node["amenity"="parking"](around:${radiusM},${lat},${lng});
-      way["amenity"="parking"](around:${radiusM},${lat},${lng});
-    );
-    out center tags;
-  `;
-  const res = await fetch('https://overpass-api.de/api/interpreter', {
-    method: 'POST',
-    body: query,
-  });
-  if (!res.ok) throw new Error('Overpass API error');
-  const data = await res.json();
-
-  return (data.elements as any[]).map((el: any) => {
-    const lat = el.type === 'node' ? el.lat : el.center?.lat;
-    const lng = el.type === 'node' ? el.lon : el.center?.lon;
-    const tags = el.tags ?? {};
-    const name = tags.name || tags['name:vi'] || tags['name:en'] || 'Parking Lot';
-    const addr = [
-      tags['addr:housenumber'],
-      tags['addr:street'],
-      tags['addr:district'],
-      tags['addr:city'],
-    ].filter(Boolean).join(', ') || 'No address';
-    return {
-      id: `osm-${el.type}-${el.id}`,
-      name,
-      address: addr,
-      lat,
-      lng,
-      access: tags.access ?? 'yes',
-      capacity: tags.capacity ?? null,
-      osmType: el.type,
-    } as OsmParkingLot;
-  }).filter((p) => p.lat && p.lng); // loại bỏ phần tử không có toạ độ
-}
-
-// ---------- Icon OSM bãi đỗ thực (xanh lá hoặc màu san hô chọn) ----------
-const createOsmParkingIcon = (isSelected: boolean = false) =>
-  L.divIcon({
-    className: '',
-    html: `
-      <div style="
-        width: 32px; height: 32px;
-        background: ${isSelected ? '#FF4C4C' : '#10B981'};
-        border-radius: 50% 50% 50% 0;
-        transform: rotate(-45deg);
-        border: 3px solid #ffffff;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-        display: flex; align-items: center; justify-content: center;
-      ">
-        <span style="
-          transform: rotate(45deg);
-          color: #ffffff;
-          font-weight: 850;
-          font-size: 13px;
-          line-height: 1;
-        ">P</span>
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -36],
-  });
-
-// ---------- Types ----------
-type VehicleFilter = 'all' | 'motorbike' | 'car' | 'ev';
-type SortOption = 'relevance' | 'price' | 'distance' | 'rating';
-
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
 interface ParkingLot {
   id: string;
   name: string;
   address: string;
-  type: 'PUBLIC' | 'PRIVATE';
-  lat: number;
-  lng: number;
-  availableSpots: number;
-  totalSpots: number;
   pricePerHour: number;
-  rating: number;
-  openHours: string;
-  vehicleTypes: VehicleFilter[];
-  features: string[];
 }
 
-// ---------- Hardcoded data ----------
-const PARKING_LOTS: ParkingLot[] = [
-  {
-    id: '1',
-    name: 'Gửi xe A5 - Công viên Thống Nhất',
-    address: 'Đường Lê Duẩn, Đống Đa, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.0285,
-    lng: 105.8542,
-    availableSpots: 34,
-    totalSpots: 80,
-    pricePerHour: 5000,
-    rating: 4.2,
-    openHours: '06:00 – 22:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['Camera 24/7', 'Có mái che'],
-  },
-  {
-    id: '2',
-    name: 'Building / Sidewalk Parking – Trần Hưng Đạo',
-    address: '45 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.032,
-    lng: 105.8493,
-    availableSpots: 12,
-    totalSpots: 50,
-    pricePerHour: 8000,
-    rating: 3.8,
-    openHours: '07:00 – 23:00',
-    vehicleTypes: ['all', 'motorbike', 'car', 'ev'],
-    features: ['Sạc EV', 'Bảo vệ 24/7'],
-  },
-  {
-    id: '3',
-    name: 'SmartPark – Vincom Center',
-    address: '191 Bà Triệu, Hai Bà Trưng, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0231,
-    lng: 105.8452,
-    availableSpots: 68,
-    totalSpots: 150,
-    pricePerHour: 15000,
-    rating: 4.7,
-    openHours: '24/7',
-    vehicleTypes: ['all', 'car', 'ev'],
-    features: ['Sạc EV', 'Camera AI', 'Thang máy', 'Valet'],
-  },
-  {
-    id: '4',
-    name: 'Bãi xe Hoàn Kiếm Xanh',
-    address: '78 Đinh Tiên Hoàng, Hoàn Kiếm, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.0278,
-    lng: 105.852,
-    availableSpots: 5,
-    totalSpots: 30,
-    pricePerHour: 6000,
-    rating: 3.5,
-    openHours: '06:00 – 21:00',
-    vehicleTypes: ['all', 'motorbike'],
-    features: ['Mái che'],
-  },
-  {
-    id: '5',
-    name: 'Landmark 72 Parking',
-    address: 'Keangnam Landmark, Mễ Trì, Nam Từ Liêm, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0073,
-    lng: 105.7825,
-    availableSpots: 120,
-    totalSpots: 300,
-    pricePerHour: 20000,
-    rating: 4.9,
-    openHours: '24/7',
-    vehicleTypes: ['all', 'car', 'ev'],
-    features: ['Sạc EV', 'Camera AI', 'Valet', 'Premium'],
-  },
-  {
-    id: '6',
-    name: 'Bãi đỗ xe Nguyễn Du',
-    address: '25 Nguyễn Du, Hai Bà Trưng, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.025,
-    lng: 105.847,
-    availableSpots: 20,
-    totalSpots: 60,
-    pricePerHour: 5000,
-    rating: 4.0,
-    openHours: '06:00 – 22:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['Bảo vệ 24/7'],
-  },
-  {
-    id: '7',
-    name: 'Bãi xe Hồ Gươm Plaza',
-    address: '110 Trần Phú, Hà Đông, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0408,
-    lng: 105.8393,
-    availableSpots: 45,
-    totalSpots: 100,
-    pricePerHour: 12000,
-    rating: 4.4,
-    openHours: '07:00 – 22:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['Mái che', 'Camera 24/7'],
-  },
-  {
-    id: '8',
-    name: 'Parking – Lotte Center Hà Nội',
-    address: '54 Liễu Giai, Ba Đình, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0351,
-    lng: 105.8182,
-    availableSpots: 90,
-    totalSpots: 200,
-    pricePerHour: 18000,
-    rating: 4.6,
-    openHours: '24/7',
-    vehicleTypes: ['all', 'car', 'ev'],
-    features: ['Sạc EV', 'Valet', 'Camera AI'],
-  },
-  {
-    id: '9',
-    name: 'Bãi xe Cầu Giấy Center',
-    address: '7 Trần Thái Tông, Cầu Giấy, Hà Nội',
-    type: 'PUBLIC',
-    lat: 21.0306,
-    lng: 105.7987,
-    availableSpots: 8,
-    totalSpots: 40,
-    pricePerHour: 7000,
-    rating: 3.6,
-    openHours: '06:00 – 23:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['Bảo vệ'],
-  },
-  {
-    id: '10',
-    name: 'SmartPark Mỹ Đình',
-    address: 'Đường Lê Quang Đạo, Nam Từ Liêm, Hà Nội',
-    type: 'PRIVATE',
-    lat: 21.0232,
-    lng: 105.7764,
-    availableSpots: 55,
-    totalSpots: 120,
-    pricePerHour: 10000,
-    rating: 4.3,
-    openHours: '24/7',
-    vehicleTypes: ['all', 'car', 'ev', 'motorbike'],
-    features: ['Sạc EV', 'Mái che', 'Camera AI'],
-  },
+interface WizardState {
+  vehicleType: string | null;
+  licensePlate: string;
+  entryDate: string;
+  entryTime: string;
+  exitTime?: string;
+  duration: number; // hours
+  floor: string | null;
+  slot: string | null;
+  slotId: string | null;
+  zone: string | null;
+  bookingMethod: number; // 0 = Manual, 1 = AIRecommended
+}
+
+interface BookingWizardProps {
+  lot: ParkingLot;
+  onClose: () => void;
+}
+
+// ─────────────────────────────────────────────
+// Step definitions
+// ─────────────────────────────────────────────
+const STEPS = [
+  { id: 1, label: 'Vehicle Type', short: 'Vehicle' },
+  { id: 2, label: 'License Plate', short: 'Plate' },
+  { id: 3, label: 'Date & Time', short: 'Time' },
+  { id: 4, label: 'Select Floor', short: 'Floor' },
+  { id: 5, label: 'Select Slot', short: 'Slot' },
 ];
 
-// ---------- Chuyển OsmParkingLot → ParkingLot cho BookingWizard ----------
-function osmToBookingLot(osm: OsmParkingLot): any {
-  const cap = osm.capacity ? parseInt(osm.capacity) : 20;
+// ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+const formatCurrency = (n: number) => n.toLocaleString('vi-VN') + 'đ';
+
+const todayDateStr = () => {
+  const d = new Date();
+  return d.toISOString().split('T')[0];
+};
+
+const nowTimeStr = () => {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+// ─────────────────────────────────────────────
+// Sub-components for each step
+// ─────────────────────────────────────────────
+
+// Step 1 – Vehicle Type
+interface ApiVehicleType {
+  id: string;
+  name: string;
+  description?: string;
+  hourlyRate: number;
+}
+
+function StepVehicleType({
+  state,
+  setState,
+  vehicles,
+  loading,
+}: {
+  state: WizardState;
+  setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  vehicles: ApiVehicleType[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <Loader2 size={32} className="text-[#FF4C4C] animate-spin" />
+        <p className="text-sm text-stone-500">Loading vehicle types...</p>
+      </div>
+    );
+  }
+
+  if (vehicles.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <Car size={48} className="text-stone-300 mb-3" />
+        <p className="text-sm text-stone-500 font-bold">No vehicle types found</p>
+        <p className="text-xs text-stone-400">Please check the system configuration.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+          <Car size={20} className="text-[#FF4C4C]" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-stone-900">Select Vehicle Type</h2>
+          <p className="text-xs text-stone-500">Step 1 of 6 — Choose your vehicle category</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {vehicles.map((v) => {
+          const selected = state.vehicleType === v.id;
+          const isMotorbike = v.name.toLowerCase().includes('moto') ||
+            v.name.toLowerCase().includes('xe máy') ||
+            v.name.toLowerCase().includes('bike') ||
+            v.name.toLowerCase().includes('xe hai bánh');
+          const Icon = isMotorbike ? Bike : Car;
+
+          return (
+            <button
+              key={v.id}
+              onClick={() => setState((s) => ({ ...s, vehicleType: v.id }))}
+              className={`flex-1 flex flex-col items-center gap-5 py-8 rounded-2xl border-2 transition-all duration-200 group ${selected
+                ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
+                }`}
+            >
+              {/* Icon container */}
+              <div
+                className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-200 ${selected
+                  ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]/30'
+                  : 'bg-gray-100 border-2 border-gray-200/60 group-hover:bg-[#FF4C4C]/10 group-hover:border-[#FF4C4C]/20'
+                  }`}
+              >
+                <Icon
+                  size={32}
+                  strokeWidth={1.5}
+                  className={`transition-colors duration-200 ${selected ? 'text-[#FF4C4C]' : 'text-stone-400 group-hover:text-[#FF4C4C]'
+                    }`}
+                />
+              </div>
+
+              <div className="text-center px-4">
+                <p
+                  className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-800'
+                    }`}
+                >
+                  {v.name}
+                </p>
+                {v.description && (
+                  <p className="text-[10px] text-stone-400 mt-0.5 line-clamp-1 font-medium">
+                    {v.description}
+                  </p>
+                )}
+
+              </div>
+
+              {selected && (
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF4C4C]">
+                  <CheckCircle2 size={14} className="text-[#FF4C4C]" />
+                  Selected
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Step 2 – License Plate
+function StepLicensePlate({
+  state,
+  setState,
+  vehicles,
+  myVehicles,
+  loadingMyVehicles,
+}: {
+  state: WizardState;
+  setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  vehicles: ApiVehicleType[];
+  myVehicles: VehicleResponse[];
+  loadingMyVehicles: boolean;
+}) {
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
+    selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+    selectedVehicle?.name.toLowerCase().includes('bike') ||
+    selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+    false;
+  const VehicleIcon = isMotorbike ? Bike : Car;
+  const vehicleLabel = selectedVehicle?.name || 'Car';
+  const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
+
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Tự động chọn xe mặc định nếu có (chỉ chạy 1 lần khi load xong xe)
+  useEffect(() => {
+    if (myVehicles.length > 0 && !state.licensePlate) {
+      const defaultVehicle = myVehicles.find(v => v.isPrimary) || myVehicles[0];
+      setState(s => ({
+        ...s,
+        licensePlate: defaultVehicle.plateNumber,
+        vehicleType: defaultVehicle.vehicleTypeId,
+      }));
+    }
+  }, [myVehicles, state.licensePlate, setState]);
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Step header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+          <ParkingSquare size={20} className="text-[#FF4C4C]" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-stone-900">Enter License Plate</h2>
+          <p className="text-xs text-stone-500">
+            Step 2 of 6 — Your vehicle's identification number
+          </p>
+        </div>
+      </div>
+
+      {/* Loading state for vehicles */}
+      {loadingMyVehicles && myVehicles.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 gap-2">
+          <Loader2 size={24} className="text-[#FF4C4C] animate-spin" />
+          <p className="text-xs text-stone-400 font-semibold">Đang tải danh sách xe...</p>
+        </div>
+      )}
+
+      {!loadingMyVehicles && (
+        <div className="flex flex-col gap-6">
+          {/* Saved vehicles dropdown */}
+          {myVehicles.length > 0 && (
+            <div className="relative z-10 w-full max-w-sm mx-auto" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="w-full flex items-center justify-between p-3 rounded-2xl bg-white border-2 border-[#FF4C4C]/30 hover:border-[#FF4C4C]/60 transition-all duration-200 shadow-sm shadow-[#FF4C4C]/5"
+              >
+                {(() => {
+                  const selectedV = myVehicles.find(v => v.plateNumber === state.licensePlate);
+                  if (selectedV) {
+                    const lowerName = selectedV.vehicleTypeName?.toLowerCase() || '';
+                    const isMotor = lowerName.includes('moto') || lowerName.includes('xe máy') || lowerName.includes('bike');
+                    const Icon = isMotor ? Bike : Car;
+                    return (
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 text-[#FF4C4C] flex items-center justify-center">
+                          <Icon size={20} strokeWidth={1.5} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-black tracking-wider text-[#FF4C4C]">{selectedV.plateNumber}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <p className="text-[10px] text-stone-800 font-bold uppercase tracking-wider">{selectedV.vehicleTypeName || 'Phương tiện'}</p>
+                            {selectedV.isPrimary && (
+                              <span className="bg-amber-500/10 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">Mặc định</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gray-100 text-stone-400 flex items-center justify-center">
+                        <Car size={20} strokeWidth={1.5} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-black tracking-wider text-stone-800">Xe khác (Nhập thủ công)</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+                <ChevronDown size={18} className={`text-stone-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showDropdown && (
+                <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                  <div className="max-h-[220px] overflow-y-auto scrollbar-thin flex flex-col p-2 gap-1">
+                    {myVehicles.map(v => {
+                      const isSelected = state.licensePlate === v.plateNumber;
+                      const lowerName = v.vehicleTypeName?.toLowerCase() || '';
+                      const isMotor = lowerName.includes('moto') || lowerName.includes('xe máy') || lowerName.includes('bike');
+                      const Icon = isMotor ? Bike : Car;
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          onClick={() => {
+                            setState(s => ({
+                              ...s,
+                              licensePlate: v.plateNumber,
+                              vehicleType: v.vehicleTypeId,
+                            }));
+                            setShowDropdown(false);
+                          }}
+                          className={`w-full flex items-center justify-between p-2 rounded-xl transition-colors ${isSelected ? 'bg-red-50/50' : 'hover:bg-gray-50'}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]' : 'bg-gray-100 text-stone-400'}`}>
+                              <Icon size={16} strokeWidth={1.5} />
+                            </div>
+                            <div className="text-left">
+                              <p className={`text-xs font-black tracking-wider ${isSelected ? 'text-[#FF4C4C]' : 'text-stone-800'}`}>{v.plateNumber}</p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-[9px] text-stone-500 font-bold uppercase">{v.vehicleTypeName || 'Phương tiện'}</p>
+                                {v.isPrimary && (
+                                  <span className="bg-amber-500/10 text-amber-600 text-[8px] font-bold px-1 rounded-sm">Mặc định</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle2 size={14} className="text-[#FF4C4C]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Vehicle type display */}
+          <div className="flex flex-col items-center gap-3 mt-2">
+            <div className="w-20 h-20 rounded-2xl bg-gray-100 border-2 border-gray-200/60 flex items-center justify-center">
+              <VehicleIcon
+                size={40}
+                strokeWidth={1.5}
+                className="text-[#FF4C4C]"
+              />
+            </div>
+            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">{vehicleLabel}</span>
+          </div>
+
+          {/* License plate input */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-full max-w-sm">
+              <input
+                type="text"
+                placeholder={placeholder}
+                value={state.licensePlate}
+                onChange={(e) =>
+                  setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
+                }
+                maxLength={12}
+                className="w-full bg-gray-50 border-2 border-gray-200/80 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-800 text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
+              />
+            </div>
+
+            {/* Format hint */}
+            <div className="text-center space-y-1">
+              <p className="text-xs text-stone-500">
+                Format:{' '}
+                <span className="text-stone-700 font-bold">51A-12345</span>{' '}
+                (car) or{' '}
+                <span className="text-stone-700 font-bold">59T1-12345</span>{' '}
+                (motorcycle)
+              </p>
+              <p className="text-xs text-stone-400">
+                This will be linked to your parking session.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Hàm tính chi phí ước tính dùng chung ──
+export function computeEstimatedCostHelper(
+  state: WizardState,
+  vehicles: ApiVehicleType[],
+  policy: PricingPolicyResponse | null
+): { total: number; isCapped: boolean; breakdown: string; blocksDetails?: { startTime: string; endTime: string; isNight: boolean; price: number }[] } {
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  if (!selectedVehicle) return { total: 0, isCapped: false, breakdown: '' };
+
+  if (policy && policy.blockDurationHours > 0) {
+    const blocksRequired = Math.ceil(state.duration / policy.blockDurationHours);
+    const [h, m] = (state.entryTime || '00:00').split(':').map(Number);
+    let currentHour = h + m / 60;
+
+    let dayBlocks = 0;
+    let nightBlocks = 0;
+
+    const blocksDetails: { startTime: string; endTime: string; isNight: boolean; price: number }[] = [];
+    let currentDate = new Date(`${state.entryDate || todayDateStr()}T${state.entryTime || '00:00'}:00`);
+
+    for (let i = 0; i < blocksRequired; i++) {
+      let currentHourDec = currentDate.getHours() + currentDate.getMinutes() / 60;
+      const isNight = policy.nightStartHour <= policy.nightEndHour
+        ? (currentHourDec >= policy.nightStartHour && currentHourDec < policy.nightEndHour)
+        : (currentHourDec >= policy.nightStartHour || currentHourDec < policy.nightEndHour);
+
+      const startTimeStr = `${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+      currentDate = new Date(currentDate.getTime() + policy.blockDurationHours * 60 * 60 * 1000);
+      const endTimeStr = `${String(currentDate.getHours()).padStart(2, '0')}:${String(currentDate.getMinutes()).padStart(2, '0')}`;
+
+      const price = isNight ? policy.nightBlockRate : policy.dayBlockRate;
+      blocksDetails.push({ startTime: startTimeStr, endTime: endTimeStr, isNight, price });
+
+      if (isNight) nightBlocks++;
+      else dayBlocks++;
+    }
+
+    const raw = (dayBlocks * policy.dayBlockRate) + (nightBlocks * policy.nightBlockRate);
+
+    const days = Math.ceil(state.duration / 24) || 1;
+    const maxAllowed = policy.dailyRate > 0 ? (days * policy.dailyRate) : raw;
+
+    const capped = Math.min(raw, maxAllowed);
+    const isCapped = raw > maxAllowed;
+
+    const breakdownArr = [];
+    if (dayBlocks > 0) breakdownArr.push(`${dayBlocks} Block Ngày (${policy.dayBlockRate.toLocaleString('vi-VN')}đ/bl)`);
+    if (nightBlocks > 0) breakdownArr.push(`${nightBlocks} Block Đêm (${policy.nightBlockRate.toLocaleString('vi-VN')}đ/bl)`);
+    const breakdown = breakdownArr.join(' + ');
+
+    return { total: capped, isCapped, breakdown, blocksDetails };
+  }
+
+  // Fallback: dùng hourlyRate từ vehicle data
+  const rate = selectedVehicle.hourlyRate;
+  const raw = rate * state.duration;
+  const dailyMax = policy?.dailyMaxRate ?? 0;
+  const capped = dailyMax > 0 ? Math.min(raw, dailyMax) : raw;
+  const isCapped = dailyMax > 0 && raw > dailyMax;
   return {
-    id: osm.id,
-    name: osm.name,
-    address: osm.address,
-    type: osm.access === 'private' ? 'PRIVATE' : 'PUBLIC',
-    lat: osm.lat,
-    lng: osm.lng,
-    availableSpots: Math.max(1, Math.floor(cap * 0.6)),
-    totalSpots: cap,
-    pricePerHour: 5000,
-    rating: 4.0,
-    openHours: '06:00 – 22:00',
-    vehicleTypes: ['all', 'motorbike', 'car'],
-    features: ['OSM Data'],
+    total: capped,
+    isCapped,
+    breakdown: `${state.duration}h × ${rate.toLocaleString('vi-VN')}đ/h`,
   };
 }
 
-// ---------- Map zoom helper (stores ref) ----------
-function MapRefCapture({ onMap }: { onMap: (map: L.Map) => void }) {
-  const map = useMap();
-  useEffect(() => { onMap(map); }, [map, onMap]);
-  return null;
-}
+// Step 3 – Date & Time
+function StepDateTime({
+  state,
+  setState,
+  vehicles,
+  policy,
+}: {
+  state: WizardState;
+  setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  vehicles: ApiVehicleType[];
+  policy: PricingPolicyResponse | null;
+}) {
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+  const [isExitTimePickerOpen, setIsExitTimePickerOpen] = useState(false);
+  const durations = [1, 2, 3, 4, 6, 8, 12, 24];
 
-// ---------- Map fly-to helper ----------
-function FlyToLot({ lat, lng }: { lat: number; lng: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo([lat, lng], 16, { duration: 1.2 });
-  }, [lat, lng, map]);
-  return null;
-}
+  const exitInfo = useMemo(() => {
+    if (!state.entryDate || !state.entryTime) return { time: '--:--', date: '--/--/----' };
+    const [h, m] = state.entryTime.split(':').map(Number);
+    const entry = new Date(state.entryDate);
+    entry.setHours(h, m, 0, 0);
 
-// ---------- Fly-to vị trí người dùng ----------
-function FlyToUser({ lat, lng }: { lat: number; lng: number }) {
-  const map = useMap();
-  useEffect(() => {
-    map.flyTo([lat, lng], 15, { duration: 1.5 });
-  }, [lat, lng, map]);
-  return null;
-}
+    let exit: Date;
+    if (state.exitTime) {
+      const [exH, exM] = state.exitTime.split(':').map(Number);
+      exit = new Date(entry);
+      exit.setHours(exH, exM, 0, 0);
 
-// ---------- Icon vị trí người dùng (Đổi thành viền trắng) ----------
-const createUserIcon = () =>
-  L.divIcon({
-    className: '',
-    html: `
-      <div style="position:relative; width:22px; height:22px;">
-        <div style="
-          position:absolute; inset:0;
-          background: rgba(59,130,246,0.2);
-          border-radius:50%;
-          animation: pulse-ring 1.8s cubic-bezier(0.4,0,0.6,1) infinite;
-        "></div>
-        <div style="
-          position:absolute; top:50%; left:50%;
-          transform:translate(-50%,-50%);
-          width:14px; height:14px;
-          background:#3B82F6;
-          border-radius:50%;
-          border:2.5px solid #ffffff;
-          box-shadow: 0 0 10px rgba(59,130,246,0.5);
-        "></div>
+      // If exit time is earlier than or equal to entry time, it means next day
+      if (exit.getTime() <= entry.getTime()) {
+        exit.setDate(exit.getDate() + 1);
+      }
+    } else {
+      exit = new Date(entry.getTime() + state.duration * 60 * 60 * 1000);
+    }
+
+    const exTime = `${String(exit.getHours()).padStart(2, '0')}:${String(exit.getMinutes()).padStart(2, '0')}`;
+    const exDate = `${String(exit.getDate()).padStart(2, '0')}/${String(exit.getMonth() + 1).padStart(2, '0')}/${exit.getFullYear()}`;
+    return { time: exTime, date: exDate };
+  }, [state.entryDate, state.entryTime, state.duration, state.exitTime]);
+
+  const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return '--/--/----';
+    const [y, mo, d] = dateStr.split('-');
+    return `${d}/${mo}/${y}`;
+  };
+
+  const formatDateFancy = (dateStr: string) => {
+    if (!dateStr) return 'Select Date';
+    const d = new Date(dateStr);
+    const day = d.getDate();
+    const month = d.toLocaleString('en-US', { month: 'long' });
+    const year = d.getFullYear();
+    return `${day} ${month}, ${year}`;
+  };
+  const costResult = computeEstimatedCostHelper(state, vehicles, policy);
+
+  const durationOptions = policy && policy.blockDurationHours > 0
+    ? [1, 2, 3, 4, 5, 6].map(b => b * policy.blockDurationHours)
+    : durations;
+
+  const totalBlocks = policy && policy.blockDurationHours > 0 ? Math.ceil(state.duration / policy.blockDurationHours) : 1;
+
+  return (
+    <div className="flex flex-col gap-6">
+
+      {/* Booking Date */}
+      <div className="flex flex-col gap-2">
+        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+          Booking Date
+        </label>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsDatePickerOpen(true)}
+            className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
+          />
+          <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm group-hover:border-gray-300 transition-colors">
+            <span className="text-[15px] font-bold text-stone-800">
+              {state.entryDate ? formatDateFancy(state.entryDate) : 'Select Date'}
+            </span>
+            <ChevronDown size={16} className="text-stone-400" />
+          </div>
+        </div>
       </div>
-    `,
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-  });
 
-// ---------- Main Component ----------
-export default function BookingPage() {
-  const navigate = useNavigate();
-  const { user, token, logout } = useAuth();
+      {/* Arrival Time */}
+      <div className="flex flex-col gap-2 -mt-1">
+        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+          Arrival Time
+        </label>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsTimePickerOpen(true)}
+            className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
+          />
+          <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm transition-colors">
+            <span className="text-[15px] font-bold text-stone-800">
+              {state.entryTime || 'Select Time'}
+            </span>
+            <ChevronDown size={16} className="text-stone-400" />
+          </div>
+        </div>
+      </div>
 
-  const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('relevance');
-  const [searchText, setSearchText] = useState('');
-  const [selectedLot, setSelectedLot] = useState<ParkingLot | null>(null);
-  const [isSortOpen, setIsSortOpen] = useState(false);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showDetailPanel, setShowDetailPanel] = useState(false);
-  const [showWizard, setShowWizard] = useState(false);
-  const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const sortRef = useRef<HTMLDivElement>(null);
-  const handleMapRef = useCallback((map: L.Map) => setMapInstance(map), []);
+      {/* Exit Time (Duration Selector) */}
+      <div className="flex flex-col gap-2 -mt-1">
+        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+          Exit Time
+        </label>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsExitTimePickerOpen(true)}
+            className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
+          />
+          <div className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm transition-colors hover:border-blue-300">
+            <span className="text-[15px] font-bold text-stone-800">
+              {state.exitTime || exitInfo.time} <span className="text-stone-500 font-medium ml-1 text-sm">({exitInfo.date})</span>
+            </span>
+            <ChevronDown size={16} className="text-stone-400" />
+          </div>
+        </div>
+      </div>
 
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locatingUser, setLocatingUser] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [flyToUser, setFlyToUser] = useState(false);
-  // Bán kính lọc (mét)
-  const [nearbyRadius, setNearbyRadius] = useState<number>(1000);
+      {/* Block Breakdown */}
+      {costResult.total > 0 && costResult.blocksDetails && costResult.blocksDetails.length > 0 && (
+        <div className="mt-1 border border-dashed border-gray-300 rounded-xl p-4 bg-white/50">
+          <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3">
+            Block Breakdown ({totalBlocks} Blocks)
+          </p>
+          <div className="flex flex-row flex-wrap gap-2">
+            {costResult.blocksDetails.map((block, idx) => (
+              <div key={idx} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm w-fit ${block.isNight ? 'bg-[#1A1E29] text-white' : 'bg-white text-stone-800 border border-gray-200'}`}>
+                {block.isNight ? <Moon size={13} className="text-stone-300" /> : <Sun size={13} className="text-orange-500" />}
+                <span>{block.startTime} - {block.endTime} <span className={block.isNight ? 'text-stone-400 font-medium ml-0.5' : 'text-stone-500 font-bold ml-0.5'}>({block.price.toLocaleString('vi-VN')}đ)</span></span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
-  const RADIUS_OPTIONS = [
-    { label: '500m', value: 500 },
-    { label: '1 km', value: 1000 },
-    { label: '2 km', value: 2000 },
-    { label: '5 km', value: 5000 },
+      {/* Your Parking */}
+      <div className="mt-1 bg-[#E8F1FF] rounded-2xl p-5 border border-blue-100/60 shadow-sm">
+        <div className="flex justify-between items-start">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold text-stone-600 uppercase tracking-widest mb-3">
+              Your Parking
+            </span>
+
+            <div className="flex items-center gap-3 mt-1">
+              <div className="flex flex-col items-start gap-1">
+                <span className="text-3xl font-black text-blue-700 leading-none tracking-tight">{state.entryTime || '--:--'}</span>
+                <span className="text-[11px] text-stone-500 font-semibold">{formatDateDisplay(state.entryDate)}</span>
+              </div>
+
+              <div className="flex flex-col items-center justify-center -mt-3 mx-1">
+                <span className="text-[11px] font-bold text-stone-600 mb-1">{state.duration}h</span>
+                <div className="w-5 h-[2px] bg-blue-600" />
+              </div>
+
+              <div className="flex flex-col items-start gap-1">
+                <span className="text-3xl font-black text-blue-700 leading-none tracking-tight">{exitInfo.time}</span>
+                <span className="text-[11px] text-stone-500 font-semibold">{exitInfo.date}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-right flex flex-col items-end">
+            <span className="text-[10px] font-bold text-stone-600 uppercase tracking-widest mb-1.5">
+              Est. Cost
+            </span>
+            <span className="text-2xl font-black text-[#FF5A26] leading-none mb-2.5">
+              {costResult.total.toLocaleString('vi-VN')}đ
+            </span>
+            <p className="text-[9px] text-stone-500 font-medium leading-relaxed text-right max-w-[120px]">
+              Phí tính theo block. {state.duration}h =<br />
+              {totalBlocks} block(s).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <DatePickerModal
+        isOpen={isDatePickerOpen}
+        onClose={() => setIsDatePickerOpen(false)}
+        selectedDate={state.entryDate}
+        onSelectDate={(date) => setState((s) => ({ ...s, entryDate: date }))}
+      />
+
+      <TimePickerModal
+        isOpen={isTimePickerOpen}
+        onClose={() => setIsTimePickerOpen(false)}
+        selectedDate={state.entryDate}
+        selectedTime={state.entryTime}
+        onSelectTime={(time) => {
+          // Reset exitTime if arrival time changes to ensure constraints
+          setState((s) => ({ ...s, entryTime: time, exitTime: undefined, duration: 1 }));
+        }}
+      />
+
+      <TimePickerModal
+        isOpen={isExitTimePickerOpen}
+        onClose={() => setIsExitTimePickerOpen(false)}
+        selectedDate={state.entryDate}
+        selectedTime={state.exitTime || exitInfo.time}
+        title="Select Exit Time"
+        confirmText="Confirm Exit Time"
+        solidTheme={true}
+        disablePastTime={false}
+        onSelectTime={(time) => {
+          const [enH, enM] = state.entryTime.split(':').map(Number);
+          const [exH, exM] = time.split(':').map(Number);
+
+          let diffMins = (exH * 60 + exM) - (enH * 60 + enM);
+          if (diffMins <= 0) diffMins += 24 * 60; // Next day
+
+          const diffHours = Number((diffMins / 60).toFixed(2));
+          setState((s) => ({ ...s, exitTime: time, duration: diffHours }));
+        }}
+      />
+    </div>
+  );
+}
+
+// Step 4 – Select Floor
+function StepSelectFloor({
+  state,
+  setState,
+  floors,
+  loading,
+  allBuildingSlots,
+}: {
+  state: WizardState;
+  setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  floors: FloorResponse[];
+  loading: boolean;
+  allBuildingSlots: ParkingSlotDetail[];
+}) {
+  const floorIconComponents = [ParkingSquare, Car, Layers, Building2];
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <Loader2 size={32} className="text-[#FF4C4C] animate-spin" />
+        <p className="text-sm text-stone-500">Loading floors...</p>
+      </div>
+    );
+  }
+
+  if (floors.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <Layers size={48} className="text-stone-300 mb-3" />
+        <p className="text-sm text-stone-500 font-bold">No floors found</p>
+        <p className="text-xs text-stone-400">This parking lot has no floors configured.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+          <Layers size={20} className="text-[#FF4C4C]" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-stone-900">Select Floor</h2>
+          <p className="text-xs text-stone-500">Step 4 of 6 — Choose a floor to park on</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        {floors.map((floor, idx) => {
+          const selected = state.floor === floor.id;
+          const FloorIcon = floorIconComponents[idx % floorIconComponents.length];
+          return (
+            <button
+              key={floor.id}
+              onClick={() => setState((s) => ({ ...s, floor: floor.id, zone: null, slot: null, slotId: null }))}
+              className={`flex flex-col items-center gap-3 py-6 rounded-2xl border-2 transition-all group ${selected
+                ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                : 'bg-white border-gray-200/80 hover:bg-gray-50 hover:border-gray-300'
+                }`}
+            >
+              <div
+                className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${selected
+                  ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]/30'
+                  : 'bg-gray-100 border-2 border-gray-200/60 group-hover:bg-[#FF4C4C]/10 group-hover:border-[#FF4C4C]/20'
+                  }`}
+              >
+                <FloorIcon
+                  size={24}
+                  strokeWidth={1.5}
+                  className={`transition-colors ${selected ? 'text-[#FF4C4C]' : 'text-stone-500 group-hover:text-[#FF4C4C]'
+                    }`}
+                />
+              </div>
+              <div className="text-center">
+                <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-800'}`}>
+                  {floor.name}
+                </p>
+                <p className="text-xs text-stone-400 mt-0.5">
+                  {(() => {
+                    const availableSpots = allBuildingSlots.filter(
+                      (s) => s.floorId === floor.id &&
+                        s.vehicleTypeId === state.vehicleType &&
+                        (s.status === 'Available' || String(s.status) === '0')
+                    ).length;
+                    return `${availableSpots} spots available`;
+                  })()}
+                </p>
+              </div>
+              {selected && (
+                <CheckCircle2 size={16} className="text-[#FF4C4C]" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Hàm phụ định nghĩa cách xác định zone từ slotNumber
+const getZoneName = (slotNo: string): string => {
+  const firstChar = slotNo.trim().charAt(0).toUpperCase();
+  if (firstChar >= 'A' && firstChar <= 'Z') {
+    return `Zone ${firstChar}`;
+  }
+  const num = parseInt(slotNo, 10);
+  if (!isNaN(num)) {
+    if (num <= 20) return 'Zone A';
+    if (num <= 40) return 'Zone B';
+    if (num <= 60) return 'Zone C';
+    return 'Zone D';
+  }
+  return 'Zone A';
+};
+
+// Step 5 – Select Slot
+function StepSelectSlot({
+  state,
+  setState,
+  slots,
+  vehicles,
+}: {
+  state: WizardState;
+  setState: React.Dispatch<React.SetStateAction<WizardState>>;
+  slots: ParkingSlotDetail[];
+  vehicles: ApiVehicleType[];
+}) {
+  const [loadingAi, setLoadingAi] = useState(false);
+  const COLS = 8; // Số cột trong lưới (A → H)
+
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
+    selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+    selectedVehicle?.name.toLowerCase().includes('bike') ||
+    selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+    false;
+  const VehicleIcon = isMotorbike ? Bike : Car;
+
+  // Lọc slots theo loại xe đã chọn (không hiển thị slots bảo trì)
+  const filteredSlots = slots.filter(
+    (s) => s.vehicleTypeId === state.vehicleType && s.status !== 'Maintenance' && String(s.status) !== '4'
+  );
+
+  // Nhóm các slots thành từng hàng (COLS ô mỗi hàng)
+  const rows: ParkingSlotDetail[][] = [];
+  for (let i = 0; i < filteredSlots.length; i += COLS) {
+    rows.push(filteredSlots.slice(i, i + COLS));
+  }
+
+  const availableCount = filteredSlots.filter(s => s.status === 'Available' || String(s.status) === '0').length;
+  const occupiedCount = filteredSlots.filter(s => s.status === 'Occupied' || String(s.status) === '3').length;
+  const reservedCount = filteredSlots.filter(s => s.status === 'Reserved' || String(s.status) === '2' || s.status === 'TemporaryHeld' || String(s.status) === '1').length;
+
+  // Helper hàm để xác định màu hiển thị cho mỗi Slot
+  const getSlotStyle = (slot: ParkingSlotDetail): string => {
+    const isSelected = state.slotId === slot.id;
+    if (isSelected) {
+      return 'bg-[#FF4C4C] border-[#FF4C4C] text-white shadow-md shadow-[#FF4C4C]/30 scale-105 z-10';
+    }
+
+    // Một số backend serialize enum thành integer string, cần kiểm tra cả hai
+    const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
+    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '3';
+    const isReserved = slot.status === 'Reserved' || String(slot.status) === '2' || slot.status === 'TemporaryHeld' || String(slot.status) === '1';
+
+    if (isAvailable) {
+      return 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-400 hover:scale-105 cursor-pointer';
+    } else if (isOccupied) {
+      return 'bg-red-50 border-red-200/60 text-red-400/60 cursor-not-allowed';
+    } else if (isReserved) {
+      return 'bg-amber-50 border-amber-200/60 text-amber-500/70 cursor-not-allowed';
+    } else {
+      return 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed';
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* ── Step header ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+            <ParkingSquare size={20} className="text-[#FF4C4C]" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-stone-900">Select Slot</h2>
+            <p className="text-xs text-stone-500">
+              Step 5 of 5 — Pick an available parking spot
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={async () => {
+            try {
+              setLoadingAi(true);
+              const token = localStorage.getItem('sp_token') || '';
+              const suggestions = await getAiSuggestions(state.vehicleType!, undefined, 1, token);
+              if (suggestions.length > 0) {
+                const best = suggestions[0];
+                setState(s => ({
+                  ...s,
+                  floor: best.floorId,
+                  slotId: best.slotId,
+                  slot: best.slotNumber,
+                  zone: getZoneName(best.slotNumber),
+                  bookingMethod: 1 // Mark as AI Recommended
+                }));
+              } else {
+                alert('Không có chỗ đỗ nào khả dụng theo gợi ý của AI.');
+              }
+            } catch (err: any) {
+              alert('AI Suggest error: ' + err.message);
+            } finally {
+              setLoadingAi(false);
+            }
+          }}
+          disabled={loadingAi}
+          className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
+        >
+          {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          {loadingAi ? 'AI Thinking...' : 'AI Suggest'}
+        </button>
+      </div>
+
+      {/* ── Stats Thống kê nhanh ── */}
+      <div className="flex items-center gap-4 flex-wrap">
+        {[
+          { label: 'Còn trống', count: availableCount, dot: 'bg-emerald-400' },
+          { label: 'Đang dùng', count: occupiedCount, dot: 'bg-red-400' },
+          { label: 'Đặt trước', count: reservedCount, dot: 'bg-amber-400' },
+          { label: 'Tổng', count: filteredSlots.length, dot: 'bg-stone-400' },
+        ].map(({ label, count, dot }) => (
+          <div key={label} className="flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full ${dot}`} />
+            <span className="text-[11px] text-stone-500 font-semibold">{label}</span>
+            <span className="text-[11px] font-bold text-stone-700">{count}</span>
+          </div>
+        ))}
+      </div>
+
+      {filteredSlots.length === 0 ? (
+        <div className="py-14 text-center bg-gray-50 rounded-2xl border border-gray-200">
+          <ParkingSquare size={36} className="text-stone-300 mx-auto mb-3" />
+          <p className="text-sm text-stone-500 font-bold">Không có chỗ đỗ</p>
+          <p className="text-xs text-stone-400 mt-1">
+            Tầng này chưa có ô đỗ phù hợp với loại xe của bạn.
+          </p>
+        </div>
+      ) : (
+        /* ── Slot Grid View ── */
+        <div className="overflow-x-auto pb-1">
+          <div className="min-w-max">
+            {/* Column headers (A, B, C...) */}
+            <div
+              className="grid gap-1.5 mb-1"
+              style={{ gridTemplateColumns: `1.75rem repeat(${Math.min(COLS, filteredSlots.length)}, minmax(0,1fr))` }}
+            >
+              <div /> {/* Gốc rỗng */}
+              {Array.from({ length: Math.min(COLS, filteredSlots.length) }, (_, c) => (
+                <div
+                  key={c}
+                  className="text-center text-[10px] font-bold text-stone-400 tracking-wider"
+                >
+                  {String.fromCharCode(65 + c)}
+                </div>
+              ))}
+            </div>
+
+            {/* Rows */}
+            <div className="space-y-1.5">
+              {rows.map((row, rowIdx) => (
+                <div
+                  key={rowIdx}
+                  className="grid gap-1.5 items-center"
+                  style={{ gridTemplateColumns: `1.75rem repeat(${COLS}, minmax(0,1fr))` }}
+                >
+                  {/* Row number label */}
+                  <div className="text-center text-[10px] font-bold text-stone-400">
+                    {rowIdx + 1}
+                  </div>
+
+                  {/* Slot cells */}
+                  {row.map((slot) => {
+                    const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
+                    const isSelected = state.slotId === slot.id;
+                    const isOccupied = slot.status === 'Occupied' || String(slot.status) === '3';
+
+                    const colIdx = filteredSlots.indexOf(slot) % COLS;
+                    const colLetter = String.fromCharCode(65 + colIdx);
+                    const rowNum = Math.floor(filteredSlots.indexOf(slot) / COLS) + 1;
+
+                    return (
+                      <button
+                        key={slot.id}
+                        disabled={!isAvailable}
+                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}`}
+                        onClick={() => {
+                          if (!isAvailable) return;
+                          setState((s) => ({
+                            ...s,
+                            slot: slot.slotNumber,
+                            slotId: slot.id,
+                            zone: getZoneName(slot.slotNumber),
+                            bookingMethod: 0 // Mark as Manual
+                          }));
+                        }}
+                        className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 border-2 text-[9px] font-bold transition-all select-none ${getSlotStyle(slot)}`}
+                      >
+                        {isSelected ? (
+                          <CheckCircle2 size={12} />
+                        ) : isOccupied ? (
+                          <VehicleIcon size={11} />
+                        ) : (
+                          <VehicleIcon size={11} className="opacity-60" />
+                        )}
+                        <span className="leading-none">{slot.slotNumber}</span>
+                      </button>
+                    );
+                  })}
+
+                  {/* Padding empty cells if row < COLS */}
+                  {row.length < COLS && Array.from({ length: COLS - row.length }, (_, k) => (
+                    <div key={`pad-${k}`} className="h-11" />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Legend ── */}
+      <div className="flex items-center flex-wrap gap-4 pt-3 border-t border-gray-100 text-[11px] text-stone-500">
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-emerald-50 border-2 border-emerald-300 flex-shrink-0" />
+          Còn trống
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-[#FF4C4C] border-2 border-[#FF4C4C] flex-shrink-0" />
+          Đã chọn
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-red-50 border-2 border-red-200 flex-shrink-0" />
+          Đang dùng
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-4 h-4 rounded-md bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
+          Đặt trước
+        </div>
+        {state.slot && (
+          <span className="ml-auto text-[#FF4C4C] font-bold">
+            Đã chọn: {state.slot}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Booking Summary sidebar
+// ─────────────────────────────────────────────
+function BookingSummary({
+  lot,
+  state,
+  vehicles,
+  floorLabel,
+}: {
+  lot: ParkingLot;
+  state: WizardState;
+  vehicles: ApiVehicleType[];
+  floorLabel: string;
+}) {
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  const pricePerHour = selectedVehicle?.hourlyRate ?? 0;
+  const total = pricePerHour * state.duration;
+
+  const rows: { label: string; value: string; muted?: boolean }[] = [
+    { label: 'Facility', value: lot.name },
+    {
+      label: 'License Plate',
+      value: state.licensePlate || 'Not entered',
+      muted: !state.licensePlate,
+    },
+    {
+      label: 'Vehicle',
+      value: selectedVehicle?.name ?? 'Not selected',
+      muted: !state.vehicleType,
+    },
+    {
+      label: 'Entry',
+      value:
+        state.entryDate && state.entryTime
+          ? `${state.entryDate.split('-').reverse().join('/')} ${state.entryTime}`
+          : 'Not set',
+      muted: !state.entryDate,
+    },
+    {
+      label: 'Duration',
+      value: `${state.duration}h`,
+    },
+    {
+      label: 'Floor',
+      value: floorLabel,
+      muted: !state.floor,
+    },
+    {
+      label: 'Zone',
+      value: state.zone ?? 'Not selected',
+      muted: !state.zone,
+    },
+    {
+      label: 'Slot',
+      value: state.slot ?? 'Not selected',
+      muted: !state.slot,
+    },
   ];
 
-  // ── Route (OSRM) state ──
-  const [routeCoords, setRouteCoords] = useState<[number, number][] | null>(null);
-  const [isLoadingRoute, setIsLoadingRoute] = useState(false);
-  const [routeInfo, setRouteInfo] = useState<{ distKm: string; mins: number } | null>(null);
+  return (
+    <div className="w-72 flex-shrink-0 bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden flex flex-col justify-between">
+      <div>
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-gray-200/80 flex items-center gap-2">
+          <ClipboardList size={16} className="text-[#FF4C4C]" />
+          <h3 className="text-sm font-bold text-stone-800">Booking Summary</h3>
+        </div>
 
-  const handleGetDirections = useCallback(async (toLat: number, toLng: number) => {
-    if (!userLocation) {
-      alert('Please enable location service first for directions!');
-      return;
+        {/* Rows */}
+        <div className="px-5 py-4 space-y-3">
+          {rows.map(({ label, value, muted }) => (
+            <div key={label} className="flex items-start justify-between gap-3">
+              <span className="text-xs text-stone-400 font-semibold flex-shrink-0">{label}</span>
+              <span
+                className={`text-xs font-bold text-right leading-snug ${muted ? 'text-stone-350 italic' : 'text-stone-700'
+                  }`}
+              >
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="p-4 border-t border-gray-200/80">
+        {pricePerHour > 0 ? (
+          <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] text-stone-400 font-bold">Estimated Total</span>
+              <span className="text-[10px] text-stone-400 font-bold">{state.duration}h × {formatCurrency(pricePerHour)}</span>
+            </div>
+            <p className="text-lg font-black text-[#FF4C4C]">{formatCurrency(total)}</p>
+          </div>
+        ) : (
+          <div className="bg-white border border-gray-200/80 rounded-xl p-4 text-center">
+            <p className="text-xs text-stone-400 font-semibold">Select vehicle type to view pricing</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Confirmation + Payment + QR Popup
+// ─────────────────────────────────────────────
+import { QRCodeSVG } from 'qrcode.react';
+
+type PopupPhase = 'confirm' | 'payment' | 'checkout' | 'qr';
+
+function ConfirmationPopup({
+  lot,
+  state,
+  onClose,
+  onDone,
+  vehicles,
+  floorLabel,
+  myVehicles,
+  policy,
+}: {
+  lot: ParkingLot;
+  state: WizardState;
+  onClose: () => void;
+  onDone: () => void;
+  vehicles: ApiVehicleType[];
+  floorLabel: string;
+  myVehicles: VehicleResponse[];
+  policy: PricingPolicyResponse | null;
+}) {
+  const [phase, setPhase] = useState<PopupPhase>('confirm');
+  const [createdReservation, setCreatedReservation] = useState<any>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // orderCode từ PayOS để poll trạng thái
+  const [pendingOrderCode, setPendingOrderCode] = useState<number | null>(null);
+  // Ref tới tab PayOS đã mở
+  const payosTabRef = useRef<Window | null>(null);
+  // Bộ đếm giây polling
+  const [pollSeconds, setPollSeconds] = useState(0);
+  // Phương thức thanh toán
+  const [paymentMethod, setPaymentMethod] = useState<'PayOS' | 'Wallet'>('Wallet');
+  // Số dư ví
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function loadWallet() {
+      try {
+        const token = localStorage.getItem('sp_token') || '';
+        if (token) {
+          const info = await getWallet(token);
+          setWalletBalance(info.balance);
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải số dư ví:', err);
+      }
     }
-    setIsLoadingRoute(true);
-    setRouteCoords(null);
-    setRouteInfo(null);
+    loadWallet();
+
+    const onWalletUpdate = (e: Event) => {
+      const { balance: newBalance } = (e as CustomEvent<{ balance: number }>).detail;
+      setWalletBalance(newBalance);
+    };
+    window.addEventListener('walletUpdate', onWalletUpdate);
+    return () => window.removeEventListener('walletUpdate', onWalletUpdate);
+  }, []);
+
+  const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
+  const costResult = computeEstimatedCostHelper(state, vehicles, policy);
+  const total = costResult.total;
+
+  const isMotorbike = selectedVehicle?.name.toLowerCase().includes('moto') ||
+    selectedVehicle?.name.toLowerCase().includes('xe máy') ||
+    selectedVehicle?.name.toLowerCase().includes('bike') ||
+    selectedVehicle?.name.toLowerCase().includes('xe hai bánh') ||
+    false;
+
+  // Mã đặt chỗ hardcode fallback
+  const bookingRef = `PKG-${Date.now().toString(36).toUpperCase().slice(-8)}`;
+
+  const displayBookingRef = createdReservation?.bookingCode ?? bookingRef;
+
+  // Dữ liệu nhúng vào QR (JSON compact)
+  const qrData = JSON.stringify({
+    ref: displayBookingRef,
+    lot: lot.name,
+    plate: state.licensePlate,
+    vehicle: selectedVehicle?.name ?? '',
+    slot: `${floorLabel} / Slot ${state.slot}`,
+    date: state.entryDate,
+    entry: state.entryTime,
+    duration: state.duration,
+  });
+
+  const handleQuickDeposit = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // prevent selecting the method
+    const deficit = total - (walletBalance || 0);
+    const depositAmount = deficit < 10000 ? 10000 : deficit;
+
     try {
-      const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lng},${userLocation.lat};${toLng},${toLat}?overview=full&geometries=geojson`;
-      const res = await fetch(url);
-      const data = await res.json();
-      if (data.code !== 'Ok' || !data.routes?.length) throw new Error();
-      const coords: [number, number][] = (data.routes[0].geometry.coordinates as [number, number][]).map(
-        ([lng, lat]) => [lat, lng]
-      );
-      const distM: number = data.routes[0].distance;
-      const durS: number = data.routes[0].duration;
-      setRouteCoords(coords);
-      setRouteInfo({
-        distKm: distM < 1000 ? `${Math.round(distM)} m` : `${(distM / 1000).toFixed(1)} km`,
-        mins: Math.ceil(durS / 60),
-      });
-      mapInstance?.flyTo([toLat, toLng], 16, { duration: 1 });
-    } catch {
-      alert('Failed to calculate route. Check your connection.');
+      setSubmitting(true);
+      setError(null);
+      const token = localStorage.getItem('sp_token') || '';
+      const res = await depositWallet({ amount: depositAmount }, token);
+      window.open(res.checkoutUrl, '_blank', 'noopener');
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi tạo giao dịch nạp tiền.');
     } finally {
-      setIsLoadingRoute(false);
+      setSubmitting(false);
     }
-  }, [userLocation, mapInstance]);
+  };
 
-  const handleCancelRoute = useCallback(() => {
-    setRouteCoords(null);
-    setRouteInfo(null);
-  }, []);
+  const handlePayAndBook = async () => {
+    try {
+      setSubmitting(true);
+      setError(null);
+      const token = localStorage.getItem('sp_token') || '';
+      if (!token) {
+        throw new Error('Please log in to make a reservation.');
+      }
 
-  // ── Wizard cho OSM lot ──
-  const [showOsmWizard, setShowOsmWizard] = useState(false);
-  const [osmWizardLot, setOsmWizardLot] = useState<any>(null);
+      const [h, m] = state.entryTime.split(':').map(Number);
+      const entry = new Date(state.entryDate);
+      entry.setHours(h, m, 0, 0);
+      const exit = new Date(entry.getTime() + state.duration * 3600000);
 
-  const handleBookOsm = useCallback((osm: OsmParkingLot) => {
-    setOsmWizardLot(osmToBookingLot(osm));
-    setShowOsmWizard(true);
-  }, []);
+      // Resolve vehicleId
+      let vehicleIdToUse: string;
+      const matchedVehicle = myVehicles.find(
+        (v) => v.plateNumber === state.licensePlate && v.vehicleTypeId === state.vehicleType
+      );
 
-  // ── OSM (Overpass API) state ──
-  const [osmLots, setOsmLots] = useState<OsmParkingLot[]>([]);
-  const [isLoadingOsm, setIsLoadingOsm] = useState(false);
-  const [osmError, setOsmError] = useState<string | null>(null);
-  const [selectedOsmLot, setSelectedOsmLot] = useState<OsmParkingLot | null>(null);
+      if (matchedVehicle) {
+        vehicleIdToUse = matchedVehicle.id;
+      } else {
+        // Auto-create vehicle for the user silently
+        const newVehicle = await createVehicle({
+          plateNumber: state.licensePlate,
+          vehicleTypeId: state.vehicleType!
+        }, token);
+        vehicleIdToUse = newVehicle.id;
+      }
 
-  // Tự động fetch OSM khi có vị trí hoặc thay đổi bán kính
+      const payload = {
+        vehicleId: vehicleIdToUse,
+        parkingSlotId: state.slotId!,
+        buildingId: lot.id,
+        startTime: entry.toISOString(),
+        endTime: exit.toISOString(),
+        bookingMethod: state.bookingMethod
+      };
+
+      const res = await createReservation(payload, token);
+      setCreatedReservation(res);
+
+      if (paymentMethod === 'PayOS') {
+        const paymentPayload = {
+          amount: total,
+          description: `Thanh toan don dat cho`,
+          reservationId: res.id,
+        };
+
+        const payOSRes = await createPayOSPayment(paymentPayload, token);
+
+        // Tính toán QR data thực tế chính xác dựa trên bookingCode thực tế vừa được tạo
+        const realQrData = JSON.stringify({
+          ref: res.bookingCode,
+          lot: lot.name,
+          plate: state.licensePlate,
+          vehicle: selectedVehicle?.name ?? '',
+          slot: `${floorLabel} / Slot ${state.slot}`,
+          date: state.entryDate,
+          entry: state.entryTime,
+          duration: state.duration,
+        });
+
+        // Lưu QR data vào localStorage
+        localStorage.setItem('latest_booking_qr', realQrData);
+        localStorage.setItem('latest_reservation_id', res.id);
+
+        // Mở tab mới thay vì iframe (tránh lỗi Private Network Access)
+        const newTab = window.open(payOSRes.checkoutUrl, '_blank', 'noopener');
+        payosTabRef.current = newTab;
+        setPendingOrderCode(payOSRes.orderCode);
+        setSubmitting(false);
+        setPhase('checkout');
+      } else {
+        // Wallet thanh toán xong rồi (vì backend đã trừ ví)
+        const realQrData = JSON.stringify({
+          ref: res.bookingCode,
+          lot: lot.name,
+          plate: state.licensePlate,
+          vehicle: selectedVehicle?.name ?? '',
+          slot: `${floorLabel} / Slot ${state.slot}`,
+          date: state.entryDate,
+          entry: state.entryTime,
+          duration: state.duration,
+        });
+
+        localStorage.setItem('latest_booking_qr', realQrData);
+        localStorage.setItem('latest_reservation_id', res.id);
+
+        setSubmitting(false);
+        setPhase('qr');
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'INSUFFICIENT_BALANCE' && err.requiredAmount) {
+        const fmt = (n: number) => n.toLocaleString('vi-VN') + ' ₫';
+        setError(
+          `Số dư ví không đủ. Cần nạp thêm ${fmt(err.requiredAmount)} ` +
+          `(Tổng phí: ${fmt(err.totalFee ?? 0)} — Số dư hiện tại: ${fmt(err.currentBalance ?? 0)}). ` +
+          `Vui lòng nạp tiền vào ví trước khi đặt chỗ.`
+        );
+      } else {
+        setError(err.message || 'Reservation failed. Please check your information.');
+      }
+      setSubmitting(false);
+    }
+  };
+
+  // ── Polling: kiểm tra trạng thái thanh toán sau khi mở tab PayOS ──
   useEffect(() => {
-    if (!userLocation) {
-      setOsmLots([]);
-      setSelectedOsmLot(null);
-      return;
-    }
+    if (phase !== 'checkout' || pendingOrderCode == null) return;
+
+    const token = localStorage.getItem('sp_token') || '';
     let cancelled = false;
-    setIsLoadingOsm(true);
-    setOsmError(null);
-    fetchOsmParking(userLocation.lat, userLocation.lng, nearbyRadius)
-      .then((lots) => {
-        if (!cancelled) {
-          setOsmLots(lots);
-          setIsLoadingOsm(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setOsmError('Failed to load parking lot data. Check your internet connection.');
-          setIsLoadingOsm(false);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [userLocation, nearbyRadius]);
+    let seconds = 0;
+    setPollSeconds(0);
 
-  // Hàm lấy vị trí người dùng
-  const handleLocateMe = useCallback(() => {
-    if (!navigator.geolocation) {
-      setLocationError('Your browser does not support geolocation.');
-      return;
+    const interval = setInterval(async () => {
+      seconds += 3;
+      setPollSeconds(seconds);
+
+      if (seconds > 600) {
+        clearInterval(interval);
+        setError('Hết thời gian chờ (10 phút). Vui lòng thử lại.');
+        setPhase('payment');
+        setPendingOrderCode(null);
+        return;
+      }
+
+      try {
+        const result = await verifyPayment(pendingOrderCode, token);
+        if (cancelled) return;
+
+        if (result.isPaid) {
+          clearInterval(interval);
+          try { payosTabRef.current?.close(); } catch { }
+          payosTabRef.current = null;
+          setPendingOrderCode(null);
+          setPhase('qr');
+        } else if (result.status === 'Failed') {
+          clearInterval(interval);
+          try { payosTabRef.current?.close(); } catch { }
+          payosTabRef.current = null;
+          setPendingOrderCode(null);
+          setError('Thanh toán thất bại. Vui lòng thử lại.');
+          setPhase('payment');
+        }
+      } catch {
+        // bỏ qua lỗi mạng tạm thời
+      }
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [phase, pendingOrderCode]);
+
+  const formatDateDisplay = (d: string) => {
+    if (!d) return '--';
+    const [y, mo, dd] = d.split('-');
+    return `${dd}/${mo}/${y}`;
+  };
+
+  const exitTime = (() => {
+    if (!state.entryDate || !state.entryTime) return '--:--';
+    const [h, m] = state.entryTime.split(':').map(Number);
+    const entry = new Date(state.entryDate);
+    entry.setHours(h, m, 0, 0);
+    const ex = new Date(entry.getTime() + state.duration * 3600000);
+    return `${String(ex.getHours()).padStart(2, '0')}:${String(ex.getMinutes()).padStart(2, '0')}`;
+  })();
+
+  const rows = [
+    { label: 'Parking Lot', value: lot.name },
+    { label: 'License Plate', value: state.licensePlate },
+    { label: 'Vehicle Type', value: selectedVehicle ? `${isMotorbike ? '🏍️' : '🚗'} ${selectedVehicle.name}` : 'Not selected' },
+    { label: 'Entry Date', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
+    { label: 'Estimated Exit', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
+    { label: 'Duration', value: `${state.duration}h` },
+    { label: 'Location', value: `${floorLabel} › Slot ${state.slot}` },
+  ];
+
+  const headerConfig = {
+    confirm: {
+      icon: <ClipboardList size={18} className="text-[#FF4C4C]" />,
+      iconBg: 'bg-[#FF4C4C]/10 border border-[#FF4C4C]/30',
+      headerBg: '',
+      title: 'Confirm Information',
+      subtitle: 'Double check before confirming',
+    },
+    payment: {
+      icon: <CheckCircle2 size={18} className="text-emerald-500" />,
+      iconBg: 'bg-emerald-50 border border-emerald-200',
+      headerBg: 'bg-emerald-50/30',
+      title: 'Payment',
+      subtitle: 'Select payment method',
+    },
+    checkout: {
+      icon: <CheckCircle2 size={18} className="text-[#FF4C4C]" />,
+      iconBg: 'bg-[#FF4C4C]/10 border border-[#FF4C4C]/30',
+      headerBg: '',
+      title: 'Secure Checkout',
+      subtitle: 'Quét mã VietQR trên PayOS',
+    },
+    qr: {
+      icon: <CheckCircle2 size={18} className="text-blue-500" />,
+      iconBg: 'bg-blue-50 border border-blue-200',
+      headerBg: 'bg-blue-50/30',
+      title: 'Reservation Successful!',
+      subtitle: 'Present this QR code to the staff upon entry',
+    },
+  }[phase];
+
+  return (
+    <div className="fixed inset-0 z-[10010] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
+      <div className="w-full max-w-md bg-white border border-gray-200 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up">
+
+        {/* ── Header ── */}
+        <div className={`px-6 pt-6 pb-5 border-b border-gray-100 ${headerConfig.headerBg}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${headerConfig.iconBg}`}>
+                {headerConfig.icon}
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-stone-800">{headerConfig.title}</h2>
+                <p className="text-xs text-stone-400 font-medium">{headerConfig.subtitle}</p>
+              </div>
+            </div>
+            {phase !== 'payment' && (
+              <button
+                onClick={phase === 'qr' ? onDone : onClose}
+                className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-gray-100 transition-all"
+              >
+                <X size={16} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="px-6 py-5 max-h-[62vh] overflow-y-auto scrollbar-thin">
+
+          {/* ── Phase: Confirm ── */}
+          {phase === 'confirm' && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden">
+                {rows.map(({ label, value }, i) => (
+                  <div
+                    key={label}
+                    className={`flex items-start justify-between gap-4 px-4 py-3 ${i < rows.length - 1 ? 'border-b border-gray-150' : ''
+                      }`}
+                  >
+                    <span className="text-xs text-stone-400 font-semibold flex-shrink-0">{label}</span>
+                    <span className="text-xs font-bold text-stone-700 text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="bg-[#FF4C4C]/5 border border-[#FF4C4C]/15 rounded-2xl p-4 flex items-start justify-between">
+                <div className="flex-1 mr-4">
+                  <p className="text-xs text-stone-400 font-bold mb-0.5">Estimated Total Cost</p>
+                  <p className="text-xs text-stone-500 font-medium leading-relaxed">
+                    Cách tính: {costResult.breakdown}
+                  </p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <p className="text-2xl font-black text-[#FF4C4C]">{formatCurrency(costResult.total)}</p>
+                  {costResult.isCapped && (
+                    <span className="text-[9px] font-bold text-purple-500 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded-full mt-1 inline-block">
+                      Giá trần/ngày
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Phase: Payment ── */}
+          {phase === 'payment' && (
+            <div className="space-y-5">
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Reserved Location</p>
+                  <p className="text-sm font-bold text-stone-800">{floorLabel} › {state.zone} › Slot {state.slot}</p>
+                  <p className="text-xs text-stone-400 mt-0.5">{lot.name}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Total Price</p>
+                  <p className="text-xl font-black text-[#FF4C4C]">{formatCurrency(total)}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Thanh Toán</p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => setPaymentMethod('Wallet')}
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'Wallet' 
+                        ? 'border-[#FF4C4C] bg-red-50' 
+                        : 'border-gray-200 bg-white hover:border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        paymentMethod === 'Wallet' ? 'border-[#FF4C4C]' : 'border-gray-300'
+                      }`}>
+                        {paymentMethod === 'Wallet' && <div className="w-2 h-2 rounded-full bg-[#FF4C4C]" />}
+                      </div>
+                      <p className="text-sm font-bold text-stone-800">Thanh toán qua Ví Hệ Thống</p>
+                    </div>
+                    <p className="text-xs text-stone-500 pl-7">
+                      Trừ tiền trực tiếp vào số dư ví của bạn. Giao dịch hoàn tất ngay lập tức.
+                    </p>
+                    {walletBalance !== null && (
+                      <div className="pl-7 mt-2">
+                        <span className="text-xs font-semibold text-stone-600 bg-stone-100 px-2.5 py-1 rounded-md">
+                          Số dư hiện tại: <span className="font-bold text-[#FF4C4C]">{walletBalance.toLocaleString('vi-VN')}đ</span>
+                        </span>
+                        {total > walletBalance && paymentMethod === 'Wallet' && (
+                          <div className="mt-3 flex items-center justify-between p-2.5 bg-red-50 border border-red-100 rounded-xl cursor-default" onClick={e => e.stopPropagation()}>
+                            <div>
+                              <p className="text-[11px] font-bold text-red-600">Số dư không đủ thanh toán</p>
+                            </div>
+                            <button
+                              onClick={handleQuickDeposit}
+                              disabled={submitting}
+                              className="bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold py-1.5 px-3 rounded-xl transition-all"
+                            >
+                              Nạp {Math.max(10000, total - walletBalance).toLocaleString('vi-VN')}đ
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setPaymentMethod('PayOS')}
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'PayOS' 
+                        ? 'border-[#FF4C4C] bg-red-50' 
+                        : 'border-gray-200 bg-white hover:border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        paymentMethod === 'PayOS' ? 'border-[#FF4C4C]' : 'border-gray-300'
+                      }`}>
+                        {paymentMethod === 'PayOS' && <div className="w-2 h-2 rounded-full bg-[#FF4C4C]" />}
+                      </div>
+                      <p className="text-sm font-bold text-stone-800">Thanh toán qua Ngân hàng (VietQR)</p>
+                    </div>
+                    <p className="text-xs text-stone-500 pl-7">
+                      Chuyển hướng tới cổng thanh toán PayOS để quét mã QR chuyển khoản.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div className="bg-red-50 border border-red-150 text-red-500 text-xs px-4 py-3 rounded-2xl text-center font-bold">
+                  ⚠️ {error}
+                </div>
+              )}
+
+              <p className="text-xs text-stone-400 font-medium text-center">
+                Bằng việc xác nhận, bạn đồng ý với Điều khoản và Dịch vụ.
+              </p>
+            </div>
+          )}
+
+          {/* ── Phase: Checkout (Tab mới + Polling) ── */}
+          {phase === 'checkout' && (
+            <div className="flex flex-col items-center gap-6 py-4">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full border-4 border-emerald-100 flex items-center justify-center">
+                  <Loader2 size={36} className="animate-spin text-emerald-500" />
+                </div>
+                <div className="absolute inset-0 rounded-full bg-emerald-400/10 animate-ping" />
+              </div>
+              <div className="text-center">
+                <p className="text-base font-black text-stone-800 mb-1">Đang chờ thanh toán</p>
+                <p className="text-xs text-stone-500 leading-relaxed">
+                  Cửa sổ PayOS đã mở.<br />
+                  Hoàn tất thanh toán trên cửa sổ đó,<br />
+                  trang này sẽ tự động cập nhật.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 bg-stone-50 border border-gray-200 rounded-full px-5 py-2.5">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs text-stone-500 font-medium">
+                  Đang kiểm tra... <span className="font-bold text-stone-700">{pollSeconds}s</span>
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  if (payosTabRef.current && !payosTabRef.current.closed) {
+                    payosTabRef.current.focus();
+                  }
+                }}
+                className="text-xs text-[#FF4C4C] font-semibold hover:underline"
+              >
+                Nhấn để mở lại cửa sổ thanh toán →
+              </button>
+              {error && (
+                <div className="bg-red-50 border border-red-100 text-red-500 text-xs px-4 py-3 rounded-2xl text-center font-bold w-full">
+                  ⚠️ {error}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Phase: QR Code ── */}
+          {phase === 'qr' && (
+            <div className="flex flex-col items-center gap-5">
+              {/* Success badge */}
+              <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-full px-4 py-1.5">
+                <CheckCircle2 size={14} className="text-emerald-600" />
+                <span className="text-xs font-bold text-emerald-600">Payment Successful</span>
+              </div>
+
+              {/* QR Code */}
+              <div className="relative">
+                <div className="absolute inset-0 rounded-2xl bg-[#FF4C4C]/5 blur-lg" />
+                <div className="relative bg-white border border-gray-200/80 rounded-2xl p-4 shadow-xl flex items-center justify-center min-w-[212px] min-h-[212px]">
+                  <QRCodeSVG
+                    value={qrData}
+                    size={180}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#1c1917"
+                    imageSettings={{
+                      src: '',
+                      height: 0,
+                      width: 0,
+                      excavate: false,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Booking ref */}
+              <div className="text-center">
+                <p className="text-[10px] text-stone-400 font-bold mb-1 uppercase tracking-widest">Booking Code</p>
+                <p className="text-lg font-black text-[#FF4C4C] tracking-widest">{displayBookingRef}</p>
+              </div>
+
+              {/* Info summary */}
+              <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden">
+                {[
+                  { label: 'Parking Lot', value: lot.name },
+                  { label: 'License Plate', value: state.licensePlate },
+                  { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
+                  { label: 'Entry Time', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
+                  { label: 'Est. Exit Time', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
+                ].map(({ label, value }, i, arr) => (
+                  <div
+                    key={label}
+                    className={`flex items-center justify-between gap-3 px-4 py-2.5 ${i < arr.length - 1 ? 'border-b border-gray-150' : ''
+                      }`}
+                  >
+                    <span className="text-xs text-stone-400 font-semibold flex-shrink-0">{label}</span>
+                    <span className="text-xs font-bold text-stone-700 text-right">{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-xs text-stone-400 font-medium text-center px-4 leading-relaxed">
+                Present this QR code to the staff at the parking lot to confirm your reservation.
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center gap-3 bg-gray-50/50">
+          {phase === 'confirm' && (
+            <>
+              <button
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => setPhase('payment')}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-md shadow-[#FF4C4C]/10 transition-all flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 size={15} />
+                Confirm
+              </button>
+            </>
+          )}
+
+          {phase === 'payment' && (
+            <>
+              <button
+                disabled={submitting}
+                onClick={() => setPhase('confirm')}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all disabled:opacity-50"
+              >
+                <ChevronLeft size={15} />
+                Back
+              </button>
+              <button
+                disabled={submitting || (paymentMethod === 'Wallet' && (walletBalance === null || walletBalance < total))}
+                onClick={handlePayAndBook}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white shadow-sm transition-all flex items-center justify-center gap-2"
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={15} />
+                    Pay Now
+                  </>
+                )}
+              </button>
+            </>
+          )}
+
+          {phase === 'checkout' && (
+            <button
+              onClick={() => {
+                try { payosTabRef.current?.close(); } catch { }
+                payosTabRef.current = null;
+                setPendingOrderCode(null);
+                setPhase('payment');
+              }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 hover:text-stone-900 hover:bg-gray-50 transition-all"
+            >
+              Hủy Thanh Toán
+            </button>
+          )}
+
+          {phase === 'qr' && (
+            <button
+              onClick={onDone}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-sm transition-all flex items-center justify-center gap-2"
+            >
+              <CheckCircle2 size={15} />
+              Done – Close
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Stepper progress bar
+// ─────────────────────────────────────────────
+function StepperBar({ currentStep }: { currentStep: number }) {
+  return (
+    <div className="flex items-center justify-center gap-0">
+      {STEPS.map((step, idx) => {
+        const done = currentStep > step.id;
+        const active = currentStep === step.id;
+        return (
+          <div key={step.id} className="flex items-center">
+            {/* Circle */}
+            <div className="flex flex-col items-center gap-1.5">
+              <div
+                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-black border-2 transition-all duration-300 ${done
+                  ? 'bg-[#FF4C4C] border-[#FF4C4C] text-white'
+                  : active
+                    ? 'bg-[#FF4C4C]/10 border-[#FF4C4C] text-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                    : 'bg-gray-50 border-gray-200 text-stone-400'
+                  }`}
+              >
+                {done ? <CheckCircle2 size={16} /> : step.id}
+              </div>
+              <span
+                className={`text-[9px] font-bold uppercase tracking-wider whitespace-nowrap ${active ? 'text-[#FF4C4C]' : done ? 'text-[#FF4C4C]/70' : 'text-stone-400'
+                  }`}
+              >
+                {step.short}
+              </span>
+            </div>
+
+            {/* Connector line */}
+            {idx < STEPS.length - 1 && (
+              <div
+                className={`w-12 sm:w-16 h-0.5 mb-5 mx-1 rounded-full transition-all duration-300 ${done ? 'bg-[#FF4C4C]' : 'bg-gray-200'
+                  }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Main BookingWizard component
+// ─────────────────────────────────────────────
+function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
+  const [step, setStep] = useState(1);
+  const [vehicles, setVehicles] = useState<ApiVehicleType[]>([]);
+  const [loadingVehicles, setLoadingVehicles] = useState(true);
+  const [floors, setFloors] = useState<FloorResponse[]>([]);
+  const [loadingFloors, setLoadingFloors] = useState(true);
+  const [allBuildingSlots, setAllBuildingSlots] = useState<ParkingSlotDetail[]>([]);
+  const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [policy, setPolicy] = useState<PricingPolicyResponse | null>(null);
+
+  const [myVehicles, setMyVehicles] = useState<VehicleResponse[]>([]);
+  const [loadingMyVehicles, setLoadingMyVehicles] = useState(false);
+  const [stepError, setStepError] = useState<string | null>(null);
+
+  const [state, setState] = useState<WizardState>({
+    vehicleType: null,
+    licensePlate: '',
+    entryDate: todayDateStr(),
+    entryTime: nowTimeStr(),
+    duration: 2,
+    floor: null,
+    slot: null,
+    slotId: null,
+    zone: null,
+    bookingMethod: 0
+  });
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+
+  // Tải danh sách xe đã đăng ký của Driver
+  useEffect(() => {
+    const token = localStorage.getItem('sp_token') || '';
+    if (!token) return;
+    async function loadMyVehicles() {
+      try {
+        setLoadingMyVehicles(true);
+        const data = await getMyVehicles(token);
+        setMyVehicles(data);
+
+        // Tự động điền xe mặc định (isPrimary) hoặc xe đầu tiên nếu người dùng chưa nhập biển số
+        if (data.length > 0) {
+          const primary = data.find(v => v.isPrimary) || data[0];
+          setState(s => {
+            if (!s.licensePlate) {
+              return {
+                ...s,
+                licensePlate: primary.plateNumber,
+                vehicleType: primary.vehicleTypeId,
+              };
+            }
+            return s;
+          });
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải danh sách xe của tôi:', err);
+      } finally {
+        setLoadingMyVehicles(false);
+      }
     }
-    setLocatingUser(true);
-    setLocationError(null);
-    setFlyToUser(false);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setUserLocation(coords);
-        setLocatingUser(false);
-        setFlyToUser(true);
-        setSortBy('distance');
-      },
-      (err) => {
-        setLocatingUser(false);
-        if (err.code === 1) setLocationError('Location access denied.');
-        else setLocationError('Failed to get location. Try again later.');
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    loadMyVehicles();
   }, []);
 
-  // Click outside handlers
+  // Load vehicle types & policies
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+    async function loadVehicleTypes() {
+      try {
+        setLoadingVehicles(true);
+        const [types, policies] = await Promise.all([
+          getVehicleTypes(),
+          getAllPolicies()
+        ]);
+
+        // Sắp xếp các chính sách theo thời gian tạo giảm dần để lấy chính sách mới nhất
+        const sortedPolicies = [...policies].sort((a, b) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        const mapped = types.map(t => {
+          const policy = sortedPolicies.find(p => p.vehicleTypeId === t.id);
+          let rate = policy?.hourlyRate ?? 0;
+          if (rate === 0) {
+            const lowerName = t.name.toLowerCase();
+            if (lowerName.includes('car') || lowerName.includes('ô tô') || lowerName.includes('xe hơi') || lowerName.includes('oto') || lowerName.includes('xe 01')) {
+              rate = 10000;
+            } else if (lowerName.includes('moto') || lowerName.includes('xe máy') || lowerName.includes('bike') || lowerName.includes('xe hai bánh')) {
+              rate = 5000;
+            } else {
+              rate = 10000;
+            }
+          }
+          return {
+            id: t.id,
+            name: t.name,
+            description: t.description,
+            hourlyRate: rate
+          };
+        });
+        setVehicles(mapped);
+      } catch (err) {
+        console.error('Lỗi khi tải loại xe:', err);
+      } finally {
+        setLoadingVehicles(false);
+      }
+    }
+    loadVehicleTypes();
+  }, []);
+
+  // Load PricingPolicy khi vehicleType thay đổi
+  useEffect(() => {
+    if (!state.vehicleType) {
+      setPolicy(null);
+      return;
+    }
+    async function loadPolicy() {
+      try {
+        const data = await getPolicyByVehicleType(state.vehicleType!);
+        setPolicy(data);
+      } catch {
+        // Không có policy → giữ null, fallback sang hourlyRate từ vehicle
+        setPolicy(null);
+      }
+    }
+    loadPolicy();
+  }, [state.vehicleType]);
+
+  // Load floors by building
+  useEffect(() => {
+    if (!lot.id) return;
+    async function loadFloors() {
+      try {
+        setLoadingFloors(true);
+
+        let buildingId = lot.id;
+        const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(lot.id);
+
+        if (!isGuid) {
+          const buildings = await getBuildings();
+          if (buildings.length > 0) {
+            buildingId = buildings[0].id;
+          }
+        }
+
+        const data = await getFloorsByBuilding(buildingId);
+        const sorted = data.sort((a, b) => a.floorIndex - b.floorIndex);
+        setFloors(sorted);
+
+        // Fetch all slots for these floors in parallel
+        let slotsArrays: ParkingSlotDetail[][] = [];
+        if (state.entryDate && state.entryTime && state.duration) {
+          const [h, m] = state.entryTime.split(':').map(Number);
+          const entry = new Date(state.entryDate);
+          entry.setHours(h, m, 0, 0);
+          const exit = new Date(entry.getTime() + state.duration * 3600000);
+          slotsArrays = await Promise.all(
+            sorted.map((f) => getAvailableSlotsByFloor(f.id, entry.toISOString(), exit.toISOString()).catch(() => []))
+          );
+        } else {
+          slotsArrays = await Promise.all(
+            sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
+          );
+        }
+
+        const flatSlots = slotsArrays.flat();
+        setAllBuildingSlots(flatSlots);
+      } catch (err) {
+        console.error('Lỗi khi tải tầng:', err);
+      } finally {
+        setLoadingFloors(false);
+      }
+    }
+    loadFloors();
+  }, [lot.id, state.entryDate, state.entryTime, state.duration]);
+
+  // Load slots when floor changes
+  useEffect(() => {
+    if (!state.floor) {
+      setSlots([]);
+      return;
+    }
+    const currentFloor = state.floor;
+    async function loadSlots() {
+      if (!currentFloor) return;
+      try {
+        setLoadingSlots(true);
+        let data: ParkingSlotDetail[];
+
+        if (state.entryDate && state.entryTime && state.duration) {
+          const [h, m] = state.entryTime.split(':').map(Number);
+          const entry = new Date(state.entryDate);
+          entry.setHours(h, m, 0, 0);
+          const exit = new Date(entry.getTime() + state.duration * 3600000);
+
+          // Dùng API mới tính toán overlap
+          data = await getAvailableSlotsByFloor(currentFloor, entry.toISOString(), exit.toISOString());
+        } else {
+          // Fallback nếu thiếu thời gian
+          data = await getSlotsByFloor(currentFloor);
+        }
+
+        setSlots(data);
+      } catch (err) {
+        console.error('Lỗi khi tải ô đỗ xe:', err);
+      } finally {
+        setLoadingSlots(false);
+      }
+    }
+    loadSlots();
+  }, [state.floor, state.entryDate, state.entryTime, state.duration]);
+
+  // Lock body scroll
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
+
+  // Validate whether the current step is complete enough to advance
+  const canAdvance = (): boolean => {
+    switch (step) {
+      case 1: return !!state.vehicleType;
+      case 2: return state.licensePlate.trim().length >= 4;
+      case 3: return !!state.entryDate && !!state.entryTime;
+      case 4: return !!state.floor;
+      case 5: return !!state.slot;
+      default: return false;
+    }
+  };
+
+  const handleNext = () => {
+    setStepError(null);
+    if (step === 3) {
+      if (state.entryDate && state.entryTime) {
+        const now = new Date();
+        const [h, m] = state.entryTime.split(':').map(Number);
+        const entry = new Date(state.entryDate);
+        entry.setHours(h, m, 0, 0);
+
+        if (entry <= now) {
+          setStepError('Thời gian bắt đầu phải lớn hơn thời điểm hiện tại.');
+          return;
+        }
+      }
+    }
+    if (step < 5 && canAdvance()) setStep((s) => s + 1);
+  };
+  const handleBack = () => {
+    setStepError(null);
+    if (step > 1) setStep((s) => s - 1);
+  };
+
+  // Mở popup xác nhận
+  const handleConfirm = () => {
+    if (canAdvance()) setShowConfirmPopup(true);
+  };
+
+  // Sau khi thanh toán xong
+  const handlePaymentDone = () => {
+    setShowConfirmPopup(false);
+    onClose();
+  };
+
+  const selectedFloorObj = floors.find(f => f.id === state.floor);
+  const floorLabel = selectedFloorObj?.name ?? 'Not selected';
+
+  const renderStep = () => {
+    switch (step) {
+      case 1: return <StepVehicleType state={state} setState={setState} vehicles={vehicles} loading={loadingVehicles} />;
+      case 2: return (
+        <StepLicensePlate
+          state={state}
+          setState={setState}
+          vehicles={vehicles}
+          myVehicles={myVehicles}
+          loadingMyVehicles={loadingMyVehicles}
+        />
+      );
+      case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} policy={policy} />;
+      case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} allBuildingSlots={allBuildingSlots} />;
+      case 5: return <StepSelectSlot state={state} setState={setState} slots={slots} vehicles={vehicles} />;
+      default: return null;
+    }
+  };
+
+  return (
+    <>
+      <div className="h-full min-h-[calc(100vh-5rem)] w-full flex items-center justify-center bg-[#F3F3F5] p-4 sm:p-6 relative">
+        <button
+          onClick={step === 1 ? onClose : handleBack}
+          className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-stone-600 bg-white border-2 border-gray-200/60 hover:border-gray-300 hover:text-stone-900 transition-all shadow-sm z-10"
+        >
+          <ChevronLeft size={18} strokeWidth={2.5} />
+          {step === 1 ? 'Exit' : 'Back'}
+        </button>
+        <div
+          className="relative w-full max-w-3xl bg-white border border-gray-200 rounded-3xl shadow-xl flex flex-col overflow-hidden h-[90vh]"
+        >
+          {/* ── Modal Header ── */}
+          <div className="flex-shrink-0 px-6 pt-6 pb-5 border-b border-gray-150">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h1 className="text-base font-bold text-stone-800">Book a Parking Spot</h1>
+                <p className="text-xs text-stone-400 font-semibold mt-0.5 truncate max-w-xs">{lot.name}</p>
+              </div>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-gray-100 transition-all"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <StepperBar currentStep={step} />
+          </div>
+
+          {/* ── Modal Body ── */}
+          <div className="flex flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto scrollbar-thin p-6">
+              <div key={step} className="animate-fade-in-up">
+                {renderStep()}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Modal Footer ── */}
+          <div className="flex-shrink-0 px-6 py-4 border-t border-gray-150 flex flex-col gap-3 bg-gray-50/50">
+            {stepError && (
+              <div className="bg-red-50 border border-red-100 text-red-500 text-xs px-4 py-2.5 rounded-xl text-center font-bold w-full">
+                ⚠️ {stepError}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <div className="w-24"></div> {/* Placeholder to keep center alignment */}
+
+            <span className="text-xs text-stone-500 font-bold">
+              {step} / {STEPS.length}
+            </span>
+
+            {step < 5 ? (
+              <button
+                onClick={handleNext}
+                disabled={!canAdvance()}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
+                  ? 'bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-sm shadow-[#FF4C4C]/10'
+                  : 'bg-gray-100 text-stone-300 border-gray-200/80 cursor-not-allowed'
+                  }`}
+              >
+                Continue
+                <ChevronRight size={16} />
+              </button>
+            ) : (
+              <button
+                onClick={handleConfirm}
+                disabled={!canAdvance()}
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
+                  : 'bg-gray-100 text-stone-300 border-gray-200/80 cursor-not-allowed'
+                  }`}
+              >
+                <CheckCircle2 size={16} />
+                Confirm Booking
+              </button>
+            )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Confirmation & Payment Popup ── */}
+      {showConfirmPopup && (
+        <ConfirmationPopup
+          lot={lot}
+          state={state}
+          onClose={() => setShowConfirmPopup(false)}
+          onDone={handlePaymentDone}
+          vehicles={vehicles}
+          floorLabel={floorLabel}
+          myVehicles={myVehicles}
+          policy={policy}
+        />
+      )}
+    </>
+  );
+}
+
+export default function BookingPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const stateLot = location.state?.lot as ParkingLot | undefined;
+
+  const { user, token, logout } = useAuth();
+  useNotification(token);
+
+  const [lot, setLot] = useState<ParkingLot | null>(stateLot || null);
+  const [loadingLot, setLoadingLot] = useState(false);
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
-      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
-        setIsSortOpen(false);
-      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
   }, []);
 
   const handleLogout = () => {
@@ -563,134 +2308,98 @@ export default function BookingPage() {
 
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
 
-  // Filter & sort
-  const filtered = PARKING_LOTS.filter((lot) => {
-    const matchType =
-      vehicleFilter === 'all' || lot.vehicleTypes.includes(vehicleFilter);
-    const matchSearch =
-      !searchText ||
-      lot.name.toLowerCase().includes(searchText.toLowerCase()) ||
-      lot.address.toLowerCase().includes(searchText.toLowerCase());
-    const matchNearby = !userLocation
-      ? true
-      : calcDistanceKm(userLocation.lat, userLocation.lng, lot.lat, lot.lng) <= nearbyRadius / 1000;
-    return matchType && matchSearch && matchNearby;
-  }).sort((a, b) => {
-    if (sortBy === 'price') return a.pricePerHour - b.pricePerHour;
-    if (sortBy === 'rating') return b.rating - a.rating;
-    if (sortBy === 'distance' && userLocation) {
-      const dA = calcDistanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng);
-      const dB = calcDistanceKm(userLocation.lat, userLocation.lng, b.lat, b.lng);
-      return dA - dB;
+  useEffect(() => {
+    if (!lot) {
+      // If there is no lot in state (e.g. user refreshed the page or navigated directly)
+      // Redirect them back to find-parking to select a lot
+      navigate('/find-parking', { replace: true });
     }
-    return 0;
-  });
+  }, [lot, navigate]);
 
-  const getOsmDistance = (lot: OsmParkingLot): string => {
-    if (!userLocation) return '';
-    const d = calcDistanceKm(userLocation.lat, userLocation.lng, lot.lat, lot.lng);
-    return d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(1)} km`;
-  };
-
-  // Lọc OSM lots theo search text
-  const osmFiltered = osmLots.filter((lot) =>
-    !searchText ||
-    lot.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    lot.address.toLowerCase().includes(searchText.toLowerCase())
-  ).sort((a, b) => {
-    if (!userLocation) return 0;
+  if (loadingLot) {
     return (
-      calcDistanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng) -
-      calcDistanceKm(userLocation.lat, userLocation.lng, b.lat, b.lng)
+      <div className="min-h-screen bg-[#F3F3F5] flex flex-col items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-[#FF4C4C]" />
+      </div>
     );
-  });
+  }
 
-  const SORT_LABELS: Record<SortOption, string> = {
-    relevance: 'Relevance',
-    price: 'Lowest Price',
-    rating: 'Highest Rating',
-    distance: 'Closest',
-  };
-
-  const availabilityColor = (lot: ParkingLot) => {
-    const ratio = lot.availableSpots / lot.totalSpots;
-    if (ratio > 0.5) return '#10B981'; // Emerald
-    if (ratio > 0.2) return '#F59E0B'; // Amber
-    return '#FF4C4C'; // Coral Red
-  };
+  if (!lot) {
+    return (
+      <div className="min-h-screen bg-[#F3F3F5] flex flex-col items-center justify-center p-4">
+        <p className="text-stone-500 font-bold mb-4">Parking lot not found.</p>
+        <button onClick={() => navigate(-1)} className="text-blue-500 font-bold hover:underline">Go Back</button>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-[#F3F3F5] text-stone-900 overflow-hidden font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C]">
-      
-      {/* ===== Top Navigation ===== */}
-      <nav className="flex-shrink-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
-        <div className="max-w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            
-            {/* Logo + Back */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/')}
-                className="p-2 rounded-xl text-stone-400 hover:text-stone-900 hover:bg-gray-100 transition-all"
-                title="Về trang chủ"
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <Link to="/" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-sm shadow-sm shadow-[#FF4C4C]/20">
+    <div className="min-h-screen bg-[#F3F3F5] flex flex-col">
+      {/* Navigation Bar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            <div className="flex items-center gap-2.5">
+              <Link to="/" className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-lg shadow-sm shadow-[#FF4C4C]/25">
                   P
                 </div>
-                <span className="text-lg font-bold tracking-tight text-stone-900">
+                <span className="text-xl font-extrabold tracking-tight text-stone-900">
                   Parking<span className="text-[#FF4C4C]">.</span>
                 </span>
               </Link>
             </div>
 
-            {/* Nav links */}
-            <div className="hidden md:flex items-center gap-8">
-              <Link
-                to="/"
-                className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors"
-              >
+            <div className="hidden md:flex items-center gap-10">
+              <Link to="/my-tickets" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
+                My Ticket
+              </Link>
+              <Link to="/find-parking" className="text-sm font-semibold text-[#FF4C4C] transition-colors cursor-pointer">
                 Find Parking
               </Link>
-              <span className="text-sm font-semibold text-[#FF4C4C] cursor-pointer">
-                Book a Slot
-              </span>
-              <span className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
-                Support & Feedback
-              </span>
             </div>
 
-            {/* User badge */}
             <div className="flex items-center gap-3">
               {token && user ? (
                 <div className="relative" ref={dropdownRef}>
                   <button
                     type="button"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-2.5 bg-gray-100 border border-gray-200/50 rounded-full py-1.5 pl-2 pr-3 hover:bg-gray-200 transition-all focus:outline-none"
+                    className="flex items-center gap-2.5 bg-gray-100 border border-gray-200/50 rounded-full py-1.5 pl-2 pr-4 hover:bg-gray-200 transition-all focus:outline-none"
                   >
-                    <div className="w-7 h-7 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/25">
+                    <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/25">
                       {initials}
                     </div>
                     <span className="text-sm text-stone-800 font-semibold hidden sm:block">
                       {user.fullName}
                     </span>
                     <ChevronDown
-                      size={13}
-                      className={`text-stone-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                      size={14}
+                      className={`text-stone-500 transition-transform duration-200 ${
+                        isDropdownOpen ? 'rotate-180' : ''
+                      }`}
                     />
                   </button>
+
+                  {/* Dropdown Menu */}
                   {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-[9999]">
+                    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
                       <button
                         type="button"
-                        onClick={() => { setIsDropdownOpen(false); navigate('/myticket'); }}
+                        onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
                       >
-                        <Ticket size={15} />
-                        <span>My Tickets</span>
+                        <User size={16} />
+                        <span>Profile</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        type="button"
+                        onClick={() => { setIsDropdownOpen(false); navigate('/my-vehicles'); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                      >
+                        <Car size={16} />
+                        <span>My Vehicles</span>
                       </button>
                       <div className="border-t border-gray-100 my-1" />
                       <button
@@ -698,8 +2407,8 @@ export default function BookingPage() {
                         onClick={handleLogout}
                         className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
                       >
-                        <LogOut size={15} />
-                        <span>Log Out</span>
+                        <LogOut size={16} />
+                        <span>Logout</span>
                       </button>
                     </div>
                   )}
@@ -707,9 +2416,9 @@ export default function BookingPage() {
               ) : (
                 <Link
                   to="/auth"
-                  className="bg-stone-900 hover:bg-stone-800 text-white font-bold px-5 py-2 rounded-full text-sm transition-all"
+                  className="bg-stone-900 hover:bg-stone-850 text-white font-bold px-6 py-2.5 rounded-full text-sm transition-all"
                 >
-                  Log In
+                  Login / Register
                 </Link>
               )}
             </div>
@@ -717,704 +2426,9 @@ export default function BookingPage() {
         </div>
       </nav>
 
-      {/* ===== Filter Bar ===== */}
-      <div className="flex-shrink-0 z-40 bg-white/80 border-b border-gray-200/50 px-4 sm:px-6 lg:px-8 py-3 backdrop-blur-md">
-        <div className="flex items-center gap-3 flex-wrap">
-          
-          {/* Vehicle type filters */}
-          {(
-            [
-              { key: 'all', label: 'All Vehicles', icon: Car },
-              { key: 'motorbike', label: 'Motorbike', icon: Bike },
-              { key: 'car', label: 'Car', icon: Car },
-              { key: 'ev', label: 'EV Charger', icon: Zap },
-            ] as { key: VehicleFilter; label: string; icon: any }[]
-          ).map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setVehicleFilter(key)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${vehicleFilter === key
-                  ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/15'
-                  : 'bg-gray-100 text-stone-600 border-gray-200 hover:bg-gray-200/60 hover:text-stone-900'
-                }`}
-            >
-              <Icon size={13} />
-              {label}
-            </button>
-          ))}
-
-          {/* Sort dropdown */}
-          <div className="relative ml-auto" ref={sortRef}>
-            <button
-              onClick={() => setIsSortOpen(!isSortOpen)}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-gray-100 border border-gray-200 text-stone-700 hover:bg-gray-200/60 transition-all"
-            >
-              Sort by: <span className="text-[#FF4C4C]">{SORT_LABELS[sortBy]}</span>
-              <ChevronDown size={13} className={`transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isSortOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50">
-                {(Object.keys(SORT_LABELS) as SortOption[]).map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => { setSortBy(opt); setIsSortOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors ${sortBy === opt
-                        ? 'text-[#FF4C4C] bg-[#FF4C4C]/5'
-                        : 'text-stone-600 hover:text-stone-900 hover:bg-gray-50'
-                      }`}
-                  >
-                    {SORT_LABELS[opt]}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="flex-1 pt-20">
+        <BookingWizardInner lot={lot} onClose={() => navigate(-1)} />
       </div>
-
-      {/* ===== Main Content: Sidebar + Map ===== */}
-      <div className="flex flex-1 overflow-hidden">
-        
-        {/* ----- Sidebar ----- */}
-        <aside className="w-80 flex-shrink-0 bg-[#F8F8FA] border-r border-gray-200/60 flex flex-col overflow-hidden">
-          
-          {/* Search + count */}
-          <div className="px-4 pt-4 pb-3 space-y-3">
-            <div className="relative">
-              <Search
-                size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
-              />
-              <input
-                type="text"
-                placeholder="Search parking lots..."
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-stone-800 placeholder-stone-400 outline-none focus:border-[#FF4C4C]/60 transition-colors"
-              />
-            </div>
-
-            {/* Banner trạng thái */}
-            {userLocation ? (
-              <div className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-xl px-3 py-2">
-                <div className={`w-2 h-2 rounded-full shrink-0 ${isLoadingOsm ? 'bg-blue-400' : 'bg-emerald-500 animate-pulse'}`} />
-                <div className="flex-1 min-w-0">
-                  {isLoadingOsm ? (
-                    <p className="text-xs font-bold text-blue-600 flex items-center gap-1.5">
-                      <Loader2 size={10} className="animate-spin" />
-                      Loading lots from OpenStreetMap...
-                    </p>
-                  ) : osmError ? (
-                    <p className="text-xs font-bold text-red-500">{osmError}</p>
-                  ) : (
-                    <>
-                      <p className="text-xs font-bold text-emerald-600">
-                        {osmFiltered.length} real lots within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
-                      </p>
-                      <p className="text-[10px] text-blue-500/80 truncate">from OpenStreetMap data</p>
-                    </>
-                  )}
-                </div>
-                <button
-                  onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); }}
-                  className="shrink-0 text-blue-500/60 hover:text-blue-800 transition-colors text-xs font-bold leading-none"
-                  title="Turn off near me mode"
-                >
-                  ✕
-                </button>
-              </div>
-            ) : null}
-          </div>
-
-          {/* Lot list */}
-          <div className="flex-1 overflow-y-auto px-3 pb-4 space-y-2.5 scrollbar-thin">
-
-            {/* Chưa định vị: hiển invite state */}
-            {!userLocation ? (
-              <div className="flex flex-col items-center justify-center h-full py-10 text-center px-4">
-                <div className="w-20 h-20 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-5 shadow-sm">
-                  <Navigation size={32} className="text-blue-500" />
-                </div>
-                <h3 className="text-base font-bold text-stone-850 mb-2">Find Parking Near You</h3>
-                <p className="text-xs text-stone-500 leading-relaxed mb-6">
-                  Allow location access to show the closest real parking lots from OpenStreetMap data.
-                </p>
-                <button
-                  onClick={handleLocateMe}
-                  disabled={locatingUser}
-                  className="flex items-center gap-2.5 bg-stone-900 hover:bg-stone-800 disabled:opacity-60 text-white font-bold px-6 py-3 rounded-2xl text-sm transition-all shadow-md active:scale-95 w-full justify-center"
-                >
-                  {locatingUser ? (
-                    <Loader2 size={16} className="animate-spin" />
-                  ) : (
-                    <Navigation size={16} />
-                  )}
-                  {locatingUser ? 'Locating...' : 'Find Near Me'}
-                </button>
-                {locationError && (
-                  <p className="text-xs text-red-500 mt-3">{locationError}</p>
-                )}
-                <div className="mt-6 pt-5 border-t border-gray-200/50 w-full">
-                  <p className="text-[10px] text-stone-400 mb-3 uppercase tracking-wider font-bold">Or select search radius</p>
-                  <div className="flex gap-2 justify-center">
-                    {RADIUS_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => { setNearbyRadius(opt.value); handleLocateMe(); }}
-                        className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${nearbyRadius === opt.value
-                            ? 'bg-blue-50 text-blue-600 border-blue-200'
-                            : 'text-stone-500 border-gray-200 hover:text-stone-800 hover:border-gray-300'
-                          }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Đã định vị: hiển kết quả OSM */
-              <>
-                {/* Loading OSM */}
-                {isLoadingOsm && (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <Loader2 size={24} className="text-blue-500 animate-spin" />
-                    <p className="text-xs text-stone-500">Matching parking lots near you...</p>
-                  </div>
-                )}
-
-                {/* Lỗi OSM */}
-                {!isLoadingOsm && osmError && (
-                  <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
-                    <MapPin size={28} className="text-red-400 opacity-60" />
-                    <p className="text-xs text-red-500">{osmError}</p>
-                    <button
-                      onClick={() => setUserLocation({ ...userLocation })}
-                      className="text-xs text-blue-500 border border-blue-200 px-3 py-1.5 rounded-full hover:bg-blue-50 transition-all font-semibold"
-                    >
-                      Retry
-                    </button>
-                  </div>
-                )}
-
-                {/* Kết quả OSM */}
-                {!isLoadingOsm && !osmError && osmFiltered.map((lot) => (
-                  <button
-                    key={lot.id}
-                    onClick={() => {
-                      setSelectedOsmLot(lot);
-                      setSelectedLot(null);
-                      setShowDetailPanel(false);
-                      mapInstance?.flyTo([lot.lat, lot.lng], 17, { duration: 1.2 });
-                    }}
-                    className={`w-full text-left rounded-2xl border p-4 transition-all group ${selectedOsmLot?.id === lot.id
-                        ? 'bg-emerald-50/80 border-emerald-500/40 shadow-sm'
-                        : 'bg-white border-gray-200/80 hover:border-emerald-500/30 hover:shadow-md hover:shadow-gray-200/10'
-                      }`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <span className={`text-sm font-extrabold leading-tight ${selectedOsmLot?.id === lot.id ? 'text-emerald-600' : 'text-stone-800 group-hover:text-stone-950'
-                        }`}>
-                      {lot.name}
-                      </span>
-                      <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${lot.access === 'private'
-                          ? 'bg-sky-50 text-sky-600 border border-sky-200/50'
-                          : 'bg-emerald-50 text-emerald-600 border border-emerald-200/50'
-                        }`}>
-                        {lot.access === 'private' ? 'PRIVATE' : 'PUBLIC'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 mb-3">
-                      <MapPin size={11} className="text-stone-400 shrink-0" />
-                      <span className="text-xs text-stone-400 truncate flex-1">{lot.address}</span>
-                      <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
-                        <Navigation2 size={9} />
-                        {getOsmDistance(lot)}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-xs">
-                      {/* Sức chứa */}
-                      {lot.capacity && (
-                        <div className="flex items-center gap-1.5 text-stone-500">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          <span>Max <span className="font-bold text-stone-700">{lot.capacity}</span> spots</span>
-                        </div>
-                      )}
-                      {/* Badge OSM */}
-                      <span className="text-[10px] text-stone-400 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />OSM
-                      </span>
-                      {/* Mở Google Maps */}
-                      <a
-                        href={`https://www.google.com/maps/dir/?api=1&destination=${lot.lat},${lot.lng}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="ml-auto text-[10px] font-bold text-blue-500 hover:text-blue-700 underline transition-colors"
-                      >
-                        Directions
-                      </a>
-                    </div>
-
-                    <div className={`mt-3 text-center text-xs font-bold py-1.5 rounded-lg border transition-all ${selectedOsmLot?.id === lot.id
-                        ? 'border-emerald-500/40 text-emerald-600 bg-emerald-50'
-                        : 'border-gray-200 text-stone-500 bg-gray-50 group-hover:text-emerald-600 group-hover:border-emerald-500/20 group-hover:bg-emerald-50/30'
-                      }`}>
-                      📍 View on Map
-                    </div>
-                  </button>
-                ))}
-
-                {/* Trống */}
-                {!isLoadingOsm && !osmError && osmFiltered.length === 0 && (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center mb-3">
-                      <Navigation size={24} className="text-blue-500" />
-                    </div>
-                    <p className="text-sm font-bold text-stone-850 mb-1">No parking lots found</p>
-                    <p className="text-xs text-stone-500 mb-3">within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}</p>
-                    <button
-                      onClick={() => setNearbyRadius(Math.min(nearbyRadius * 2, 5000))}
-                      className="text-xs font-bold text-blue-500 hover:text-blue-700 border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-full transition-all"
-                    >
-                      Expand search radius
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </aside>
-
-        {/* ----- Map + Detail Panel ----- */}
-        <div className="flex-1 relative overflow-hidden">
-          {/* Leaflet Map */}
-          <MapContainer
-            center={[16.047, 108.206]}
-            zoom={6}
-            className="w-full h-full"
-            style={{ background: '#F3F3F5' }}
-            zoomControl={false}
-          >
-            {/* Light CartoDB theme tiles matching our design */}
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
-              maxZoom={20}
-            />
-
-            {/* Capture map instance */}
-            <MapRefCapture onMap={handleMapRef} />
-
-            {/* Markers OSM thực tế (khi đã định vị) */}
-            {userLocation && !isLoadingOsm && osmFiltered.map((lot) => (
-              <Marker
-                key={lot.id}
-                position={[lot.lat, lot.lng]}
-                icon={createOsmParkingIcon(selectedOsmLot?.id === lot.id)}
-                eventHandlers={{
-                  click: () => {
-                    setSelectedOsmLot(lot);
-                    setSelectedLot(null);
-                    setShowDetailPanel(false);
-                  },
-                }}
-              >
-                <Popup className="parking-popup" minWidth={240}>
-                  <div className="bg-white rounded-2xl overflow-hidden shadow-xl" style={{ minWidth: 220 }}>
-                    {/* Header */}
-                    <div className="px-4 pt-4 pb-3 border-b border-gray-100">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="font-extrabold text-[#FF4C4C] text-sm leading-tight flex-1">{lot.name}</p>
-                        <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${lot.access === 'private'
-                            ? 'bg-sky-50 text-sky-600 border border-sky-200'
-                            : 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                          }`}>
-                          {lot.access === 'private' ? 'PRIVATE' : 'PUBLIC'}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-stone-400 leading-snug">{lot.address}</p>
-                      <div className="flex items-center gap-3 mt-2 text-[11px]">
-                        <span className="flex items-center gap-1 text-emerald-600 font-bold">
-                          <Navigation2 size={10} />{getOsmDistance(lot)}
-                        </span>
-                        {lot.capacity && (
-                          <span className="text-stone-500 font-medium">Max {lot.capacity} spots</span>
-                        )}
-                      </div>
-                    </div>
-                    {/* Action buttons */}
-                    <div className="p-3 space-y-2">
-                      <button
-                        onClick={() => handleGetDirections(lot.lat, lot.lng)}
-                        disabled={isLoadingRoute}
-                        className="w-full flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-400 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm shadow-blue-500/10"
-                      >
-                        {isLoadingRoute ? <Loader2 size={13} className="animate-spin" /> : <Route size={13} />}
-                        Get Directions
-                      </button>
-                      <button
-                        onClick={() => handleBookOsm(lot)}
-                        className="w-full flex items-center justify-center gap-2 bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold py-2.5 rounded-xl text-xs transition-all shadow-sm shadow-[#FF4C4C]/10"
-                      >
-                        <CalendarCheck size={13} />
-                        Book Now
-                      </button>
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            ))}
-
-            {/* Route polyline */}
-            {routeCoords && (
-              <Polyline
-                positions={routeCoords}
-                pathOptions={{
-                  color: '#3B82F6',
-                  weight: 5,
-                  opacity: 0.85,
-                  lineCap: 'round',
-                  lineJoin: 'round',
-                }}
-              />
-            )}
-
-            {/* Marker vị trí người dùng */}
-            {userLocation && (
-              <>
-                <Circle
-                  center={[userLocation.lat, userLocation.lng]}
-                  radius={nearbyRadius}
-                  pathOptions={{ color: '#3B82F6', fillColor: '#3B82F6', fillOpacity: 0.04, weight: 1.5, dashArray: '5,5' }}
-                />
-                <Marker
-                  position={[userLocation.lat, userLocation.lng]}
-                  icon={createUserIcon()}
-                >
-                  <Popup className="parking-popup">
-                    <div className="bg-white rounded-xl p-3 min-w-[160px] border border-gray-200">
-                      <p className="font-bold text-blue-600 text-sm">📍 Your Location</p>
-                      <p className="text-xs text-stone-500 mt-1 font-medium">Searching nearby lots</p>
-                    </div>
-                  </Popup>
-                </Marker>
-              </>
-            )}
-
-            {/* Fly to selected */}
-            {selectedLot && <FlyToLot lat={selectedLot.lat} lng={selectedLot.lng} />}
-
-            {/* Fly to vị trí người dùng */}
-            {flyToUser && userLocation && (
-              <FlyToUser
-                lat={userLocation.lat}
-                lng={userLocation.lng}
-              />
-            )}
-          </MapContainer>
-
-          {/* Zoom + Locate Me buttons overlay */}
-          <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-1.5">
-            <button
-              onClick={() => mapInstance?.zoomIn()}
-              className="w-9 h-9 bg-white border border-gray-200/80 rounded-xl text-stone-850 text-xl font-bold hover:bg-gray-100 transition-all flex items-center justify-center shadow-md"
-            >
-              +
-            </button>
-            <button
-              onClick={() => mapInstance?.zoomOut()}
-              className="w-9 h-9 bg-white border border-gray-200/80 rounded-xl text-stone-850 text-xl font-bold hover:bg-gray-100 transition-all flex items-center justify-center shadow-md"
-            >
-              −
-            </button>
-
-            {/* Nút Gần tôi */}
-            <div className="mt-2">
-              <button
-                onClick={handleLocateMe}
-                disabled={locatingUser}
-                title="Tìm bãi đỗ gần tôi"
-                className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-md transition-all ${userLocation
-                    ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500'
-                    : 'bg-white border-gray-200 text-stone-600 hover:bg-gray-100 hover:text-blue-500 hover:border-blue-200'
-                  } ${locatingUser ? 'cursor-wait opacity-70' : ''}`}
-              >
-                {locatingUser
-                  ? <Loader2 size={16} className="animate-spin" />
-                  : <Navigation size={16} />
-                }
-              </button>
-              {/* Tooltip nhỏ bên cạnh */}
-              {locationError && (
-                <div className="absolute left-11 top-0 bg-red-50 border border-red-200 text-red-600 text-[10px] px-2 py-1.5 rounded-lg shadow-lg whitespace-nowrap max-w-[180px] font-bold">
-                  {locationError}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ===== Overlay "Find Parking" khi chưa định vị ===== */}
-          {!userLocation && (
-            <div className="absolute inset-0 z-[999] flex items-center justify-center pointer-events-none">
-              <div className="pointer-events-auto flex flex-col items-center gap-4">
-                {/* Vòng sóng nền */}
-                <div className="relative">
-                  <div className="absolute inset-0 rounded-full bg-blue-500/10 animate-ping" style={{ width: 120, height: 120, margin: 'auto', top: 0, left: 0, right: 0, bottom: 0 }} />
-                  <button
-                    onClick={handleLocateMe}
-                    disabled={locatingUser}
-                    className="relative w-[72px] h-[72px] rounded-full bg-stone-900 hover:bg-stone-850 disabled:opacity-70 text-white shadow-xl flex items-center justify-center transition-all active:scale-95 border-4 border-stone-800/20"
-                  >
-                    {locatingUser
-                      ? <Loader2 size={28} className="animate-spin" />
-                      : <Navigation size={28} />
-                    }
-                  </button>
-                </div>
-                <div className="bg-white/95 backdrop-blur-md border border-gray-200/80 rounded-2xl px-5 py-3 text-center shadow-lg">
-                  <p className="text-sm font-bold text-stone-900 mb-0.5">
-                    {locatingUser ? 'Locating...' : 'Find Parking Near Me'}
-                  </p>
-                  <p className="text-[11px] text-stone-400">
-                    {locatingUser ? 'Please wait a moment' : 'Click to find parking near you'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Panel chọn bán kính "Gần tôi" khi đã có vị trí */}
-          {userLocation && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
-              {/* Bộ chọn bán kính */}
-              <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg rounded-full px-2 py-1.5">
-                <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse mx-1 shrink-0" />
-                <span className="text-[11px] font-bold text-stone-500 mr-1 whitespace-nowrap">Radius:</span>
-                {RADIUS_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setNearbyRadius(opt.value)}
-                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${nearbyRadius === opt.value
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-stone-500 hover:text-blue-600 hover:bg-blue-50'
-                      }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-                <div className="w-px h-4 bg-gray-200 mx-1" />
-                <button
-                  onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); handleCancelRoute(); }}
-                  className="text-stone-400 hover:text-stone-900 transition-colors text-[11px] px-1.5 font-bold"
-                  title="Turn off Near Me"
-                >
-                  ✕
-                </button>
-              </div>
-              {/* Số bãi tìm thấy */}
-              <div className="text-[10px] text-blue-600 font-bold bg-blue-50/80 px-3 py-1 rounded-full border border-blue-100 shadow-sm">
-                Found <span className="text-blue-700">{osmFiltered.length}</span> parking lots within {nearbyRadius >= 1000 ? `${nearbyRadius / 1000} km` : `${nearbyRadius}m`}
-              </div>
-            </div>
-          )}
-
-          {/* Route info bar */}
-          {routeCoords && routeInfo && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-3 bg-white border border-blue-200 rounded-full px-4 py-2.5 shadow-lg">
-              <Route size={14} className="text-blue-500 shrink-0" />
-              <span className="text-sm font-bold text-stone-900">{routeInfo.distKm}</span>
-              <span className="text-gray-300 text-xs">•</span>
-              <span className="text-sm text-stone-600">{routeInfo.mins} mins driving</span>
-              <button
-                onClick={handleCancelRoute}
-                className="ml-2 flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 px-3 py-1 rounded-full text-xs font-bold transition-all"
-              >
-                <X size={11} /> Cancel Directions
-              </button>
-            </div>
-          )}
-
-          {/* Loading route */}
-          {isLoadingRoute && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[1000] flex items-center gap-2 bg-white border border-blue-100 rounded-full px-4 py-2.5 shadow-lg">
-              <Loader2 size={14} className="text-blue-500 animate-spin" />
-              <span className="text-sm text-stone-500 font-semibold">Calculating route...</span>
-            </div>
-          )}
-
-          {/* ===== Detail Panel (slides in from right) ===== */}
-          {showDetailPanel && selectedLot && (
-            <div className="absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-md border-l border-gray-200 z-[500] flex flex-col shadow-2xl animate-slide-in-right overflow-y-auto">
-              {/* Close */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-bold text-stone-800">Parking Lot Details</h3>
-                <button
-                  onClick={() => { setShowDetailPanel(false); setSelectedLot(null); }}
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-900 hover:bg-gray-100 transition-all"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-
-              <div className="p-5 space-y-5">
-                {/* Name + type */}
-                <div>
-                  <div className="flex items-start gap-2 mb-2">
-                    <h2 className="text-base font-extrabold text-stone-900 leading-tight flex-1">
-                      {selectedLot.name}
-                    </h2>
-                    <span
-                      className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedLot.type === 'PUBLIC'
-                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                          : 'bg-sky-50 text-sky-600 border border-sky-200'
-                        }`}
-                    >
-                      {selectedLot.type}
-                    </span>
-                  </div>
-                  <div className="flex items-start gap-1.5">
-                    <MapPin size={13} className="text-stone-400 shrink-0 mt-0.5" />
-                    <p className="text-xs text-stone-500 leading-relaxed">{selectedLot.address}</p>
-                  </div>
-                </div>
-
-                {/* Stats grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Available Spots</p>
-                    <div className="flex items-end gap-1">
-                      <span
-                        className="text-xl font-extrabold"
-                        style={{ color: availabilityColor(selectedLot) }}
-                      >
-                        {selectedLot.availableSpots}
-                      </span>
-                      <span className="text-xs text-stone-400 mb-0.5">/ {selectedLot.totalSpots}</span>
-                    </div>
-                    {/* Progress bar */}
-                    <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${(selectedLot.availableSpots / selectedLot.totalSpots) * 100}%`,
-                          background: availabilityColor(selectedLot),
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Rating</p>
-                    <div className="flex items-center gap-1.5">
-                      <Star size={14} className="text-amber-500 fill-amber-500" />
-                      <span className="text-xl font-extrabold text-stone-900">{selectedLot.rating}</span>
-                    </div>
-                    <p className="text-[10px] text-stone-400 font-medium">/ 5.0</p>
-                  </div>
-
-                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Hourly Rate</p>
-                    <p className="text-base font-extrabold text-[#FF4C4C]">
-                      {selectedLot.pricePerHour.toLocaleString('vi-VN')}đ
-                    </p>
-                    <p className="text-[10px] text-stone-400 font-medium">per hour</p>
-                  </div>
-
-                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Open Hours</p>
-                    <p className="text-xs font-bold text-stone-800">{selectedLot.openHours}</p>
-                  </div>
-                </div>
-
-                {/* Allowed vehicles */}
-                <div>
-                  <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2">
-                    Allowed Vehicles
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
-                    {selectedLot.vehicleTypes
-                      .filter((v) => v !== 'all')
-                      .map((v) => {
-                        const icons: Record<string, any> = {
-                          motorbike: Bike,
-                          car: Car,
-                          ev: Zap,
-                        };
-                        const labels: Record<string, string> = {
-                          motorbike: 'Motorbike',
-                          car: 'Car',
-                          ev: 'EV Charger',
-                        };
-                        const Icon = icons[v] || Car;
-                        return (
-                          <span
-                            key={v}
-                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-gray-50 border border-gray-200/60 rounded-full text-stone-600"
-                          >
-                            <Icon size={12} className="text-[#FF4C4C]" />
-                            {labels[v]}
-                          </span>
-                        );
-                      })}
-                  </div>
-                </div>
-
-                {/* Features */}
-                <div>
-                  <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2">
-                    Amenities
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedLot.features.map((f) => (
-                      <span
-                        key={f}
-                        className="text-xs px-3 py-1.5 bg-[#FF4C4C]/5 border border-[#FF4C4C]/10 rounded-full text-[#FF4C4C] font-semibold"
-                      >
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
-                {/* CTA buttons */}
-                <div className="space-y-3 pt-2">
-                  <button
-                    className="w-full bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold py-3.5 rounded-2xl text-xs uppercase tracking-widest transition-all shadow-md shadow-[#FF4C4C]/10"
-                    onClick={() => setShowWizard(true)}
-                  >
-                    BOOK NOW
-                  </button>
-                  <button
-                    className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 rounded-2xl text-xs uppercase tracking-widest transition-all"
-                    onClick={() => handleGetDirections(selectedLot.lat, selectedLot.lng)}
-                  >
-                    🗺️ Directions
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ===== Booking Wizard (hardcoded lot) ===== */}
-      {showWizard && selectedLot && (
-        <BookingWizard
-          lot={selectedLot}
-          onClose={() => setShowWizard(false)}
-        />
-      )}
-
-      {/* ===== Booking Wizard (OSM lot) ===== */}
-      {showOsmWizard && osmWizardLot && (
-        <BookingWizard
-          lot={osmWizardLot}
-          onClose={() => { setShowOsmWizard(false); setOsmWizardLot(null); }}
-        />
-      )}
     </div>
   );
 }

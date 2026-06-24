@@ -26,5 +26,6 @@ public class ParkingSlotResponse
     public int Row { get; set; }
     public int Column { get; set; }
     public int DistanceToEntry { get; set; }
+    public string? CurrentLicensePlate { get; set; }
     public DateTime CreatedAt { get; set; }
 }

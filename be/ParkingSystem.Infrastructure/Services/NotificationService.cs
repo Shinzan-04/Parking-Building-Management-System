@@ -13,17 +13,39 @@ namespace ParkingSystem.Infrastructure.Services;
 public class NotificationService : INotificationService
 {
     private readonly ApplicationDbContext _context;
+    private readonly IRealtimeService _realtimeService;
 
-    public NotificationService(ApplicationDbContext context)
+    public NotificationService(ApplicationDbContext context, IRealtimeService realtimeService)
     {
         _context = context;
+        _realtimeService = realtimeService;
     }
 
     /// <summary>
-    /// Tạo thông báo mới cho user
+    /// Tạo thông báo mới cho user.
+    /// Nếu đã có notification cùng type + referenceId thì bỏ qua — tránh gửi trùng khi cleanup restart.
     /// </summary>
     public async Task SendAsync(Guid userId, string title, string message, string type, Guid? referenceId = null)
     {
+        // Dedup: không tạo notification trùng cho cùng reservation/reference
+        if (referenceId.HasValue)
+        {
+            var exists = await _context.Notifications.AnyAsync(n =>
+                n.UserId == userId &&
+                n.Type == type &&
+                n.ReferenceId == referenceId);
+            if (exists) return;
+        }
+
+        // Auto-cleanup: xóa noti cũ hơn 30 ngày của user này (chạy 1% xác suất để không ảnh hưởng perf)
+        if (Random.Shared.Next(100) == 0)
+        {
+            var cutoff = DateTime.UtcNow.AddDays(-30);
+            await _context.Notifications
+                .Where(n => n.UserId == userId && n.CreatedAt < cutoff)
+                .ExecuteDeleteAsync();
+        }
+
         var notification = new Notification
         {
             Id = Guid.NewGuid(),
@@ -38,6 +60,9 @@ public class NotificationService : INotificationService
 
         _context.Notifications.Add(notification);
         await _context.SaveChangesAsync();
+
+        // Push realtime event chỉ cho đúng user nhận thông báo
+        await _realtimeService.SendNotificationAsync(userId, message);
     }
 
     /// <summary>
@@ -95,16 +120,10 @@ public class NotificationService : INotificationService
     /// </summary>
     public async Task MarkAllAsReadAsync(Guid userId)
     {
-        var unread = await _context.Notifications
+        await _context.Notifications
             .Where(n => n.UserId == userId && !n.IsRead)
-            .ToListAsync();
-
-        foreach (var n in unread)
-        {
-            n.IsRead = true;
-            n.UpdatedAt = DateTime.UtcNow;
-        }
-
-        await _context.SaveChangesAsync();
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(n => n.IsRead, true)
+                .SetProperty(n => n.UpdatedAt, DateTime.UtcNow));
     }
 }

@@ -18,7 +18,7 @@ type AuthRole = 'Admin' | 'Manager' | 'Staff' | 'Driver' | 0 | 1 | 2 | 3;
 function getPostLoginPath(role: AuthRole): string {
   if (role === 'Admin'   || role === 0) return '/admin';
   if (role === 'Manager' || role === 1) return '/manager';
-  if (role === 'Staff'   || role === 2) return '/gate-control';
+  if (role === 'Staff'   || role === 2) return '/staff';
   return '/';
 }
 

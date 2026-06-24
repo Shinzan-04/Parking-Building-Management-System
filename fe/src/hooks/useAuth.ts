@@ -96,6 +96,14 @@ export function useAuth() {
     }
   }, [user]);
 
+  const updateUser = useCallback((updatedFields: Partial<AuthResponse>) => {
+    if (user) {
+      const updated = { ...user, ...updatedFields };
+      localStorage.setItem(USER_KEY, JSON.stringify(updated));
+      setUser(updated);
+    }
+  }, [user]);
+
   return {
     user,
     /** JWT access token hiện tại (null nếu chưa đăng nhập) */
@@ -108,5 +116,7 @@ export function useAuth() {
     logout,
     /** Lưu session thủ công — dùng sau verify-register OTP */
     saveSession,
+    /** Cập nhật thông tin user hiện tại */
+    updateUser,
   };
 }

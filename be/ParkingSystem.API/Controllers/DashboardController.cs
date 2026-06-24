@@ -16,10 +16,20 @@ public class DashboardController : ControllerBase
         _dashboardService = dashboardService;
     }
 
+
+
     [HttpGet("realtime-stats")]
     public async Task<IActionResult> GetRealtimeStats()
     {
         var result = await _dashboardService.GetRealtimeStatsAsync();
+        return Ok(result);
+    }
+
+    [HttpGet("realtime-stats/building/{buildingId}")]
+    [Authorize(Roles = "Admin,Manager,Staff")]
+    public async Task<IActionResult> GetRealtimeStatsByBuilding(Guid buildingId)
+    {
+        var result = await _dashboardService.GetRealtimeStatsByBuildingAsync(buildingId);
         return Ok(result);
     }
 

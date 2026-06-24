@@ -32,6 +32,9 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("ApprovalMode")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -341,6 +344,21 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Property<int>("PaymentMethod")
                         .HasColumnType("integer");
 
+                    b.Property<string>("RefundFailureReason")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RefundProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RefundReferenceId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RefundTransactionId")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid?>("ReservationId")
                         .HasColumnType("uuid");
 
@@ -349,6 +367,9 @@ namespace ParkingSystem.Infrastructure.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
@@ -359,55 +380,9 @@ namespace ParkingSystem.Infrastructure.Migrations
 
                     b.HasIndex("ReservationId");
 
+                    b.HasIndex("UserId");
+
                     b.ToTable("Payments");
-                });
-
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.PriceSetting", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<decimal>("DailyMaxPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("DayPassPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("DayStartHour")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("GracePeriodMinutes")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("NightPassPrice")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("NightStartHour")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("VehicleTypeId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UpdatedBy");
-
-                    b.HasIndex("VehicleTypeId");
-
-                    b.ToTable("PriceSettings");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.PricingPolicy", b =>
@@ -416,7 +391,7 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<int>("BlockMinutes")
+                    b.Property<int>("BlockDurationHours")
                         .HasColumnType("integer");
 
                     b.Property<decimal>("BlockPrice")
@@ -428,14 +403,29 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Property<decimal>("DailyMaxRate")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("GracePeriodMinutes")
-                        .HasColumnType("integer");
+                    b.Property<decimal>("DailyRate")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("DayBlockRate")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("HourlyRate")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
+
+                    b.Property<decimal>("NightBlockRate")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("NightEndHour")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("NightStartHour")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("OvertimeMultiplier")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -595,6 +585,12 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AssignedBuildingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Balance")
+                        .HasColumnType("numeric");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -612,7 +608,13 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsAutoApproveReservations")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsNotificationEnabled")
                         .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LockoutEnd")
@@ -637,7 +639,57 @@ namespace ParkingSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AssignedBuildingId");
+
                     b.ToTable("Users");
+                });
+
+            modelBuilder.Entity("ParkingSystem.Domain.Entities.UserBankAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccountHolderName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("BankBin")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserBankAccounts");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.Vehicle", b =>
@@ -702,6 +754,54 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("VehicleTypes");
+                });
+
+            modelBuilder.Entity("ParkingSystem.Domain.Entities.WalletTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ReferenceId")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("RelatedPaymentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RelatedPaymentId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("WalletTransactions");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.FavoriteSlot", b =>
@@ -816,27 +916,16 @@ namespace ParkingSystem.Infrastructure.Migrations
                         .HasForeignKey("ReservationId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("ParkingSystem.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.Navigation("ParkingSession");
 
                     b.Navigation("Reservation");
-                });
 
-            modelBuilder.Entity("ParkingSystem.Domain.Entities.PriceSetting", b =>
-                {
-                    b.HasOne("ParkingSystem.Domain.Entities.User", "UpdatedByUser")
-                        .WithMany()
-                        .HasForeignKey("UpdatedBy")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("ParkingSystem.Domain.Entities.VehicleType", "VehicleType")
-                        .WithMany("PriceSettings")
-                        .HasForeignKey("VehicleTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("UpdatedByUser");
-
-                    b.Navigation("VehicleType");
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.PricingPolicy", b =>
@@ -906,6 +995,27 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Navigation("Reservation");
                 });
 
+            modelBuilder.Entity("ParkingSystem.Domain.Entities.User", b =>
+                {
+                    b.HasOne("ParkingSystem.Domain.Entities.Building", "AssignedBuilding")
+                        .WithMany("AssignedStaffs")
+                        .HasForeignKey("AssignedBuildingId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("AssignedBuilding");
+                });
+
+            modelBuilder.Entity("ParkingSystem.Domain.Entities.UserBankAccount", b =>
+                {
+                    b.HasOne("ParkingSystem.Domain.Entities.User", "User")
+                        .WithMany("BankAccounts")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("ParkingSystem.Domain.Entities.Vehicle", b =>
                 {
                     b.HasOne("ParkingSystem.Domain.Entities.User", "Driver")
@@ -925,8 +1035,28 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Navigation("VehicleType");
                 });
 
+            modelBuilder.Entity("ParkingSystem.Domain.Entities.WalletTransaction", b =>
+                {
+                    b.HasOne("ParkingSystem.Domain.Entities.Payment", "RelatedPayment")
+                        .WithMany()
+                        .HasForeignKey("RelatedPaymentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ParkingSystem.Domain.Entities.User", "User")
+                        .WithMany("WalletTransactions")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RelatedPayment");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("ParkingSystem.Domain.Entities.Building", b =>
                 {
+                    b.Navigation("AssignedStaffs");
+
                     b.Navigation("Floors");
                 });
 
@@ -954,6 +1084,8 @@ namespace ParkingSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.User", b =>
                 {
+                    b.Navigation("BankAccounts");
+
                     b.Navigation("DriverSessions");
 
                     b.Navigation("HandledSessions");
@@ -963,13 +1095,13 @@ namespace ParkingSystem.Infrastructure.Migrations
                     b.Navigation("Reservations");
 
                     b.Navigation("Vehicles");
+
+                    b.Navigation("WalletTransactions");
                 });
 
             modelBuilder.Entity("ParkingSystem.Domain.Entities.VehicleType", b =>
                 {
                     b.Navigation("ParkingSlots");
-
-                    b.Navigation("PriceSettings");
 
                     b.Navigation("PricingPolicies");
                 });

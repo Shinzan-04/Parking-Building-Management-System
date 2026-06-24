@@ -1,15 +1,14 @@
 import { useState, useRef, useEffect } from 'react';
-import { Camera, X, Loader, QrCode } from 'lucide-react';
+import { QrCode } from 'lucide-react';
 import jsQR from 'jsqr';
 
 interface QrCameraCaptureProps {
   onSuccess: (result: string) => void;
   paused?: boolean;
-  inline?: boolean;
   className?: string;
 }
 
-export default function QrCameraCapture({ onSuccess, paused = false, inline = true, className }: QrCameraCaptureProps) {
+export default function QrCameraCapture({ onSuccess, paused = false, className }: QrCameraCaptureProps) {
   const [error, setError] = useState<string | null>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -17,6 +16,18 @@ export default function QrCameraCapture({ onSuccess, paused = false, inline = tr
   const streamRef = useRef<MediaStream | null>(null);
   const requestRef = useRef<number | null>(null);
   const lastScanTimeRef = useRef<number>(0);
+
+  const stopCamera = () => {
+    if (requestRef.current) {
+      cancelAnimationFrame(requestRef.current);
+      requestRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
 
   useEffect(() => {
     const initCamera = async () => {
@@ -47,18 +58,6 @@ export default function QrCameraCapture({ onSuccess, paused = false, inline = tr
       stopCamera();
     };
   }, [paused]);
-
-  const stopCamera = () => {
-    if (requestRef.current) {
-      cancelAnimationFrame(requestRef.current);
-      requestRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-    setCameraActive(false);
-  };
 
   // QR Scanning loop
   useEffect(() => {

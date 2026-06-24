@@ -14,19 +14,18 @@ import {
   Ticket,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import CameraCapture from '../components/CameraCapture';
-import QrCameraCapture from '../components/QrCameraCapture';
-import type { ScanPlateResponse, ScanAndCheckInResponse } from '../services/ocrService';
-import { scanAndCheckIn } from '../services/ocrService';
-import { checkInWalkIn, checkInWithBooking } from '../services/checkInService';
 import { useAuth } from '../hooks/useAuth';
-
+import CameraCapture from '../components/CameraCapture';
+import { smartCheckIn } from '../services/checkInService';
+import type { CheckInResult, SmartCheckInRequest } from '../services/checkInService';
+import type { ScanPlateResponse } from '../services/ocrService';
+import { getAllSlots } from '../services/parkingService';
+import type { ParkingSlotDetail } from '../services/parkingService';
+import { searchCheckOut, confirmCheckOut, ocrCheckOut } from '../services/checkOutService';
+import type { CheckOutSearchResult } from '../services/checkOutService';
+import { MapPin, X } from 'lucide-react';
 type VehicleType = 'car' | 'motorbike' | 'ev';
 
-type SessionSummary = {
-  duration: string;
-  fee: number;
-};
 
 type ExceptionAction = 'manual-open' | 'incident' | 'lost-ticket';
 
@@ -158,125 +157,43 @@ function ExceptionHandlingModal({
 }
 
 export default function GateControlPage() {
+  const [activeTab, setActiveTab] = useState<'entry' | 'exit'>('entry');
   const [entryLicensePlate, setEntryLicensePlate] = useState('');
   const [entryVehicleType, setEntryVehicleType] = useState<VehicleType>('car');
+  const [entryImageBase64, setEntryImageBase64] = useState<string | null>(null);
   const [exitLicensePlate, setExitLicensePlate] = useState('');
-  const [exitSessionData, setExitSessionData] = useState<SessionSummary | null>(null);
+  const [exitSessionData, setExitSessionData] = useState<CheckOutSearchResult | null>(null);
+  const [exitLoading, setExitLoading] = useState(false);
   const [notification, setNotification] = useState<{ kind: 'success' | 'error' | 'info'; message: string } | null>(null);
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [exceptionAction, setExceptionAction] = useState<ExceptionAction | null>(null);
-  
   const [vehicleTypeMap, setVehicleTypeMap] = useState<Record<string, string>>({});
+  
+  const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [selectedSlotNumber, setSelectedSlotNumber] = useState<string | null>(null);
+  const [checkInResultData, setCheckInResultData] = useState<CheckInResult | null>(null);
 
   const { token, logout, user } = useAuth();
-
-  // entryFlow = 'walkin' (Gửi xe trực tiếp) hoặc 'booking' (Quét mã QR đặt trước)
-  const [entryFlow, setEntryFlow] = useState<'walkin' | 'booking'>('walkin');
-  const [qrCodeInput, setQrCodeInput] = useState('');
-  const [parsedBooking, setParsedBooking] = useState<any | null>(null);
-  const [bookingError, setBookingError] = useState<string | null>(null);
-
-  const handleLoadLatestBooking = () => {
-    const raw = localStorage.getItem('latest_booking_qr');
-    if (!raw) {
-      showNotification('error', 'Không tìm thấy thông tin đặt chỗ mới nhất trong LocalStorage. Vui lòng đặt chỗ trước!');
-      return;
-    }
-    setQrCodeInput(raw);
-    handleQrInputChange(raw);
-    showNotification('success', 'Đã tải thông tin đặt chỗ mới nhất từ client!');
-  };
-
-  const handleQrInputChange = (value: string) => {
-    setQrCodeInput(value);
-    if (!value.trim()) {
-      setParsedBooking(null);
-      setBookingError(null);
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(value);
-      if (parsed && typeof parsed === 'object') {
-        if (!parsed.ref) {
-          setBookingError('Dữ liệu QR không hợp lệ (thiếu mã ref).');
-          setParsedBooking(null);
-          return;
-        }
-        setParsedBooking({
-          ref: parsed.ref || 'PKG-UNKNOWN',
-          lot: parsed.lot || 'Bãi đỗ xe hệ thống',
-          plate: parsed.plate || 'CHƯA NHẬP',
-          vehicle: parsed.vehicle || 'car',
-          slot: parsed.slot || 'Tự động gán',
-          date: parsed.date || '',
-          entry: parsed.entry || '',
-          duration: parsed.duration || 1,
-        });
-        setBookingError(null);
-      }
-    } catch (e) {
-      if (value.toUpperCase().startsWith('PKG-') || value.trim().length >= 5) {
-        setParsedBooking({
-          ref: value.toUpperCase().trim(),
-          lot: 'Vincom Center Bà Triệu',
-          plate: '30F-999.99',
-          vehicle: 'car',
-          slot: 'Tầng 1 › Khu A › Ô A05',
-          date: new Date().toLocaleDateString('vi-VN'),
-          entry: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
-          duration: 2,
-        });
-        setBookingError(null);
-      } else {
-        setBookingError('Mã đặt chỗ phải bắt đầu bằng "PKG-" hoặc là chuỗi JSON mã QR.');
-        setParsedBooking(null);
-      }
-    }
-  };
-
-  const handleConfirmBookingEntry = async () => {
-    if (!parsedBooking) return;
-
-    if (!token) {
-      showNotification('error', 'Bạn cần đăng nhập để thực hiện check-in.');
-      return;
-    }
-
-    try {
-      const result = await checkInWithBooking({
-        bookingCode: parsedBooking.ref,
-        licensePlateOcr: parsedBooking.plate,
-      }, token);
-
-      showNotification(
-        'success',
-        `✓ Check-in đặt chỗ: ${result.licensePlate} → Ô đỗ: ${result.slotNumber} (Tầng ${result.floorName})`
-      );
-
-      setQrCodeInput('');
-      setParsedBooking(null);
-    } catch (err) {
-      console.warn('Booking check-in API failed, running in simulation mode:', err);
-      
-      showNotification(
-        'success',
-        `✓ [MÔ PHỎNG] Check-in đặt chỗ: ${parsedBooking.plate} → ${parsedBooking.slot} thành công!`
-      );
-      
-      setQrCodeInput('');
-      setParsedBooking(null);
-    }
-  };
 
   const entryInputRef = useRef<HTMLInputElement>(null);
   const exitInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (entryFlow === 'walkin') {
-      entryInputRef.current?.focus();
+    if (user?.assignedBuildingId && token) {
+      setLoadingSlots(true);
+      getAllSlots(user.assignedBuildingId)
+        .then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0)))
+        .catch(() => {})
+        .finally(() => setLoadingSlots(false));
     }
-  }, [entryFlow]);
+  }, [user?.assignedBuildingId, token]);
+
+  useEffect(() => {
+    entryInputRef.current?.focus();
+  }, []);
 
   // Load vehicle types from API to map name -> id for scan-and-checkin
   useEffect(() => {
@@ -315,7 +232,7 @@ export default function GateControlPage() {
 
   const handleConfirmEntry = async () => {
     if (!entryLicensePlate.trim()) {
-      showNotification('error', 'Please enter a license plate for entry.');
+      showNotification('error', 'Vui lòng nhập biển số xe.');
       return;
     }
     if (!token) {
@@ -330,48 +247,80 @@ export default function GateControlPage() {
     }
 
     try {
-      const result = await checkInWalkIn({
+      const result = await smartCheckIn({
         licensePlate: entryLicensePlate.trim(),
         vehicleTypeId: vtId,
+        entryImageBase64: entryImageBase64 || undefined,
+        slotId: selectedSlotId || undefined,
       }, token);
+
       showNotification('success',
-        `✓ Check-in: ${result.licensePlate} → Tầng ${result.floorName}, Chỗ ${result.slotNumber}${result.isAIAssigned ? ' (AI)' : ''}`
+        `✓ Check-in thành công: ${result.licensePlate} → Tòa ${result.buildingName}, Tầng ${result.floorName}, Ô ${result.slotNumber}`
       );
+      setCheckInResultData(result);
       setEntryLicensePlate('');
       setEntryVehicleType('car');
+      setEntryImageBase64(null);
+      setSelectedSlotId(null);
+      setSelectedSlotNumber(null);
+      if (user?.assignedBuildingId) {
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => {});
+      }
       entryInputRef.current?.focus();
     } catch (err) {
       showNotification('error', err instanceof Error ? err.message : 'Check-in thất bại.');
     }
   };
 
-  const handleSearchExit = () => {
+  const handleSearchExit = async () => {
     if (!exitLicensePlate.trim()) {
       showNotification('error', 'Please enter a license plate for exit lookup.');
       return;
     }
+    if (!token) return;
 
-    const durationHours = Math.floor(Math.random() * 5) + 1;
-    const durationMinutes = Math.floor(Math.random() * 60);
-    const fee = Number((Math.random() * 50 + 10).toFixed(2));
-
-    setExitSessionData({
-      duration: `${durationHours}h ${durationMinutes}m`,
-      fee,
-    });
-    showNotification('info', `Session loaded for ${exitLicensePlate}.`);
+    setExitLoading(true);
+    try {
+      const result = await searchCheckOut(exitLicensePlate, token);
+      setExitSessionData(result);
+      showNotification('success', `Đã tìm thấy phiên đỗ xe của biển số: ${result.licensePlate}`);
+    } catch (err: any) {
+      showNotification('error', err.message || 'Không tìm thấy phiên gửi xe hợp lệ.');
+      setExitSessionData(null);
+    } finally {
+      setExitLoading(false);
+    }
   };
 
-  const handleCollectAndOpen = () => {
+  const handleCollectAndOpen = async () => {
     if (!exitSessionData) {
       showNotification('error', 'No active session found for this vehicle.');
       return;
     }
+    if (!token || !user) {
+      showNotification('error', 'Bạn cần đăng nhập để thực hiện.');
+      return;
+    }
 
-    showNotification('success', `Payment collected: $${exitSessionData.fee.toFixed(2)}. Barrier opening.`);
-    setExitLicensePlate('');
-    setExitSessionData(null);
-    exitInputRef.current?.focus();
+    try {
+      const result = await confirmCheckOut({
+        sessionId: exitSessionData.sessionId,
+        staffId: user.userId,
+        paymentMethod: 0, // Cash
+        paymentAmount: exitSessionData.estimatedFee,
+      }, token);
+
+      showNotification('success', `Thanh toán thành công: ${result.totalFee.toLocaleString('vi-VN')} đ. Mở Barrier!`);
+      setExitLicensePlate('');
+      setExitSessionData(null);
+      exitInputRef.current?.focus();
+
+      if (user.assignedBuildingId) {
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => {});
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Lỗi khi xác nhận thanh toán.');
+    }
   };
 
   const openExceptionModal = (action: ExceptionAction) => {
@@ -380,46 +329,61 @@ export default function GateControlPage() {
   };
 
   const handleEntryCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
-    const vtKey = entryVehicleType;
-    const vtId = vehicleTypeMap[vtKey.toLowerCase()];
-
-    if (vtId) {
-      try {
-        const checkinRes: ScanAndCheckInResponse = await scanAndCheckIn(imageBase64, vtId, token);
-        setEntryLicensePlate(checkinRes.licensePlate);
-        showNotification(
-          'success',
-          `Detected: ${checkinRes.licensePlate} (Confidence: ${(checkinRes.confidence * 100).toFixed(1)}%)`
-        );
-      } catch (err) {
-        setEntryLicensePlate(result.licensePlate);
-        showNotification(
-          'info',
-          `Detected (scan only): ${result.licensePlate} - ${err instanceof Error ? err.message : ''}`
-        );
-      }
-    } else {
-      setEntryLicensePlate(result.licensePlate);
-      showNotification(
-        'success',
-        `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
-      );
-    }
+    // Camera chỉ scan biển số → điền vào input → Staff xác nhận rồi bấm CHECK-IN
+    setEntryLicensePlate(result.licensePlate);
+    setEntryImageBase64(imageBase64);
+    showNotification(
+      'info',
+      `Nhận diện: ${result.licensePlate} (Độ tin cậy: ${(result.confidence * 100).toFixed(1)}%) — Xác nhận và bấm CHECK-IN`
+    );
     entryInputRef.current?.focus();
   };
 
-  const handleExitCameraResult = (result: ScanPlateResponse) => {
+  const handleExitCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
     setExitLicensePlate(result.licensePlate);
-    showNotification(
-      'success',
-      `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%)`
-    );
-    exitInputRef.current?.focus();
+    if (!token) return;
+
+    setExitLoading(true);
+    try {
+      const ocrResult = await ocrCheckOut({ imageBase64 }, token);
+      
+      const mappedData: CheckOutSearchResult = {
+        sessionId: ocrResult.sessionId,
+        licensePlate: ocrResult.entryLicensePlate,
+        slotNumber: ocrResult.slotNumber,
+        floorName: ocrResult.floorName,
+        entryTime: ocrResult.entryTime,
+        estimatedExitTime: ocrResult.estimatedExitTime,
+        totalHours: ocrResult.totalHours,
+        vehicleTypeName: ocrResult.vehicleTypeName,
+        hourlyRate: ocrResult.hourlyRate,
+        estimatedFee: ocrResult.estimatedFee,
+        pricingModel: ocrResult.pricingModel,
+        dayPassPrice: ocrResult.dayPassPrice,
+        nightPassPrice: ocrResult.nightPassPrice,
+        dailyMaxPrice: ocrResult.dailyMaxPrice,
+        feeBreakdown: ocrResult.feeBreakdown,
+        message: ocrResult.message
+      };
+
+      setExitSessionData(mappedData);
+      
+      if (ocrResult.isMatch) {
+        showNotification('success', `Biển số khớp: ${result.licensePlate} (${(result.confidence * 100).toFixed(1)}%)`);
+      } else {
+        showNotification('error', `Cảnh báo: OCR (${ocrResult.exitLicensePlate}) khác DB (${ocrResult.entryLicensePlate})`);
+      }
+      exitInputRef.current?.focus();
+    } catch (err: any) {
+      showNotification('error', err.message || 'Không tìm thấy phiên gửi xe cho biển số này.');
+      setExitSessionData(null);
+    } finally {
+      setExitLoading(false);
+    }
   };
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (entryFlow !== 'walkin') return;
 
       if (event.key === 'F1') {
         event.preventDefault();
@@ -450,7 +414,7 @@ export default function GateControlPage() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [entryLicensePlate, entryVehicleType, exitSessionData, entryFlow]);
+  }, [entryLicensePlate, entryVehicleType, exitSessionData]);
 
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'ST';
 
@@ -489,36 +453,39 @@ export default function GateControlPage() {
           {/* Sidebar Menu Tabs */}
           <div className="px-3 space-y-1">
             <button
-              onClick={() => setEntryFlow('walkin')}
+              onClick={() => setActiveTab('entry')}
               className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${
-                entryFlow === 'walkin'
-                  ? 'bg-[#FF4C4C]/5 border-transparent text-[#FF4C4C]'
-                  : 'bg-transparent border-transparent text-stone-500 hover:text-stone-850 hover:bg-gray-50'
+                activeTab === 'entry'
+                  ? 'bg-[#FF4C4C]/5 border-[#FF4C4C]/10 text-[#FF4C4C]'
+                  : 'bg-transparent border-transparent text-stone-500 hover:bg-gray-50 hover:text-stone-900'
               }`}
             >
               <Car size={16} />
-              Gửi xe trực tiếp (Walk-In)
+              Cổng Vào (Check-in)
             </button>
-            
             <button
-              onClick={() => setEntryFlow('booking')}
+              onClick={() => setActiveTab('exit')}
               className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${
-                entryFlow === 'booking'
-                  ? 'bg-[#FF4C4C]/5 border-transparent text-[#FF4C4C]'
-                  : 'bg-transparent border-transparent text-stone-500 hover:text-stone-850 hover:bg-gray-50'
+                activeTab === 'exit'
+                  ? 'bg-blue-600/5 border-blue-600/10 text-blue-600'
+                  : 'bg-transparent border-transparent text-stone-500 hover:bg-gray-50 hover:text-stone-900'
               }`}
             >
-              <QrCode size={16} />
-              Quét mã QR đặt trước
+              <DoorOpen size={16} />
+              Cổng Ra (Check-out)
             </button>
           </div>
         </div>
 
         {/* Bottom Actions */}
         <div className="px-3 space-y-2">
-          {user && (user.role === 'Manager' || user.role === 1 || user.role === 'Admin' || user.role === 0) && (
+          {user && (
             <Link
-              to={user.role === 'Admin' || user.role === 0 ? '/admin' : '/manager'}
+              to={
+                user.role === 'Admin'    || user.role === 0 ? '/admin'   :
+                user.role === 'Manager'  || user.role === 1 ? '/manager' :
+                user.role === 'Staff'    || user.role === 2 ? '/staff'   : '/'
+              }
               className="w-full flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-stone-600 hover:text-stone-900 font-bold py-2.5 rounded-xl text-xs transition-colors"
             >
               <ArrowLeft size={14} />
@@ -544,7 +511,9 @@ export default function GateControlPage() {
         {/* Sub Header */}
         <header className="bg-white border-b border-gray-200/60 px-6 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-stone-900">Gate Station #01</h2>
+            <h2 className="text-lg font-bold text-stone-900">
+              Gate Station
+            </h2>
             <p className="text-2xs text-stone-400 font-bold uppercase tracking-wider mt-0.5">Live barrier and security check</p>
           </div>
           <div className="flex items-center gap-2">
@@ -561,14 +530,15 @@ export default function GateControlPage() {
             <GateStatusBanner kind={notification.kind} message={notification.message} />
           )}
 
-          {/* ── TAB 1: GỬI XE TRỰC TIẾP ── */}
-          {entryFlow === 'walkin' && (
+          {/* ── CHẾ ĐỘ CHECK-IN DUY NHẤT (BIỂN SỐ LÀ TRUNG TÂM) ── */}
             <div className="space-y-6">
               
-              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              <div className="flex justify-center w-full mb-6">
+                <div className="w-full max-w-3xl">
                 
-                {/* Cổng Vào (Walk-In) */}
+                {activeTab === 'entry' && (
                 <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 shadow-sm flex flex-col justify-between min-h-[580px]">
+                  {/* Cổng Vào (Walk-In) */}
                   <div>
                     <div className="mb-5 flex items-center justify-between gap-4">
                       <div>
@@ -593,7 +563,7 @@ export default function GateControlPage() {
                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
                         Ready to scan
                       </div>
-                      <div className="absolute bottom-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono">
+                      <div className="absolute top-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono shadow-sm">
                         CAM-ENTRY-01
                       </div>
                     </div>
@@ -639,14 +609,27 @@ export default function GateControlPage() {
                       </div>
                     </div>
 
-                    {/* AI Recommendation */}
-                    <div className="mt-5 rounded-2xl bg-blue-50 border border-blue-150 p-4">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-blue-700">
-                        <Zap className="h-4 w-4 text-blue-500" aria-hidden="true" />
-                        AI recommendation
+                    {/* Slot Assignment */}
+                    <div className="mt-5 rounded-2xl bg-stone-50 border border-stone-200 p-4">
+                      <div className="flex items-center justify-between gap-1.5 text-xs font-bold text-stone-700">
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="h-4 w-4 text-stone-500" aria-hidden="true" />
+                          Assigned Slot
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowMap(true)}
+                          className="text-[#FF4C4C] hover:underline"
+                        >
+                          Chọn vị trí thủ công
+                        </button>
                       </div>
-                      <div className="mt-2 text-xl font-black text-blue-800">Floor B2 - Zone A</div>
-                      <p className="mt-0.5 text-xs text-blue-600 font-medium">12 available slots • Closest to elevator</p>
+                      <div className="mt-2 text-xl font-black text-stone-800">
+                        {selectedSlotId ? `Ô ${selectedSlotNumber}` : 'Tự động (AI Suggest)'}
+                      </div>
+                      <p className="mt-0.5 text-xs text-stone-500 font-medium">
+                        {selectedSlotId ? 'Staff chọn thủ công' : 'AI sẽ tự động chọn ô tốt nhất để tiết kiệm thời gian'}
+                      </p>
                     </div>
                   </div>
 
@@ -661,9 +644,11 @@ export default function GateControlPage() {
                     <p className="mt-2 text-center text-[10px] text-stone-400 font-bold tracking-widest uppercase">Shortcut: F1</p>
                   </div>
                 </section>
+                )}
 
-                {/* Cổng Ra (Check-Out) */}
+                {activeTab === 'exit' && (
                 <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 shadow-sm flex flex-col justify-between min-h-[580px]">
+                  {/* Cổng Ra (Check-Out) */}
                   <div>
                     <div className="mb-5 flex items-center justify-between gap-4">
                       <div>
@@ -678,7 +663,7 @@ export default function GateControlPage() {
                     {/* Exit Camera capture */}
                     <div className="relative mb-6 overflow-hidden rounded-3xl border border-gray-200/60 bg-gray-150">
                       <CameraCapture
-                        onSuccess={(res, img) => handleExitCameraResult(res)}
+                        onSuccess={handleExitCameraResult}
                         onCancel={() => {}}
                         token={token}
                         inline
@@ -688,7 +673,7 @@ export default function GateControlPage() {
                         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
                         Ready to scan
                       </div>
-                      <div className="absolute bottom-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono">
+                      <div className="absolute top-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono shadow-sm">
                         CAM-EXIT-01
                       </div>
                     </div>
@@ -707,7 +692,7 @@ export default function GateControlPage() {
                       <button
                         type="button"
                         onClick={handleSearchExit}
-                        className="h-16 rounded-2xl bg-blue-650 hover:bg-blue-600 px-6 text-sm font-bold text-white transition-colors"
+                        className="h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 px-6 text-sm font-bold text-white transition-colors"
                       >
                         Search
                       </button>
@@ -718,15 +703,75 @@ export default function GateControlPage() {
 
                     {/* Session data display */}
                     <div className="mt-5 rounded-2xl bg-gray-50 border border-gray-200/50 p-5 min-h-[140px] flex flex-col justify-center">
-                      {exitSessionData ? (
-                        <div className="space-y-4">
-                          <div className="flex justify-between">
-                            <span className="text-xs text-stone-400 font-bold">Duration</span>
-                            <span className="text-sm font-bold text-stone-800">{exitSessionData.duration}</span>
+                      {exitLoading ? (
+                        <div className="text-center text-xs text-stone-400 font-semibold leading-relaxed">
+                          Đang tải dữ liệu...
+                        </div>
+                      ) : exitSessionData ? (
+                        <div className="space-y-3">
+                          <div className="flex justify-between border-b border-gray-100 pb-2">
+                            <span className="text-xs text-stone-400 font-bold">Giờ vào</span>
+                            <span className="text-xs font-bold text-stone-800">{new Date(exitSessionData.entryTime).toLocaleString('vi-VN')}</span>
                           </div>
-                          <div className="border-t border-gray-200/80 pt-3 flex items-center justify-between">
+                          <div className="flex justify-between border-b border-gray-100 pb-2">
+                            <span className="text-xs text-stone-400 font-bold">Phương tiện</span>
+                            <span className="text-xs font-bold text-stone-800 capitalize">{exitSessionData.vehicleTypeName}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-gray-100 pb-2">
+                            <span className="text-xs text-stone-400 font-bold">Vị trí đỗ</span>
+                            <span className="text-xs font-bold text-stone-800 capitalize">{exitSessionData.floorName} - Ô {exitSessionData.slotNumber}</span>
+                          </div>
+                          <div className="flex justify-between pt-1">
+                            <span className="text-xs text-stone-400 font-bold">Thời gian gửi</span>
+                            <span className="text-sm font-bold text-stone-800">
+                              {Math.floor(exitSessionData.totalHours)}h {Math.round((exitSessionData.totalHours % 1) * 60)}m
+                            </span>
+                          </div>
+
+                          {/* Surcharge Logs / Block Breakdown */}
+                          {exitSessionData.feeBreakdown && (
+                            <div className="border-t border-gray-100 pt-3 mt-3">
+                              <span className="text-xs text-stone-400 font-bold mb-3 flex items-center gap-2">
+                                Surcharge Logs (Quá giờ)
+                              </span>
+                              <div className="space-y-3 max-h-[120px] overflow-y-auto pr-2">
+                                {exitSessionData.feeBreakdown.dayPassCount > 0 && (
+                                  <div className="flex justify-between items-start pb-2 border-b border-gray-50 border-dashed">
+                                    <div>
+                                      <div className="text-xs font-bold text-red-500 mb-0.5">
+                                        Late Departure (Ngày)
+                                      </div>
+                                      <div className="text-[10px] text-stone-400 font-medium">
+                                        Số lượng: {exitSessionData.feeBreakdown.dayPassCount} block
+                                      </div>
+                                    </div>
+                                    <div className="text-xs font-black text-stone-800">
+                                      + {exitSessionData.feeBreakdown.dayPassTotal.toLocaleString('vi-VN')} đ
+                                    </div>
+                                  </div>
+                                )}
+                                {exitSessionData.feeBreakdown.nightPassCount > 0 && (
+                                  <div className="flex justify-between items-start pb-2 border-b border-gray-50 border-dashed">
+                                    <div>
+                                      <div className="text-xs font-bold text-red-500 mb-0.5">
+                                        Late Departure (Đêm)
+                                      </div>
+                                      <div className="text-[10px] text-stone-400 font-medium">
+                                        Số lượng: {exitSessionData.feeBreakdown.nightPassCount} block
+                                      </div>
+                                    </div>
+                                    <div className="text-xs font-black text-stone-800">
+                                      + {exitSessionData.feeBreakdown.nightPassTotal.toLocaleString('vi-VN')} đ
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="border-t border-gray-200/80 pt-3 mt-1 flex items-center justify-between">
                             <span className="text-xs text-stone-400 font-bold">Total fee</span>
-                            <span className="text-3xl font-black text-emerald-600">${exitSessionData.fee.toFixed(2)}</span>
+                            <span className="text-3xl font-black text-emerald-600">{exitSessionData.estimatedFee.toLocaleString('vi-VN')} đ</span>
                           </div>
                         </div>
                       ) : (
@@ -749,7 +794,9 @@ export default function GateControlPage() {
                     <p className="mt-2 text-center text-[10px] text-stone-400 font-bold tracking-widest uppercase">Shortcut: Enter in input</p>
                   </div>
                 </section>
+                )}
                 
+                </div>
               </div>
 
               {/* Exception Action Block */}
@@ -784,147 +831,10 @@ export default function GateControlPage() {
               </section>
 
             </div>
-          )}
-
-          {/* ── TAB 2: QUÉT MÃ QR ĐẶT TRƯỚC ── */}
-          {entryFlow === 'booking' && (
-            <div className="max-w-4xl mx-auto">
-              <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 md:p-8 shadow-sm">
-                
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-                  
-                  {/* Left part: Scanner QR Input */}
-                  <div className="md:col-span-6 space-y-6">
-                    <div>
-                      <h3 className="text-lg font-bold text-stone-900 flex items-center gap-2">
-                        <QrCode className="text-[#FF4C4C]" size={20} />
-                        Scan Booking QR
-                      </h3>
-                      <p className="text-xs text-stone-400 font-medium mt-1">
-                        Quét mã QR của người lái xe đặt trước để xác thực và check-in vào bãi đỗ.
-                      </p>
-                    </div>
-
-                    {/* Camera QR scan block */}
-                    <div className="relative overflow-hidden rounded-3xl border border-gray-200/60 bg-gray-150">
-                      <QrCameraCapture
-                        onSuccess={handleQrInputChange}
-                        paused={!!parsedBooking}
-                        inline
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-3">
-                      <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Mô phỏng máy quét vật lý</span>
-                      <button
-                        type="button"
-                        onClick={handleLoadLatestBooking}
-                        className="w-full py-3.5 rounded-2xl bg-[#FF4C4C] hover:bg-[#E13B3B] text-white transition-all text-xs font-extrabold flex items-center justify-center gap-2 shadow-sm shadow-[#FF4C4C]/15"
-                      >
-                        <QrCode size={15} />
-                        Mô phỏng Quét QR đặt trước
-                      </button>
-                    </div>
-
-                    <div>
-                      <label className="mb-2 block text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                        Dữ liệu quét từ mã QR (JSON hoặc mã Booking Code)
-                      </label>
-                      <textarea
-                        value={qrCodeInput}
-                        onChange={(e) => handleQrInputChange(e.target.value)}
-                        placeholder='Dán nội dung JSON mã QR ở đây hoặc gõ mã đặt chỗ trực tiếp...'
-                        rows={4}
-                        className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-semibold text-stone-800 outline-none transition-colors placeholder:text-stone-300 focus:border-[#FF4C4C] font-mono leading-relaxed"
-                      />
-                    </div>
-
-                    {bookingError && (
-                      <div className="text-xs text-red-500 bg-red-50 border border-red-150 rounded-xl px-4 py-2.5 font-bold">
-                        ⚠️ {bookingError}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right part: Parsed booking detail receipt */}
-                  <div className="md:col-span-6">
-                    {parsedBooking ? (
-                      <div className="rounded-3xl border border-gray-200 bg-gray-50 p-5 space-y-5">
-                        
-                        {/* Receipt Header */}
-                        <div className="flex justify-between items-start border-b border-gray-200/80 pb-4">
-                          <div>
-                            <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest block">Mã vé đặt trước</span>
-                            <h4 className="text-xl font-black text-[#FF4C4C] tracking-widest mt-0.5">{parsedBooking.ref}</h4>
-                          </div>
-                          <span className="rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 px-3 py-1 text-[10px] font-bold uppercase tracking-wider">
-                            Đã duyệt & Thanh toán
-                          </span>
-                        </div>
-
-                        {/* Details grid */}
-                        <div className="space-y-3 text-xs font-medium text-stone-500">
-                          <div className="flex justify-between">
-                            <span className="text-stone-400">Biển số đăng ký</span>
-                            <span className="font-bold text-stone-800">{parsedBooking.plate}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-stone-400">Loại phương tiện</span>
-                            <span className="font-bold text-stone-850">
-                              {parsedBooking.vehicle === 'car' ? '🚗 Xe ô tô' : '🏍️ Xe máy'}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-stone-400">Vị trí ô đỗ gán sẵn</span>
-                            <span className="font-bold text-[#FF4C4C] bg-[#FF4C4C]/5 px-2 py-0.5 rounded">
-                              {parsedBooking.slot}
-                            </span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-stone-400">Cơ sở / Tòa nhà</span>
-                            <span className="font-bold text-stone-800 truncate max-w-[180px]">{parsedBooking.lot}</span>
-                          </div>
-                          <div className="flex justify-between border-t border-gray-200/60 pt-3">
-                            <span className="text-stone-400">Lịch vào bãi</span>
-                            <span className="font-bold text-stone-800 text-right">
-                              {parsedBooking.entry} • {parsedBooking.date} ({parsedBooking.duration}h)
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Submit Button */}
-                        <button
-                          type="button"
-                          onClick={handleConfirmBookingEntry}
-                          className="w-full py-4 rounded-xl bg-stone-900 hover:bg-[#FF4C4C] text-white text-xs font-bold tracking-widest uppercase transition-all flex items-center justify-center gap-2 shadow-sm shadow-[#FF4C4C]/15"
-                        >
-                          <CheckCircle2 size={15} />
-                          Xác nhận xe vào bãi
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="rounded-3xl border-2 border-dashed border-gray-250 bg-gray-50/50 p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
-                        <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-stone-400 mb-4">
-                          <Ticket size={24} />
-                        </div>
-                        <p className="text-sm font-bold text-stone-800 mb-1">Chờ quét mã QR đỗ xe</p>
-                        <p className="text-xs text-stone-400 max-w-[200px] leading-relaxed mx-auto font-medium">
-                          Quét mã QR của tài xế bằng máy quét hoặc bấm nút mô phỏng để nạp dữ liệu.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                  
-                </div>
-
-              </section>
-            </div>
-          )}
 
         </div>
-
       </main>
+
 
       {/* Exception Modal */}
       <ExceptionHandlingModal
@@ -938,6 +848,93 @@ export default function GateControlPage() {
           setExceptionAction(null);
         }}
       />
+
+        {/* Map Modal */}
+        {showMap && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl">
+              <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-stone-900">Bản đồ vị trí trống</h3>
+                  <p className="text-xs text-stone-500 mt-1">Chọn vị trí thủ công cho phương tiện (chỉ hiện ô còn trống)</p>
+                </div>
+                <button
+                  onClick={() => setShowMap(false)}
+                  className="rounded-xl p-2 hover:bg-stone-100 transition-colors"
+                >
+                  <X size={20} className="text-stone-500" />
+                </button>
+              </div>
+
+              {loadingSlots ? (
+                <div className="py-12 text-center text-sm font-bold text-stone-400">Đang tải bản đồ...</div>
+              ) : (
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
+                  {slots.map(s => {
+                    const isSelected = s.id === selectedSlotId;
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedSlotId(null);
+                            setSelectedSlotNumber(null);
+                          } else {
+                            setSelectedSlotId(s.id);
+                            setSelectedSlotNumber(s.slotNumber);
+                            setShowMap(false);
+                          }
+                        }}
+                        className={`h-12 flex flex-col items-center justify-center rounded-xl border text-[10px] font-bold transition-all ${
+                          isSelected
+                            ? 'bg-[#FF4C4C] border-[#FF4C4C] text-white shadow-md'
+                            : 'bg-stone-50 border-stone-200 text-stone-600 hover:border-[#FF4C4C] hover:text-[#FF4C4C]'
+                        }`}
+                      >
+                        <Car size={12} className="mb-0.5" />
+                        {s.slotNumber}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+      )}
+
+      {/* Check-in Result Modal (Ticket / QR) */}
+      {checkInResultData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm text-center border border-gray-100">
+            <h3 className="text-xl font-bold text-stone-900 mb-1">Vé Gửi Xe Điện Tử</h3>
+            <p className="text-xs text-stone-500 font-medium mb-6">Mã phiên: <span className="font-mono text-[#FF4C4C] font-bold">{checkInResultData.sessionCode}</span></p>
+
+            {checkInResultData.sessionQrCodeBase64 && (
+              <div className="bg-gray-50 rounded-2xl p-4 inline-block border border-gray-200 mb-6 shadow-inner">
+                <img
+                  src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
+                  alt="Session QR"
+                  className="w-48 h-48 mx-auto object-contain"
+                />
+              </div>
+            )}
+
+            <div className="space-y-2 text-left bg-gray-50 rounded-2xl p-4 border border-gray-100">
+              <p className="text-sm flex justify-between"><span className="text-stone-500">Biển số:</span> <span className="font-bold text-stone-900 font-mono text-lg">{checkInResultData.licensePlate}</span></p>
+              <p className="text-sm flex justify-between"><span className="text-stone-500">Loại xe:</span> <span className="font-bold text-stone-900">{checkInResultData.vehicleTypeName}</span></p>
+              <p className="text-sm flex justify-between"><span className="text-stone-500">Vị trí:</span> <span className="font-bold text-[#FF4C4C]">Tầng {checkInResultData.floorName}, Ô {checkInResultData.slotNumber}</span></p>
+              <p className="text-sm flex justify-between"><span className="text-stone-500">Tòa nhà:</span> <span className="font-bold text-stone-900">{checkInResultData.buildingName}</span></p>
+            </div>
+
+            <button
+              onClick={() => setCheckInResultData(null)}
+              className="mt-6 w-full py-3 bg-[#FF4C4C] text-white rounded-xl font-bold hover:bg-[#E13B3B] transition-colors"
+            >
+              In vé & Đóng
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

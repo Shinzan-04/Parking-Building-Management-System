@@ -10,16 +10,26 @@ using ParkingSystem.Infrastructure.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddOpenApi();
 
 // Add CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", builder =>
-        builder.AllowAnyOrigin()
-               .AllowAnyMethod()
-               .AllowAnyHeader());
+    options.AddPolicy("AllowAll", policy =>
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "http://localhost:5174",
+                "http://localhost:5175",
+                "http://localhost:3000"
+              )
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials());
 });
 
 // Setup Entity Framework Core (PostgreSQL)
@@ -69,20 +79,21 @@ builder.Services.AddScoped<IFloorService, FloorService>();
 builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 builder.Services.AddScoped<IParkingSlotService, ParkingSlotService>();
 builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
-builder.Services.AddScoped<IPriceSettingService, PriceSettingService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IVehicleService, ParkingSystem.Infrastructure.Services.VehicleService>();
 builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
 builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
 builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
 builder.Services.AddScoped<ISessionService, ParkingSystem.Infrastructure.Services.SessionService>();
+builder.Services.AddScoped<IDashboardService, ParkingSystem.Infrastructure.Services.DashboardService>();
 builder.Services.AddScoped<ICheckOutService, ParkingSystem.Infrastructure.Services.CheckOutService>();
 builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
+builder.Services.AddScoped<IVehicleService, ParkingSystem.Infrastructure.Services.VehicleService>();
+builder.Services.AddScoped<IWalletService, ParkingSystem.Infrastructure.Services.WalletService>();
 
 // Register PayOS options from appsettings.json section "PayOS"
 builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(
     builder.Configuration.GetSection("PayOS"));
-
-// Register SignalR và RealtimeService (từ nhánh dev)
 builder.Services.AddSignalR();
 builder.Services.AddScoped<IRealtimeService, ParkingSystem.API.Services.RealtimeService>();
 
@@ -138,7 +149,9 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+        NameClaimType = System.Security.Claims.ClaimTypes.Name,
     };
 
     // Tự động nhận diện token dù có hay không có prefix "Bearer "
@@ -146,12 +159,21 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
+            // 1. Cho các API gọi bằng cách gửi thẳng token vào Header "Authorization" không có "Bearer "
             var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
             if (!string.IsNullOrEmpty(authHeader) && !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
-                // Nếu gửi token thẳng (không có "Bearer ") → gán vào Token để middleware xử lý
                 context.Token = authHeader;
             }
+
+            // 2. Cho SignalR gọi bằng query string ?access_token=...
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/parking-hub"))
+            {
+                context.Token = accessToken;
+            }
+
             return Task.CompletedTask;
         }
     };
@@ -161,54 +183,19 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// ===== Khởi tạo Database: Migrate + Seed dữ liệu mẫu =====
+// ===== Khởi tạo Database: Tự động chạy Migration (Silent) =====
 using (var scope = app.Services.CreateScope())
 {
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var connStr = builder.Configuration.GetConnectionString("DefaultConnection");
-    
-    // Ẩn password trong log
-    var safeConnStr = System.Text.RegularExpressions.Regex.Replace(
-        connStr ?? "", @"Password=[^;]*", "Password=***");
-    
-    logger.LogInformation("🔌 Connection String: {ConnStr}", safeConnStr);
-    
     try
     {
-        // Tự động apply migration (tạo bảng nếu chưa có trên Neon)
         await dbContext.Database.MigrateAsync();
-        logger.LogInformation("✅ Database migration thành công!");
-        
-        var dbName = dbContext.Database.GetDbConnection().Database;
-        var dbServer = dbContext.Database.GetDbConnection().DataSource;
-        logger.LogInformation("📊 Database: {DbName} | Server: {Server}", dbName, dbServer);
-
-        // Bỏ đoạn Seed Data tự động theo yêu cầu của User vì Database đã có dữ liệu.
-        // Bạn có thể chạy lại file seed.sql thủ công nếu muốn Reset Database.
     }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "❌ Database khởi tạo THẤT BẠI — {Message}", ex.Message);
-    }
+    catch { /* Ignore */ }
 }
 
 // Configure the HTTP request pipeline.
 app.UseCors("AllowAll");
-
-
-
-// Allow CORS preflight OPTIONS requests to pass through before auth
-app.Use(async (context, next) =>
-{
-    if (context.Request.Method == "OPTIONS")
-    {
-        context.Response.StatusCode = 200;
-        await context.Response.CompleteAsync();
-        return;
-    }
-    await next();
-});
 
 if (app.Environment.IsDevelopment())
 {
@@ -221,7 +208,6 @@ if (app.Environment.IsDevelopment())
 }
 
 // app.UseHttpsRedirection();
-app.UseCors("AllowAll");
 
 app.UseDefaultFiles(new Microsoft.AspNetCore.Builder.DefaultFilesOptions
 {

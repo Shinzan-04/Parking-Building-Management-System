@@ -1,31 +1,21 @@
-/**
- * Manager/Reservations.tsx
- * Nhánh: Feature/ManageReservations-Manager
- * Quản lý đặt chỗ xe (Reservations) — duyệt / từ chối
- *
- * Tính năng:
- *  - Tab "Chờ duyệt" (Pending): danh sách yêu cầu cần xét duyệt
- *  - Tab "Tất cả": hiển thị tất cả reservations của tôi (phòng sau có thể mở rộng)
- *  - Modal duyệt: confirm Approve
- *  - Modal từ chối: form nhập lý do + confirm Reject
- *  - Badge trạng thái màu sắc
- *  - Tự động refresh sau khi duyệt/từ chối
- */
-
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarCheck, Check, X, Loader2, RefreshCw,
   AlertTriangle, Clock, MapPin, FileText,
-  CheckCircle2, XCircle, ClipboardList,
+  CheckCircle2, XCircle, ClipboardList, RefreshCcw, LayoutGrid
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
-  getPendingReservations, reviewReservation,
+  getAllActiveReservations, reviewReservation, reassignSlot,
   normalizeReservationStatus,
   RESERVATION_STATUS_LABELS,
 } from '../../services/reservationsService';
 import type { ReservationResponse, ReviewReservationRequest } from '../../services/reservationsService';
+import { getAllSlots } from '../../services/parkingService';
+import type { ParkingSlotDetail } from '../../services/parkingService';
+import { getBuildingById, updateBuildingApprovalMode } from '../../services/buildingsService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -39,12 +29,16 @@ function fmtDateTime(iso: string) {
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, string> = {
-  Pending:   'bg-amber-400/10 text-amber-400',
-  Confirmed: 'bg-orange-500/10 text-orange-500',
-  CheckedIn: 'bg-amber-500/10 text-amber-500',
+  PaymentPending: 'bg-amber-400/10 text-amber-400',
+  Paid: 'bg-emerald-400/10 text-emerald-400',
+  PendingReview: 'bg-amber-400/10 text-amber-400',
+  Confirmed: 'bg-[#FF4C4C]/10 text-[#FF4C4C]',
+  CheckedIn: 'bg-emerald-500/10 text-emerald-500',
   Cancelled: 'bg-white/10 text-white/50',
   Completed: 'bg-white/10 text-white/40',
   Rejected:  'bg-red-400/10 text-red-400',
+  NoShow: 'bg-white/10 text-white/50',
+  PaymentFailed: 'bg-red-400/10 text-red-400',
 };
 
 function StatusBadge({ status }: { status: string }) {
@@ -61,22 +55,24 @@ function StatusBadge({ status }: { status: string }) {
 // ─── Reservation Card ─────────────────────────────────────────────────────────
 
 function ReservationCard({
-  r, onApprove, onReject,
+  r, onApprove, onReject, onReassign
 }: {
   r: ReservationResponse;
   onApprove: (r: ReservationResponse) => void;
   onReject:  (r: ReservationResponse) => void;
+  onReassign: (r: ReservationResponse) => void;
 }) {
   const status = normalizeReservationStatus(r.status);
-  const isPending = status === 'Pending';
+  const isPending = status === 'PendingReview';
+  const isConfirmed = status === 'Confirmed' || status === 'Paid';
 
   return (
     <div className="glass-card p-5 rounded-2xl space-y-4 hover:border-white/20 transition-all">
       {/* Top row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
-            <CalendarCheck size={18} className="text-orange-500" />
+          <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 flex items-center justify-center shrink-0">
+            <CalendarCheck size={18} className="text-[#FF4C4C]" />
           </div>
           <div>
             <p className="font-bold font-mono text-white text-base">{r.licensePlate}</p>
@@ -101,7 +97,7 @@ function ReservationCard({
             </div>
           </div>
           <div className="flex items-start gap-2 px-3 py-2 bg-white/[0.04] rounded-xl">
-            <Clock size={12} className="text-orange-500 shrink-0 mt-0.5" />
+            <Clock size={12} className="text-[#FF4C4C] shrink-0 mt-0.5" />
             <div>
               <p className="text-[10px] text-white/40 uppercase tracking-wider">Kết thúc</p>
               <p className="text-xs text-white font-medium">{fmtDateTime(r.endTime)}</p>
@@ -119,7 +115,7 @@ function ReservationCard({
         <div className="flex gap-2">
           <button
             onClick={() => onApprove(r)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-black bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 transition-opacity"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-black bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity"
           >
             <Check size={14} /> Duyệt
           </button>
@@ -131,6 +127,17 @@ function ReservationCard({
           </button>
         </div>
       )}
+
+      {isConfirmed && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => onReassign(r)}
+            className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-blue-400 bg-blue-400/10 hover:bg-blue-400/20 transition-all border border-blue-400/20"
+          >
+            <RefreshCcw size={14} /> Đổi chỗ cho khách
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -138,23 +145,37 @@ function ReservationCard({
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export default function ManagerReservations() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
 
-  const [pending,    setPending]    = useState<ReservationResponse[]>([]);
-  const [loading,    setLoading]    = useState(true);
+  const [reservations, setReservations] = useState<ReservationResponse[]>([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [apiError,   setApiError]   = useState('');
+  const [apiError, setApiError] = useState('');
+  
+  const [activeTab, setActiveTab] = useState<'pending' | 'active'>('pending');
 
   // Approve modal
   const [approveTarget, setApproveTarget] = useState<ReservationResponse | null>(null);
-  const [approving,     setApproving]     = useState(false);
-  const [approveError,  setApproveError]  = useState('');
+  const [approving, setApproving] = useState(false);
+  const [approveError, setApproveError] = useState('');
 
   // Reject modal
-  const [rejectTarget,  setRejectTarget]  = useState<ReservationResponse | null>(null);
-  const [rejectReason,  setRejectReason]  = useState('');
-  const [rejecting,     setRejecting]     = useState(false);
-  const [rejectError,   setRejectError]   = useState('');
+  const [rejectTarget, setRejectTarget] = useState<ReservationResponse | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState('');
+
+  // Reassign modal
+  const [reassignTarget, setReassignTarget] = useState<ReservationResponse | null>(null);
+  const [reassigning, setReassigning] = useState(false);
+  const [reassignError, setReassignError] = useState('');
+  const [availableSlots, setAvailableSlots] = useState<ParkingSlotDetail[]>([]);
+  const [selectedSlotId, setSelectedSlotId] = useState<string>('');
+  const [loadingSlots, setLoadingSlots] = useState(false);
+
+  // Approval Mode
+  const [approvalMode, setApprovalMode] = useState<number>(0);
+  const [updatingMode, setUpdatingMode] = useState(false);
 
   // ─── Load ──────────────────────────────────────────────────────────────────
 
@@ -164,8 +185,12 @@ export default function ManagerReservations() {
     else setRefreshing(true);
     setApiError('');
     try {
-      const data = await getPendingReservations(token);
-      setPending(data);
+      if (user?.assignedBuildingId) {
+        const building = await getBuildingById(user.assignedBuildingId, token);
+        setApprovalMode(building.approvalMode);
+      }
+      const data = await getAllActiveReservations(token);
+      setReservations(data);
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Không thể tải danh sách đặt chỗ.');
     } finally {
@@ -176,6 +201,27 @@ export default function ManagerReservations() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const loadSlots = async () => {
+    if (!token) return;
+    setLoadingSlots(true);
+    try {
+      const slots = await getAllSlots(user?.assignedBuildingId);
+      setAvailableSlots(slots.filter(s => s.status === 'Available'));
+    } catch (err) {
+      setReassignError('Không thể tải danh sách chỗ trống.');
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  useEffect(() => {
+    if (reassignTarget) {
+      loadSlots();
+      setSelectedSlotId('');
+      setReassignError('');
+    }
+  }, [reassignTarget]);
+
   // ─── Approve ──────────────────────────────────────────────────────────────
 
   const handleApprove = async () => {
@@ -185,7 +231,7 @@ export default function ManagerReservations() {
     try {
       const payload: ReviewReservationRequest = { isAccepted: true };
       await reviewReservation(approveTarget.id, payload, token);
-      setPending(prev => prev.filter(r => r.id !== approveTarget.id));
+      await loadData(true);
       setApproveTarget(null);
     } catch (e) {
       setApproveError(e instanceof Error ? e.message : 'Duyệt thất bại.');
@@ -203,7 +249,7 @@ export default function ManagerReservations() {
     try {
       const payload: ReviewReservationRequest = { isAccepted: false, reason: rejectReason.trim() };
       await reviewReservation(rejectTarget.id, payload, token);
-      setPending(prev => prev.filter(r => r.id !== rejectTarget.id));
+      await loadData(true);
       setRejectTarget(null);
       setRejectReason('');
     } catch (e) {
@@ -212,12 +258,55 @@ export default function ManagerReservations() {
     }
   };
 
+  // ─── Reassign ─────────────────────────────────────────────────────────────
+
+  const handleReassign = async () => {
+    if (!reassignTarget || !token || !selectedSlotId) {
+      setReassignError('Vui lòng chọn một ô đỗ mới.');
+      return;
+    }
+    setReassigning(true);
+    setReassignError('');
+    try {
+      await reassignSlot(reassignTarget.id, selectedSlotId, token);
+      await loadData(true);
+      setReassignTarget(null);
+    } catch (e) {
+      setReassignError(e instanceof Error ? e.message : 'Đổi chỗ thất bại.');
+    } finally {
+      setReassigning(false);
+    }
+  };
+
+  // ─── Update Approval Mode ───────────────────────────────────────────────────
+
+  const handleModeChange = async (mode: number) => {
+    if (!token || !user?.assignedBuildingId) return;
+    setUpdatingMode(true);
+    try {
+      await updateBuildingApprovalMode(user.assignedBuildingId, mode, token);
+      setApprovalMode(mode);
+    } catch (e) {
+      setApiError('Lỗi cập nhật chế độ duyệt.');
+    } finally {
+      setUpdatingMode(false);
+    }
+  };
+
   // ─── Render ───────────────────────────────────────────────────────────────
+
+  const pendingList = reservations.filter(r => normalizeReservationStatus(r.status) === 'PendingReview');
+  const activeList = reservations.filter(r => {
+    const s = normalizeReservationStatus(r.status);
+    return s === 'Confirmed' || s === 'Paid' || s === 'CheckedIn';
+  });
+
+  const displayList = activeTab === 'pending' ? pendingList : activeList;
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-orange-500 animate-spin" />
+        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
         <p className="text-sm text-white/40">Đang tải danh sách đặt chỗ...</p>
       </div>
     );
@@ -231,16 +320,33 @@ export default function ManagerReservations() {
         <div>
           <h2 className="text-2xl font-bold text-white">Quản lý đặt chỗ</h2>
           <p className="text-sm text-white/40 mt-0.5">
-            {pending.length} yêu cầu đang chờ duyệt
+            Duyệt yêu cầu và hỗ trợ đổi chỗ cho khách
           </p>
         </div>
-        <button
-          onClick={() => loadData(true)}
-          disabled={refreshing}
-          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
-        >
-          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-        </button>
+        <div className="flex flex-col items-end gap-2">
+          {user?.assignedBuildingId && (
+            <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/10">
+              <span className="text-xs font-semibold text-white/50">Chế độ duyệt:</span>
+              <select
+                value={approvalMode}
+                onChange={(e) => handleModeChange(Number(e.target.value))}
+                disabled={updatingMode}
+                className="bg-transparent text-sm font-bold text-white outline-none disabled:opacity-50 cursor-pointer"
+              >
+                <option value={0} className="text-black">Bằng tay (Manual)</option>
+                <option value={1} className="text-black">Tự động duyệt tất cả (Auto-Approve)</option>
+                <option value={2} className="text-black">Từ chối tất cả (Auto-Reject)</option>
+              </select>
+            </div>
+          )}
+          <button
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
+          >
+            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       {apiError && (
@@ -250,46 +356,48 @@ export default function ManagerReservations() {
         </div>
       )}
 
-      {/* Pending count banner */}
-      {pending.length > 0 && (
-        <div className="flex items-center gap-3 px-5 py-4 bg-amber-400/10 border border-amber-400/20 rounded-xl">
-          <div className="w-9 h-9 rounded-xl bg-amber-400/20 flex items-center justify-center shrink-0">
-            <Clock size={17} className="text-amber-400" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-amber-400">
-              Có {pending.length} yêu cầu đặt chỗ đang chờ duyệt
-            </p>
-            <p className="text-xs text-amber-400/70 mt-0.5">Vui lòng xem xét và xét duyệt kịp thời</p>
-          </div>
-        </div>
-      )}
-
-      {/* Pending section */}
-      <div>
-        <div className="flex items-center gap-2.5 mb-4">
-          <CalendarCheck size={16} className="text-orange-500" />
-          <h3 className="text-base font-semibold text-white">Chờ duyệt</h3>
-          {pending.length > 0 && (
-            <span className="px-2 py-0.5 text-xs font-bold bg-amber-400 text-black rounded-full">
-              {pending.length}
-            </span>
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-white/10 pb-4">
+        <button
+          onClick={() => setActiveTab('pending')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === 'pending' ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]' : 'text-white/50 hover:bg-white/5'
+          }`}
+        >
+          <CalendarCheck size={16} /> Chờ duyệt
+          {pendingList.length > 0 && (
+            <span className="ml-1 bg-[#FF4C4C] text-black px-1.5 py-0.5 rounded-md text-[10px]">{pendingList.length}</span>
           )}
-        </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('active')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+            activeTab === 'active' ? 'bg-blue-400/10 text-blue-400' : 'text-white/50 hover:bg-white/5'
+          }`}
+        >
+          <CheckCircle2 size={16} /> Đã duyệt / Hoạt động
+          {activeList.length > 0 && (
+            <span className="ml-1 bg-white/20 text-white px-1.5 py-0.5 rounded-md text-[10px]">{activeList.length}</span>
+          )}
+        </button>
+      </div>
 
-        {pending.length === 0 ? (
+      {/* List */}
+      <div>
+        {displayList.length === 0 ? (
           <div className="glass-card rounded-2xl flex flex-col items-center justify-center py-16 gap-3 text-white/30">
             <ClipboardList size={28} />
-            <p className="text-sm">Không có yêu cầu nào đang chờ duyệt</p>
+            <p className="text-sm">Không có dữ liệu trong mục này</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {pending.map(r => (
+            {displayList.map(r => (
               <ReservationCard
                 key={r.id}
                 r={r}
                 onApprove={r => setApproveTarget(r)}
                 onReject={r => { setRejectTarget(r); setRejectReason(''); setRejectError(''); }}
+                onReassign={r => setReassignTarget(r)}
               />
             ))}
           </div>
@@ -297,26 +405,26 @@ export default function ManagerReservations() {
       </div>
 
       {/* ══ APPROVE MODAL ══ */}
-      {approveTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-orange-500/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+      {approveTarget && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="border border-[#FF4C4C]/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5 bg-white dark:bg-[#0E0E10]">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0">
-                <CheckCircle2 size={20} className="text-orange-500" />
+              <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={20} className="text-[#FF4C4C]" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Xác nhận duyệt</h3>
-                <p className="text-xs text-white/40 mt-0.5">Đặt chỗ sẽ được chấp nhận</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Xác nhận duyệt</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Đặt chỗ sẽ được chấp nhận</p>
               </div>
             </div>
 
-            <p className="text-sm text-white/70">
+            <p className="text-sm text-gray-700 dark:text-white/70">
               Duyệt yêu cầu đặt chỗ cho biển số{' '}
-              <span className="font-bold font-mono text-white">{approveTarget.licensePlate}</span>{' '}
-              tại slot <span className="font-semibold text-white">{approveTarget.slotNumber}</span>?
+              <span className="font-bold font-mono text-gray-800 dark:text-white">{approveTarget.licensePlate}</span>{' '}
+              tại slot <span className="font-semibold text-gray-800 dark:text-white">{approveTarget.slotNumber}</span>?
             </p>
 
-            <div className="text-xs text-white/40 space-y-1 px-3 py-2.5 bg-white/5 rounded-xl">
+            <div className="text-xs text-gray-400 dark:text-white/40 space-y-1 px-3 py-2.5 bg-gray-50 dark:bg-white/5 rounded-xl">
               <p>📅 Từ: {fmtDateTime(approveTarget.startTime)}</p>
               <p>📅 Đến: {fmtDateTime(approveTarget.endTime)}</p>
             </div>
@@ -330,14 +438,14 @@ export default function ManagerReservations() {
             <div className="flex gap-3">
               <button
                 onClick={() => setApproveTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
                 Hủy
               </button>
               <button
                 onClick={handleApprove}
                 disabled={approving}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-black bg-gradient-to-r from-orange-500 to-amber-500 hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-black bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {approving && <Loader2 size={14} className="animate-spin" />}
                 Xác nhận duyệt
@@ -345,24 +453,24 @@ export default function ManagerReservations() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* ══ REJECT MODAL ══ */}
-      {rejectTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[#121214] border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5">
+      {rejectTarget && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="border border-red-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5 bg-white dark:bg-[#0E0E10]">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
                 <XCircle size={20} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Từ chối đặt chỗ</h3>
-                <p className="text-xs text-white/40 mt-0.5">Biển số: {rejectTarget.licensePlate}</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Từ chối đặt chỗ</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Biển số: {rejectTarget.licensePlate}</p>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-white/50 mb-1.5">
+              <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
                 <FileText size={11} className="inline mr-1" />
                 Lý do từ chối <span className="text-red-400">*</span>
               </label>
@@ -371,7 +479,7 @@ export default function ManagerReservations() {
                 placeholder="Nhập lý do từ chối yêu cầu đặt chỗ này..."
                 value={rejectReason}
                 onChange={e => setRejectReason(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-red-400/50 transition-colors resize-none"
+                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-red-400/50 transition-colors resize-none"
               />
             </div>
 
@@ -384,7 +492,7 @@ export default function ManagerReservations() {
             <div className="flex gap-3">
               <button
                 onClick={() => setRejectTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
                 Hủy
               </button>
@@ -399,7 +507,77 @@ export default function ManagerReservations() {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
+
+      {/* ══ REASSIGN MODAL ══ */}
+      {reassignTarget && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="border border-blue-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5 bg-white dark:bg-[#0E0E10]">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-400/10 flex items-center justify-center shrink-0">
+                <RefreshCcw size={20} className="text-blue-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Đổi chỗ cho khách</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Xử lý sự cố ô đỗ bị chiếm</p>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-sm text-gray-600 dark:text-white/70">
+              <p>Biển số: <span className="font-bold text-gray-800 dark:text-white">{reassignTarget.licensePlate}</span></p>
+              <p>Ô đỗ hiện tại: <span className="font-semibold text-red-400">{reassignTarget.slotNumber}</span> (Đang gặp sự cố)</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
+                <LayoutGrid size={11} className="inline mr-1" />
+                Chọn ô đỗ mới (trống) <span className="text-red-400">*</span>
+              </label>
+              
+              {loadingSlots ? (
+                <div className="text-xs text-gray-400 dark:text-white/40 flex items-center gap-2 py-2"><Loader2 size={12} className="animate-spin" /> Đang tải...</div>
+              ) : (
+                <select
+                  value={selectedSlotId}
+                  onChange={e => setSelectedSlotId(e.target.value)}
+                  className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-400/50 transition-colors"
+                >
+                  <option value="" disabled className="dark:bg-stone-900">-- Vui lòng chọn một ô trống --</option>
+                  {availableSlots.map(s => (
+                    <option key={s.id} value={s.id} className="dark:bg-stone-900">
+                      Ô {s.slotNumber} (Tầng {s.floorName})
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {reassignError && (
+              <p className="text-xs text-red-400 flex items-center gap-1.5">
+                <AlertTriangle size={12} /> {reassignError}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setReassignTarget(null)}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleReassign}
+                disabled={reassigning || !selectedSlotId}
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                {reassigning && <Loader2 size={14} className="animate-spin" />}
+                Xác nhận đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+
     </div>
   );
 }

@@ -4,6 +4,82 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Admin theme: dark default + light override ──────────── */
+/* Dark is the default (matches existing app design) */
+:root {
+  --admin-bg-base:     #0A0A0C;
+  --admin-bg-surface:  #0E0E10;
+  --admin-bg-card:     rgba(255, 255, 255, 0.04);
+  --admin-bg-card-hover: rgba(255, 255, 255, 0.07);
+  --admin-border:      rgba(255, 255, 255, 0.06);
+  --admin-text-primary:#FFFFFF;
+  --admin-text-muted:  rgba(255, 255, 255, 0.40);
+  --admin-text-faint:  rgba(255, 255, 255, 0.22);
+  --admin-accent:      #FF4C4C;
+  --admin-accent-bg:   rgba(255, 76, 76, 0.10);
+  --admin-accent-border: rgba(255, 76, 76, 0.20);
+  --admin-scrollbar:   rgba(255, 255, 255, 0.10);
+}
+
+/* ─── Landing page theme vars ─────────────────────────────── */
+/* Dark default */
+:root {
+  --lp-bg:          #0A0A0C;
+  --lp-bg-alt:      #111113;
+  --lp-surface:     #18181B;
+  --lp-border:      rgba(255,255,255,0.08);
+  --lp-text:        #F5F5F5;
+  --lp-text-muted:  rgba(255,255,255,0.55);
+  --lp-text-faint:  rgba(255,255,255,0.30);
+  --lp-nav-bg:      rgba(10,10,12,0.85);
+  --lp-nav-border:  rgba(255,255,255,0.06);
+  --lp-card-bg:     #18181B;
+  --lp-card-border: rgba(255,255,255,0.07);
+  --lp-footer-bg:   #0E0E10;
+  --lp-hero-from:   #0A0A0C;
+  --lp-btn-primary: #F5F5F5;
+  --lp-btn-primary-text: #0A0A0C;
+  --lp-input-bg:    rgba(255,255,255,0.06);
+  --lp-dropdown-bg: #1C1C1F;
+}
+
+/* Light mode: toggled by removing .dark from <html> */
+:root:not(.dark) {
+  --lp-bg:          #F3F3F5;
+  --lp-bg-alt:      #F3F3F5;
+  --lp-surface:     #FFFFFF;
+  --lp-border:      rgba(0,0,0,0.08);
+  --lp-text:        #0A0A0C;
+  --lp-text-muted:  #57534E;
+  --lp-text-faint:  #A8A29E;
+  --lp-nav-bg:      rgba(255,255,255,0.90);
+  --lp-nav-border:  rgba(0,0,0,0.07);
+  --lp-card-bg:     #FFFFFF;
+  --lp-card-border: rgba(0,0,0,0.07);
+  --lp-footer-bg:   #F8F8FA;
+  --lp-hero-from:   #F3F3F5;
+  --lp-btn-primary: #0A0A0C;
+  --lp-btn-primary-text: #FFFFFF;
+  --lp-input-bg:    rgba(0,0,0,0.04);
+  --lp-dropdown-bg: #FFFFFF;
+}
+
+/* Light mode: toggled by removing .dark from <html> */
+:root:not(.dark) {
+  --admin-bg-base:     #F4F5F7;
+  --admin-bg-surface:  #FFFFFF;
+  --admin-bg-card:     rgba(0, 0, 0, 0.04);
+  --admin-bg-card-hover: rgba(0, 0, 0, 0.07);
+  --admin-border:      rgba(0, 0, 0, 0.08);
+  --admin-text-primary:#0A0A0C;
+  --admin-text-muted:  rgba(10, 10, 12, 0.45);
+  --admin-text-faint:  rgba(10, 10, 12, 0.28);
+  --admin-accent:      #FF4C4C;
+  --admin-accent-bg:   rgba(255, 76, 76, 0.08);
+  --admin-accent-border: rgba(255, 76, 76, 0.18);
+  --admin-scrollbar:   rgba(0, 0, 0, 0.15);
+}
+
 @layer base {
 
   *,
@@ -18,10 +94,17 @@
 
   body {
     @apply bg-[#0A0A0C] text-white font-sans antialiased overflow-x-hidden;
+    background-color: var(--admin-bg-base);
+  }
+
+  select option {
+    background-color: var(--admin-bg-surface, #121214);
+    color: var(--admin-text-primary, #FFFFFF);
   }
 
   #root {
     @apply min-h-screen;
+    background-color: var(--admin-bg-base);
   }
 
   ul,
@@ -49,6 +132,100 @@
   .blob {
     @apply absolute rounded-full blur-3xl pointer-events-none;
   }
+
+  /* Admin theme-aware classes */
+  .admin-bg-base    { background-color: var(--admin-bg-base); }
+  .admin-bg-surface { background-color: var(--admin-bg-surface); }
+  .admin-bg-card    { background-color: var(--admin-bg-card); }
+  .admin-border     { border-color: var(--admin-border); }
+  .admin-text       { color: var(--admin-text-primary); }
+  .admin-text-muted { color: var(--admin-text-muted); }
+  .admin-text-faint { color: var(--admin-text-faint); }
+
+  .admin-card {
+    background-color: var(--admin-bg-card);
+    border: 1px solid var(--admin-border);
+    border-radius: 1rem;
+  }
+  .admin-card:hover {
+    background-color: var(--admin-bg-card-hover);
+  }
+}
+
+/* ─── Admin portal: light mode overrides ──────────────────── */
+/*
+  All admin pages use Tailwind's white/* opacity classes designed for dark bg.
+  In light mode we scope overrides under .admin-portal so public pages are untouched.
+*/
+:root:not(.dark) .admin-portal {
+  /* --- text overrides --- */
+  --tw-text-opacity: 1;
+}
+
+/* Text colours */
+:root:not(.dark) .admin-portal .text-white         { color: var(--admin-text-primary) !important; }
+:root:not(.dark) .admin-portal .text-white\/80      { color: rgba(10,10,12,0.80) !important; }
+:root:not(.dark) .admin-portal .text-white\/70      { color: rgba(10,10,12,0.70) !important; }
+:root:not(.dark) .admin-portal .text-white\/60      { color: rgba(10,10,12,0.60) !important; }
+:root:not(.dark) .admin-portal .text-white\/50      { color: rgba(10,10,12,0.50) !important; }
+:root:not(.dark) .admin-portal .text-white\/40      { color: rgba(10,10,12,0.40) !important; }
+:root:not(.dark) .admin-portal .text-white\/30      { color: rgba(10,10,12,0.30) !important; }
+:root:not(.dark) .admin-portal .text-white\/20      { color: rgba(10,10,12,0.20) !important; }
+
+/* Background colours */
+:root:not(.dark) .admin-portal .bg-white\/5         { background-color: rgba(0,0,0,0.04) !important; }
+:root:not(.dark) .admin-portal .bg-white\/\[0\.03\] { background-color: rgba(0,0,0,0.03) !important; }
+:root:not(.dark) .admin-portal .bg-white\/10        { background-color: rgba(0,0,0,0.07) !important; }
+:root:not(.dark) .admin-portal .bg-white\/15        { background-color: rgba(0,0,0,0.10) !important; }
+:root:not(.dark) .admin-portal .bg-white\/20        { background-color: rgba(0,0,0,0.13) !important; }
+
+/* Border colours */
+:root:not(.dark) .admin-portal .border-white\/5     { border-color: rgba(0,0,0,0.06) !important; }
+:root:not(.dark) .admin-portal .border-white\/10    { border-color: rgba(0,0,0,0.08) !important; }
+:root:not(.dark) .admin-portal .border-white\/20    { border-color: rgba(0,0,0,0.12) !important; }
+
+/* glass-card → white card in light mode */
+:root:not(.dark) .admin-portal .glass-card {
+  background-color: #FFFFFF !important;
+  border-color: rgba(0,0,0,0.08) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+}
+
+/* Hover states */
+:root:not(.dark) .admin-portal .hover\:bg-white\/5:hover   { background-color: rgba(0,0,0,0.04) !important; }
+:root:not(.dark) .admin-portal .hover\:bg-white\/10:hover  { background-color: rgba(0,0,0,0.07) !important; }
+:root:not(.dark) .admin-portal .hover\:text-white:hover    { color: var(--admin-text-primary) !important; }
+
+/* Placeholder */
+:root:not(.dark) .admin-portal input::placeholder { color: rgba(10,10,12,0.35) !important; }
+
+/* Inputs */
+:root:not(.dark) .admin-portal input,
+:root:not(.dark) .admin-portal select,
+:root:not(.dark) .admin-portal textarea {
+  color: var(--admin-text-primary) !important;
+}
+
+/* Chart tooltip dark bg */
+:root:not(.dark) .admin-portal .bg-\[\#121214\] { background-color: #ffffff !important; box-shadow: 0 2px 12px rgba(0,0,0,0.12) !important; }
+:root:not(.dark) .admin-portal .bg-\[\#0A0A0C\]\/80 { background-color: rgba(244,245,247,0.85) !important; }
+
+/* Table rows */
+:root:not(.dark) .admin-portal table { background-color: transparent; }
+
+/* Modal/overlay backgrounds */
+:root:not(.dark) .admin-portal .bg-black\/50 { background-color: rgba(0,0,0,0.25) !important; }
+:root:not(.dark) .admin-portal .bg-black\/60 { background-color: rgba(0,0,0,0.30) !important; }
+:root:not(.dark) .admin-portal .bg-\[\#0E0E10\] { background-color: #FFFFFF !important; }
+:root:not(.dark) .admin-portal .bg-\[\#0A0A0C\] { background-color: #F4F5F7 !important; }
+:root:not(.dark) .admin-portal .bg-\[\#121214\] { background-color: #F8F9FA !important; }
+
+/* Scrollbar */
+:root:not(.dark) .admin-portal .scrollbar-thin {
+  scrollbar-color: rgba(0,0,0,0.15) transparent;
+}
+:root:not(.dark) .admin-portal .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
 }
 
 /* Leaflet popup dark theme override */
@@ -154,4 +331,16 @@
 
 .animate-scan-line {
   animation: scan 4s linear infinite;
+}
+
+/* Sidebar logo car drive animation */
+@keyframes car-drive {
+  0%   { transform: translateX(0)   scaleX(1); opacity: 1; }
+  35%  { transform: translateX(18px) scaleX(1); opacity: 0; }
+  36%  { transform: translateX(-18px) scaleX(1); opacity: 0; }
+  100% { transform: translateX(0)   scaleX(1); opacity: 1; }
+}
+
+.animate-car-drive {
+  animation: car-drive 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
