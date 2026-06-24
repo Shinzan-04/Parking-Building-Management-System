@@ -32,7 +32,9 @@ import { createPayOSPayment, verifyPayment } from '../../services/paymentService
 import { getMyVehicles, createVehicle } from '../../services/vehiclesService';
 import type { VehicleResponse } from '../../services/vehiclesService';
 import type { ApiVehicleType } from '../../services/vehicleTypesService';
-import type { WalletResponse } from '../../services/walletService';
+import { getWallet, depositWallet } from '../../services/walletService';
+import { useAuth } from '../../hooks/useAuth';
+import { useNotification } from '../../hooks/useNotification';
 import DatePickerModal from '../../components/DatePickerModal';
 import TimePickerModal from '../../components/TimePickerModal';
 
@@ -516,7 +518,7 @@ function StepDateTime({
       const [exH, exM] = state.exitTime.split(':').map(Number);
       exit = new Date(entry);
       exit.setHours(exH, exM, 0, 0);
-      
+
       // If exit time is earlier than or equal to entry time, it means next day
       if (exit.getTime() <= entry.getTime()) {
         exit.setDate(exit.getDate() + 1);
@@ -1213,6 +1215,32 @@ function ConfirmationPopup({
   const payosTabRef = useRef<Window | null>(null);
   // Bộ đếm giây polling
   const [pollSeconds, setPollSeconds] = useState(0);
+  // Phương thức thanh toán
+  const [paymentMethod, setPaymentMethod] = useState<'PayOS' | 'Wallet'>('Wallet');
+  // Số dư ví
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function loadWallet() {
+      try {
+        const token = localStorage.getItem('sp_token') || '';
+        if (token) {
+          const info = await getWallet(token);
+          setWalletBalance(info.balance);
+        }
+      } catch (err) {
+        console.error('Lỗi khi tải số dư ví:', err);
+      }
+    }
+    loadWallet();
+
+    const onWalletUpdate = (e: Event) => {
+      const { balance: newBalance } = (e as CustomEvent<{ balance: number }>).detail;
+      setWalletBalance(newBalance);
+    };
+    window.addEventListener('walletUpdate', onWalletUpdate);
+    return () => window.removeEventListener('walletUpdate', onWalletUpdate);
+  }, []);
 
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
   const costResult = computeEstimatedCostHelper(state, vehicles, policy);
@@ -1240,6 +1268,24 @@ function ConfirmationPopup({
     entry: state.entryTime,
     duration: state.duration,
   });
+
+  const handleQuickDeposit = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // prevent selecting the method
+    const deficit = total - (walletBalance || 0);
+    const depositAmount = deficit < 10000 ? 10000 : deficit;
+
+    try {
+      setSubmitting(true);
+      setError(null);
+      const token = localStorage.getItem('sp_token') || '';
+      const res = await depositWallet({ amount: depositAmount }, token);
+      window.open(res.checkoutUrl, '_blank', 'noopener');
+    } catch (err: any) {
+      setError(err.message || 'Lỗi khi tạo giao dịch nạp tiền.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handlePayAndBook = async () => {
     try {
@@ -1284,36 +1330,56 @@ function ConfirmationPopup({
       const res = await createReservation(payload, token);
       setCreatedReservation(res);
 
-      const paymentPayload = {
-        amount: total,
-        description: `Thanh toan don dat cho`,
-        reservationId: res.id,
-      };
+      if (paymentMethod === 'PayOS') {
+        const paymentPayload = {
+          amount: total,
+          description: `Thanh toan don dat cho`,
+          reservationId: res.id,
+        };
 
-      const payOSRes = await createPayOSPayment(paymentPayload, token);
+        const payOSRes = await createPayOSPayment(paymentPayload, token);
 
-      // Tính toán QR data thực tế chính xác dựa trên bookingCode thực tế vừa được tạo
-      const realQrData = JSON.stringify({
-        ref: res.bookingCode,
-        lot: lot.name,
-        plate: state.licensePlate,
-        vehicle: selectedVehicle?.name ?? '',
-        slot: `${floorLabel} / Slot ${state.slot}`,
-        date: state.entryDate,
-        entry: state.entryTime,
-        duration: state.duration,
-      });
+        // Tính toán QR data thực tế chính xác dựa trên bookingCode thực tế vừa được tạo
+        const realQrData = JSON.stringify({
+          ref: res.bookingCode,
+          lot: lot.name,
+          plate: state.licensePlate,
+          vehicle: selectedVehicle?.name ?? '',
+          slot: `${floorLabel} / Slot ${state.slot}`,
+          date: state.entryDate,
+          entry: state.entryTime,
+          duration: state.duration,
+        });
 
-      // Lưu QR data vào localStorage
-      localStorage.setItem('latest_booking_qr', realQrData);
-      localStorage.setItem('latest_reservation_id', res.id);
+        // Lưu QR data vào localStorage
+        localStorage.setItem('latest_booking_qr', realQrData);
+        localStorage.setItem('latest_reservation_id', res.id);
 
-      // Mở tab mới thay vì iframe (tránh lỗi Private Network Access)
-      const newTab = window.open(payOSRes.checkoutUrl, '_blank', 'noopener');
-      payosTabRef.current = newTab;
-      setPendingOrderCode(payOSRes.orderCode);
-      setSubmitting(false);
-      setPhase('checkout');
+        // Mở tab mới thay vì iframe (tránh lỗi Private Network Access)
+        const newTab = window.open(payOSRes.checkoutUrl, '_blank', 'noopener');
+        payosTabRef.current = newTab;
+        setPendingOrderCode(payOSRes.orderCode);
+        setSubmitting(false);
+        setPhase('checkout');
+      } else {
+        // Wallet thanh toán xong rồi (vì backend đã trừ ví)
+        const realQrData = JSON.stringify({
+          ref: res.bookingCode,
+          lot: lot.name,
+          plate: state.licensePlate,
+          vehicle: selectedVehicle?.name ?? '',
+          slot: `${floorLabel} / Slot ${state.slot}`,
+          date: state.entryDate,
+          entry: state.entryTime,
+          duration: state.duration,
+        });
+
+        localStorage.setItem('latest_booking_qr', realQrData);
+        localStorage.setItem('latest_reservation_id', res.id);
+
+        setSubmitting(false);
+        setPhase('qr');
+      }
 
     } catch (err: any) {
       console.error(err);
@@ -1518,11 +1584,69 @@ function ConfirmationPopup({
 
               <div>
                 <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Thanh Toán</p>
-                <div className="bg-white border-2 border-[#FF4C4C] rounded-xl p-4 text-center">
-                  <p className="text-sm font-bold text-stone-800 mb-2">Thanh toán qua Ngân hàng (VietQR)</p>
-                  <p className="text-xs text-stone-500">
-                    Bạn sẽ được chuyển hướng tới cổng thanh toán an toàn của PayOS. Vui lòng sử dụng ứng dụng Ngân hàng để quét mã QR và hoàn tất thanh toán.
-                  </p>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={() => setPaymentMethod('Wallet')}
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'Wallet' 
+                        ? 'border-[#FF4C4C] bg-red-50' 
+                        : 'border-gray-200 bg-white hover:border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        paymentMethod === 'Wallet' ? 'border-[#FF4C4C]' : 'border-gray-300'
+                      }`}>
+                        {paymentMethod === 'Wallet' && <div className="w-2 h-2 rounded-full bg-[#FF4C4C]" />}
+                      </div>
+                      <p className="text-sm font-bold text-stone-800">Thanh toán qua Ví Hệ Thống</p>
+                    </div>
+                    <p className="text-xs text-stone-500 pl-7">
+                      Trừ tiền trực tiếp vào số dư ví của bạn. Giao dịch hoàn tất ngay lập tức.
+                    </p>
+                    {walletBalance !== null && (
+                      <div className="pl-7 mt-2">
+                        <span className="text-xs font-semibold text-stone-600 bg-stone-100 px-2.5 py-1 rounded-md">
+                          Số dư hiện tại: <span className="font-bold text-[#FF4C4C]">{walletBalance.toLocaleString('vi-VN')}đ</span>
+                        </span>
+                        {total > walletBalance && paymentMethod === 'Wallet' && (
+                          <div className="mt-3 flex items-center justify-between p-2.5 bg-red-50 border border-red-100 rounded-xl cursor-default" onClick={e => e.stopPropagation()}>
+                            <div>
+                              <p className="text-[11px] font-bold text-red-600">Số dư không đủ thanh toán</p>
+                            </div>
+                            <button
+                              onClick={handleQuickDeposit}
+                              disabled={submitting}
+                              className="bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold py-1.5 px-3 rounded-xl transition-all"
+                            >
+                              Nạp {Math.max(10000, total - walletBalance).toLocaleString('vi-VN')}đ
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => setPaymentMethod('PayOS')}
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'PayOS' 
+                        ? 'border-[#FF4C4C] bg-red-50' 
+                        : 'border-gray-200 bg-white hover:border-red-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 mb-1">
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                        paymentMethod === 'PayOS' ? 'border-[#FF4C4C]' : 'border-gray-300'
+                      }`}>
+                        {paymentMethod === 'PayOS' && <div className="w-2 h-2 rounded-full bg-[#FF4C4C]" />}
+                      </div>
+                      <p className="text-sm font-bold text-stone-800">Thanh toán qua Ngân hàng (VietQR)</p>
+                    </div>
+                    <p className="text-xs text-stone-500 pl-7">
+                      Chuyển hướng tới cổng thanh toán PayOS để quét mã QR chuyển khoản.
+                    </p>
+                  </button>
                 </div>
               </div>
 
@@ -1672,7 +1796,7 @@ function ConfirmationPopup({
                 Back
               </button>
               <button
-                disabled={submitting}
+                disabled={submitting || (paymentMethod === 'Wallet' && (walletBalance === null || walletBalance < total))}
                 onClick={handlePayAndBook}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-300 text-white shadow-sm transition-all flex items-center justify-center gap-2"
               >
@@ -1781,6 +1905,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
 
   const [myVehicles, setMyVehicles] = useState<VehicleResponse[]>([]);
   const [loadingMyVehicles, setLoadingMyVehicles] = useState(false);
+  const [stepError, setStepError] = useState<string | null>(null);
 
   const [state, setState] = useState<WizardState>({
     vehicleType: null,
@@ -1995,9 +2120,24 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
   };
 
   const handleNext = () => {
+    setStepError(null);
+    if (step === 3) {
+      if (state.entryDate && state.entryTime) {
+        const now = new Date();
+        const [h, m] = state.entryTime.split(':').map(Number);
+        const entry = new Date(state.entryDate);
+        entry.setHours(h, m, 0, 0);
+
+        if (entry <= now) {
+          setStepError('Thời gian bắt đầu phải lớn hơn thời điểm hiện tại.');
+          return;
+        }
+      }
+    }
     if (step < 5 && canAdvance()) setStep((s) => s + 1);
   };
   const handleBack = () => {
+    setStepError(null);
     if (step > 1) setStep((s) => s - 1);
   };
 
@@ -2074,8 +2214,14 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
           </div>
 
           {/* ── Modal Footer ── */}
-          <div className="flex-shrink-0 px-6 py-4 border-t border-gray-150 flex items-center justify-between gap-3 bg-gray-50/50">
-            <div className="w-24"></div> {/* Placeholder to keep center alignment */}
+          <div className="flex-shrink-0 px-6 py-4 border-t border-gray-150 flex flex-col gap-3 bg-gray-50/50">
+            {stepError && (
+              <div className="bg-red-50 border border-red-100 text-red-500 text-xs px-4 py-2.5 rounded-xl text-center font-bold w-full">
+                ⚠️ {stepError}
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <div className="w-24"></div> {/* Placeholder to keep center alignment */}
 
             <span className="text-xs text-stone-500 font-bold">
               {step} / {STEPS.length}
@@ -2106,6 +2252,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
                 Confirm Booking
               </button>
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -2131,6 +2278,9 @@ export default function BookingPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const stateLot = location.state?.lot as ParkingLot | undefined;
+
+  const { token } = useAuth();
+  useNotification(token);
 
   const [lot, setLot] = useState<ParkingLot | null>(stateLot || null);
   const [loadingLot, setLoadingLot] = useState(false);
