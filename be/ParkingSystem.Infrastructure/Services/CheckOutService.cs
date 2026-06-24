@@ -31,8 +31,13 @@ public class CheckOutService : ICheckOutService
         _realtimeService = realtimeService;
     }
 
-    public async Task<CheckOutSearchResult> SearchByLicensePlateAsync(string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
+    public async Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
     {
+        if (string.IsNullOrWhiteSpace(qrCode))
+        {
+            throw new InvalidOperationException("Vui long quet ma QR the xe.");
+        }
+
         var cleanedInput = CleanLicensePlate(licensePlate);
 
         var activeSessions = await _context.ParkingSessions
@@ -43,13 +48,19 @@ public class CheckOutService : ICheckOutService
             .Where(s => s.Status == SessionStatus.Active)
             .ToListAsync();
 
-        var session = activeSessions
-            .FirstOrDefault(s => CleanLicensePlate(s.LicensePlate) == cleanedInput);
+        var session = activeSessions.FirstOrDefault(s => 
+            (!string.IsNullOrEmpty(s.SessionCode) && s.SessionCode.Equals(qrCode, StringComparison.OrdinalIgnoreCase)) ||
+            s.Id.ToString().Equals(qrCode, StringComparison.OrdinalIgnoreCase)
+        );
 
         if (session == null)
         {
-            throw new InvalidOperationException(
-                $"Khong tim thay phien gui xe dang hoat dong cho bien so: {cleanedInput}.");
+            throw new InvalidOperationException("Ma the xe khong hop le hoac phien gui xe khong ton tai.");
+        }
+
+        if (CleanLicensePlate(session.LicensePlate) != cleanedInput)
+        {
+            throw new InvalidOperationException($"Bien so xe ({licensePlate}) khong khop voi the xe.");
         }
 
         Guid? effectiveBuildingId = requestBuildingId;
@@ -356,6 +367,11 @@ public class CheckOutService : ICheckOutService
 
     public async Task<OcrCheckOutResult> ProcessOcrCheckOutAsync(OcrCheckOutRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.QrCode))
+        {
+            throw new InvalidOperationException("Vui long quet ma QR the xe.");
+        }
+
         var ocrResult = await _lprService.RecognizeFrameAsync(request.ImageBase64);
 
         if (!ocrResult.IsDetected || string.IsNullOrWhiteSpace(ocrResult.LicensePlate))
@@ -374,13 +390,19 @@ public class CheckOutService : ICheckOutService
             .Where(s => s.Status == SessionStatus.Active)
             .ToListAsync();
 
-        var session = activeSessions
-            .FirstOrDefault(s => CleanLicensePlate(s.LicensePlate) == normalizedExitPlate);
+        var session = activeSessions.FirstOrDefault(s => 
+            (!string.IsNullOrEmpty(s.SessionCode) && s.SessionCode.Equals(request.QrCode, StringComparison.OrdinalIgnoreCase)) ||
+            s.Id.ToString().Equals(request.QrCode, StringComparison.OrdinalIgnoreCase)
+        );
 
         if (session == null)
         {
-            throw new InvalidOperationException(
-                $"Khong tim thay phien gui xe dang hoat dong cho bien so: {exitPlate}.");
+            throw new InvalidOperationException("Ma the xe khong hop le hoac phien gui xe khong ton tai.");
+        }
+
+        if (CleanLicensePlate(session.LicensePlate) != normalizedExitPlate)
+        {
+            throw new InvalidOperationException($"Bien so xe tu camera ({exitPlate}) khong khop voi the xe.");
         }
 
         Guid? effectiveBuildingId = request.BuildingId;

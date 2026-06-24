@@ -156,6 +156,7 @@ public class OcrCheckOutRequest
     /// Anh chup bien so xe tu camera, dinh dang Base64.
     /// </summary>
     public string ImageBase64 { get; set; } = string.Empty;
+    public string QrCode { get; set; } = string.Empty;
     public Guid StaffId { get; set; }
     public Guid? BuildingId { get; set; }
 }
