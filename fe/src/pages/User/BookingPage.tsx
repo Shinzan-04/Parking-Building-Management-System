@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   X,
   ChevronRight,
@@ -19,6 +19,8 @@ import {
   ChevronDown,
   Sun,
   Moon,
+  User,
+  LogOut,
 } from 'lucide-react';
 import { getVehicleTypes } from '../../services/vehicleTypesService';
 import { getAllPolicies, getPolicyByVehicleType } from '../../services/pricingService';
@@ -2175,7 +2177,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
 
   return (
     <>
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#F3F3F5] p-4 sm:p-6 relative">
+      <div className="h-full min-h-[calc(100vh-5rem)] w-full flex items-center justify-center bg-[#F3F3F5] p-4 sm:p-6 relative">
         <button
           onClick={step === 1 ? onClose : handleBack}
           className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-stone-600 bg-white border-2 border-gray-200/60 hover:border-gray-300 hover:text-stone-900 transition-all shadow-sm z-10"
@@ -2278,11 +2280,33 @@ export default function BookingPage() {
   const location = useLocation();
   const stateLot = location.state?.lot as ParkingLot | undefined;
 
-  const { token } = useAuth();
+  const { user, token, logout } = useAuth();
   useNotification(token);
 
   const [lot, setLot] = useState<ParkingLot | null>(stateLot || null);
   const [loadingLot, setLoadingLot] = useState(false);
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/auth');
+  };
+
+  const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
 
   useEffect(() => {
     if (!lot) {
@@ -2309,5 +2333,102 @@ export default function BookingPage() {
     );
   }
 
-  return <BookingWizardInner lot={lot} onClose={() => navigate(-1)} />;
+  return (
+    <div className="min-h-screen bg-[#F3F3F5] flex flex-col">
+      {/* Navigation Bar */}
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            <div className="flex items-center gap-2.5">
+              <Link to="/" className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-lg shadow-sm shadow-[#FF4C4C]/25">
+                  P
+                </div>
+                <span className="text-xl font-extrabold tracking-tight text-stone-900">
+                  Parking<span className="text-[#FF4C4C]">.</span>
+                </span>
+              </Link>
+            </div>
+
+            <div className="hidden md:flex items-center gap-10">
+              <Link to="/my-tickets" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
+                My Ticket
+              </Link>
+              <Link to="/find-parking" className="text-sm font-semibold text-[#FF4C4C] transition-colors cursor-pointer">
+                Find Parking
+              </Link>
+            </div>
+
+            <div className="flex items-center gap-3">
+              {token && user ? (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center gap-2.5 bg-gray-100 border border-gray-200/50 rounded-full py-1.5 pl-2 pr-4 hover:bg-gray-200 transition-all focus:outline-none"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/25">
+                      {initials}
+                    </div>
+                    <span className="text-sm text-stone-800 font-semibold hidden sm:block">
+                      {user.fullName}
+                    </span>
+                    <ChevronDown
+                      size={14}
+                      className={`text-stone-500 transition-transform duration-200 ${
+                        isDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {isDropdownOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
+                      <button
+                        type="button"
+                        onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                      >
+                        <User size={16} />
+                        <span>Profile</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        type="button"
+                        onClick={() => { setIsDropdownOpen(false); navigate('/my-vehicles'); }}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                      >
+                        <Car size={16} />
+                        <span>My Vehicles</span>
+                      </button>
+                      <div className="border-t border-gray-100 my-1" />
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
+                      >
+                        <LogOut size={16} />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="bg-stone-900 hover:bg-stone-850 text-white font-bold px-6 py-2.5 rounded-full text-sm transition-all"
+                >
+                  Login / Register
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <div className="flex-1 pt-20">
+        <BookingWizardInner lot={lot} onClose={() => navigate(-1)} />
+      </div>
+    </div>
+  );
 }
