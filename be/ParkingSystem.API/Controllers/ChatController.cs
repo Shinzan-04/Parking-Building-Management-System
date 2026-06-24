@@ -50,6 +50,28 @@ public class ChatController : ControllerBase
 
         return Ok(messages);
     }
+
+    [HttpGet("sessions")]
+    public async Task<IActionResult> GetActiveSessions([FromQuery] Guid buildingId)
+    {
+        // Lấy các session đang chờ nhân viên (Escalated) hoặc đang được nhân viên xử lý (AgentHandling)
+        var sessions = await _context.ChatSessions
+            .Where(s => s.BuildingId == buildingId 
+                     && (s.Status == ChatSessionStatus.Escalated || s.Status == ChatSessionStatus.AgentHandling))
+            .OrderByDescending(s => s.EscalatedAt ?? s.CreatedAt)
+            .Select(s => new {
+                s.Id,
+                s.GuestId,
+                s.GuestName,
+                Status = s.Status.ToString(),
+                s.AgentId,
+                s.EscalatedAt,
+                s.CreatedAt
+            })
+            .ToListAsync();
+
+        return Ok(sessions);
+    }
 }
 
 public class StartChatRequest

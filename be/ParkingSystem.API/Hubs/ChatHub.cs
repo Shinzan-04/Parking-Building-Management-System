@@ -69,9 +69,37 @@ public class ChatHub : Hub
                 CreatedAt = DateTime.UtcNow
             };
             _context.ChatMessages.Add(botMsg);
+            
+            // Nếu AI "bó tay" và đề xuất gặp nhân viên -> Đổi status sang Escalated
+            if (botReply.Contains("[SUGGEST_LIVECHAT]"))
+            {
+                session.Status = ChatSessionStatus.Escalated;
+                session.EscalatedAt = DateTime.UtcNow;
+                
+                // Báo cho user biết session đang chờ nhân viên
+                await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "Escalated", null);
+
+                // Báo cho toàn bộ nhân viên của tòa nhà này biết có người cần hỗ trợ
+                if (session.BuildingId.HasValue)
+                {
+                    await Clients.Group($"Building_{session.BuildingId.Value}").SendAsync("NewEscalatedSession", session.Id);
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             await Clients.Group(sessionId).SendAsync("ReceiveMessage", botMsg.Id, "Bot", botReply, botMsg.CreatedAt);
+        }
+    }
+
+    /// <summary>
+    /// Staff join group của tòa nhà để nhận thông báo khi có người cần hỗ trợ
+    /// </summary>
+    public async Task JoinBuildingGroup(string buildingId)
+    {
+        if (Guid.TryParse(buildingId, out var bId))
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"Building_{bId}");
         }
     }
 
