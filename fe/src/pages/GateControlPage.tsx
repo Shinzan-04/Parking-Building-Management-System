@@ -310,7 +310,7 @@ export default function GateControlPage() {
         paymentAmount: exitSessionData.estimatedFee,
       }, token);
 
-      showNotification('success', `Thanh toán thành công: $${result.totalFee.toFixed(2)}. Mở Barrier!`);
+      showNotification('success', `Thanh toán thành công: ${result.totalFee.toLocaleString('vi-VN')} đ. Mở Barrier!`);
       setExitLicensePlate('');
       setExitSessionData(null);
       exitInputRef.current?.focus();
@@ -719,15 +719,59 @@ export default function GateControlPage() {
                           </div>
                           <div className="flex justify-between border-b border-gray-100 pb-2">
                             <span className="text-xs text-stone-400 font-bold">Vị trí đỗ</span>
-                            <span className="text-xs font-bold text-stone-800">{exitSessionData.floorName} - Ô {exitSessionData.slotNumber}</span>
+                            <span className="text-xs font-bold text-stone-800 capitalize">{exitSessionData.floorName} - Ô {exitSessionData.slotNumber}</span>
                           </div>
                           <div className="flex justify-between pt-1">
-                            <span className="text-xs text-stone-400 font-bold">Duration</span>
-                            <span className="text-sm font-bold text-stone-800">{exitSessionData.totalHours.toFixed(2)}h</span>
+                            <span className="text-xs text-stone-400 font-bold">Thời gian gửi</span>
+                            <span className="text-sm font-bold text-stone-800">
+                              {Math.floor(exitSessionData.totalHours)}h {Math.round((exitSessionData.totalHours % 1) * 60)}m
+                            </span>
                           </div>
-                          <div className="border-t border-gray-200/80 pt-3 flex items-center justify-between">
+
+                          {/* Surcharge Logs / Block Breakdown */}
+                          {exitSessionData.feeBreakdown && (
+                            <div className="border-t border-gray-100 pt-3 mt-3">
+                              <span className="text-xs text-stone-400 font-bold mb-3 flex items-center gap-2">
+                                Surcharge Logs (Quá giờ)
+                              </span>
+                              <div className="space-y-3 max-h-[120px] overflow-y-auto pr-2">
+                                {exitSessionData.feeBreakdown.dayPassCount > 0 && (
+                                  <div className="flex justify-between items-start pb-2 border-b border-gray-50 border-dashed">
+                                    <div>
+                                      <div className="text-xs font-bold text-red-500 mb-0.5">
+                                        Late Departure (Ngày)
+                                      </div>
+                                      <div className="text-[10px] text-stone-400 font-medium">
+                                        Số lượng: {exitSessionData.feeBreakdown.dayPassCount} block
+                                      </div>
+                                    </div>
+                                    <div className="text-xs font-black text-stone-800">
+                                      + {exitSessionData.feeBreakdown.dayPassTotal.toLocaleString('vi-VN')} đ
+                                    </div>
+                                  </div>
+                                )}
+                                {exitSessionData.feeBreakdown.nightPassCount > 0 && (
+                                  <div className="flex justify-between items-start pb-2 border-b border-gray-50 border-dashed">
+                                    <div>
+                                      <div className="text-xs font-bold text-red-500 mb-0.5">
+                                        Late Departure (Đêm)
+                                      </div>
+                                      <div className="text-[10px] text-stone-400 font-medium">
+                                        Số lượng: {exitSessionData.feeBreakdown.nightPassCount} block
+                                      </div>
+                                    </div>
+                                    <div className="text-xs font-black text-stone-800">
+                                      + {exitSessionData.feeBreakdown.nightPassTotal.toLocaleString('vi-VN')} đ
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="border-t border-gray-200/80 pt-3 mt-1 flex items-center justify-between">
                             <span className="text-xs text-stone-400 font-bold">Total fee</span>
-                            <span className="text-3xl font-black text-emerald-600">${exitSessionData.estimatedFee.toFixed(2)}</span>
+                            <span className="text-3xl font-black text-emerald-600">{exitSessionData.estimatedFee.toLocaleString('vi-VN')} đ</span>
                           </div>
                         </div>
                       ) : (
