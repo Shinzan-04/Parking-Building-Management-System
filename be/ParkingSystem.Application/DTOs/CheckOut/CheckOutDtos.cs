@@ -214,6 +214,13 @@ public class OcrCheckOutResult
     public string Message { get; set; } = string.Empty;
 }
 
+public class SurchargeLogItemDto
+{
+    public string Name { get; set; } = string.Empty;
+    public DateTime Timestamp { get; set; }
+    public decimal Amount { get; set; }
+}
+
 public class FeeBreakdownDto
 {
     /// <summary>
@@ -240,6 +247,8 @@ public class FeeBreakdownDto
     /// Tong phi = DayPassTotal + NightPassTotal.
     /// </summary>
     public decimal TotalFee { get; set; }
+
+    public List<SurchargeLogItemDto> SurchargeLogs { get; set; } = new();
 }
 
 /// <summary>

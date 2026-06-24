@@ -14,5 +14,6 @@ public class MyActiveSessionResponse
     public decimal PricePerHour { get; set; }
     public decimal CurrentFee { get; set; }
     public bool IsPrepaid { get; set; }
+    public DateTime? PrepaidStartTime { get; set; }
     public DateTime? PrepaidEndTime { get; set; }
 }

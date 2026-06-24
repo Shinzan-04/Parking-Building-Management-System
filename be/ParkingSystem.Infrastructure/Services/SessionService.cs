@@ -241,6 +241,7 @@ public class SessionService : ISessionService
         }
 
         bool isPrepaid = session.CheckInMethod == CheckInMethod.Booking && session.Reservation != null;
+        DateTime? prepaidStartTime = isPrepaid ? session.Reservation!.StartTime : null;
         DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : null;
 
         return new MyActiveSessionResponse
@@ -257,6 +258,7 @@ public class SessionService : ISessionService
             PricePerHour = 0, // Dùng Block thay vì HourlyRate
             CurrentFee = currentFee,
             IsPrepaid = isPrepaid,
+            PrepaidStartTime = prepaidStartTime,
             PrepaidEndTime = prepaidEndTime
         };
     }
@@ -302,14 +304,14 @@ public class SessionService : ISessionService
         if (session == null)
             throw new InvalidOperationException("Không có phiên đỗ xe nào đang hoạt động để reset thời gian.");
 
-        var now = DateTime.UtcNow;
-        session.EntryTime = now;
+        var offset = session.CreatedAt - session.EntryTime;
+        
+        session.EntryTime = session.EntryTime.Add(offset);
         
         if (session.Reservation != null)
         {
-            var originalDuration = session.Reservation.EndTime - session.Reservation.StartTime;
-            session.Reservation.StartTime = now;
-            session.Reservation.EndTime = now.Add(originalDuration);
+            session.Reservation.StartTime = session.Reservation.StartTime.Add(offset);
+            session.Reservation.EndTime = session.Reservation.EndTime.Add(offset);
         }
 
         await _context.SaveChangesAsync();
