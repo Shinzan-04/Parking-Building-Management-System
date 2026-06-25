@@ -723,13 +723,18 @@ function StepSelectFloor({
   floors,
   loading,
   allBuildingSlots,
+  lotId,
+  onNext,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   floors: FloorResponse[];
   loading: boolean;
   allBuildingSlots: ParkingSlotDetail[];
+  lotId: string;
+  onNext: () => void;
 }) {
+  const [loadingAi, setLoadingAi] = useState(false);
   const floorIconComponents = [ParkingSquare, Car, Layers, Building2];
 
   if (loading) {
@@ -753,14 +758,48 @@ function StepSelectFloor({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
-          <Layers size={20} className="text-[#FF4C4C]" />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 border border-[#FF4C4C]/25 flex items-center justify-center">
+            <Layers size={20} className="text-[#FF4C4C]" />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold text-stone-900 dark:text-white transition-colors">Select Floor</h2>
+            <p className="text-xs text-stone-500">Step 4 of 6 — Choose a floor to park on</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-lg font-bold text-stone-900">Select Floor</h2>
-          <p className="text-xs text-stone-500">Step 4 of 6 — Choose a floor to park on</p>
-        </div>
+        <button
+          onClick={async () => {
+            try {
+              setLoadingAi(true);
+              const token = localStorage.getItem('sp_token') || '';
+              const suggestions = await getAiSuggestions(state.vehicleType!, lotId, 1, token);
+              if (suggestions.length > 0) {
+                const best = suggestions[0];
+                setState(s => ({
+                  ...s,
+                  floor: best.floorId,
+                  slotId: best.slotId,
+                  slot: best.slotNumber,
+                  zone: getZoneName(best.slotNumber),
+                  bookingMethod: 1 // Mark as AI Recommended
+                }));
+                onNext();
+              } else {
+                alert('Không có chỗ đỗ nào khả dụng theo gợi ý của AI.');
+              }
+            } catch (err: any) {
+              alert('AI Suggest error: ' + err.message);
+            } finally {
+              setLoadingAi(false);
+            }
+          }}
+          disabled={loadingAi}
+          className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
+        >
+          {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          {loadingAi ? 'AI Thinking...' : 'AI Suggest'}
+        </button>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -837,13 +876,14 @@ function StepSelectSlot({
   setState,
   slots,
   vehicles,
+  lotId,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   slots: ParkingSlotDetail[];
   vehicles: ApiVehicleType[];
+  lotId: string;
 }) {
-  const [loadingAi, setLoadingAi] = useState(false);
   const COLS = 8; // Số cột trong lưới (A → H)
 
   const selectedVehicle = vehicles.find((v) => v.id === state.vehicleType);
@@ -907,39 +947,7 @@ function StepSelectSlot({
             </p>
           </div>
         </div>
-        <button
-          onClick={async () => {
-            try {
-              setLoadingAi(true);
-              const token = localStorage.getItem('sp_token') || '';
-              const suggestions = await getAiSuggestions(state.vehicleType!, undefined, 1, token);
-              if (suggestions.length > 0) {
-                const best = suggestions[0];
-                setState(s => ({
-                  ...s,
-                  floor: best.floorId,
-                  slotId: best.slotId,
-                  slot: best.slotNumber,
-                  zone: getZoneName(best.slotNumber),
-                  bookingMethod: 1 // Mark as AI Recommended
-                }));
-              } else {
-                alert('Không có chỗ đỗ nào khả dụng theo gợi ý của AI.');
-              }
-            } catch (err: any) {
-              alert('AI Suggest error: ' + err.message);
-            } finally {
-              setLoadingAi(false);
-            }
-          }}
-          disabled={loadingAi}
-          className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
-        >
-          {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          {loadingAi ? 'AI Thinking...' : 'AI Suggest'}
-        </button>
       </div>
-
       {/* ── Stats Thống kê nhanh ── */}
       <div className="flex items-center gap-4 flex-wrap">
         {[
@@ -2167,8 +2175,8 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
         />
       );
       case 3: return <StepDateTime state={state} setState={setState} vehicles={vehicles} policy={policy} />;
-      case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} allBuildingSlots={allBuildingSlots} />;
-      case 5: return <StepSelectSlot state={state} setState={setState} slots={slots} vehicles={vehicles} />;
+      case 4: return <StepSelectFloor state={state} setState={setState} floors={floors} loading={loadingFloors} allBuildingSlots={allBuildingSlots} lotId={lot.id} onNext={() => setStep(5)} />;
+      case 5: return <StepSelectSlot state={state} setState={setState} slots={slots} vehicles={vehicles} lotId={lot.id} />;
       default: return null;
     }
   };

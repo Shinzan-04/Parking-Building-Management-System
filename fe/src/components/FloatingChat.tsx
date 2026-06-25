@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import { MessageCircle, X, Send, User, Bot, Headset, MapPin } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
@@ -23,8 +24,33 @@ export const FloatingChat: React.FC = () => {
   const [guestPhone, setGuestPhone] = useState('');
   const [hasSubmittedInfo, setHasSubmittedInfo] = useState(false);
   const [buildings, setBuildings] = useState<any[]>([]);
+  const { user } = useAuth();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-submit info if logged in and escalated
+  useEffect(() => {
+    if (status === 'Escalated' && !hasSubmittedInfo && sessionId) {
+      const userRaw = localStorage.getItem('sp_user');
+      const currentUser = userRaw ? JSON.parse(userRaw) : user;
+      
+      if (currentUser) {
+        const autoSubmit = async () => {
+          try {
+            await fetch(`${API_URL}/api/Chat/${sessionId}/guest-info`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: currentUser.fullName || 'User', phone: currentUser.phoneNumber || currentUser.email || 'N/A' })
+            });
+            setHasSubmittedInfo(true);
+          } catch (err) {
+            console.error('Lỗi tự động lưu thông tin:', err);
+          }
+        };
+        autoSubmit();
+      }
+    }
+  }, [status, hasSubmittedInfo, sessionId, user]);
 
   // Fetch buildings
   useEffect(() => {
@@ -217,7 +243,7 @@ export const FloatingChat: React.FC = () => {
                 );
               })}
               
-              {status === 'Escalated' && !hasSubmittedInfo && (
+              {status === 'Escalated' && !hasSubmittedInfo && !localStorage.getItem('sp_user') && !user && (
                 <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mx-2">
                   <p className="text-sm font-medium mb-3 text-gray-800">Để lại thông tin để nhân viên liên hệ:</p>
                   <div className="space-y-2">
