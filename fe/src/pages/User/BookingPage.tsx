@@ -556,10 +556,10 @@ function StepDateTime({
   const totalBlocks = policy && policy.blockDurationHours > 0 ? Math.ceil(state.duration / policy.blockDurationHours) : 1;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-3">
 
       {/* Booking Date */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-1.5">
         <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
           Booking Date
         </label>
@@ -569,8 +569,8 @@ function StepDateTime({
             onClick={() => setIsDatePickerOpen(true)}
             className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
           />
-          <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm transition-colors group-hover:border-gray-300 dark:group-hover:border-white/20">
-            <span className="text-[15px] font-bold text-stone-800 dark:text-white transition-colors">
+          <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors group-hover:border-gray-300 dark:group-hover:border-white/20">
+            <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors">
               {state.entryDate ? formatDateFancy(state.entryDate) : 'Select Date'}
             </span>
             <ChevronDown size={16} className="text-stone-400" />
@@ -579,7 +579,7 @@ function StepDateTime({
       </div>
 
       {/* Arrival Time */}
-      <div className="flex flex-col gap-2 -mt-1">
+      <div className="flex flex-col gap-1.5 mt-1">
         <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
           Arrival Time
         </label>
@@ -589,8 +589,8 @@ function StepDateTime({
             onClick={() => setIsTimePickerOpen(true)}
             className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
           />
-          <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm transition-colors">
-            <span className="text-[15px] font-bold text-stone-800 dark:text-white transition-colors">
+          <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors">
+            <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors">
               {state.entryTime || 'Select Time'}
             </span>
             <ChevronDown size={16} className="text-stone-400" />
@@ -599,7 +599,7 @@ function StepDateTime({
       </div>
 
       {/* Exit Time (Duration Selector) */}
-      <div className="flex flex-col gap-2 -mt-1">
+      <div className="flex flex-col gap-1.5 mt-1">
         <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
           Exit Time
         </label>
@@ -609,8 +609,8 @@ function StepDateTime({
             onClick={() => setIsExitTimePickerOpen(true)}
             className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
           />
-          <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-3 flex items-center justify-between shadow-sm transition-colors cursor-pointer group-hover:border-gray-300 dark:group-hover:border-white/20">
-            <span className="text-[15px] font-bold text-stone-800 dark:text-white transition-colors">
+          <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors cursor-pointer group-hover:border-gray-300 dark:group-hover:border-white/20">
+            <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors">
               {state.exitTime || exitInfo.time} <span className="text-stone-500 dark:text-stone-400 font-medium ml-1 text-sm">({exitInfo.date})</span>
             </span>
             <ChevronDown size={16} className="text-stone-400" />
@@ -620,8 +620,8 @@ function StepDateTime({
 
       {/* Block Breakdown */}
       {costResult.total > 0 && costResult.blocksDetails && costResult.blocksDetails.length > 0 && (
-        <div className="mt-1 border border-dashed border-gray-300 dark:border-white/10 rounded-xl p-4 bg-white/50 dark:bg-white/5">
-          <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-3">
+        <div className="mt-2 border border-dashed border-gray-300 dark:border-white/10 rounded-xl p-3 bg-white/50 dark:bg-white/5">
+          <p className="text-[10px] font-bold text-stone-500 uppercase tracking-widest mb-2">
             Block Breakdown ({totalBlocks} Blocks)
           </p>
           <div className="flex flex-row flex-wrap gap-2">
@@ -636,7 +636,7 @@ function StepDateTime({
       )}
 
       {/* Your Parking */}
-      <div className="mt-1 bg-[#E8F1FF] dark:bg-[#FF4C4C]/10 rounded-2xl p-5 border border-blue-100/60 dark:border-[#FF4C4C]/20 shadow-sm">
+      <div className="mt-2 bg-[#E8F1FF] dark:bg-[#FF4C4C]/10 rounded-2xl p-4 border border-blue-100/60 dark:border-[#FF4C4C]/20 shadow-sm">
         <div className="flex justify-between items-start">
           <div className="flex flex-col">
             <span className="text-[10px] font-bold text-stone-600 dark:text-stone-400 uppercase tracking-widest mb-3">
@@ -1598,16 +1598,14 @@ function ConfirmationPopup({
                 <div className="flex flex-col gap-3">
                   <button
                     onClick={() => setPaymentMethod('Wallet')}
-                    className={`text-left p-4 rounded-xl border-2 transition-all ${
-                      paymentMethod === 'Wallet' 
-                        ? 'border-[#FF4C4C] bg-red-50 dark:bg-[#FF4C4C]/10' 
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${paymentMethod === 'Wallet'
+                        ? 'border-[#FF4C4C] bg-red-50 dark:bg-[#FF4C4C]/10'
                         : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[#18181B] hover:border-red-200 dark:hover:border-[#FF4C4C]/30'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3 mb-1">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        paymentMethod === 'Wallet' ? 'border-[#FF4C4C]' : 'border-gray-300 dark:border-white/20'
-                      }`}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'Wallet' ? 'border-[#FF4C4C]' : 'border-gray-300 dark:border-white/20'
+                        }`}>
                         {paymentMethod === 'Wallet' && <div className="w-2 h-2 rounded-full bg-[#FF4C4C]" />}
                       </div>
                       <p className="text-sm font-bold text-stone-800 dark:text-white transition-colors">Thanh toán qua Ví Hệ Thống</p>
@@ -1640,16 +1638,14 @@ function ConfirmationPopup({
 
                   <button
                     onClick={() => setPaymentMethod('PayOS')}
-                    className={`text-left p-4 rounded-xl border-2 transition-all ${
-                      paymentMethod === 'PayOS' 
-                        ? 'border-[#FF4C4C] bg-red-50 dark:bg-[#FF4C4C]/10' 
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${paymentMethod === 'PayOS'
+                        ? 'border-[#FF4C4C] bg-red-50 dark:bg-[#FF4C4C]/10'
                         : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[#18181B] hover:border-red-200 dark:hover:border-[#FF4C4C]/30'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3 mb-1">
-                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                        paymentMethod === 'PayOS' ? 'border-[#FF4C4C]' : 'border-gray-300 dark:border-white/20'
-                      }`}>
+                      <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${paymentMethod === 'PayOS' ? 'border-[#FF4C4C]' : 'border-gray-300 dark:border-white/20'
+                        }`}>
                         {paymentMethod === 'PayOS' && <div className="w-2 h-2 rounded-full bg-[#FF4C4C]" />}
                       </div>
                       <p className="text-sm font-bold text-stone-800 dark:text-white transition-colors">Thanh toán qua Ngân hàng (VietQR)</p>
@@ -1827,7 +1823,7 @@ function ConfirmationPopup({
           )}
 
           {phase === 'checkout' && (
-              <button
+            <button
               onClick={() => {
                 try { payosTabRef.current?.close(); } catch { }
                 payosTabRef.current = null;
@@ -2187,16 +2183,16 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
 
   return (
     <>
-      <div className="h-full min-h-[calc(100vh-5rem)] w-full flex items-center justify-center bg-[#F3F3F5] dark:bg-[#0A0A0C] transition-colors duration-300 p-4 sm:p-6 relative">
+      <div className="h-[calc(100vh-5rem)] w-full flex items-center justify-center bg-[#F3F3F5] dark:bg-[#0A0A0C] transition-colors duration-300 p-4 sm:p-6 relative">
         <button
           onClick={step === 1 ? onClose : handleBack}
-          className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold text-stone-600 dark:text-stone-400 bg-white dark:bg-[#18181B] border-2 border-gray-200/60 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 hover:text-stone-900 dark:hover:text-white transition-all shadow-sm z-10"
+          className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold text-stone-600 dark:text-stone-400 bg-white dark:bg-[#18181B] border-2 border-gray-200/60 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 hover:text-stone-900 dark:hover:text-white transition-all shadow-sm z-10"
         >
           <ChevronLeft size={18} strokeWidth={2.5} />
           {step === 1 ? 'Exit' : 'Back'}
         </button>
         <div
-          className="relative w-full max-w-3xl bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-3xl shadow-xl dark:shadow-2xl flex flex-col overflow-hidden h-[90vh] transition-colors duration-300"
+          className="relative w-full max-w-3xl bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-3xl shadow-xl dark:shadow-2xl flex flex-col overflow-hidden max-h-full transition-colors duration-300"
         >
           {/* ── Modal Header ── */}
           <div className="flex-shrink-0 px-6 pt-6 pb-5 border-b border-gray-150 dark:border-white/10 transition-colors duration-300">
@@ -2234,35 +2230,35 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
             <div className="flex items-center justify-between gap-3">
               <div className="w-24"></div> {/* Placeholder to keep center alignment */}
 
-            <span className="text-xs text-stone-500 font-bold">
-              {step} / {STEPS.length}
-            </span>
+              <span className="text-xs text-stone-500 font-bold">
+                {step} / {STEPS.length}
+              </span>
 
-            {step < 5 ? (
-              <button
-                onClick={handleNext}
-                disabled={!canAdvance()}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
-                  ? 'bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-sm shadow-[#FF4C4C]/10'
-                  : 'bg-gray-100 dark:bg-white/5 text-stone-300 dark:text-stone-600 border-gray-200/80 dark:border-white/10 cursor-not-allowed'
-                  }`}
-              >
-                Continue
-                <ChevronRight size={16} />
-              </button>
-            ) : (
-              <button
-                onClick={handleConfirm}
-                disabled={!canAdvance()}
-                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
-                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
-                  : 'bg-gray-100 dark:bg-white/5 text-stone-300 dark:text-stone-600 border-gray-200/80 dark:border-white/10 cursor-not-allowed'
-                  }`}
-              >
-                <CheckCircle2 size={16} />
-                Confirm Booking
-              </button>
-            )}
+              {step < 5 ? (
+                <button
+                  onClick={handleNext}
+                  disabled={!canAdvance()}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
+                    ? 'bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-sm shadow-[#FF4C4C]/10'
+                    : 'bg-gray-100 dark:bg-white/5 text-stone-300 dark:text-stone-600 border-gray-200/80 dark:border-white/10 cursor-not-allowed'
+                    }`}
+                >
+                  Continue
+                  <ChevronRight size={16} />
+                </button>
+              ) : (
+                <button
+                  onClick={handleConfirm}
+                  disabled={!canAdvance()}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
+                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
+                    : 'bg-gray-100 dark:bg-white/5 text-stone-300 dark:text-stone-600 border-gray-200/80 dark:border-white/10 cursor-not-allowed'
+                    }`}
+                >
+                  <CheckCircle2 size={16} />
+                  Confirm Booking
+                </button>
+              )}
             </div>
           </div>
         </div>
