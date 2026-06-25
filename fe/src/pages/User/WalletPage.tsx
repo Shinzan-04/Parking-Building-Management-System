@@ -367,7 +367,7 @@ export default function WalletPage() {
   });
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--lp-bg)', color: 'var(--lp-text)', padding: '32px 16px', fontFamily: 'inherit' }}>
+    <div style={{ minHeight: '100%', background: 'var(--lp-bg)', color: 'var(--lp-text)', padding: '32px 16px', fontFamily: 'inherit' }}>
       <div style={{ maxWidth: 680, margin: '0 auto' }}>
 
         {/* Header */}

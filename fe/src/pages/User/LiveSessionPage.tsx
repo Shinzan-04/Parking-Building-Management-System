@@ -151,7 +151,7 @@ export default function LiveSessionPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F4F7F9] text-slate-800 font-sans pb-10 relative">
+    <div className="min-h-full bg-[#F4F7F9] text-slate-800 font-sans pb-10 relative">
       {/* Header */}
       <div className="bg-white px-4 py-4 flex items-center shadow-sm sticky top-0 z-50 lg:px-8">
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-500 hover:text-slate-800 transition-colors">

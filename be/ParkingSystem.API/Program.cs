@@ -21,13 +21,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:5174",
-                "http://localhost:5175",
-                "http://localhost:3000"
-              )
-              .AllowAnyMethod()
+        policy.SetIsOriginAllowed(origin => true).AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials());
 });
@@ -90,6 +84,7 @@ builder.Services.AddScoped<ICheckOutService, ParkingSystem.Infrastructure.Servic
 builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
 builder.Services.AddScoped<IVehicleService, ParkingSystem.Infrastructure.Services.VehicleService>();
 builder.Services.AddScoped<IWalletService, ParkingSystem.Infrastructure.Services.WalletService>();
+builder.Services.AddHttpClient<IAiChatService, ParkingSystem.Infrastructure.Services.GeminiChatService>();
 
 // Register PayOS options from appsettings.json section "PayOS"
 builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(
@@ -169,7 +164,7 @@ builder.Services.AddAuthentication(options =>
             // 2. Cho SignalR gọi bằng query string ?access_token=...
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/parking-hub"))
+            if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/parking-hub") || path.StartsWithSegments("/chatHub")))
             {
                 context.Token = accessToken;
             }
@@ -213,11 +208,12 @@ app.UseDefaultFiles(new Microsoft.AspNetCore.Builder.DefaultFilesOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
         Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"))),
-    RequestPath = new Microsoft.AspNetCore.Http.PathString("/uitest"),});
-    app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
+    RequestPath = new Microsoft.AspNetCore.Http.PathString("/uitest"),
+});
+app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
 {
     FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"))),
+    Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"))),
     RequestPath = new Microsoft.AspNetCore.Http.PathString("/uitest"),
 });
 
@@ -227,5 +223,6 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<ParkingSystem.API.Hubs.ParkingHub>("/parking-hub");
+app.MapHub<ParkingSystem.API.Hubs.ChatHub>("/chatHub");
 
 app.Run();

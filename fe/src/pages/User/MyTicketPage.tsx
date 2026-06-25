@@ -203,100 +203,8 @@ export default function MyTicketPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F3F3F5] text-stone-900 font-sans antialiased selection:bg-[#FF4C4C]/20 selection:text-[#FF4C4C] pb-12">
+    <div className="bg-[#F3F3F5] dark:bg-[#0A0A0C] text-stone-900 dark:text-[#F5F5F5] pb-12 min-h-full transition-colors duration-300">
       
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center gap-2.5">
-              <Link to="/" className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-lg shadow-sm shadow-[#FF4C4C]/25">
-                  P
-                </div>
-                <span className="text-xl font-extrabold tracking-tight text-stone-900">
-                  Parking<span className="text-[#FF4C4C]">.</span>
-                </span>
-              </Link>
-            </div>
-
-            <div className="hidden md:flex items-center gap-10">
-              <Link to="/my-tickets" className="text-sm font-semibold text-[#FF4C4C] transition-colors cursor-pointer">
-                My Ticket
-              </Link>
-              <Link to="/find-parking" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
-                Find Parking
-              </Link>
-
-            </div>
-
-            <div className="flex items-center gap-3">
-              {token && user ? (
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-2.5 bg-gray-100 border border-gray-200/50 rounded-full py-1.5 pl-2 pr-4 hover:bg-gray-200 transition-all focus:outline-none"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/25">
-                      {initials}
-                    </div>
-                    <span className="text-sm text-stone-800 font-semibold hidden sm:block">
-                      {user.fullName}
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`text-stone-500 transition-transform duration-200 ${
-                        isDropdownOpen ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
-                      <button
-                        type="button"
-                        onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
-                      >
-                        <User size={16} />
-                        <span>Profile</span>
-                      </button>
-                      <div className="border-t border-gray-100 my-1" />
-                      <button
-                        type="button"
-                        onClick={() => { setIsDropdownOpen(false); navigate('/my-vehicles'); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
-                      >
-                        <Car size={16} />
-                        <span>My Vehicles</span>
-                      </button>
-                      <div className="border-t border-gray-100 my-1" />
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
-                      >
-                        <LogOut size={16} />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Link
-                  to="/auth"
-                  className="bg-stone-900 hover:bg-stone-850 text-white font-bold px-6 py-2.5 rounded-full text-sm transition-all"
-                >
-                  Login / Register
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
-
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 w-full flex flex-col gap-8">
         
@@ -304,19 +212,19 @@ export default function MyTicketPage() {
         <div className="flex flex-col gap-3">
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-stone-500 hover:text-stone-900 transition-colors text-xs font-bold uppercase tracking-wider self-start"
+            className="flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white transition-colors text-xs font-bold uppercase tracking-wider self-start"
           >
             <ArrowLeft size={14} />
             Quay lại trang chủ
           </button>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-stone-950">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-stone-950 dark:text-white transition-colors duration-300">
             Vé đỗ xe của tôi<span className="text-[#FF4C4C]">.</span>
           </h1>
-          <p className="text-sm text-stone-500 font-medium">Quản lý lịch trình đỗ xe, lấy mã QR và kiểm tra trạng thái vé.</p>
+          <p className="text-sm text-stone-500 dark:text-stone-400 font-medium transition-colors duration-300">Quản lý lịch trình đỗ xe, lấy mã QR và kiểm tra trạng thái vé.</p>
         </div>
 
         {/* Tab selection */}
-        <div className="flex border-b border-gray-200 gap-6">
+        <div className="flex border-b border-gray-200 dark:border-white/10 gap-6 transition-colors duration-300">
           <button
             onClick={() => setActiveTab('active')}
             className={`pb-4 text-sm font-bold border-b-2 transition-all ${
@@ -349,19 +257,19 @@ export default function MyTicketPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 size={36} className="text-[#FF4C4C] animate-spin" />
-            <p className="text-sm text-stone-500 font-medium">Đang tải danh sách vé của bạn...</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400 font-medium transition-colors duration-300">Đang tải danh sách vé của bạn...</p>
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 text-red-500 text-sm rounded-2xl p-6 text-center font-bold">
             ⚠️ {error}
           </div>
         ) : filteredTickets.length === 0 ? (
-          <div className="bg-white border border-gray-200/80 rounded-[2rem] p-12 text-center flex flex-col items-center max-w-lg mx-auto shadow-sm">
-            <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center text-stone-450 mb-6">
-              <Ticket size={28} className="text-stone-400" />
+          <div className="bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-[2rem] p-12 text-center flex flex-col items-center max-w-lg mx-auto shadow-sm transition-colors duration-300">
+            <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-6 transition-colors duration-300">
+              <Ticket size={28} className="text-stone-400 dark:text-stone-500" />
             </div>
-            <h3 className="text-lg font-bold text-stone-850 mb-2">Không tìm thấy vé đỗ xe nào</h3>
-            <p className="text-xs text-stone-400 leading-relaxed mb-6 font-medium">
+            <h3 className="text-lg font-bold text-stone-850 dark:text-white mb-2 transition-colors duration-300">Không tìm thấy vé đỗ xe nào</h3>
+            <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed mb-6 font-medium transition-colors duration-300">
               {activeTab === 'active' 
                 ? 'Bạn hiện không có lượt đặt chỗ đỗ xe nào đang hoạt động.' 
                 : 'Lịch sử lượt đặt chỗ đỗ xe của bạn đang trống.'}
@@ -384,7 +292,7 @@ export default function MyTicketPage() {
               return (
                 <div
                   key={ticket.id}
-                  className="bg-white border border-gray-200/80 rounded-[2rem] p-6 shadow-sm hover:border-[#FF4C4C]/25 hover:shadow-lg hover:shadow-gray-200/15 transition-all duration-300 flex flex-col justify-between min-h-[320px]"
+                  className="bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-[2rem] p-6 shadow-sm hover:border-[#FF4C4C]/25 hover:shadow-lg transition-all duration-300 flex flex-col justify-between min-h-[320px]"
                 >
                   <div>
                     {/* Header: Status & Code */}
@@ -392,22 +300,22 @@ export default function MyTicketPage() {
                       <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${getStatusBadgeStyle(ticket.status)}`}>
                         {RESERVATION_STATUS_LABELS[status] || status}
                       </span>
-                      <span className="text-xs font-bold text-stone-400">
+                      <span className="text-xs font-bold text-stone-400 dark:text-stone-500 transition-colors duration-300">
                         Mã: <span className="text-[#FF4C4C] font-black">{ticket.bookingCode}</span>
                       </span>
                     </div>
 
                     {/* Facility name */}
-                    <h3 className="text-base font-extrabold text-stone-900 mb-4 flex items-center gap-1.5">
+                    <h3 className="text-base font-extrabold text-stone-900 dark:text-white mb-4 flex items-center gap-1.5 transition-colors duration-300">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C]" />
                       ParkSmart Building
                     </h3>
 
                     {/* Ticket Details */}
-                    <div className="space-y-2.5 border-t border-b border-gray-100 py-4 mb-5 text-xs font-medium text-stone-500">
+                    <div className="space-y-2.5 border-t border-b border-gray-100 dark:border-white/10 py-4 mb-5 text-xs font-medium text-stone-500 dark:text-stone-400 transition-colors duration-300">
                       <div className="flex justify-between">
                         <span>Biển số xe</span>
-                        <span className="font-bold text-stone-850">{ticket.licensePlate}</span>
+                        <span className="font-bold text-stone-850 dark:text-white">{ticket.licensePlate}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Vị trí ô đỗ</span>
@@ -417,13 +325,13 @@ export default function MyTicketPage() {
                       </div>
                       <div className="flex justify-between">
                         <span>Thời gian vào</span>
-                        <span className="font-bold text-stone-850">
+                        <span className="font-bold text-stone-850 dark:text-white">
                           {formatTimeDisplay(ticket.startTime)} ngày {formatDateDisplay(ticket.startTime)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>Thời gian đỗ</span>
-                        <span className="font-bold text-stone-850">
+                        <span className="font-bold text-stone-850 dark:text-white">
                           {getDurationHours(ticket.startTime, ticket.endTime)} tiếng
                         </span>
                       </div>
@@ -477,22 +385,22 @@ export default function MyTicketPage() {
       {/* ── QR CODE DISPLAY MODAL ── */}
       {selectedTicketForQr && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white border border-gray-200 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up">
+          <div className="w-full max-w-sm bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up transition-colors duration-300">
             
             {/* Header */}
-            <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex items-center justify-between">
+            <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between transition-colors duration-300">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-[#FF4C4C]/10 border border-[#FF4C4C]/30 flex items-center justify-center text-[#FF4C4C]">
                   <QrCode size={16} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-stone-850">Mã vé QR Code</h3>
-                  <p className="text-[10px] text-stone-400 font-medium">Dùng để quét xác nhận tại cổng vào</p>
+                  <h3 className="text-sm font-bold text-stone-850 dark:text-white transition-colors duration-300">Mã vé QR Code</h3>
+                  <p className="text-[10px] text-stone-400 dark:text-stone-500 font-medium transition-colors duration-300">Dùng để quét xác nhận tại cổng vào</p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedTicketForQr(null)}
-                className="p-1.5 rounded-xl text-stone-450 hover:text-stone-700 hover:bg-gray-100 transition-all"
+                className="p-1.5 rounded-xl text-stone-450 hover:text-stone-700 hover:bg-gray-100 dark:hover:text-white dark:hover:bg-white/10 transition-all"
               >
                 <X size={16} />
               </button>
@@ -526,27 +434,27 @@ export default function MyTicketPage() {
               </div>
 
               {/* Muted Specs summary */}
-              <div className="w-full bg-gray-50 border border-gray-200 rounded-2xl overflow-hidden text-xs font-semibold text-stone-500">
-                <div className="flex justify-between px-4 py-2.5 border-b border-gray-150">
-                  <span className="text-stone-400">Biển số</span>
-                  <span className="text-stone-800">{selectedTicketForQr.licensePlate}</span>
+              <div className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden text-xs font-semibold text-stone-500 dark:text-stone-400 transition-colors duration-300">
+                <div className="flex justify-between px-4 py-2.5 border-b border-gray-150 dark:border-white/10 transition-colors duration-300">
+                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Biển số</span>
+                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{selectedTicketForQr.licensePlate}</span>
                 </div>
-                <div className="flex justify-between px-4 py-2.5 border-b border-gray-150">
-                  <span className="text-stone-400">Vị trí đỗ</span>
-                  <span className="text-stone-800">{selectedTicketForQr.slotNumber || 'Tự động gán'}</span>
+                <div className="flex justify-between px-4 py-2.5 border-b border-gray-150 dark:border-white/10 transition-colors duration-300">
+                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Vị trí đỗ</span>
+                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{selectedTicketForQr.slotNumber || 'Tự động gán'}</span>
                 </div>
                 <div className="flex justify-between px-4 py-2.5">
-                  <span className="text-stone-400">Giờ vào</span>
-                  <span className="text-stone-800">{formatTimeDisplay(selectedTicketForQr.startTime)} • {formatDateDisplay(selectedTicketForQr.startTime)}</span>
+                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Giờ vào</span>
+                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{formatTimeDisplay(selectedTicketForQr.startTime)} • {formatDateDisplay(selectedTicketForQr.startTime)}</span>
                 </div>
               </div>
             </div>
 
             {/* Modal footer */}
-            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 transition-colors duration-300">
               <button
                 onClick={() => setSelectedTicketForQr(null)}
-                className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+                className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-white dark:hover:bg-gray-200 dark:text-stone-900 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
               >
                 Đóng
               </button>

@@ -189,98 +189,9 @@ export default function MyVehiclePage() {
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
 
   return (
-    <div className="min-h-screen bg-[#F3F3F5] text-stone-900 font-sans antialiased selection:bg-[#FF4C4C]/20 selection:text-[#FF4C4C] pb-12">
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center gap-2.5">
-              <Link to="/" className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-xl bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-lg shadow-sm shadow-[#FF4C4C]/25">
-                  P
-                </div>
-                <span className="text-xl font-extrabold tracking-tight text-stone-900">
-                  Parking<span className="text-[#FF4C4C]">.</span>
-                </span>
-              </Link>
-            </div>
-
-            <div className="hidden md:flex items-center gap-10">
-              <Link to="/my-tickets" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
-                My Ticket
-              </Link>
-              <Link to="/find-parking" className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors cursor-pointer">
-                Find Parking
-              </Link>
-
-            </div>
-
-            <div className="flex items-center gap-3">
-              {token && user ? (
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-2.5 bg-gray-100 border border-gray-200/50 rounded-full py-1.5 pl-2 pr-4 hover:bg-gray-200 transition-all focus:outline-none"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/25">
-                      {initials}
-                    </div>
-                    <span className="text-sm text-stone-800 font-semibold hidden sm:block">
-                      {user.fullName}
-                    </span>
-                    <ChevronDown
-                      size={14}
-                      className={`text-stone-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''
-                        }`}
-                    />
-                  </button>
-
-                  {/* Dropdown Menu */}
-                  {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200 origin-top-right">
-                      <button
-                        type="button"
-                        onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
-                      >
-                        <User size={16} />
-                        <span>Profile</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setIsDropdownOpen(false); navigate('/my-vehicles'); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-[#FF4C4C] bg-red-50/50 hover:bg-red-50 transition-colors text-left font-semibold"
-                      >
-                        <Car size={16} />
-                        <span>My Vehicles</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
-                      >
-                        <LogOut size={16} />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Link
-                  to="/auth"
-                  className="bg-stone-900 hover:bg-stone-850 text-white font-bold px-6 py-2.5 rounded-full text-sm transition-all"
-                >
-                  Login / Register
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
-
+    <div className="bg-[#F3F3F5] dark:bg-[#0A0A0C] text-stone-900 dark:text-[#F5F5F5] pb-12 min-h-full transition-colors duration-300">
       {/* Main Container */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 w-full flex flex-col gap-6">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 w-full flex flex-col gap-6">
 
         {/* Header Card ( Teal / Cyan Gradient ) */}
         <div className="bg-gradient-to-r from-teal-600 to-cyan-700 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
@@ -302,10 +213,10 @@ export default function MyVehiclePage() {
         </div>
 
         {/* Thẻ Bento chính chứa danh sách phương tiện */}
-        <div className="bg-white border border-gray-200/60 rounded-[2.5rem] p-8 shadow-xl">
+        <div className="bg-white dark:bg-[#18181B] border border-gray-200/60 dark:border-white/10 rounded-[2.5rem] p-8 shadow-xl transition-colors duration-300">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-xl font-black text-stone-900">Danh sách xe</h2>
+              <h2 className="text-xl font-black text-stone-900 dark:text-white transition-colors duration-300">Danh sách xe</h2>
               <p className="text-xs text-stone-400 font-bold mt-1 uppercase tracking-wider">
                 {vehicles.length} phương tiện đã đăng ký
               </p>
@@ -322,7 +233,7 @@ export default function MyVehiclePage() {
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <Loader2 size={32} className="text-[#FF4C4C] animate-spin" />
-              <p className="text-xs text-stone-400 font-bold tracking-widest uppercase">Đang tải danh sách phương tiện...</p>
+              <p className="text-xs text-stone-400 dark:text-stone-500 font-bold tracking-widest uppercase transition-colors duration-300">Đang tải danh sách phương tiện...</p>
             </div>
           ) : error ? (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center text-red-600 font-bold text-sm">
@@ -331,11 +242,11 @@ export default function MyVehiclePage() {
           ) : vehicles.length === 0 ? (
             // Empty State
             <div className="py-16 text-center flex flex-col items-center max-w-sm mx-auto">
-              <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center text-stone-400 mb-6 shadow-inner border border-gray-150">
+              <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-white/5 flex items-center justify-center text-stone-400 dark:text-stone-500 mb-6 shadow-inner border border-gray-150 dark:border-white/10 transition-colors duration-300">
                 <Car size={28} />
               </div>
-              <h3 className="text-base font-bold text-stone-850 mb-2">Bạn chưa đăng ký xe nào</h3>
-              <p className="text-xs text-stone-400 leading-relaxed mb-6 font-semibold">
+              <h3 className="text-base font-bold text-stone-850 dark:text-white mb-2 transition-colors duration-300">Bạn chưa đăng ký xe nào</h3>
+              <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed mb-6 font-semibold transition-colors duration-300">
                 Đăng ký biển số xe trước giúp bạn đặt chỗ (booking) và check-in/check-out nhanh chóng tại bốt giữ xe.
               </p>
               <button
@@ -352,16 +263,16 @@ export default function MyVehiclePage() {
                 return (
                   <div
                     key={vehicle.id}
-                    className="border border-gray-200/70 hover:border-[#FF4C4C]/30 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+                    className="border border-gray-200/70 dark:border-white/10 hover:border-[#FF4C4C]/30 dark:hover:border-[#FF4C4C]/50 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
                   >
                     <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-stone-550 border border-gray-150 shadow-inner shrink-0">
+                      <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-white/5 flex items-center justify-center text-stone-550 dark:text-stone-400 border border-gray-150 dark:border-white/10 shadow-inner shrink-0 transition-colors duration-300">
                         <Car size={22} />
                       </div>
 
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-lg font-black tracking-wide text-stone-900">
+                          <span className="text-lg font-black tracking-wide text-stone-900 dark:text-white transition-colors duration-300">
                             {vehicle.plateNumber}
                           </span>
                           {vehicle.isPrimary && (
@@ -372,8 +283,8 @@ export default function MyVehiclePage() {
                           )}
                         </div>
 
-                        <div className="text-xs font-semibold text-stone-450">
-                          Loại phương tiện: <strong className="text-stone-700 font-bold">{vehicle.vehicleTypeName}</strong>
+                        <div className="text-xs font-semibold text-stone-450 dark:text-stone-500 transition-colors duration-300">
+                          Loại phương tiện: <strong className="text-stone-700 dark:text-stone-300 font-bold transition-colors duration-300">{vehicle.vehicleTypeName}</strong>
                         </div>
                       </div>
                     </div>
@@ -382,21 +293,21 @@ export default function MyVehiclePage() {
                       {!vehicle.isPrimary && (
                         <button
                           onClick={() => handleSetPrimary(vehicle.id)}
-                          className="px-3.5 py-2 border border-gray-200 hover:border-emerald-500 text-stone-500 hover:text-emerald-600 hover:bg-emerald-50/20 rounded-xl text-xs font-bold transition-all focus:outline-none"
+                          className="px-3.5 py-2 border border-gray-200 dark:border-white/10 hover:border-emerald-500 text-stone-500 dark:text-stone-400 hover:text-emerald-600 hover:bg-emerald-50/20 dark:hover:bg-emerald-500/10 rounded-xl text-xs font-bold transition-all focus:outline-none"
                         >
                           Chọn làm mặc định
                         </button>
                       )}
                       <button
                         onClick={() => openEditModal(vehicle)}
-                        className="p-2 border border-gray-200 hover:border-[#FF4C4C] text-stone-500 hover:text-[#FF4C4C] hover:bg-red-50/20 rounded-xl transition-all focus:outline-none"
+                        className="p-2 border border-gray-200 dark:border-white/10 hover:border-[#FF4C4C] text-stone-500 dark:text-stone-400 hover:text-[#FF4C4C] hover:bg-red-50/20 dark:hover:bg-[#FF4C4C]/10 rounded-xl transition-all focus:outline-none"
                         title="Chỉnh sửa"
                       >
                         <Edit2 size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(vehicle.id, vehicle.plateNumber)}
-                        className="p-2 border border-gray-200 hover:border-red-500 text-stone-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all focus:outline-none"
+                        className="p-2 border border-gray-200 dark:border-white/10 hover:border-red-500 text-stone-500 dark:text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all focus:outline-none"
                         title="Xóa phương tiện"
                       >
                         <Trash2 size={14} />
@@ -413,16 +324,16 @@ export default function MyVehiclePage() {
       {/* ── ADD / EDIT VEHICLE MODAL ── */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white border border-gray-200 rounded-[2rem] shadow-2xl overflow-hidden animate-fade-in-up">
+          <div className="w-full max-w-md bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-[2rem] shadow-2xl overflow-hidden animate-fade-in-up transition-colors duration-300">
 
             {/* Header */}
-            <div className="px-6 pt-6 pb-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-lg font-black text-stone-900">
+            <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between transition-colors duration-300">
+              <h3 className="text-lg font-black text-stone-900 dark:text-white transition-colors duration-300">
                 {editingVehicle ? 'Cập nhật phương tiện' : 'Đăng ký phương tiện mới'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-gray-100 transition-all"
+                className="p-1.5 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-gray-100 dark:hover:text-white dark:hover:bg-white/10 transition-all"
               >
                 <X size={18} />
               </button>
@@ -441,14 +352,14 @@ export default function MyVehiclePage() {
 
                 {/* VEHICLE TYPE */}
                 <div>
-                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2 transition-colors duration-300">
                     Loại xe *
                   </label>
                   <div className="relative">
                     <select
                       value={formVehicleTypeId}
                       onChange={(e) => setFormVehicleTypeId(e.target.value)}
-                      className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold outline-none focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10 transition-all appearance-none cursor-pointer text-stone-850"
+                      className="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-semibold outline-none focus:border-[#FF4C4C] dark:focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10 transition-all appearance-none cursor-pointer text-stone-850 dark:text-white"
                     >
                       {vehicleTypes.map((type) => (
                         <option key={type.id} value={type.id}>
@@ -464,7 +375,7 @@ export default function MyVehiclePage() {
 
                 {/* LICENSE PLATE */}
                 <div>
-                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                  <label className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2 transition-colors duration-300">
                     Biển số xe *
                   </label>
                   <input
@@ -472,7 +383,7 @@ export default function MyVehiclePage() {
                     value={formPlateNumber}
                     onChange={(e) => setFormPlateNumber(e.target.value)}
                     placeholder="Ví dụ: 29A-123.45"
-                    className="w-full px-4 py-3 rounded-2xl bg-gray-50 border border-gray-200 text-sm font-semibold outline-none focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10 transition-all text-stone-850 placeholder:text-stone-300"
+                    className="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-semibold outline-none focus:border-[#FF4C4C] dark:focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10 transition-all text-stone-850 dark:text-white placeholder:text-stone-300 dark:placeholder:text-stone-600"
                     required
                   />
                 </div>
@@ -480,11 +391,11 @@ export default function MyVehiclePage() {
               </div>
 
               {/* Modal footer */}
-              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3">
+              <div className="px-6 py-4 border-t border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 flex justify-end gap-3 transition-colors duration-300">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-5 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-100 text-stone-500 text-xs font-bold transition-all focus:outline-none"
+                  className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 text-stone-500 dark:text-stone-400 dark:hover:text-white text-xs font-bold transition-all focus:outline-none"
                 >
                   Hủy
                 </button>

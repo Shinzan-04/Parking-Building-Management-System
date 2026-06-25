@@ -423,112 +423,9 @@ export default function FindParkingPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-[#F3F3F5] text-stone-900 overflow-hidden font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C]">
-
-      {/* ===== Top Navigation ===== */}
-      <nav className="relative flex-shrink-0 z-[9999] bg-white/95 backdrop-blur-md border-b border-gray-200/60 shadow-sm">
-        <div className="max-w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-
-            {/* Logo + Back */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/')}
-                className="p-2 rounded-xl text-stone-400 hover:text-stone-900 hover:bg-gray-100 transition-all"
-                title="Về trang chủ"
-              >
-                <ArrowLeft size={18} />
-              </button>
-              <Link to="/" className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-sm shadow-sm shadow-[#FF4C4C]/20">
-                  P
-                </div>
-                <span className="text-lg font-bold tracking-tight text-stone-900">
-                  Parking<span className="text-[#FF4C4C]">.</span>
-                </span>
-              </Link>
-            </div>
-
-            {/* Nav links */}
-            <div className="hidden md:flex items-center gap-8">
-              <Link
-                to="/my-tickets"
-                className="text-sm font-semibold text-stone-600 hover:text-[#FF4C4C] transition-colors"
-              >
-                My Ticket
-              </Link>
-              <span className="text-sm font-semibold text-[#FF4C4C] cursor-pointer">
-                Find Parking
-              </span>
-
-            </div>
-
-            {/* User badge */}
-            <div className="flex items-center gap-3">
-              {token && user ? (
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center gap-2.5 bg-gray-100 border border-gray-200/50 rounded-full py-1.5 pl-2 pr-3 hover:bg-gray-200 transition-all focus:outline-none"
-                  >
-                    <div className="w-7 h-7 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/25">
-                      {initials}
-                    </div>
-                    <span className="text-sm text-stone-800 font-semibold hidden sm:block">
-                      {user.fullName}
-                    </span>
-                    <ChevronDown
-                      size={13}
-                      className={`text-stone-500 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-44 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-[9999]">
-                      <button
-                        type="button"
-                        onClick={() => { setIsDropdownOpen(false); navigate('/profile'); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
-                      >
-                        <User size={15} />
-                        <span>Profile</span>
-                      </button>
-                      <div className="border-t border-gray-100 my-1" />
-                      <button
-                        type="button"
-                        onClick={() => { setIsDropdownOpen(false); navigate('/my-vehicles'); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
-                      >
-                        <Car size={15} />
-                        <span>My Vehicles</span>
-                      </button>
-                      <div className="border-t border-gray-100 my-1" />
-                      <button
-                        type="button"
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-sm text-stone-700 hover:text-[#FF4C4C] hover:bg-red-50 transition-colors text-left"
-                      >
-                        <LogOut size={15} />
-                        <span>Log Out</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Link
-                  to="/auth"
-                  className="bg-stone-900 hover:bg-stone-800 text-white font-bold px-5 py-2 rounded-full text-sm transition-all"
-                >
-                  Log In
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
-
+    <div className="flex flex-col h-[calc(100vh-5rem)] bg-[#F3F3F5] dark:bg-[#0A0A0C] text-stone-900 dark:text-[#F5F5F5] overflow-hidden font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C] transition-colors duration-300">
       {/* ===== Filter Bar ===== */}
-      <div className="relative flex-shrink-0 z-[9998] bg-white/80 border-b border-gray-200/50 px-4 sm:px-6 lg:px-8 py-3 backdrop-blur-md">
+      <div className="relative flex-shrink-0 z-[9998] bg-white/80 dark:bg-[#0A0A0C]/80 border-b border-gray-200/50 dark:border-white/10 px-4 sm:px-6 lg:px-8 py-3 backdrop-blur-md transition-colors duration-300">
         <div className="flex items-center gap-3 flex-wrap">
 
           {/* Vehicle type filters */}
@@ -543,9 +440,9 @@ export default function FindParkingPage() {
             <button
               key={key}
               onClick={() => setVehicleFilter(key)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border transition-all ${vehicleFilter === key
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border transition-all duration-300 ${vehicleFilter === key
                 ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/15'
-                : 'bg-gray-100 text-stone-600 border-gray-200 hover:bg-gray-200/60 hover:text-stone-900'
+                : 'bg-gray-100 dark:bg-white/5 text-stone-600 dark:text-stone-400 border-gray-200 dark:border-white/10 hover:bg-gray-200/60 dark:hover:bg-white/10 hover:text-stone-900 dark:hover:text-white'
                 }`}
             >
               <Icon size={13} />
@@ -557,20 +454,20 @@ export default function FindParkingPage() {
           <div className="relative ml-auto" ref={sortRef}>
             <button
               onClick={() => setIsSortOpen(!isSortOpen)}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-gray-100 border border-gray-200 text-stone-700 hover:bg-gray-200/60 transition-all"
+              className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-stone-700 dark:text-stone-300 hover:bg-gray-200/60 dark:hover:bg-white/10 transition-all duration-300"
             >
               Sort by: <span className="text-[#FF4C4C]">{SORT_LABELS[sortBy]}</span>
               <ChevronDown size={13} className={`transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
             </button>
             {isSortOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50">
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl py-2 z-50 transition-colors duration-300">
                 {(Object.keys(SORT_LABELS) as SortOption[]).map((opt) => (
                   <button
                     key={opt}
                     onClick={() => { setSortBy(opt); setIsSortOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors ${sortBy === opt
+                    className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors duration-300 ${sortBy === opt
                       ? 'text-[#FF4C4C] bg-[#FF4C4C]/5'
-                      : 'text-stone-600 hover:text-stone-900 hover:bg-gray-50'
+                      : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5'
                       }`}
                   >
                     {SORT_LABELS[opt]}
@@ -586,7 +483,7 @@ export default function FindParkingPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* ----- Sidebar ----- */}
-        <aside className="w-80 flex-shrink-0 bg-[#F8F8FA] border-r border-gray-200/60 flex flex-col overflow-hidden">
+        <aside className="w-80 flex-shrink-0 bg-[#F8F8FA] dark:bg-[#0E0E10] border-r border-gray-200/60 dark:border-white/10 flex flex-col overflow-hidden transition-colors duration-300">
 
           {/* Search + count */}
           <div className="px-4 pt-4 pb-3 space-y-3">
@@ -600,7 +497,7 @@ export default function FindParkingPage() {
                 placeholder="Search parking lots..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-stone-800 placeholder-stone-400 outline-none focus:border-[#FF4C4C]/60 transition-colors"
+                className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl text-sm text-stone-800 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 outline-none focus:border-[#FF4C4C]/60 dark:focus:border-[#FF4C4C]/60 transition-colors duration-300"
               />
             </div>
 
@@ -660,13 +557,13 @@ export default function FindParkingPage() {
                   setShowDetailPanel(true);
                   mapInstance?.flyTo([lot.lat, lot.lng], 16, { duration: 1.2 });
                 }}
-                className={`w-full text-left rounded-2xl border p-4 transition-all group ${selectedLot?.id === lot.id
-                  ? 'bg-red-50/80 border-[#FF4C4C]/40 shadow-sm'
-                  : 'bg-white border-gray-205/80 hover:border-[#FF4C4C]/30 hover:shadow-md hover:shadow-gray-200/10'
+                className={`w-full text-left rounded-2xl border p-4 transition-all duration-300 group ${selectedLot?.id === lot.id
+                  ? 'bg-red-50/80 dark:bg-red-900/20 border-[#FF4C4C]/40 shadow-sm'
+                  : 'bg-white dark:bg-[#18181B] border-gray-205/80 dark:border-white/10 hover:border-[#FF4C4C]/30 dark:hover:border-[#FF4C4C]/50 hover:shadow-md'
                   }`}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <span className={`text-sm font-extrabold leading-tight ${selectedLot?.id === lot.id ? 'text-[#FF4C4C]' : 'text-stone-800 group-hover:text-stone-950'
+                  <span className={`text-sm font-extrabold leading-tight transition-colors duration-300 ${selectedLot?.id === lot.id ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-stone-300 group-hover:text-stone-950 dark:group-hover:text-white'
                     }`}>
                     {lot.name}
                   </span>
@@ -703,9 +600,9 @@ export default function FindParkingPage() {
                   </a>
                 </div>
 
-                <div className={`mt-3 text-center text-xs font-bold py-1.5 rounded-lg border transition-all ${selectedLot?.id === lot.id
-                  ? 'border-[#FF4C4C]/40 text-[#FF4C4C] bg-red-50'
-                  : 'border-gray-200 text-stone-500 bg-gray-50 group-hover:text-[#FF4C4C] group-hover:border-[#FF4C4C]/20 group-hover:bg-red-50/30'
+                <div className={`mt-3 text-center text-xs font-bold py-1.5 rounded-lg border transition-all duration-300 ${selectedLot?.id === lot.id
+                  ? 'border-[#FF4C4C]/40 text-[#FF4C4C] bg-red-50 dark:bg-red-900/20'
+                  : 'border-gray-200 dark:border-white/10 text-stone-500 dark:text-stone-400 bg-gray-50 dark:bg-white/5 group-hover:text-[#FF4C4C] group-hover:border-[#FF4C4C]/20 group-hover:bg-red-50/30 dark:group-hover:bg-red-900/20'
                   }`}>
                   📍 View Details
                 </div>
@@ -714,11 +611,11 @@ export default function FindParkingPage() {
 
             {!isLoadingBuildings && !buildingsError && filtered.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <div className="w-14 h-14 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mb-3">
+                <div className="w-14 h-14 rounded-2xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 flex items-center justify-center mb-3 transition-colors duration-300">
                   <MapPin size={24} className="text-[#FF4C4C]" />
                 </div>
-                <p className="text-sm font-bold text-stone-850 mb-1">No buildings found</p>
-                <p className="text-xs text-stone-500 mb-3">Try adjusting your search criteria</p>
+                <p className="text-sm font-bold text-stone-850 dark:text-white mb-1 transition-colors duration-300">No buildings found</p>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mb-3 transition-colors duration-300">Try adjusting your search criteria</p>
               </div>
             )}
           </div>
@@ -854,13 +751,13 @@ export default function FindParkingPage() {
           <div className="absolute top-4 left-4 z-[1000] flex flex-col gap-1.5">
             <button
               onClick={() => mapInstance?.zoomIn()}
-              className="w-9 h-9 bg-white border border-gray-200/80 rounded-xl text-stone-850 text-xl font-bold hover:bg-gray-100 transition-all flex items-center justify-center shadow-md"
+              className="w-9 h-9 bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-xl text-stone-850 dark:text-white text-xl font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 flex items-center justify-center shadow-md"
             >
               +
             </button>
             <button
               onClick={() => mapInstance?.zoomOut()}
-              className="w-9 h-9 bg-white border border-gray-200/80 rounded-xl text-stone-850 text-xl font-bold hover:bg-gray-100 transition-all flex items-center justify-center shadow-md"
+              className="w-9 h-9 bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-xl text-stone-850 dark:text-white text-xl font-bold hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300 flex items-center justify-center shadow-md"
             >
               −
             </button>
@@ -871,9 +768,9 @@ export default function FindParkingPage() {
                 onClick={handleLocateMe}
                 disabled={locatingUser}
                 title="Tìm bãi đỗ gần tôi"
-                className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-md transition-all ${userLocation
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-md transition-all duration-300 ${userLocation
                   ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500'
-                  : 'bg-white border-gray-200 text-stone-600 hover:bg-gray-100 hover:text-blue-500 hover:border-blue-200'
+                  : 'bg-white dark:bg-[#18181B] border-gray-200 dark:border-white/10 text-stone-600 dark:text-stone-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-blue-500 hover:border-blue-200 dark:hover:border-blue-500/50'
                   } ${locatingUser ? 'cursor-wait opacity-70' : ''}`}
               >
                 {locatingUser
@@ -951,13 +848,13 @@ export default function FindParkingPage() {
 
           {/* ===== Detail Panel (slides in from right) ===== */}
           {showDetailPanel && selectedLot && (
-            <div className="absolute top-0 right-0 h-full w-80 bg-white/95 backdrop-blur-md border-l border-gray-200 z-[500] flex flex-col shadow-2xl animate-slide-in-right overflow-y-auto">
+            <div className="absolute top-0 right-0 h-full w-80 bg-white/95 dark:bg-[#18181B]/95 backdrop-blur-md border-l border-gray-200 dark:border-white/10 z-[500] flex flex-col shadow-2xl animate-slide-in-right overflow-y-auto transition-colors duration-300">
               {/* Close */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-bold text-stone-800">Parking Lot Details</h3>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-white/10 transition-colors duration-300">
+                <h3 className="text-sm font-bold text-stone-800 dark:text-white transition-colors duration-300">Parking Lot Details</h3>
                 <button
                   onClick={() => { setShowDetailPanel(false); setSelectedLot(null); }}
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-900 hover:bg-gray-100 transition-all"
+                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all duration-300"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -967,7 +864,7 @@ export default function FindParkingPage() {
                 {/* Name + type */}
                 <div>
                   <div className="flex items-start gap-2 mb-2">
-                    <h2 className="text-base font-extrabold text-stone-900 leading-tight flex-1">
+                    <h2 className="text-base font-extrabold text-stone-900 dark:text-white leading-tight flex-1 transition-colors duration-300">
                       {selectedLot.name}
                     </h2>
                     <span
@@ -987,7 +884,7 @@ export default function FindParkingPage() {
 
                 {/* Stats grid */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
+                  <div className="bg-gray-50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-xl p-3 space-y-1 transition-colors duration-300">
                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Available Spots</p>
                     <div className="flex items-end gap-1">
                       <span
@@ -1010,16 +907,16 @@ export default function FindParkingPage() {
                     </div>
                   </div>
 
-                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
+                  <div className="bg-gray-50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-xl p-3 space-y-1 transition-colors duration-300">
                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Rating</p>
                     <div className="flex items-center gap-1.5">
                       <Star size={14} className="text-amber-500 fill-amber-500" />
-                      <span className="text-xl font-extrabold text-stone-900">{selectedLot.rating}</span>
+                      <span className="text-xl font-extrabold text-stone-900 dark:text-white transition-colors duration-300">{selectedLot.rating}</span>
                     </div>
                     <p className="text-[10px] text-stone-400 font-medium">/ 5.0</p>
                   </div>
 
-                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
+                  <div className="bg-gray-50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-xl p-3 space-y-1 transition-colors duration-300">
                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Hourly Rate</p>
                     <p className="text-base font-extrabold text-[#FF4C4C]">
                       {selectedLot.pricePerHour.toLocaleString('vi-VN')}đ
@@ -1027,9 +924,9 @@ export default function FindParkingPage() {
                     <p className="text-[10px] text-stone-400 font-medium">per hour</p>
                   </div>
 
-                  <div className="bg-gray-50 border border-gray-200/50 rounded-xl p-3 space-y-1">
+                  <div className="bg-gray-50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-xl p-3 space-y-1 transition-colors duration-300">
                     <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Open Hours</p>
-                    <p className="text-xs font-bold text-stone-800">{selectedLot.openHours}</p>
+                    <p className="text-xs font-bold text-stone-800 dark:text-white transition-colors duration-300">{selectedLot.openHours}</p>
                   </div>
                 </div>
 
@@ -1056,7 +953,7 @@ export default function FindParkingPage() {
                         return (
                           <span
                             key={v}
-                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-gray-50 border border-gray-200/60 rounded-full text-stone-600"
+                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-gray-50 dark:bg-white/5 border border-gray-200/60 dark:border-white/10 rounded-full text-stone-600 dark:text-stone-400 transition-colors duration-300"
                           >
                             <Icon size={12} className="text-[#FF4C4C]" />
                             {labels[v]}
@@ -1102,9 +999,9 @@ export default function FindParkingPage() {
                           <button
                             key={floor.id}
                             onClick={() => setSelectedFloorId(floor.id === selectedFloorId ? null : floor.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${selectedFloorId === floor.id
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 border ${selectedFloorId === floor.id
                               ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm'
-                              : 'bg-white text-stone-600 border-gray-200 hover:border-[#FF4C4C]/50 hover:text-[#FF4C4C]'
+                              : 'bg-white dark:bg-[#18181B] text-stone-600 dark:text-stone-400 border-gray-200 dark:border-white/10 hover:border-[#FF4C4C]/50 hover:text-[#FF4C4C]'
                             }`}
                           >
                             {floor.name}
@@ -1114,7 +1011,7 @@ export default function FindParkingPage() {
 
                       {/* Slots for selected floor */}
                       {selectedFloorId && (
-                        <div className="mt-3 bg-gray-50 border border-gray-200/60 rounded-xl p-3">
+                        <div className="mt-3 bg-gray-50 dark:bg-white/5 border border-gray-200/60 dark:border-white/10 rounded-xl p-3 transition-colors duration-300">
                           {isLoadingSlots ? (
                             <div className="flex items-center gap-2 text-xs text-stone-500 justify-center py-2">
                               <Loader2 size={14} className="animate-spin text-[#FF4C4C]" />
@@ -1134,10 +1031,10 @@ export default function FindParkingPage() {
                                   <div
                                     key={slot.id}
                                     title={SLOT_STATUS_LABELS[statusStr]}
-                                    className={`relative flex flex-col items-center justify-center p-2 rounded-lg border text-xs font-bold transition-all ${
+                                    className={`relative flex flex-col items-center justify-center p-2 rounded-lg border text-xs font-bold transition-all duration-300 ${
                                       statusStr === 'Available'
-                                        ? 'bg-white border-emerald-200 hover:border-emerald-400 text-stone-700'
-                                        : 'bg-gray-100/50 border-gray-200 text-stone-400 cursor-not-allowed opacity-70'
+                                        ? 'bg-white dark:bg-white/5 border-emerald-200 dark:border-emerald-500/30 hover:border-emerald-400 text-stone-700 dark:text-stone-300'
+                                        : 'bg-gray-100/50 dark:bg-white/10 border-gray-200 dark:border-white/20 text-stone-400 cursor-not-allowed opacity-70'
                                     }`}
                                   >
                                     <span className="mb-0.5">{slot.slotNumber}</span>
