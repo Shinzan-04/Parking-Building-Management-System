@@ -158,7 +158,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="bg-[#F3F3F5] text-stone-900 pb-12 min-h-full">
+    <div className="bg-[#F3F3F5] dark:bg-[#0A0A0C] text-stone-900 dark:text-[#F5F5F5] pb-12 min-h-full transition-colors duration-300">
       {/* Main container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-16">
         
@@ -166,12 +166,12 @@ export default function ProfilePage() {
         <div className="mb-8 flex items-center justify-between">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-xs font-bold text-stone-500 hover:text-[#FF4C4C] bg-white border border-gray-200/60 px-4 py-2.5 rounded-2xl shadow-sm transition-all"
+            className="inline-flex items-center gap-2 text-xs font-bold text-stone-500 dark:text-stone-400 hover:text-[#FF4C4C] bg-white dark:bg-[#18181B] border border-gray-200/60 dark:border-white/10 px-4 py-2.5 rounded-2xl shadow-sm transition-all duration-300"
           >
             <ArrowLeft size={14} />
             Quay lại trang chủ
           </Link>
-          <h1 className="text-xl font-extrabold tracking-tight text-stone-900">Thông tin tài khoản</h1>
+          <h1 className="text-xl font-extrabold tracking-tight text-stone-900 dark:text-white transition-colors duration-300">Thông tin tài khoản</h1>
         </div>
 
         {loadingProfile ? (
@@ -198,13 +198,13 @@ export default function ProfilePage() {
             <div className="lg:col-span-4 space-y-6">
               
               {/* Bento Card 1: Avatar Overview */}
-              <div className="bg-white rounded-[2.5rem] border border-gray-200/60 p-6 flex flex-col items-center text-center shadow-xl">
+              <div className="bg-white dark:bg-[#18181B] rounded-[2.5rem] border border-gray-200/60 dark:border-white/10 p-6 flex flex-col items-center text-center shadow-xl transition-colors duration-300">
                 <div className="w-24 h-24 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-black text-3xl shadow-sm shadow-[#FF4C4C]/25 mb-4">
                   {initials}
                 </div>
                 
-                <h2 className="text-xl font-black text-stone-900 leading-tight mb-1">{profile.fullName}</h2>
-                <p className="text-sm font-semibold text-stone-400">@{profile.username}</p>
+                <h2 className="text-xl font-black text-stone-900 dark:text-white leading-tight mb-1 transition-colors duration-300">{profile.fullName}</h2>
+                <p className="text-sm font-semibold text-stone-400 dark:text-stone-500 transition-colors duration-300">@{profile.username}</p>
 
                 <div className="mt-4 flex flex-col gap-2 w-full">
                   <span className={`px-4 py-1.5 rounded-full text-xs font-bold w-fit mx-auto ${roleStyle(profile.role)}`}>
@@ -212,7 +212,7 @@ export default function ProfilePage() {
                   </span>
                 </div>
 
-                <div className="mt-6 border-t border-gray-100 pt-5 w-full flex items-center justify-center gap-2 text-xs font-bold text-stone-400">
+                <div className="mt-6 border-t border-gray-100 dark:border-white/10 pt-5 w-full flex items-center justify-center gap-2 text-xs font-bold text-stone-400 dark:text-stone-500 transition-colors duration-300">
                   <Calendar size={14} />
                   <span>Tham gia từ {formatDateDisplay(profile.createdAt)}</span>
                 </div>
@@ -222,9 +222,9 @@ export default function ProfilePage() {
 
             {/* Right Column: Edit Profile Form */}
             <div className="lg:col-span-8">
-              <div className="bg-white rounded-[2.5rem] border border-gray-200/60 p-8 shadow-xl">
+              <div className="bg-white dark:bg-[#18181B] rounded-[2.5rem] border border-gray-200/60 dark:border-white/10 p-8 shadow-xl transition-colors duration-300">
                 
-                <h3 className="text-lg font-black text-stone-900 mb-6 flex items-center gap-2">
+                <h3 className="text-lg font-black text-stone-900 dark:text-white mb-6 flex items-center gap-2 transition-colors duration-300">
                   <User size={20} className="text-[#FF4C4C]" />
                   Chỉnh sửa thông tin cá nhân
                 </h3>
@@ -247,11 +247,11 @@ export default function ProfilePage() {
                   
                   {/* Họ và tên */}
                   <div>
-                    <label htmlFor="fullName" className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                    <label htmlFor="fullName" className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2 transition-colors duration-300">
                       Họ và tên
                     </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500 pointer-events-none transition-colors duration-300">
                         <User size={16} />
                       </span>
                       <input
@@ -262,10 +262,10 @@ export default function ProfilePage() {
                         onChange={formik.handleChange}
                         onBlur={formik.handleBlur}
                         placeholder="Nguyễn Văn A"
-                        className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-50 border text-sm outline-none transition-all duration-200
+                        className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-white/5 border dark:border-white/10 text-sm outline-none transition-all duration-200
                           ${formik.touched.fullName && formik.errors.fullName
                             ? 'border-red-500/50 text-red-600 focus:border-red-500 focus:ring-2 focus:ring-red-500/10'
-                            : 'border-gray-200 text-stone-850 placeholder:text-stone-300 focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10'
+                            : 'border-gray-200 text-stone-850 dark:text-white placeholder:text-stone-300 dark:placeholder:text-stone-600 focus:border-[#FF4C4C] dark:focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10'
                           }`}
                       />
                     </div>
@@ -276,30 +276,30 @@ export default function ProfilePage() {
 
                   {/* Username (Readonly) */}
                   <div>
-                    <label className="block text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-stone-400 dark:text-stone-500 uppercase tracking-wider mb-2 transition-colors duration-300">
                       Tên đăng nhập (Tài khoản)
                     </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300 pointer-events-none">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-300 dark:text-stone-600 pointer-events-none transition-colors duration-300">
                         <User size={16} />
                       </span>
                       <input
                         type="text"
                         value={profile.username}
                         disabled
-                        className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-100/60 border border-gray-200/50 text-stone-400 text-sm cursor-not-allowed font-semibold"
+                        className="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-100/60 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 text-stone-400 dark:text-stone-500 text-sm cursor-not-allowed font-semibold transition-colors duration-300"
                       />
                     </div>
-                    <p className="text-[10px] text-stone-400 font-medium mt-1.5 pl-2">Tên đăng nhập được dùng cố định và không thể thay đổi.</p>
+                    <p className="text-[10px] text-stone-400 dark:text-stone-500 font-medium mt-1.5 pl-2 transition-colors duration-300">Tên đăng nhập được dùng cố định và không thể thay đổi.</p>
                   </div>
 
                   {/* Email */}
                   <div>
-                    <label htmlFor="email" className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                    <label htmlFor="email" className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2 transition-colors duration-300">
                       Địa chỉ Email
                     </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500 pointer-events-none transition-colors duration-300">
                         <Mail size={16} />
                       </span>
                       <input
@@ -310,10 +310,10 @@ export default function ProfilePage() {
                         onChange={formik.handleChange}
                         onBlur={formik.handleBlur}
                         placeholder="name@example.com"
-                        className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-50 border text-sm outline-none transition-all duration-200
+                        className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-white/5 border dark:border-white/10 text-sm outline-none transition-all duration-200
                           ${formik.touched.email && formik.errors.email
                             ? 'border-red-500/50 text-red-600 focus:border-red-500 focus:ring-2 focus:ring-red-500/10'
-                            : 'border-gray-200 text-stone-850 placeholder:text-stone-300 focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10'
+                            : 'border-gray-200 text-stone-850 dark:text-white placeholder:text-stone-300 dark:placeholder:text-stone-600 focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10'
                           }`}
                       />
                     </div>
@@ -324,11 +324,11 @@ export default function ProfilePage() {
 
                   {/* Số điện thoại */}
                   <div>
-                    <label htmlFor="phoneNumber" className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
+                    <label htmlFor="phoneNumber" className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2 transition-colors duration-300">
                       Số điện thoại
                     </label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 pointer-events-none">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 dark:text-stone-500 pointer-events-none transition-colors duration-300">
                         <Phone size={16} />
                       </span>
                       <input
@@ -339,10 +339,10 @@ export default function ProfilePage() {
                         onChange={formik.handleChange}
                         onBlur={formik.handleBlur}
                         placeholder="0901234567"
-                        className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-50 border text-sm outline-none transition-all duration-200
+                        className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-white/5 border dark:border-white/10 text-sm outline-none transition-all duration-200
                           ${formik.touched.phoneNumber && formik.errors.phoneNumber
                             ? 'border-red-500/50 text-red-600 focus:border-red-500 focus:ring-2 focus:ring-red-500/10'
-                            : 'border-gray-200 text-stone-850 placeholder:text-stone-300 focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10'
+                            : 'border-gray-200 text-stone-850 dark:text-white placeholder:text-stone-300 dark:placeholder:text-stone-600 focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10'
                           }`}
                       />
                     </div>
