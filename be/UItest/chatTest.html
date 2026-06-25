@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Chatbot & Live Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; display: flex; gap: 20px; padding: 20px; background: #1e1e2e; color: white; }
+        .chat-box { flex: 1; background: #2a2a3e; padding: 20px; border-radius: 8px; border: 1px solid #444; }
+        .messages { height: 400px; overflow-y: auto; background: #1a1a2e; padding: 10px; margin-bottom: 10px; border-radius: 4px; }
+        .msg { padding: 8px 12px; margin: 5px 0; border-radius: 8px; max-width: 80%; }
+        .msg.User { background: #007bff; margin-left: auto; }
+        .msg.Bot { background: #444; border: 1px solid #6c63ff; }
+        .msg.Agent { background: #28a745; }
+        .sys-text { font-size: 12px; color: #aaa; text-align: center; }
+        input[type="text"] { width: 70%; padding: 10px; border-radius: 4px; border: none; }
+        button { padding: 10px; cursor: pointer; background: #6c63ff; color: white; border: none; border-radius: 4px; }
+        button:hover { background: #5a52d5; }
+        .controls { margin-bottom: 15px; padding-bottom: 15px; border-bottom: 1px solid #444; }
+    </style>
+</head>
+<body>
+
+    <!-- MÀN HÌNH KHÁCH HÀNG / DRIVER -->
+    <div class="chat-box">
+        <h2>📱 Khách hàng / Driver</h2>
+        <div class="controls">
+            <button id="btnStartChat">1. Khởi tạo Phiên Chat (API)</button>
+            <button id="btnConnectUser" disabled>2. Kết nối SignalR</button>
+            <br><br>
+            <span style="font-size: 12px; color: #ffd700;">Session ID: <span id="lblSessionId">Chưa có</span></span>
+        </div>
+        <div class="messages" id="userMessages"></div>
+        <div style="display: flex; gap: 5px;">
+            <input type="text" id="txtUserMsg" placeholder="Hỏi Bot hoặc Nhân viên..." disabled>
+            <button id="btnSendUser" disabled>Gửi</button>
+        </div>
+    </div>
+
+    <!-- MÀN HÌNH NHÂN VIÊN / STAFF -->
+    <div class="chat-box">
+        <h2>💻 Màn hình Nhân viên (Staff)</h2>
+        <div class="controls">
+            <input type="text" id="txtStaffToken" placeholder="Nhập JWT Token của Staff vào đây..." style="width: 100%; margin-bottom: 10px;">
+            <button id="btnConnectStaff">1. Connect SignalR (Staff)</button>
+            <button id="btnTakeover" disabled style="background: #e91e63;">2. Vào Tiếp Quản Phiên Chat</button>
+        </div>
+        <div class="messages" id="staffMessages"></div>
+        <div style="display: flex; gap: 5px;">
+            <input type="text" id="txtStaffMsg" placeholder="Trả lời khách hàng..." disabled>
+            <button id="btnSendStaff" disabled>Gửi</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script>
+        let currentSessionId = "";
+        let userConnection = null;
+        let staffConnection = null;
+
+        const API_URL = "http://localhost:5237"; // Đổi lại port nếu cần
+
+        function addMsg(containerId, text, role) {
+            const container = document.getElementById(containerId);
+            if (role === 'sys') {
+                container.innerHTML += `<div class="sys-text">${text}</div>`;
+            } else {
+                container.innerHTML += `<div class="msg ${role}"><b>${role}:</b> ${text}</div>`;
+            }
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // ================= KHÁCH HÀNG =================
+        document.getElementById("btnStartChat").onclick = async () => {
+            const res = await fetch(`${API_URL}/api/Chat/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ GuestId: "guest_123" })
+            });
+            const data = await res.json();
+            currentSessionId = data.sessionId;
+            document.getElementById("lblSessionId").innerText = currentSessionId;
+            document.getElementById("btnConnectUser").disabled = false;
+        };
+
+        document.getElementById("btnConnectUser").onclick = async () => {
+            userConnection = new signalR.HubConnectionBuilder()
+                .withUrl(`${API_URL}/chatHub`)
+                .withAutomaticReconnect()
+                .build();
+
+            userConnection.on("ReceiveMessage", (id, role, msg, time) => {
+                addMsg("userMessages", msg, role);
+            });
+
+            userConnection.on("SessionStatusChanged", (status, agentId) => {
+                addMsg("userMessages", `Hệ thống: Trạng thái đổi thành ${status}`, 'sys');
+            });
+
+            await userConnection.start();
+            await userConnection.invoke("JoinSession", currentSessionId);
+            
+            document.getElementById("txtUserMsg").disabled = false;
+            document.getElementById("btnSendUser").disabled = false;
+            addMsg("userMessages", "Đã kết nối! Bạn có thể hỏi Bot.", 'sys');
+        };
+
+        document.getElementById("btnSendUser").onclick = async () => {
+            const msg = document.getElementById("txtUserMsg").value;
+            if (!msg) return;
+            // SendMessage(sessionId, message, senderRoleStr)
+            await userConnection.invoke("SendMessage", currentSessionId, msg, "User");
+            document.getElementById("txtUserMsg").value = "";
+        };
+
+        // ================= NHÂN VIÊN =================
+        document.getElementById("btnConnectStaff").onclick = async () => {
+            const token = document.getElementById("txtStaffToken").value;
+            if (!token) return alert("Nhập token Staff!");
+
+            staffConnection = new signalR.HubConnectionBuilder()
+                .withUrl(`${API_URL}/chatHub?access_token=${token}`)
+                .withAutomaticReconnect()
+                .build();
+
+            staffConnection.on("ReceiveMessage", (id, role, msg, time) => {
+                addMsg("staffMessages", msg, role);
+            });
+
+            staffConnection.on("SessionStatusChanged", (status, agentId) => {
+                addMsg("staffMessages", `Hệ thống: Trạng thái đổi thành ${status}`, 'sys');
+            });
+
+            await staffConnection.start();
+            document.getElementById("btnTakeover").disabled = false;
+            addMsg("staffMessages", "Staff đã kết nối SignalR (Chưa vào phòng).", 'sys');
+        };
+
+        document.getElementById("btnTakeover").onclick = async () => {
+            if (!currentSessionId) return alert("Chưa có SessionId bên khách!");
+            
+            await staffConnection.invoke("JoinSession", currentSessionId);
+            await staffConnection.invoke("TakeoverSession", currentSessionId);
+
+            document.getElementById("txtStaffMsg").disabled = false;
+            document.getElementById("btnSendStaff").disabled = false;
+            addMsg("staffMessages", "Bạn đã tiếp quản phòng chat này!", 'sys');
+        };
+
+        document.getElementById("btnSendStaff").onclick = async () => {
+            const msg = document.getElementById("txtStaffMsg").value;
+            if (!msg) return;
+            await staffConnection.invoke("SendMessage", currentSessionId, msg, "Agent");
+            document.getElementById("txtStaffMsg").value = "";
+        };
+    </script>
+</body>
+</html>

@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Car, MapPin, LogOut, Sun, Moon, DoorOpen, CalendarCheck } from 'lucide-react';
+import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import NotificationBell from '../../components/NotificationBell';
@@ -8,6 +8,7 @@ const navItems = [
   { to: '/staff',               label: 'Dashboard',         icon: LayoutDashboard, end: true  },
   { to: '/staff/reservations',  label: 'Danh sách Đặt chỗ', icon: CalendarCheck,   end: false },
   { to: '/staff/slots',         label: 'Danh sách Slot',    icon: MapPin,          end: false },
+  { to: '/staff/chat',          label: 'Live Chat',         icon: MessageSquare,   end: false },
   { to: '/gate-control',        label: 'Kiểm soát cổng',    icon: DoorOpen,        end: false },
 ];
 

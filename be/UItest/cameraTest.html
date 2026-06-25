@@ -41,9 +41,20 @@
 <body>
 
     <h1>📸 Test Scan Biển Số Bằng Camera</h1>
-    <p class="sub">YOLO detect biển số → Tesseract OCR đọc ký tự → Trả về text</p>
+    <p class="sub">YOLO detect biển số → PaddleOCR đọc ký tự → Trả về text</p>
     
-    <input type="text" id="tokenInput" placeholder="🔑 Nhập JWT Token (Staff/Manager/Admin)">
+    <div style="margin-bottom: 15px; padding: 15px; background: #1e1e2e; border-radius: 8px; text-align: left; border: 1px solid #444;">
+        <h3 style="margin-top: 0;">🔑 Nhập / Lấy JWT Token (Staff/Manager/Admin)</h3>
+        <input type="text" id="tokenInput" placeholder="Dán JWT Token vào đây..." style="width: 100%; margin-bottom: 10px;">
+        
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 14px; color: #aaa;">Hoặc đăng nhập nhanh:</span>
+            <input type="text" id="emailInput" placeholder="Email" style="padding: 8px; border-radius: 4px; border: 1px solid #555; background: #2a2a3e; color: white;">
+            <input type="password" id="passwordInput" placeholder="Password" style="padding: 8px; border-radius: 4px; border: 1px solid #555; background: #2a2a3e; color: white;" value="123456">
+            <button id="loginBtn" class="btn-upload" style="padding: 8px 15px; font-size: 13px;">Lấy Token</button>
+            <span id="loginMessage" style="font-size: 13px; color: #ffd700;"></span>
+        </div>
+    </div>
 
     <div class="video-container">
         <video id="video" autoplay playsinline></video>
@@ -106,6 +117,42 @@
             }
         }
         startCamera();
+
+        // Login tự động lấy Token
+        const loginBtn = document.getElementById('loginBtn');
+        const emailInput = document.getElementById('emailInput');
+        const passwordInput = document.getElementById('passwordInput');
+        const loginMessage = document.getElementById('loginMessage');
+
+        loginBtn.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            if(!email || !password) { loginMessage.textContent = 'Nhập đủ email & password!'; return; }
+            
+            loginBtn.disabled = true;
+            loginMessage.textContent = 'Đang đăng nhập...';
+            try {
+                const res = await fetch('http://localhost:5237/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if(res.ok && data.token) {
+                    tokenInput.value = data.token;
+                    loginMessage.textContent = '✅ Lấy Token thành công!';
+                    loginMessage.style.color = '#00ff88';
+                } else {
+                    loginMessage.textContent = '❌ Lỗi: ' + (data.message || 'Sai thông tin');
+                    loginMessage.style.color = '#ff6b6b';
+                }
+            } catch (err) {
+                loginMessage.textContent = '❌ Lỗi kết nối API';
+                loginMessage.style.color = '#ff6b6b';
+            } finally {
+                loginBtn.disabled = false;
+            }
+        });
 
         let isAutoScanning = false;
         let isApiCalling = false;

@@ -36,6 +36,7 @@ const StaffLayout      = lazy(() => import('./pages/Staff/StaffLayout'));
 const StaffDashboard   = lazy(() => import('./pages/Staff/Dashboard'));
 const StaffSlotList    = lazy(() => import('./pages/Staff/SlotList'));
 const StaffReservations = lazy(() => import('./pages/Staff/Reservations'));
+const StaffChatDashboard = lazy(() => import('./pages/Staff/ChatDashboard'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
 const FindParkingPage  = lazy(() => import('./pages/User/FindParkingPage'));
 const MyTicketPage     = lazy(() => import('./pages/User/MyTicketPage'));
@@ -108,6 +109,7 @@ export default function App() {
             <Route index element={<StaffDashboard />} />
             <Route path="slots" element={<StaffSlotList />} />
             <Route path="reservations" element={<StaffReservations />} />
+            <Route path="chat" element={<StaffChatDashboard />} />
           </Route>
 
           {/* Gate Control - Staff standalone */}
@@ -118,6 +120,19 @@ export default function App() {
 
         </Routes>
       </Suspense>
+      <GlobalChat />
     </BrowserRouter>
   );
+}
+
+import { useLocation } from 'react-router-dom';
+import { FloatingChat } from './components/FloatingChat';
+
+function GlobalChat() {
+  const location = useLocation();
+  // Không hiển thị bong bóng chat ở các trang quản trị / nhân viên
+  const isInternalApp = ['/admin', '/manager', '/staff', '/gate-control'].some(p => location.pathname.startsWith(p));
+  
+  if (isInternalApp) return null;
+  return <FloatingChat />;
 }

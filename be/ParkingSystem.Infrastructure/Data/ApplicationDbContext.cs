@@ -24,6 +24,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<FavoriteSlot> FavoriteSlots { get; set; }
     public DbSet<ReservationLog> ReservationLogs { get; set; }
     public DbSet<WalletTransaction> WalletTransactions { get; set; }
+    public DbSet<ChatSession> ChatSessions { get; set; }
+    public DbSet<ChatMessage> ChatMessages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -203,5 +205,29 @@ public class ApplicationDbContext : DbContext
             .WithMany(b => b.AssignedStaffs)
             .HasForeignKey(u => u.AssignedBuildingId)
             .OnDelete(DeleteBehavior.SetNull);
+        // ChatSession relations
+        modelBuilder.Entity<ChatSession>()
+            .HasOne(cs => cs.User)
+            .WithMany()
+            .HasForeignKey(cs => cs.UserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ChatSession>()
+            .HasOne(cs => cs.Agent)
+            .WithMany()
+            .HasForeignKey(cs => cs.AgentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ChatSession>()
+            .HasOne(cs => cs.Building)
+            .WithMany()
+            .HasForeignKey(cs => cs.BuildingId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<ChatMessage>()
+            .HasOne(cm => cm.ChatSession)
+            .WithMany(cs => cs.Messages)
+            .HasForeignKey(cm => cm.ChatSessionId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
