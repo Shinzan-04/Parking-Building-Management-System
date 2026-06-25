@@ -45,20 +45,22 @@ const PaymentResultPage= lazy(() => import('./pages/User/PaymentResult'));
 const LiveSessionPage  = lazy(() => import('./pages/User/LiveSessionPage'));
 const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
 const WalletPage       = lazy(() => import('./pages/User/WalletPage'));
-
+const UserLayout       = lazy(() => import('./pages/User/UserLayout'));
 export default function App() {
   return (
     <BrowserRouter>
       <Suspense fallback={<div className="loading-screen" />}>
         <Routes>
-          <Route path="/" element={<UserLandingPage />} />
-          <Route path="/find-parking" element={<FindParkingPage />} />
-          <Route path="/booking" element={<ProtectedRoute element={<BookingPage />} />} />
-          <Route path="/my-tickets" element={<ProtectedRoute element={<MyTicketPage />} />} />
-          <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
-          <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
-          <Route path="/live-session" element={<ProtectedRoute element={<LiveSessionPage />} />} />
-          <Route path="/wallet" element={<ProtectedRoute element={<WalletPage />} />} />
+          <Route element={<UserLayout />}>
+            <Route path="/" element={<UserLandingPage />} />
+            <Route path="/find-parking" element={<FindParkingPage />} />
+            <Route path="/booking" element={<ProtectedRoute element={<BookingPage />} />} />
+            <Route path="/my-tickets" element={<ProtectedRoute element={<MyTicketPage />} />} />
+            <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
+            <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
+            <Route path="/live-session" element={<ProtectedRoute element={<LiveSessionPage />} />} />
+            <Route path="/wallet" element={<ProtectedRoute element={<WalletPage />} />} />
+          </Route>
           <Route path="/payment-result" element={<PaymentResultPage />} />
           <Route path="/payment-success" element={<PaymentResultPage />} />
           <Route path="/payment-cancel" element={<PaymentResultPage />} />
