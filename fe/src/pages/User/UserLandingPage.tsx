@@ -12,9 +12,9 @@ import {
 } from 'lucide-react';
 
 function getDashboardPath(role: string | number): string | null {
-  if (role === 'Admin'   || role === 0) return '/admin';
+  if (role === 'Admin' || role === 0) return '/admin';
   if (role === 'Manager' || role === 1) return '/manager';
-  if (role === 'Staff'   || role === 2) return '/gate-control';
+  if (role === 'Staff' || role === 2) return '/gate-control';
   return null;
 }
 
@@ -95,7 +95,7 @@ export default function UserLandingPage() {
             <div>
               <h1 className="text-6xl md:text-8xl font-black leading-[0.95] tracking-tighter" style={{ color: 'var(--lp-text)' }}>
                 Parking <br />
-                <span className="text-[#FF4C4C] italic font-black">Redefined</span>
+                <span className="text-[#FF4C4C] italic font-black">Smart</span>
               </h1>
             </div>
             <div className="lg:max-w-md space-y-6 lg:justify-self-end text-left lg:text-right">
@@ -139,9 +139,9 @@ export default function UserLandingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
-              { icon: Search,     title: 'Smart Search',     desc: 'Find and secure the perfect parking slot in seconds with our real-time availability maps.' },
-              { icon: BookOpen,   title: 'Instant Booking',  desc: 'Reserve your slot instantly with contactless payment and encrypted transaction protocols.' },
-              { icon: ShieldCheck,title: 'Secure Facilities',desc: '24/7 camera surveillance and automated entry systems ensure maximum protection.' },
+              { icon: Search, title: 'Smart Search', desc: 'Find and secure the perfect parking slot in seconds with our real-time availability maps.' },
+              { icon: BookOpen, title: 'Instant Booking', desc: 'Reserve your slot instantly with contactless payment and encrypted transaction protocols.' },
+              { icon: ShieldCheck, title: 'Secure Facilities', desc: '24/7 camera surveillance and automated entry systems ensure maximum protection.' },
             ].map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}

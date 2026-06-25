@@ -799,7 +799,6 @@ function StepSelectFloor({
                   {(() => {
                     const availableSpots = allBuildingSlots.filter(
                       (s) => s.floorId === floor.id &&
-                        s.vehicleTypeId === state.vehicleType &&
                         (s.status === 'Available' || String(s.status) === '0')
                     ).length;
                     return `${availableSpots} spots available`;
@@ -856,10 +855,19 @@ function StepSelectSlot({
     false;
   const VehicleIcon = isMotorbike ? Bike : Car;
 
-  // Lọc slots theo loại xe đã chọn (không hiển thị slots bảo trì)
-  const filteredSlots = slots.filter(
-    (s) => s.vehicleTypeId === state.vehicleType && s.status !== 'Maintenance' && String(s.status) !== '4'
-  );
+  // Hiển thị tất cả các slot, không lọc theo loại xe hay trạng thái
+  const filteredSlots = slots;
+
+  // Lấy icon động dựa theo vehicleTypeId của từng slot
+  const getSlotIcon = (slot: ParkingSlotDetail) => {
+    const slotVehicleType = vehicles.find((v) => v.id === slot.vehicleTypeId);
+    const isMotorbike = slotVehicleType?.name.toLowerCase().includes('moto') ||
+      slotVehicleType?.name.toLowerCase().includes('xe máy') ||
+      slotVehicleType?.name.toLowerCase().includes('bike') ||
+      slotVehicleType?.name.toLowerCase().includes('xe hai bánh') ||
+      false;
+    return isMotorbike ? Bike : Car;
+  };
 
   // Nhóm các slots thành từng hàng (COLS ô mỗi hàng)
   const rows: ParkingSlotDetail[][] = [];
@@ -878,19 +886,19 @@ function StepSelectSlot({
       return 'bg-[#FF4C4C] border-[#FF4C4C] text-white shadow-md shadow-[#FF4C4C]/30 scale-105 z-10';
     }
 
-    // Một số backend serialize enum thành integer string, cần kiểm tra cả hai
     const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
     const isOccupied = slot.status === 'Occupied' || String(slot.status) === '3';
     const isReserved = slot.status === 'Reserved' || String(slot.status) === '2' || slot.status === 'TemporaryHeld' || String(slot.status) === '1';
+    const isWrongType = slot.vehicleTypeId !== state.vehicleType;
 
-    if (isAvailable) {
+    if (isAvailable && !isWrongType) {
       return 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 hover:border-emerald-400 hover:scale-105 cursor-pointer';
     } else if (isOccupied) {
       return 'bg-red-50 dark:bg-red-500/10 border-red-200/60 dark:border-red-500/20 text-red-400/60 dark:text-red-400/50 cursor-not-allowed';
     } else if (isReserved) {
       return 'bg-amber-50 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/20 text-amber-500/70 cursor-not-allowed';
     } else {
-      return 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 cursor-not-allowed';
+      return 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 cursor-not-allowed opacity-60';
     }
   };
 
@@ -1002,20 +1010,22 @@ function StepSelectSlot({
                   {/* Slot cells */}
                   {row.map((slot) => {
                     const isAvailable = slot.status === 'Available' || String(slot.status) === '0';
+                    const isWrongType = slot.vehicleTypeId !== state.vehicleType;
                     const isSelected = state.slotId === slot.id;
                     const isOccupied = slot.status === 'Occupied' || String(slot.status) === '3';
 
                     const colIdx = filteredSlots.indexOf(slot) % COLS;
                     const colLetter = String.fromCharCode(65 + colIdx);
                     const rowNum = Math.floor(filteredSlots.indexOf(slot) / COLS) + 1;
+                    const SlotIcon = getSlotIcon(slot);
 
                     return (
                       <button
                         key={slot.id}
-                        disabled={!isAvailable}
-                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}`}
+                        disabled={!isAvailable || isWrongType}
+                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}${isWrongType ? ' (Khác loại xe)' : ''}`}
                         onClick={() => {
-                          if (!isAvailable) return;
+                          if (!isAvailable || isWrongType) return;
                           setState((s) => ({
                             ...s,
                             slot: slot.slotNumber,
@@ -1029,9 +1039,9 @@ function StepSelectSlot({
                         {isSelected ? (
                           <CheckCircle2 size={12} />
                         ) : isOccupied ? (
-                          <VehicleIcon size={11} />
+                          <SlotIcon size={11} />
                         ) : (
-                          <VehicleIcon size={11} className="opacity-60" />
+                          <SlotIcon size={11} className="opacity-60" />
                         )}
                         <span className="leading-none">{slot.slotNumber}</span>
                       </button>
