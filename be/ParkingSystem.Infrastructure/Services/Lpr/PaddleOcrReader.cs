@@ -7,19 +7,53 @@ using Sdcb.PaddleOCR.Models.Local;
 
 namespace ParkingSystem.Infrastructure.Services.Lpr;
 
-public class PaddleOcrReader : IPaddleOcrReader
+public class PaddleOcrReader : IPaddleOcrReader, IDisposable
 {
+    private PaddleOcrAll _ocrAll;
+    private readonly object _lockObj = new object();
+
+    public PaddleOcrReader()
+    {
+        InitOcr();
+    }
+
+    private void InitOcr()
+    {
+        _ocrAll = new PaddleOcrAll(LocalFullModels.EnglishV3, PaddleDevice.Mkldnn())
+        {
+            AllowRotateDetection = true,
+            Enable180Classification = true
+        };
+    }
+
     public async Task<(string RawText, float Confidence)> ReadTextAsync(byte[] preprocessedImageBytes)
     {
         return await Task.Run(() =>
         {
             using Mat ocrInput = Cv2.ImDecode(preprocessedImageBytes, ImreadModes.Color);
+            if (ocrInput.Empty() || ocrInput.Rows < 10 || ocrInput.Cols < 10)
+            {
+                return (string.Empty, 0f);
+            }
 
-            using PaddleOcrAll all = new PaddleOcrAll(LocalFullModels.EnglishV3, PaddleDevice.Mkldnn());
-            all.AllowRotateDetection = true;
-            all.Enable180Classification = true;
-
-            PaddleOcrResult ocrResult = all.Run(ocrInput);
+            PaddleOcrResult ocrResult;
+            try
+            {
+                lock (_lockObj)
+                {
+                    ocrResult = _ocrAll.Run(ocrInput);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[OCR ERROR] {ex.Message} -> Re-initializing model...");
+                lock (_lockObj)
+                {
+                    try { _ocrAll?.Dispose(); } catch {}
+                    InitOcr();
+                }
+                return (string.Empty, 0f);
+            }
 
             if (ocrResult.Regions.Length > 0)
             {
@@ -29,12 +63,18 @@ public class PaddleOcrReader : IPaddleOcrReader
                     .ToList();
 
                 string rawText = string.Join("", lines);
-                float ocrConfidence = ocrResult.Regions.Average(r => r.Score);
+                float ocrConfidence = ocrResult.Regions.Average(r => float.IsNaN(r.Score) || float.IsInfinity(r.Score) ? 0f : r.Score);
+                if (float.IsNaN(ocrConfidence) || float.IsInfinity(ocrConfidence)) ocrConfidence = 0f;
 
                 return (rawText, ocrConfidence);
             }
 
             return (string.Empty, 0f);
         });
+    }
+
+    public void Dispose()
+    {
+        _ocrAll?.Dispose();
     }
 }

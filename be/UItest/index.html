@@ -35,6 +35,7 @@
     .tab { flex: 1; padding: 10px 16px; border-radius: 12px 12px 0 0; font-size: 0.875rem; font-weight: 700; cursor: pointer; border: 1px solid var(--border); border-bottom: none; text-align: center; transition: all 0.15s; background: rgba(255,255,255,0.04); color: var(--muted); text-decoration: none; }
     .tab.active-checkin { background: var(--sky-dim); color: var(--sky); border-color: rgba(14,165,233,0.4); }
     .tab.active-checkout { background: var(--amber-dim); color: var(--amber); border-color: rgba(245,158,11,0.4); }
+    .tab.active-exception { background: var(--red-dim); color: var(--red); border-color: rgba(239,68,68,0.4); }
     .tab.active-pricing { background: var(--purple-dim); color: var(--purple); border-color: rgba(139,92,246,0.4); }
 
     .container { max-width: 720px; margin: 0 auto; padding: 20px 16px 32px; }
@@ -185,10 +186,11 @@
     </div>
   </header>
 
+  <!-- Tabs -->
   <div class="tab-bar">
-    <a href="#" class="tab active-checkin" id="tabCheckin" onclick="showPanel('checkin')">&#128663; Check-In</a>
-    <a href="#" class="tab active-checkout" id="tabCheckout" onclick="showPanel('checkout')">&#128724; Check-Out</a>
-    <a href="/uitest/pricing.html" class="tab" id="tabPricing">&#128176; Giá cước</a>
+    <div id="tabCheckin" class="tab active-checkin" onclick="showPanel('checkin')">CHECK-IN</div>
+    <div id="tabCheckout" class="tab" onclick="showPanel('checkout')">CHECK-OUT</div>
+    <div id="tabException" class="tab" onclick="showPanel('exception')">NGOẠI LỆ</div>
   </div>
 
 <div class="container">
@@ -387,6 +389,10 @@
 
       <div class="input-row" style="margin-bottom: 8px;">
         <input id="coQrInput" class="plate" type="text" placeholder="Mã Thẻ Xe / QR Code" maxlength="40" />
+        <button id="btnCoUploadQr" class="btn btn-outline" onclick="document.getElementById('coUploadQr').click()" style="flex:0 0 auto; padding: 0 10px;" title="Upload ảnh QR để test">
+          &#128194;
+        </button>
+        <input type="file" id="coUploadQr" accept="image/*" style="display:none" onchange="handleCoUploadQr(event)" />
       </div>
       <div class="input-row">
         <input id="coPlateInput" class="plate" type="text" placeholder="Biển số (ABC-1234)" maxlength="20" />
@@ -494,6 +500,88 @@
     </div>
   </div>
 
+  <!-- BẢNG ĐIỀU KHIỂN NGOẠI LỆ (EXCEPTION) -->
+  <div id="panelException" class="panel" style="display:none">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span class="card-title" style="color:var(--red);">Quản lý Ngoại lệ (Mất vé)</span>
+      </div>
+      <p class="card-sub">Dành cho Manager: Tìm kiếm xe và cấp lại vé (gán phí phạt)</p>
+
+      <div class="input-row" style="margin-bottom:8px;">
+        <input id="excSearchPlate" class="plate" type="text" placeholder="Nhập biển số xe cần tìm..." />
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-search" onclick="handleExcSearch()" style="width:100%;">TÌM KIẾM XE</button>
+      </div>
+
+      <div id="excSearchResult" style="display:none; margin-top:20px;">
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="label">Biển số</div>
+            <div class="value" id="excDispPlate">-</div>
+            <div class="sub" id="excDispVehicleType">-</div>
+          </div>
+          <div class="info-card">
+            <div class="label">Giờ vào</div>
+            <div class="value" id="excDispEntry">-</div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <label style="font-size:0.8rem; font-weight:600; color:var(--muted); display:block; margin-bottom:6px;">Số tiền phạt (VND)</label>
+          <input id="excPenaltyFee" type="number" class="plate" placeholder="Ví dụ: 100000" style="text-align:left;" value="50000" />
+        </div>
+
+        <div class="btn-row" style="margin-top:16px;">
+          <button class="btn btn-primary" onclick="handleExcReissue()" style="background-color:var(--red); width:100%;">
+            CẤP LẠI VÉ VÀ GÁN PHẠT
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Step 2: Success Reissue -->
+    <div id="excStepSuccess" style="display:none">
+      <div class="card">
+        <div class="success-box">
+          <div class="success-icon" style="color:var(--amber);">&#9888;</div>
+          <div class="success-title" style="color:var(--amber);">Cấp vé thành công!</div>
+          <div class="success-msg">Phiên gửi xe đã được gán phí phạt. Bạn có thể sao chép Mã thẻ dưới đây để tiến hành thanh toán Check-out.</div>
+          <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 0.8rem; word-break: break-all; text-align: center;">
+            <strong>Mã Thẻ (Copy dán sang ô QR Check-out):</strong><br/>
+            <span id="excNewSessionId" style="color: var(--sky); font-weight: bold; font-size: 1rem;">-</span>
+          </div>
+        </div>
+        <button class="btn btn-outline" onclick="resetExc()" style="width:100%; margin-top:16px;">Xử lý xe khác</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal Duyệt Ngoại Lệ Sai Biển Số -->
+<div id="modalMismatch" class="modal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background-color:rgba(0,0,0,0.8); align-items:center; justify-content:center;">
+  <div class="card" style="width:90%; max-width:600px; padding:20px; text-align:center;">
+    <h2 style="color:var(--danger); margin-bottom:10px;">Cảnh Báo Lệch Biển Số!</h2>
+    <p style="margin-bottom:20px; font-size:14px; color:var(--muted);">Hệ thống phát hiện biển số không khớp. Vui lòng đối chiếu bằng mắt thường 2 ảnh dưới đây:</p>
+    
+    <div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:20px;">
+      <div style="flex:1;">
+        <h4 style="margin-bottom:8px;">Ảnh lúc vào</h4>
+        <img id="mismatchImgIn" src="" style="width:100%; max-height:200px; object-fit:contain; border:1px solid #444; border-radius:8px;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%25%22 height=%22100%25%22%3E%3Crect width=%22100%25%22 height=%22100%25%22 fill=%22%23222%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 fill=%22%23666%22 font-family=%22sans-serif%22 font-size=%2214%22 text-anchor=%22middle%22 dy=%22.3em%22%3EKh%C3%B4ng c%C3%B3 %E1%BA%A3nh%3C/text%3E%3C/svg%3E'" />
+      </div>
+      <div style="flex:1;">
+        <h4 style="margin-bottom:8px;">Camera hiện tại</h4>
+        <img id="mismatchImgOut" src="" style="width:100%; max-height:200px; object-fit:contain; border:1px solid #444; border-radius:8px;" />
+      </div>
+    </div>
+    
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="closeMismatchModal()">Từ chối (Không đúng xe)</button>
+      <button class="btn btn-primary" onclick="confirmMismatchModal()" style="background-color:var(--danger); color:white;">Duyệt bằng mắt (Đúng xe)</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -502,10 +590,15 @@
   let ciManualPlate = '';
   let ciStream = null;
   let ciCurrentSession = null;
+  let ciEntryImageBase64 = null;
+  let ciOcrScanTimer = null;
+  let ciIsScanningOcr = false;
 
   let coOcrPlate = '';
   let coStream = null;
   let coCurrentSession = null;
+  let coOcrScanTimer = null;
+  let coIsScanningOcr = false;
   let coSelectedPm = 0;
   let coManualFee = null;
   let coPollInterval = null;  // PayOS poll timer
@@ -589,8 +682,14 @@
   function showPanel(panel) {
     document.getElementById('panelCheckin').classList.toggle('active', panel === 'checkin');
     document.getElementById('panelCheckout').classList.toggle('active', panel === 'checkout');
+    document.getElementById('panelException').classList.toggle('active', panel === 'exception');
+    document.getElementById('panelException').style.display = panel === 'exception' ? 'block' : 'none';
+    document.getElementById('panelCheckin').style.display = panel === 'checkin' ? 'block' : 'none';
+    document.getElementById('panelCheckout').style.display = panel === 'checkout' ? 'block' : 'none';
+    
     document.getElementById('tabCheckin').className = 'tab' + (panel === 'checkin' ? ' active-checkin' : '');
     document.getElementById('tabCheckout').className = 'tab' + (panel === 'checkout' ? ' active-checkout' : '');
+    document.getElementById('tabException').className = 'tab' + (panel === 'exception' ? ' active-exception' : '');
     event && event.preventDefault();
   }
 
@@ -637,6 +736,7 @@
   // Toggle camera
   async function toggleCiCamera() {
     if (ciStream) {
+      if (ciOcrScanTimer) { clearTimeout(ciOcrScanTimer); ciOcrScanTimer = null; }
       ciStream.getTracks().forEach(t => t.stop());
       ciStream = null;
       document.getElementById('ciVideo').srcObject = null;
@@ -658,9 +758,88 @@
       document.getElementById('btnCiCapture').disabled = false;
       document.getElementById('ciCamIcon').textContent = '⏹';
       document.getElementById('ciCamLabel').textContent = 'Tắt Camera';
+
+      ciIsScanningOcr = false;
+      ciOcrScanTimer = setTimeout(startCiAutoOcr, 1000);
     } catch (err) {
       showAlert('error', 'Không thể truy cập camera: ' + err.message);
     }
+  }
+
+  async function startCiAutoOcr() {
+    if (!ciStream || ciIsScanningOcr) return;
+    
+    const video = document.getElementById('ciVideo');
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      ciOcrScanTimer = setTimeout(startCiAutoOcr, 500);
+      return;
+    }
+
+    ciIsScanningOcr = true;
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+      const token = localStorage.getItem('sp_token');
+
+      const res = await fetch(getBase() + '/api/ocr/scan-plate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ imageBase64: base64 }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const raw = (data.licensePlate || data.LicensePlate || '').trim();
+        const plate = normalizePlate(raw);
+        const conf = data.confidence || data.Confidence || 0;
+
+        if (plate && conf >= 0.8) {
+          ciOcrPlate = plate;
+          document.getElementById('ciPlateInput').value = plate;
+          document.getElementById('ciPlateInput').style.borderColor = '#10b981';
+          document.getElementById('ciOcrBadge').textContent = '✓ Tự động bắt: ' + plate;
+          document.getElementById('ciOcrBadge').style.background = 'rgba(16,185,129,0.9)';
+          document.getElementById('ciOcrBadge').style.display = 'block';
+          
+          document.getElementById('ciOcrText').textContent = plate;
+          document.getElementById('ciOcrConf').textContent = `Confidence: ${Math.round(conf * 100)}% (Auto)`;
+          document.getElementById('ciOcrResult').style.display = 'block';
+
+          // Save image
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+          canvas.getContext('2d').drawImage(video, 0, 0);
+          ciEntryImageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+
+          // Stop auto OCR and update button
+          ciIsScanningOcr = false;
+          if (ciOcrScanTimer) clearTimeout(ciOcrScanTimer);
+          const btn = document.getElementById('btnCiCapture');
+          btn.innerHTML = '🔄 Quét lại';
+          btn.onclick = () => {
+            ciEntryImageBase64 = null;
+            document.getElementById('ciPlateInput').value = '';
+            document.getElementById('ciOcrResult').style.display = 'none';
+            btn.innerHTML = '<span id="ciCapIcon" class="spinner" style="display:none"></span><span id="ciCapLabel">Chụp & OCR</span>';
+            btn.onclick = captureCiFrame;
+            startCiAutoOcr();
+          };
+          return;
+        }
+      }
+    } catch (err) {
+      // Ignore background errors
+    }
+
+    ciIsScanningOcr = false;
+    ciOcrScanTimer = setTimeout(startCiAutoOcr, 1500);
   }
 
   // Capture frame and send to OCR API
@@ -682,6 +861,7 @@
 
     try {
       const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+      ciEntryImageBase64 = 'data:image/jpeg;base64,' + base64;
 
       const token = localStorage.getItem('sp_token');
       const res = await fetch(getBase() + '/api/ocr/scan-plate', {
@@ -714,6 +894,19 @@
         document.getElementById('ciOcrResult').style.display = 'block';
         document.getElementById('ciPlateInput').value = plate;
         document.getElementById('ciPlateInput').style.borderColor = '#10b981';
+        
+        // Stop auto OCR and update button
+        if (ciOcrScanTimer) clearTimeout(ciOcrScanTimer);
+        const btn = document.getElementById('btnCiCapture');
+        btn.innerHTML = '🔄 Quét lại';
+        btn.onclick = () => {
+          ciEntryImageBase64 = null;
+          document.getElementById('ciPlateInput').value = '';
+          document.getElementById('ciOcrResult').style.display = 'none';
+          btn.innerHTML = '<span id="ciCapIcon" class="spinner" style="display:none"></span><span id="ciCapLabel">Chụp & OCR</span>';
+          btn.onclick = captureCiFrame;
+          startCiAutoOcr();
+        };
       } else {
         document.getElementById('ciOcrBadge').textContent = 'Không phát hiện';
         document.getElementById('ciOcrBadge').style.background = 'rgba(239,68,68,0.9)';
@@ -805,6 +998,7 @@
           StaffId: staffId || null,
           BuildingId: document.getElementById('configBuildingId').value.trim() || null,
           SlotId: null,
+          EntryImageBase64: ciEntryImageBase64 ? ciEntryImageBase64.split(',')[1] : null
         }),
       });
       if (!data) { setCiLoading(false, 'confirm'); return; }
@@ -839,7 +1033,9 @@
   }
 
   function resetCi() {
+    if (ciOcrScanTimer) { clearTimeout(ciOcrScanTimer); ciOcrScanTimer = null; }
     ciOcrPlate = '';
+    ciEntryImageBase64 = null;
     ciCurrentSession = null;
     document.getElementById('ciPlateInput').value = '';
     document.getElementById('ciPlateInput').style.borderColor = '';
@@ -884,6 +1080,7 @@
 
   async function toggleCoCamera() {
     if (coStream) {
+      if (coOcrScanTimer) { clearTimeout(coOcrScanTimer); coOcrScanTimer = null; }
       coStream.getTracks().forEach(t => t.stop());
       coStream = null;
       if (coQrScanInterval) {
@@ -920,24 +1117,158 @@
           const ctx = canvas.getContext("2d");
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          if (!window.jsQR && !window.jsQRLoadedMsg) {
+            console.error("jsQR library is NOT loaded!");
+            window.jsQRLoadedMsg = true;
+          }
+
           const code = window.jsQR ? window.jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert",
+            inversionAttempts: "attemptBoth",
           }) : null;
           
           if (code && code.data) {
-            document.getElementById('coQrInput').value = code.data;
-            document.getElementById('coQrInput').style.borderColor = '#10b981';
-            document.getElementById('coOcrBadge').textContent = '✓ Quét QR: ' + code.data;
-            document.getElementById('coOcrBadge').style.background = 'rgba(16,185,129,0.9)';
-            document.getElementById('coOcrBadge').style.display = 'block';
-            setTimeout(() => { document.getElementById('coOcrBadge').style.display = 'none'; }, 3000);
+            const qrInput = document.getElementById('coQrInput');
+            if (qrInput.value !== code.data) {
+              qrInput.value = code.data;
+              qrInput.style.borderColor = '#10b981';
+              
+              // Highlight the input with a brief animation
+              qrInput.style.backgroundColor = 'rgba(16,185,129,0.2)';
+              setTimeout(() => { qrInput.style.backgroundColor = 'transparent'; }, 1000);
+
+              const badge = document.getElementById('coOcrBadge');
+              badge.textContent = '✓ ĐÃ QUÉT QR!';
+              badge.style.background = 'rgba(16,185,129,0.9)';
+              badge.style.display = 'block';
+              
+              // Disable OCR badge updates for 3 seconds to let user see the success
+              window.coQrSuccessHold = true;
+              setTimeout(() => { window.coQrSuccessHold = false; badge.style.display = 'none'; }, 3000);
+            }
           }
         }
       }, 500);
 
+      coIsScanningOcr = false;
+      coOcrScanTimer = setTimeout(startCoAutoOcr, 1000);
+
     } catch (err) {
       showAlert('error', 'Không thể truy cập camera: ' + err.message);
     }
+  }
+
+  // --- Test QR by Upload ---
+  function handleCoUploadQr(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, img.width, img.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = window.jsQR ? window.jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "attemptBoth"
+        }) : null;
+        
+        if (code && code.data) {
+          document.getElementById('coQrInput').value = code.data;
+          document.getElementById('coQrInput').style.borderColor = '#10b981';
+          const badge = document.getElementById('coOcrBadge');
+          badge.textContent = '✓ ĐÃ QUÉT QR (Từ Ảnh)!';
+          badge.style.background = 'rgba(16,185,129,0.9)';
+          badge.style.display = 'block';
+          window.coQrSuccessHold = true;
+          setTimeout(() => { window.coQrSuccessHold = false; badge.style.display = 'none'; }, 3000);
+        } else {
+          showAlert('error', 'Không tìm thấy mã QR trong ảnh này. (Có thể ảnh mờ hoặc thư viện jsQR không đọc được)');
+        }
+      };
+      img.src = evt.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+
+  async function startCoAutoOcr() {
+    if (!coStream || coIsScanningOcr) return;
+    
+    const video = document.getElementById('coVideo');
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) {
+      coOcrScanTimer = setTimeout(startCoAutoOcr, 500);
+      return;
+    }
+
+    coIsScanningOcr = true;
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+      const base64 = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
+      const token = localStorage.getItem('sp_token');
+
+      const res = await fetch(getBase() + '/api/ocr/scan-plate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ imageBase64: base64 }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const raw = (data.licensePlate || data.LicensePlate || '').trim();
+        const plate = normalizePlate(raw);
+        const conf = data.confidence || data.Confidence || 0;
+
+        if (plate && conf >= 0.8) {
+          coOcrPlate = plate;
+          document.getElementById('coPlateInput').value = plate;
+          document.getElementById('coPlateInput').style.borderColor = '#10b981';
+          
+          if (!window.coQrSuccessHold) {
+            document.getElementById('coOcrBadge').textContent = '✓ Tự động bắt: ' + plate;
+            document.getElementById('coOcrBadge').style.background = 'rgba(16,185,129,0.9)';
+            document.getElementById('coOcrBadge').style.display = 'block';
+          }
+          
+          document.getElementById('coOcrText').textContent = plate;
+          document.getElementById('coOcrConf').textContent = `Confidence: ${Math.round(conf * 100)}% (Auto)`;
+          document.getElementById('coOcrResult').style.display = 'block';
+
+          coIsScanningOcr = false;
+          if (coOcrScanTimer) clearTimeout(coOcrScanTimer);
+          const btn = document.getElementById('btnCoCapture');
+          btn.innerHTML = '🔄 Quét lại';
+          btn.onclick = () => {
+            document.getElementById('coPlateInput').value = '';
+            document.getElementById('coOcrResult').style.display = 'none';
+            btn.innerHTML = '<span id="coCapIcon" class="spinner" style="display:none"></span><span id="coCapLabel">Chụp & OCR</span>';
+            btn.onclick = captureCoFrame;
+            startCoAutoOcr();
+          };
+          return;
+        } else {
+          if (!window.coQrSuccessHold) {
+            document.getElementById('coOcrBadge').textContent = 'Không phát hiện biển số';
+            document.getElementById('coOcrBadge').style.background = 'rgba(239,68,68,0.9)';
+            document.getElementById('coOcrResult').style.display = 'none';
+          }
+        }
+      }
+    } catch (err) {
+      // Ignore background errors
+    }
+
+    coIsScanningOcr = false;
+    coOcrScanTimer = setTimeout(startCoAutoOcr, 1500);
   }
 
   async function captureCoFrame() {
@@ -990,6 +1321,17 @@
         document.getElementById('coOcrResult').style.display = 'block';
         document.getElementById('coPlateInput').value = plate;
         document.getElementById('coPlateInput').style.borderColor = '#10b981';
+        
+        if (coOcrScanTimer) clearTimeout(coOcrScanTimer);
+        const btn = document.getElementById('btnCoCapture');
+        btn.innerHTML = '🔄 Quét lại';
+        btn.onclick = () => {
+          document.getElementById('coPlateInput').value = '';
+          document.getElementById('coOcrResult').style.display = 'none';
+          btn.innerHTML = '<span id="coCapIcon" class="spinner" style="display:none"></span><span id="coCapLabel">Chụp & OCR</span>';
+          btn.onclick = captureCoFrame;
+          startCoAutoOcr();
+        };
       } else {
         document.getElementById('coOcrBadge').textContent = 'Không phát hiện';
         document.getElementById('coOcrBadge').style.background = 'rgba(239,68,68,0.9)';
@@ -1036,8 +1378,22 @@
       if (!data) { setCoLoading(false, 'search'); return; }
 
       coCurrentSession = data;
-      renderCoSession(data);
-      showCoStep('confirm');
+
+      if (rk(data, 'IsPlateMismatch', false)) {
+        document.getElementById('mismatchImgIn').src = getBase() + (rk(data, 'EntryImageUrl', '') || '/placeholder.png');
+        // Capture current frame from checkout video as mismatchImgOut
+        const v = document.getElementById('coVideo');
+        if (v && v.readyState === v.HAVE_ENOUGH_DATA) {
+          const c = document.createElement('canvas');
+          c.width = v.videoWidth; c.height = v.videoHeight;
+          c.getContext('2d').drawImage(v, 0, 0);
+          document.getElementById('mismatchImgOut').src = c.toDataURL('image/jpeg', 0.8);
+        }
+        document.getElementById('modalMismatch').style.display = 'flex';
+      } else {
+        renderCoSession(data);
+        showCoStep('confirm');
+      }
     } catch (err) {
       showAlert('error', err.message);
     } finally {
@@ -1074,7 +1430,30 @@
     } else {
       feeDiv.innerHTML = `<div class="fee-row"><span class="label">Đơn giá</span><span class="amount">${fmtMoney(rk(s, 'HourlyRate', 0))}/giờ</span></div>`;
     }
+
+    const penalty = rk(s, 'PenaltyFee', 0);
+    if (penalty > 0) {
+      feeDiv.innerHTML += `<div class="fee-row" style="color:var(--danger);"><span class="label">Phí phạt (Ngoại lệ)</span><span class="amount">${fmtMoney(penalty)}</span></div>`;
+    }
+
     document.getElementById('coDispTotalFee').textContent = fmtMoney(rk(s, 'EstimatedFee', 0));
+  }
+
+  function closeMismatchModal() {
+    document.getElementById('modalMismatch').style.display = 'none';
+    coCurrentSession = null;
+    document.getElementById('coPlateInput').value = '';
+    showCoStep('search'); // Đảm bảo ẩn Step 2 nếu nó đang hiện
+    document.getElementById('coPlateInput').focus();
+  }
+
+  function confirmMismatchModal() {
+    document.getElementById('modalMismatch').style.display = 'none';
+    if (coCurrentSession) {
+      coCurrentSession.IsManualVerified = true; // Mark to send to backend
+      renderCoSession(coCurrentSession);
+      showCoStep('confirm');
+    }
   }
 
   function selectCoPm(pm) {
@@ -1189,6 +1568,7 @@
           ExitLicensePlateOcr: coOcrPlate || null,
           StaffConfirmed: true,
           ManualFee: coManualFee,
+          IsManualVerified: coCurrentSession.IsManualVerified || false
         }),
       });
       if (!data) { setCoLoading(false, 'confirm'); return; }
@@ -1339,6 +1719,7 @@
   }
 
   function resetCo() {
+    if (coOcrScanTimer) { clearTimeout(coOcrScanTimer); coOcrScanTimer = null; }
     stopCoPoll();
     coOcrPlate = '';
     coCurrentSession = null;
@@ -1388,6 +1769,68 @@
       document.getElementById('btnCoConfirm').disabled = on;
       document.getElementById('btnCoConfirm').style.opacity = on ? '0.5' : '1';
     }
+  }
+
+  // ── Exception Handling (Manager) ───────────────────────────────
+  let excCurrentSession = null;
+
+  async function handleExcSearch() {
+    const rawPlate = document.getElementById('excSearchPlate').value.trim();
+    if (!rawPlate) { showAlert('error', 'Vui lòng nhập biển số xe.'); return; }
+    
+    const plate = normalizePlate(rawPlate);
+    document.getElementById('alertBox').classList.remove('show');
+    
+    try {
+      const data = await apiFetch(`/api/Sessions/active?licensePlate=${encodeURIComponent(plate)}`);
+      if (data && data.items && data.items.length > 0) {
+        // Lấy session đầu tiên
+        excCurrentSession = data.items[0];
+        document.getElementById('excDispPlate').textContent = excCurrentSession.licensePlate || excCurrentSession.LicensePlate || '-';
+        document.getElementById('excDispVehicleType').textContent = excCurrentSession.vehicleTypeName || excCurrentSession.VehicleTypeName || '-';
+        document.getElementById('excDispEntry').textContent = fmtDateTime(excCurrentSession.entryTime || excCurrentSession.EntryTime);
+        document.getElementById('excSearchResult').style.display = 'block';
+      } else {
+        showAlert('error', 'Không tìm thấy xe đang gửi trong bãi với biển số này.');
+        document.getElementById('excSearchResult').style.display = 'none';
+        excCurrentSession = null;
+      }
+    } catch (err) {
+      showAlert('error', err.message);
+    }
+  }
+
+  async function handleExcReissue() {
+    if (!excCurrentSession) { showAlert('error', 'Không có phiên gửi xe.'); return; }
+    const penaltyFee = parseFloat(document.getElementById('excPenaltyFee').value) || 0;
+    
+    const id = excCurrentSession.id || excCurrentSession.Id;
+    
+    try {
+      const data = await apiFetch(`/api/Sessions/${id}/reissue`, {
+        method: 'POST',
+        body: JSON.stringify({ PenaltyFee: penaltyFee })
+      });
+      if (data) {
+        document.getElementById('excNewSessionId').textContent = id;
+        document.getElementById('excSearchResult').style.display = 'none';
+        document.getElementById('excSearchPlate').parentElement.style.display = 'none';
+        document.getElementById('excSearchPlate').parentElement.nextElementSibling.style.display = 'none'; // btn-search
+        document.getElementById('excStepSuccess').style.display = 'block';
+      }
+    } catch (err) {
+      showAlert('error', err.message);
+    }
+  }
+
+  function resetExc() {
+    excCurrentSession = null;
+    document.getElementById('excSearchPlate').value = '';
+    document.getElementById('excPenaltyFee').value = '50000';
+    document.getElementById('excSearchResult').style.display = 'none';
+    document.getElementById('excStepSuccess').style.display = 'none';
+    document.getElementById('excSearchPlate').parentElement.style.display = 'flex';
+    document.getElementById('excSearchPlate').parentElement.nextElementSibling.style.display = 'flex';
   }
 
   // ── Formatters ─────────────────────────────────────────────────

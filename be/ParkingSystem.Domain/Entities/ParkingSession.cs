@@ -16,6 +16,7 @@ public class ParkingSession : BaseEntity
     public DateTime EntryTime { get; set; }
     public DateTime? ExitTime { get; set; }
     public decimal EstimatedFee { get; set; }
+    public decimal PenaltyFee { get; set; }
     public decimal TotalFee { get; set; }
     
     /// <summary>

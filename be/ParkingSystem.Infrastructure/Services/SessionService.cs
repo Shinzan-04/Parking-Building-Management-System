@@ -185,6 +185,34 @@ public class SessionService : ISessionService
         return session == null ? null : MapToDto(session);
     }
 
+    public async Task<SessionDto> ReissueTicketAsync(Guid sessionId, ReissueTicketRequest request, Guid staffId)
+    {
+        var session = await _context.ParkingSessions
+            .Include(s => s.ParkingSlot)
+                .ThenInclude(ps => ps.Floor)
+                    .ThenInclude(f => f.Building)
+            .Include(s => s.VehicleType)
+            .Include(s => s.Driver)
+            .Include(s => s.Staff)
+            .FirstOrDefaultAsync(s => s.Id == sessionId && s.Status == SessionStatus.Active && !s.IsDeleted);
+
+        if (session == null)
+            throw new KeyNotFoundException("Không tìm thấy phiên gửi xe hoặc xe đã thanh toán.");
+
+        // Ghi nhận tiền phạt và loại lỗi
+        session.PenaltyFee = request.PenaltyFee;
+        session.IssueType = IssueType.LostTicket;
+        
+        // Có thể lưu staffId đã xử lý mất vé vào một nơi nào đó (ở đây mình có thể đổi StaffId của session thành người duyệt mới nhất)
+        session.StaffId = staffId;
+
+        // Lưu lại DB
+        session.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return MapToDto(session);
+    }
+
     /// <summary>
     /// Map entity → DTO, tính thời gian gửi xe
     /// </summary>
@@ -215,6 +243,7 @@ public class SessionService : ISessionService
             EntryTime = s.EntryTime,
             ExitTime = s.ExitTime,
             EstimatedFee = s.EstimatedFee,
+            PenaltyFee = s.PenaltyFee,
             TotalFee = s.TotalFee,
             Duration = durationText,
             EntryImageUrl = s.EntryImageUrl

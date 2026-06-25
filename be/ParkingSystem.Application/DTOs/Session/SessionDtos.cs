@@ -28,6 +28,7 @@ public class SessionDto
     public DateTime EntryTime { get; set; }
     public DateTime? ExitTime { get; set; }
     public decimal EstimatedFee { get; set; }
+    public decimal PenaltyFee { get; set; }
     public decimal TotalFee { get; set; }
     
     /// <summary>
@@ -111,4 +112,13 @@ public class SessionSummary
     public int TotalOverdue { get; set; }
     public int TotalCompletedToday { get; set; }
     public decimal TotalRevenueToday { get; set; }
+}
+
+/// <summary>
+/// Dữ liệu yêu cầu cấp lại vé (Ngoại lệ mất vé)
+/// </summary>
+public class ReissueTicketRequest
+{
+    public decimal PenaltyFee { get; set; }
+    public string Reason { get; set; } = string.Empty;
 }

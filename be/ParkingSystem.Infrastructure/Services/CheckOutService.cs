@@ -58,9 +58,10 @@ public class CheckOutService : ICheckOutService
             throw new InvalidOperationException("Ma the xe khong hop le hoac phien gui xe khong ton tai.");
         }
 
+        bool isMismatch = false;
         if (CleanLicensePlate(session.LicensePlate) != cleanedInput)
         {
-            throw new InvalidOperationException($"Bien so xe ({licensePlate}) khong khop voi the xe.");
+            isMismatch = true;
         }
 
         Guid? effectiveBuildingId = requestBuildingId;
@@ -122,7 +123,10 @@ public class CheckOutService : ICheckOutService
             NightPassPrice = priceResult.NightPassPrice,
             DailyMaxPrice = priceResult.DailyMaxPrice,
             FeeBreakdown = priceResult.FeeBreakdown,
-            Message = BuildMessage(session, priceResult)
+            Message = BuildMessage(session, priceResult),
+            IsPlateMismatch = isMismatch,
+            EntryImageUrl = session.EntryImageUrl,
+            PenaltyFee = session.PenaltyFee
         };
     }
 
@@ -180,6 +184,16 @@ public class CheckOutService : ICheckOutService
                 priceResult.TotalFee = overdueResult.TotalFee;
                 priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
             }
+        }
+
+        // Cộng thêm tiền phạt (nếu có)
+        priceResult.TotalFee += session.PenaltyFee;
+
+        // Nếu nhân viên bảo vệ đã dùng quyền Duyệt Ngoại Lệ (do sai biển số)
+        if (request.IsManualVerified)
+        {
+            session.IssueType = IssueType.WrongPlate;
+            session.StaffId = request.StaffId;
         }
 
         // Neu la PayOS, kiem tra payment da duoc xu ly chua

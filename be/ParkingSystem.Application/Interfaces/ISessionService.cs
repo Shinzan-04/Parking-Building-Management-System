@@ -23,6 +23,11 @@ public interface ISessionService
     /// Tìm session đang Active theo biển số xe (tra cứu nhanh)
     /// </summary>
     Task<SessionDto?> FindActiveByPlateAsync(string licensePlate);
+
+    /// <summary>
+    /// Cấp lại vé (Ngoại lệ mất vé), gán PenaltyFee
+    /// </summary>
+    Task<SessionDto> ReissueTicketAsync(Guid sessionId, ReissueTicketRequest request, Guid staffId);
     
     /// <summary>
     /// Lấy thông tin phiên đỗ xe hiện tại (Live Session) của user (Driver)

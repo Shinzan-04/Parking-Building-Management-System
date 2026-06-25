@@ -52,6 +52,11 @@ public class CheckOutSearchResult
     public FeeBreakdownDto? FeeBreakdown { get; set; }
 
     public string Message { get; set; } = string.Empty;
+    
+    // Thuộc tính phục vụ Exception Checkout
+    public bool IsPlateMismatch { get; set; }
+    public string? EntryImageUrl { get; set; }
+    public decimal PenaltyFee { get; set; }
 }
 
 /// <summary>
@@ -90,6 +95,8 @@ public class CheckOutConfirmRequest
     /// Staff xac nhan cho phep checkout (bat buoc = true de hoan tat).
     /// </summary>
     public bool StaffConfirmed { get; set; } = true;
+    
+    public bool IsManualVerified { get; set; } // Nếu true, Staff đã duyệt bằng mắt (do biển số lệch)
 }
 
 /// <summary>

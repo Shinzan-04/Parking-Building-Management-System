@@ -189,4 +189,33 @@ public class SessionsController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Manager: Cấp lại vé cho xe bị mất vé, gán tiền phạt (PenaltyFee)
+    /// Trả về SessionDto bao gồm SessionCode (Mã QR cũ) để khách dùng check-out
+    /// </summary>
+    [HttpPost("{id}/reissue")]
+    [Authorize(Roles = "Manager,Admin")]
+    public async Task<IActionResult> ReissueTicket(Guid id, [FromBody] ReissueTicketRequest request)
+    {
+        try
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var staffId))
+            {
+                return Unauthorized();
+            }
+
+            var result = await _sessionService.ReissueTicketAsync(id, request, staffId);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
