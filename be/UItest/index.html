@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Check-In / Check-Out Test UI</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     :root {
       --bg: #0a0f1e;
@@ -207,6 +208,9 @@
         <input type="password" id="loginPassword" placeholder="Password" style="flex:1" />
         <button class="btn btn-primary" onclick="uiLogin()" style="padding:0 16px">Login</button>
       </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input type="text" id="configBuildingId" placeholder="BuildingId (Optional - Dành cho Admin/Manager đổi tòa nhà)" style="flex:1" />
+      </div>
     </div>
   </div>
 
@@ -381,14 +385,17 @@
         </button>
       </div>
 
+      <div class="input-row" style="margin-bottom: 8px;">
+        <input id="coQrInput" class="plate" type="text" placeholder="Mã Thẻ Xe / QR Code" maxlength="40" />
+      </div>
       <div class="input-row">
-        <input id="coPlateInput" class="plate" type="text" placeholder="ABC-1234" maxlength="20" />
+        <input id="coPlateInput" class="plate" type="text" placeholder="Biển số (ABC-1234)" maxlength="20" />
         <button id="btnCoSearch" class="btn btn-search" onclick="handleCoSearch()" style="flex:0 0 auto; padding: 0 20px;">
           <span id="coSearchIcon" class="spinner" style="display:none"></span>
           <span id="coSearchLabel">Tìm</span>
         </button>
       </div>
-      <p style="font-size:0.75rem;color:var(--muted);margin-top:8px;text-align:center">Hoặc nhập biển số tay rồi nhấn Tìm</p>
+      <p style="font-size:0.75rem;color:var(--muted);margin-top:8px;text-align:center">Quét mã thẻ xe và nhập biển số rồi nhấn Tìm</p>
     </div>
 
     <!-- Step 2: Confirm -->
@@ -796,6 +803,7 @@
           LicensePlate: plate,
           VehicleTypeId: vehicleTypeId,
           StaffId: staffId || null,
+          BuildingId: document.getElementById('configBuildingId').value.trim() || null,
           SlotId: null,
         }),
       });
@@ -822,7 +830,11 @@
       <div class="receipt-row"><span class="label">Giờ vào</span><span class="value">${fmtDateTime(r.entryTime || r.EntryTime)}</span></div>
       <div class="receipt-row"><span class="label">Vị trí</span><span class="value">${r.slotNumber || r.SlotNumber || '-'}, Tầng ${r.floorName || r.FloorName || '-'}</span></div>
       <div class="receipt-row"><span class="label">Mã phiên</span><span class="value">${r.sessionCode || r.SessionCode || '-'}</span></div>
-      ${(r.sessionQrCodeBase64 || r.SessionQrCodeBase64) ? `<div class="receipt-row"><span class="label">QR Code</span><span class="value" style="font-size:0.7rem">Đã tạo</span></div>` : ''}
+      ${(r.sessionQrCodeBase64 || r.SessionQrCodeBase64) ? `
+      <div class="receipt-row" style="flex-direction:column;align-items:center;margin-top:12px;border-bottom:none;">
+        <span class="label" style="margin-bottom:8px">Quét mã này để Check-out</span>
+        <img src="data:image/png;base64,${r.sessionQrCodeBase64 || r.SessionQrCodeBase64}" alt="QR Code" style="width:150px;height:150px;border:1px solid #e5e7eb;padding:4px;border-radius:8px;" />
+      </div>` : ''}
     `;
   }
 
@@ -868,10 +880,16 @@
   // CHECK-OUT                                                      
   // ================================================================
 
+  let coQrScanInterval = null;
+
   async function toggleCoCamera() {
     if (coStream) {
       coStream.getTracks().forEach(t => t.stop());
       coStream = null;
+      if (coQrScanInterval) {
+        clearInterval(coQrScanInterval);
+        coQrScanInterval = null;
+      }
       document.getElementById('coVideo').srcObject = null;
       document.getElementById('coCameraOverlay').style.display = 'flex';
       document.getElementById('coScanLine').style.display = 'none';
@@ -885,12 +903,38 @@
 
     try {
       coStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      document.getElementById('coVideo').srcObject = coStream;
+      const video = document.getElementById('coVideo');
+      video.srcObject = coStream;
       document.getElementById('coCameraOverlay').style.display = 'none';
       document.getElementById('coScanLine').style.display = 'block';
       document.getElementById('btnCoCapture').disabled = false;
       document.getElementById('coCamIcon').textContent = '⏹';
       document.getElementById('coCamLabel').textContent = 'Tắt Camera';
+
+      // Liên tục quét QR Code
+      coQrScanInterval = setInterval(() => {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = window.jsQR ? window.jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "dontInvert",
+          }) : null;
+          
+          if (code && code.data) {
+            document.getElementById('coQrInput').value = code.data;
+            document.getElementById('coQrInput').style.borderColor = '#10b981';
+            document.getElementById('coOcrBadge').textContent = '✓ Quét QR: ' + code.data;
+            document.getElementById('coOcrBadge').style.background = 'rgba(16,185,129,0.9)';
+            document.getElementById('coOcrBadge').style.display = 'block';
+            setTimeout(() => { document.getElementById('coOcrBadge').style.display = 'none'; }, 3000);
+          }
+        }
+      }, 500);
+
     } catch (err) {
       showAlert('error', 'Không thể truy cập camera: ' + err.message);
     }
@@ -974,6 +1018,9 @@
   async function handleCoSearch() {
     if (coPayosPending) { showAlert('error', 'Đang chờ thanh toán PayOS. Vui lòng thanh toán trước.'); return; }
 
+    const rawQr = document.getElementById('coQrInput').value.trim();
+    if (!rawQr) { showAlert('error', 'Vui lòng quét mã QR hoặc nhập mã thẻ xe.'); return; }
+
     const rawPlate = document.getElementById('coPlateInput').value.trim();
     if (!rawPlate) { showAlert('error', 'Vui lòng nhập biển số xe.'); return; }
 
@@ -982,7 +1029,10 @@
     document.getElementById('alertBox').classList.remove('show');
 
     try {
-      const data = await apiFetch(`/api/CheckOut/search?licensePlate=${encodeURIComponent(plate)}`);
+      const bid = document.getElementById('configBuildingId').value.trim();
+      let url = `/api/CheckOut/search?qrCode=${encodeURIComponent(rawQr)}&licensePlate=${encodeURIComponent(plate)}`;
+      if (bid) url += `&buildingId=${encodeURIComponent(bid)}`;
+      const data = await apiFetch(url);
       if (!data) { setCoLoading(false, 'search'); return; }
 
       coCurrentSession = data;
@@ -1011,11 +1061,11 @@
     document.getElementById('coDispExit').textContent = 'Ra: ' + fmtDateTime(rk(s, 'EstimatedExitTime', null));
     document.getElementById('coDispDuration').textContent = fmtDuration(rk(s, 'TotalHours', 0));
     const pm = rk(s, 'PricingModel', 'Hourly');
-    document.getElementById('coDispPricingModel').textContent = pm === 'DayNight' ? 'Ngày/Đêm' : 'Theo giờ';
-    document.getElementById('coDispMessage').textContent = rk(s, 'Message', '');
-
+    document.getElementById('coDispPricingModel').textContent = pm === 'BlockDayNight' || pm === 'DayNight' ? 'Ngày/Đêm (Block)' : 'Theo giờ';
+    const dispDayPass = document.getElementById('coDispDayPass');
+    if (dispDayPass) dispDayPass.textContent = (pm === 'BlockDayNight' || pm === 'DayNight') ? (rk(s, 'DayPassPrice') || '0') + ' đ' : '-';  
     const feeDiv = document.getElementById('coFeeDetails');
-    if (pm === 'DayNight' && rk(s, 'FeeBreakdown', null)) {
+    if (pm.includes('DayNight') && rk(s, 'FeeBreakdown', null)) {
       const fb = rk(s, 'FeeBreakdown', {});
       feeDiv.innerHTML = `
         <div class="fee-row"><span class="label">Ngày x${rk(fb, 'DayPassCount', 0)}</span><span class="amount">${fmtMoney(rk(fb, 'DayPassTotal', 0))}</span></div>
@@ -1133,6 +1183,7 @@
         body: JSON.stringify({
           SessionId: coCurrentSession.sessionId || coCurrentSession.SessionId,
           StaffId: staffId,
+          BuildingId: document.getElementById('configBuildingId').value.trim() || null,
           PaymentMethod: coSelectedPm,
           PaymentAmount: null,
           ExitLicensePlateOcr: coOcrPlate || null,

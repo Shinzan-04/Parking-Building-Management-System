@@ -29,8 +29,12 @@ public class CheckOutController : ControllerBase
     /// </summary>
     /// <param name="licensePlate">Bien so xe can tim (khong can chuan hoa truoc)</param>
     [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string licensePlate)
+    public async Task<IActionResult> Search([FromQuery] string qrCode, [FromQuery] string licensePlate, [FromQuery] Guid? buildingId)
     {
+        if (string.IsNullOrWhiteSpace(qrCode))
+        {
+            return BadRequest(new { message = "Vui long quet ma QR the xe." });
+        }
         if (string.IsNullOrWhiteSpace(licensePlate))
         {
             return BadRequest(new { message = "Bien so xe khong duoc de trong." });
@@ -38,7 +42,14 @@ public class CheckOutController : ControllerBase
 
         try
         {
-            var result = await _checkOutService.SearchByLicensePlateAsync(licensePlate);
+            Guid? staffId = null;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim != null && Guid.TryParse(userIdClaim.Value, out var userId))
+            {
+                staffId = userId;
+            }
+
+            var result = await _checkOutService.SearchByQrCodeAndPlateAsync(qrCode, licensePlate, staffId, buildingId);
             return Ok(result);
         }
         catch (InvalidOperationException ex)
@@ -97,6 +108,10 @@ public class CheckOutController : ControllerBase
     [HttpPost("ocr-checkout")]
     public async Task<IActionResult> OcrCheckOut([FromBody] OcrCheckOutRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.QrCode))
+        {
+            return BadRequest(new { message = "Vui long quet ma QR the xe." });
+        }
         if (string.IsNullOrWhiteSpace(request.ImageBase64))
         {
             return BadRequest(new { message = "Anh khong duoc de trong." });

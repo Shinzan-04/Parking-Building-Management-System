@@ -68,6 +68,8 @@ public class CheckOutConfirmRequest
     /// ID nhan vien thuc hien check-out.
     /// </summary>
     public Guid StaffId { get; set; }
+    
+    public Guid? BuildingId { get; set; }
 
     /// <summary>
     /// Phuong thuc thanh toan, mac dinh la Cash neu khong truyen.
@@ -154,6 +156,9 @@ public class OcrCheckOutRequest
     /// Anh chup bien so xe tu camera, dinh dang Base64.
     /// </summary>
     public string ImageBase64 { get; set; } = string.Empty;
+    public string QrCode { get; set; } = string.Empty;
+    public Guid StaffId { get; set; }
+    public Guid? BuildingId { get; set; }
 }
 
 /// <summary>
