@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import toast from 'react-hot-toast';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   X,
@@ -54,6 +55,7 @@ interface WizardState {
   licensePlate: string;
   entryDate: string;
   entryTime: string;
+  exitDate: string;
   exitTime?: string;
   duration: number; // hours
   floor: string | null;
@@ -84,9 +86,15 @@ const STEPS = [
 // ─────────────────────────────────────────────
 const formatCurrency = (n: number) => n.toLocaleString('vi-VN') + 'đ';
 
+const getLocalDateStr = (d: Date = new Date()) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
 const todayDateStr = () => {
-  const d = new Date();
-  return d.toISOString().split('T')[0];
+  return getLocalDateStr(new Date());
 };
 
 const nowTimeStr = () => {
@@ -111,11 +119,13 @@ function StepVehicleType({
   setState,
   vehicles,
   loading,
+  policy,
 }: {
   state: WizardState;
   setState: React.Dispatch<React.SetStateAction<WizardState>>;
   vehicles: ApiVehicleType[];
   loading: boolean;
+  policy: PricingPolicyResponse | null;
 }) {
   if (loading) {
     return (
@@ -197,9 +207,21 @@ function StepVehicleType({
               </div>
 
               {selected && (
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF4C4C]">
-                  <CheckCircle2 size={14} className="text-[#FF4C4C]" />
-                  Selected
+                <div className="flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#FF4C4C]">
+                    <CheckCircle2 size={14} className="text-[#FF4C4C]" />
+                    Selected
+                  </div>
+                  {policy && (
+                    <div className="flex flex-col items-center gap-1 text-[11px] text-stone-500 bg-white px-3 py-2 rounded-xl border border-[#FF4C4C]/20 shadow-sm">
+                      <div className="flex items-center gap-1.5">
+                        <span>Ngày: <strong className="text-stone-700">{formatCurrency(policy.dayBlockRate)}</strong>/block</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span>Đêm: <strong className="text-stone-700">{formatCurrency(policy.nightBlockRate)}</strong>/block</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </button>
@@ -505,33 +527,42 @@ function StepDateTime({
 }) {
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isTimePickerOpen, setIsTimePickerOpen] = useState(false);
+  const [isExitDatePickerOpen, setIsExitDatePickerOpen] = useState(false);
   const [isExitTimePickerOpen, setIsExitTimePickerOpen] = useState(false);
   const durations = [1, 2, 3, 4, 6, 8, 12, 24];
 
+  const calculateDiffMins = (enD: string, enT: string, exD: string, exT: string) => {
+    const entry = new Date(enD);
+    const [enH, enM] = enT.split(':').map(Number);
+    entry.setHours(enH, enM, 0, 0);
+
+    const exit = new Date(exD);
+    const [exH, exM] = exT.split(':').map(Number);
+    exit.setHours(exH, exM, 0, 0);
+
+    return (exit.getTime() - entry.getTime()) / (1000 * 60);
+  };
+
   const exitInfo = useMemo(() => {
-    if (!state.entryDate || !state.entryTime) return { time: '--:--', date: '--/--/----' };
-    const [h, m] = state.entryTime.split(':').map(Number);
-    const entry = new Date(state.entryDate);
-    entry.setHours(h, m, 0, 0);
+    if (!state.entryDate || !state.entryTime) return { time: '--:--', date: '--/--/----', rawDate: '' };
+    
+    let exTime = state.exitTime;
+    let exDate = state.exitDate;
 
-    let exit: Date;
-    if (state.exitTime) {
-      const [exH, exM] = state.exitTime.split(':').map(Number);
-      exit = new Date(entry);
-      exit.setHours(exH, exM, 0, 0);
-
-      // If exit time is earlier than or equal to entry time, it means next day
-      if (exit.getTime() <= entry.getTime()) {
-        exit.setDate(exit.getDate() + 1);
-      }
-    } else {
-      exit = new Date(entry.getTime() + state.duration * 60 * 60 * 1000);
+    if (!exTime || !exDate) {
+      const entry = new Date(state.entryDate);
+      const [h, m] = state.entryTime.split(':').map(Number);
+      entry.setHours(h, m, 0, 0);
+      
+      const exit = new Date(entry.getTime() + state.duration * 60 * 60 * 1000);
+      exTime = `${String(exit.getHours()).padStart(2, '0')}:${String(exit.getMinutes()).padStart(2, '0')}`;
+      exDate = getLocalDateStr(exit);
     }
 
-    const exTime = `${String(exit.getHours()).padStart(2, '0')}:${String(exit.getMinutes()).padStart(2, '0')}`;
-    const exDate = `${String(exit.getDate()).padStart(2, '0')}/${String(exit.getMonth() + 1).padStart(2, '0')}/${exit.getFullYear()}`;
-    return { time: exTime, date: exDate };
-  }, [state.entryDate, state.entryTime, state.duration, state.exitTime]);
+    const d = new Date(exDate);
+    const displayDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+    return { time: exTime!, date: displayDate, rawDate: exDate };
+  }, [state.entryDate, state.entryTime, state.exitDate, state.exitTime, state.duration]);
 
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return '--/--/----';
@@ -558,62 +589,88 @@ function StepDateTime({
   return (
     <div className="flex flex-col gap-3">
 
-      {/* Booking Date */}
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-          Booking Date
-        </label>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setIsDatePickerOpen(true)}
-            className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
-          />
-          <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors group-hover:border-gray-300 dark:group-hover:border-white/20">
-            <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors">
-              {state.entryDate ? formatDateFancy(state.entryDate) : 'Select Date'}
-            </span>
-            <ChevronDown size={16} className="text-stone-400" />
+      {/* Dates Row */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Arrival Date */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+            Arrival Date
+          </label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsDatePickerOpen(true)}
+              className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
+            />
+            <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors group-hover:border-gray-300 dark:group-hover:border-white/20">
+              <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors truncate pr-2">
+                {state.entryDate ? formatDateFancy(state.entryDate) : 'Select Date'}
+              </span>
+              <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />
+            </div>
+          </div>
+        </div>
+
+        {/* Exit Date */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+            Exit Date
+          </label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsExitDatePickerOpen(true)}
+              className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
+            />
+            <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors group-hover:border-gray-300 dark:group-hover:border-white/20">
+              <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors truncate pr-2">
+                {exitInfo.rawDate ? formatDateFancy(exitInfo.rawDate) : 'Select Date'}
+              </span>
+              <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Arrival Time */}
-      <div className="flex flex-col gap-1.5 mt-1">
-        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-          Arrival Time
-        </label>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setIsTimePickerOpen(true)}
-            className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
-          />
-          <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors">
-            <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors">
-              {state.entryTime || 'Select Time'}
-            </span>
-            <ChevronDown size={16} className="text-stone-400" />
+      {/* Times Row */}
+      <div className="grid grid-cols-2 gap-3 mt-1">
+        {/* Arrival Time */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+            Arrival Time
+          </label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsTimePickerOpen(true)}
+              className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
+            />
+            <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors group-hover:border-gray-300 dark:group-hover:border-white/20">
+              <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors">
+                {state.entryTime || 'Select Time'}
+              </span>
+              <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Exit Time (Duration Selector) */}
-      <div className="flex flex-col gap-1.5 mt-1">
-        <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
-          Exit Time
-        </label>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setIsExitTimePickerOpen(true)}
-            className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
-          />
-          <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors cursor-pointer group-hover:border-gray-300 dark:group-hover:border-white/20">
-            <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors">
-              {state.exitTime || exitInfo.time} <span className="text-stone-500 dark:text-stone-400 font-medium ml-1 text-sm">({exitInfo.date})</span>
-            </span>
-            <ChevronDown size={16} className="text-stone-400" />
+        {/* Exit Time (Duration Selector) */}
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[10px] font-bold text-stone-400 uppercase tracking-widest">
+            Exit Time
+          </label>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsExitTimePickerOpen(true)}
+              className="absolute inset-0 w-full h-full cursor-pointer z-10 opacity-0"
+            />
+            <div className="w-full bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 flex items-center justify-between shadow-sm transition-colors cursor-pointer group-hover:border-gray-300 dark:group-hover:border-white/20">
+              <span className="text-[14px] font-bold text-stone-800 dark:text-white transition-colors">
+                {state.exitTime || exitInfo.time}
+              </span>
+              <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />
+            </div>
           </div>
         </div>
       </div>
@@ -680,7 +737,11 @@ function StepDateTime({
         isOpen={isDatePickerOpen}
         onClose={() => setIsDatePickerOpen(false)}
         selectedDate={state.entryDate}
-        onSelectDate={(date) => setState((s) => ({ ...s, entryDate: date }))}
+        onSelectDate={(date) => {
+          let newExitDate = exitInfo.rawDate || state.exitDate;
+          if (new Date(date) > new Date(newExitDate)) newExitDate = date;
+          setState((s) => ({ ...s, entryDate: date, exitDate: newExitDate, exitTime: undefined, duration: 1 }));
+        }}
       />
 
       <TimePickerModal
@@ -689,29 +750,48 @@ function StepDateTime({
         selectedDate={state.entryDate}
         selectedTime={state.entryTime}
         onSelectTime={(time) => {
-          // Reset exitTime if arrival time changes to ensure constraints
           setState((s) => ({ ...s, entryTime: time, exitTime: undefined, duration: 1 }));
+        }}
+      />
+
+      <DatePickerModal
+        isOpen={isExitDatePickerOpen}
+        onClose={() => setIsExitDatePickerOpen(false)}
+        selectedDate={exitInfo.rawDate || state.exitDate}
+        onSelectDate={(date) => {
+          if (new Date(date) < new Date(state.entryDate)) return; // prevent past date
+          const exT = state.exitTime || exitInfo.time;
+          let diffMins = calculateDiffMins(state.entryDate, state.entryTime, date, exT);
+          if (diffMins <= 0) diffMins = 0;
+          const diffHours = diffMins > 0 ? Number((diffMins / 60).toFixed(2)) : 0;
+          setState((s) => ({ ...s, exitDate: date, exitTime: exT, duration: diffHours }));
         }}
       />
 
       <TimePickerModal
         isOpen={isExitTimePickerOpen}
         onClose={() => setIsExitTimePickerOpen(false)}
-        selectedDate={state.entryDate}
+        selectedDate={exitInfo.rawDate || state.exitDate}
         selectedTime={state.exitTime || exitInfo.time}
         title="Select Exit Time"
         confirmText="Confirm Exit Time"
         solidTheme={true}
         disablePastTime={false}
         onSelectTime={(time) => {
-          const [enH, enM] = state.entryTime.split(':').map(Number);
-          const [exH, exM] = time.split(':').map(Number);
-
-          let diffMins = (exH * 60 + exM) - (enH * 60 + enM);
-          if (diffMins <= 0) diffMins += 24 * 60; // Next day
-
-          const diffHours = Number((diffMins / 60).toFixed(2));
-          setState((s) => ({ ...s, exitTime: time, duration: diffHours }));
+          let newExitDate = exitInfo.rawDate || state.exitDate;
+          let diffMins = calculateDiffMins(state.entryDate, state.entryTime, newExitDate, time);
+          
+          if (diffMins <= 0 && state.entryDate === newExitDate) {
+             const exitD = new Date(newExitDate);
+             exitD.setDate(exitD.getDate() + 1);
+             newExitDate = exitD.toISOString().split('T')[0];
+             diffMins = calculateDiffMins(state.entryDate, state.entryTime, newExitDate, time);
+          } else if (diffMins <= 0) {
+             diffMins = 0;
+          }
+          
+          const diffHours = diffMins > 0 ? Number((diffMins / 60).toFixed(2)) : 0;
+          setState((s) => ({ ...s, exitTime: time, exitDate: newExitDate, duration: diffHours }));
         }}
       />
     </div>
@@ -1310,7 +1390,11 @@ function ConfirmationPopup({
       const [h, m] = state.entryTime.split(':').map(Number);
       const entry = new Date(state.entryDate);
       entry.setHours(h, m, 0, 0);
-      const exit = new Date(entry.getTime() + state.duration * 3600000);
+      
+      const exit = new Date(state.exitDate);
+      const exTime = state.exitTime || state.entryTime;
+      const [exH, exM] = exTime.split(':').map(Number);
+      exit.setHours(exH, exM, 0, 0);
 
       // Resolve vehicleId
       let vehicleIdToUse: string;
@@ -1465,12 +1549,8 @@ function ConfirmationPopup({
   };
 
   const exitTime = (() => {
-    if (!state.entryDate || !state.entryTime) return '--:--';
-    const [h, m] = state.entryTime.split(':').map(Number);
-    const entry = new Date(state.entryDate);
-    entry.setHours(h, m, 0, 0);
-    const ex = new Date(entry.getTime() + state.duration * 3600000);
-    return `${String(ex.getHours()).padStart(2, '0')}:${String(ex.getMinutes()).padStart(2, '0')}`;
+    if (!state.exitDate || !state.exitTime) return '--:--';
+    return state.exitTime;
   })();
 
   const rows = [
@@ -1912,14 +1992,14 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
 
   const [myVehicles, setMyVehicles] = useState<VehicleResponse[]>([]);
   const [loadingMyVehicles, setLoadingMyVehicles] = useState(false);
-  const [stepError, setStepError] = useState<string | null>(null);
 
   const [state, setState] = useState<WizardState>({
     vehicleType: null,
     licensePlate: '',
     entryDate: todayDateStr(),
     entryTime: nowTimeStr(),
-    duration: 2,
+    exitDate: todayDateStr(),
+    duration: 1,
     floor: null,
     slot: null,
     slotId: null,
@@ -1938,20 +2018,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
         const data = await getMyVehicles(token);
         setMyVehicles(data);
 
-        // Tự động điền xe mặc định (isPrimary) hoặc xe đầu tiên nếu người dùng chưa nhập biển số
-        if (data.length > 0) {
-          const primary = data.find(v => v.isPrimary) || data[0];
-          setState(s => {
-            if (!s.licensePlate) {
-              return {
-                ...s,
-                licensePlate: primary.plateNumber,
-                vehicleType: primary.vehicleTypeId,
-              };
-            }
-            return s;
-          });
-        }
+        // Không tự động điền xe nữa theo yêu cầu của user
       } catch (err) {
         console.error('Lỗi khi tải danh sách xe của tôi:', err);
       } finally {
@@ -2013,6 +2080,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
       return;
     }
     async function loadPolicy() {
+      setPolicy(null); // Xoá policy cũ ngay lập tức để tránh hiển thị sai giá trong lúc chờ
       try {
         const data = await getPolicyByVehicleType(state.vehicleType!);
         setPolicy(data);
@@ -2047,11 +2115,15 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
 
         // Fetch all slots for these floors in parallel
         let slotsArrays: ParkingSlotDetail[][] = [];
-        if (state.entryDate && state.entryTime && state.duration) {
+        if (state.entryDate && state.entryTime && state.exitDate && state.exitTime) {
           const [h, m] = state.entryTime.split(':').map(Number);
           const entry = new Date(state.entryDate);
           entry.setHours(h, m, 0, 0);
-          const exit = new Date(entry.getTime() + state.duration * 3600000);
+          
+          const exit = new Date(state.exitDate);
+          const [exH, exM] = state.exitTime.split(':').map(Number);
+          exit.setHours(exH, exM, 0, 0);
+          
           slotsArrays = await Promise.all(
             sorted.map((f) => getAvailableSlotsByFloor(f.id, entry.toISOString(), exit.toISOString()).catch(() => []))
           );
@@ -2085,11 +2157,14 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
         setLoadingSlots(true);
         let data: ParkingSlotDetail[];
 
-        if (state.entryDate && state.entryTime && state.duration) {
+        if (state.entryDate && state.entryTime && state.exitDate && state.exitTime) {
           const [h, m] = state.entryTime.split(':').map(Number);
           const entry = new Date(state.entryDate);
           entry.setHours(h, m, 0, 0);
-          const exit = new Date(entry.getTime() + state.duration * 3600000);
+          
+          const exit = new Date(state.exitDate);
+          const [exH, exM] = state.exitTime.split(':').map(Number);
+          exit.setHours(exH, exM, 0, 0);
 
           // Dùng API mới tính toán overlap
           data = await getAvailableSlotsByFloor(currentFloor, entry.toISOString(), exit.toISOString());
@@ -2127,7 +2202,6 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
   };
 
   const handleNext = () => {
-    setStepError(null);
     if (step === 3) {
       if (state.entryDate && state.entryTime) {
         const now = new Date();
@@ -2136,7 +2210,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
         entry.setHours(h, m, 0, 0);
 
         if (entry <= now) {
-          setStepError('Thời gian bắt đầu phải lớn hơn thời điểm hiện tại.');
+          toast.error('Thời gian bắt đầu phải lớn hơn thời điểm hiện tại.');
           return;
         }
       }
@@ -2144,7 +2218,6 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
     if (step < 5 && canAdvance()) setStep((s) => s + 1);
   };
   const handleBack = () => {
-    setStepError(null);
     if (step > 1) setStep((s) => s - 1);
   };
 
@@ -2164,7 +2237,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
 
   const renderStep = () => {
     switch (step) {
-      case 1: return <StepVehicleType state={state} setState={setState} vehicles={vehicles} loading={loadingVehicles} />;
+      case 1: return <StepVehicleType state={state} setState={setState} vehicles={vehicles} loading={loadingVehicles} policy={policy} />;
       case 2: return (
         <StepLicensePlate
           state={state}
@@ -2222,11 +2295,6 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
 
           {/* ── Modal Footer ── */}
           <div className="flex-shrink-0 px-6 py-4 border-t border-gray-150 dark:border-white/10 flex flex-col gap-3 bg-gray-50/50 dark:bg-white/5 transition-colors duration-300">
-            {stepError && (
-              <div className="bg-red-50 border border-red-100 text-red-500 text-xs px-4 py-2.5 rounded-xl text-center font-bold w-full">
-                ⚠️ {stepError}
-              </div>
-            )}
             <div className="flex items-center justify-between gap-3">
               <div className="w-24"></div> {/* Placeholder to keep center alignment */}
 

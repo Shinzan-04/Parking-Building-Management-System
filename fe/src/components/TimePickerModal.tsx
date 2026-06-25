@@ -39,6 +39,8 @@ export default function TimePickerModal({
   // To avoid circular updates between state and scroll position
   const isUserScrollingHour = useRef(false);
   const isUserScrollingMinute = useRef(false);
+  const isProgrammaticScrollHour = useRef(false);
+  const isProgrammaticScrollMinute = useRef(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -92,7 +94,11 @@ export default function TimePickerModal({
       const minHourLimit = disablePastTime && (isToday(selectedDate) || minTimeLimit) ? getMinHour() : 0;
       const validH = HOURS.filter(h => h >= minHourLimit);
       const index = validH.indexOf(selectedHour);
-      if (index !== -1) hourScrollRef.current.scrollTop = index * ITEM_HEIGHT;
+      if (index !== -1) {
+        isProgrammaticScrollHour.current = true;
+        hourScrollRef.current.scrollTop = index * ITEM_HEIGHT;
+        setTimeout(() => { isProgrammaticScrollHour.current = false; }, 50);
+      }
     }
   }, [isOpen, selectedHour, selectedDate, minTimeLimit, disablePastTime]);
 
@@ -101,7 +107,11 @@ export default function TimePickerModal({
       const minMinuteLimit = disablePastTime && (isToday(selectedDate) || minTimeLimit) ? getMinMinute(selectedHour) : 0;
       const validM = MINUTES.filter(m => m >= minMinuteLimit);
       const index = validM.indexOf(selectedMinute);
-      if (index !== -1) minuteScrollRef.current.scrollTop = index * ITEM_HEIGHT;
+      if (index !== -1) {
+        isProgrammaticScrollMinute.current = true;
+        minuteScrollRef.current.scrollTop = index * ITEM_HEIGHT;
+        setTimeout(() => { isProgrammaticScrollMinute.current = false; }, 50);
+      }
     }
   }, [isOpen, selectedMinute, selectedHour, selectedDate, minTimeLimit, disablePastTime]);
 
@@ -160,7 +170,7 @@ export default function TimePickerModal({
   }, [selectedHour, minTimeLimit, selectedDate, disablePastTime]);
 
   const handleHourScroll = () => {
-    if (!hourScrollRef.current) return;
+    if (!hourScrollRef.current || isProgrammaticScrollHour.current) return;
     const scrollPos = hourScrollRef.current.scrollTop;
     const index = Math.round(scrollPos / ITEM_HEIGHT);
     if (index >= 0 && index < validHours.length) {
@@ -186,7 +196,7 @@ export default function TimePickerModal({
   };
 
   const handleMinuteScroll = () => {
-    if (!minuteScrollRef.current) return;
+    if (!minuteScrollRef.current || isProgrammaticScrollMinute.current) return;
     const scrollPos = minuteScrollRef.current.scrollTop;
     const index = Math.round(scrollPos / ITEM_HEIGHT);
     if (index >= 0 && index < validMinutes.length) {
@@ -254,7 +264,7 @@ export default function TimePickerModal({
                       key={`h-${h}`}
                       onClick={() => setSelectedHour(h)}
                       className={`h-[44px] flex items-center justify-center text-lg snap-start transition-colors duration-200 cursor-pointer hover:bg-gray-50
-                        ${isSelected ? (solidTheme ? 'bg-blue-600' : 'bg-blue-200') + ' text-white font-black text-xl' : 'text-stone-600 font-bold'}
+                        ${isSelected ? 'bg-blue-600 text-white font-black text-xl' : 'text-stone-600 font-bold'}
                       `}
                     >
                       {String(h).padStart(2, '0')}
