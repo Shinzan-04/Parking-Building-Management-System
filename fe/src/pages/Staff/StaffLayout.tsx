@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck } from 'lucide-react';
+import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import NotificationBell from '../../components/NotificationBell';

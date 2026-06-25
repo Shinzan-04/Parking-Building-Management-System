@@ -65,7 +65,7 @@ public class GeminiChatService : IAiChatService
                 buildingContext += "- Bảng giá đỗ xe:\n";
                 foreach(var p in pricingPolicies.Where(p => p.VehicleType != null))
                 {
-                    buildingContext += $"  + Xe {p.VehicleType.Name}: {p.HourlyRate:N0} VNĐ/giờ (Tối đa ngày: {p.DailyMaxRate:N0} VNĐ). Khung đêm ({p.NightStartHour}h-{p.NightEndHour}h) có giá Block riêng.\n";
+                    buildingContext += $"  + Xe {p.VehicleType.Name}: {p.DayBlockRate:N0} VNĐ / {p.BlockDurationHours} giờ (Ban ngày), {p.NightBlockRate:N0} VNĐ / {p.BlockDurationHours} giờ (Ban đêm {p.NightStartHour}h-{p.NightEndHour}h). Tối đa: {p.DailyRate:N0} VNĐ/ngày.\n";
                 }
         }
 
@@ -89,9 +89,9 @@ THÔNG TIN QUY ĐỊNH BÃI XE (BUSINESS RULES):
 
 TUÂN THỦ NGHIÊM NGẶT 3 QUY TẮC SAU:
 1. Trả lời ngắn gọn, lịch sự, chuyên nghiệp bằng tiếng Việt.
-2. Nếu khách hàng hỏi một vấn đề về bãi xe nhưng bạn không chắc chắn, hoặc hỏi về tình huống khẩn cấp, mất mát tài sản, hãy nói chính xác câu sau:
+2. Nếu khách hàng hỏi một vấn đề về bãi xe nhưng bạn không chắc chắn, hoặc gặp sự cố (mất đồ, quẹt xe), hoặc khách CÓ NHU CẦU GẶP NHÂN VIÊN/NHÂN SỰ/NGƯỜI THẬT, hãy nói chính xác câu sau:
 ""Dạ, rất xin lỗi bạn, hiện tại tôi chưa có đủ dữ liệu để trả lời chính xác vấn đề này. Bạn có muốn kết nối trực tiếp với nhân viên hỗ trợ của chúng tôi không ạ? [SUGGEST_LIVECHAT]""
-3. Từ chối các câu hỏi ngoài luồng (Out-of-domain) như thời tiết, chính trị, viết code... bằng câu:
+3. Từ chối các câu hỏi ngoài luồng (Out-of-domain) như thời tiết, chính trị, viết code... Tuy nhiên, yêu cầu ""Gặp nhân sự / nhân viên"" KHÔNG PHẢI là ngoài luồng, hãy dùng Rule 2. Câu từ chối mẫu:
 ""Xin lỗi, tôi là trợ lý ảo của Bãi đỗ xe. Tôi chỉ có thể hỗ trợ bạn các vấn đề liên quan đến đỗ xe. Tôi không thể giúp bạn chủ đề này.""";
 
         var requestBody = new

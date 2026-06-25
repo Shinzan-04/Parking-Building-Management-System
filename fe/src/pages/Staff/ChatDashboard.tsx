@@ -23,7 +23,7 @@ interface ChatMessage {
 }
 
 export default function ChatDashboard() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const buildingId = user?.assignedBuildingId; // Get building from Staff
 
   const [sessions, setSessions] = useState<ChatSession[]>([]);
@@ -80,7 +80,9 @@ export default function ChatDashboard() {
     if (!buildingId) return;
 
     const newConnection = new signalR.HubConnectionBuilder()
-      .withUrl(`${API_URL}/chatHub`)
+      .withUrl(`${API_URL}/chatHub`, {
+         accessTokenFactory: () => token || ''
+      })
       .withAutomaticReconnect()
       .build();
 
@@ -104,7 +106,11 @@ export default function ChatDashboard() {
       .then(() => {
         newConnection.invoke('JoinBuildingGroup', buildingId);
       })
-      .catch(err => console.error('Lỗi kết nối SignalR:', err));
+      .catch(err => {
+        if (err.name !== 'AbortError' && !err.message?.includes('negotiation')) {
+          console.error('Lỗi kết nối SignalR:', err);
+        }
+      });
 
     setConnection(newConnection);
 
@@ -149,13 +155,14 @@ export default function ChatDashboard() {
   }
 
   return (
-    <div className="h-full p-6 flex flex-col">
-      <div className="mb-6">
+    <div className="h-[calc(100vh-9rem)] flex flex-col -mt-4">
+      <div className="mb-4">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--admin-text-primary)' }}>Live Chat Dashboard</h1>
         <p style={{ color: 'var(--admin-text-muted)' }}>Hỗ trợ trực tiếp khách hàng gặp sự cố tại bãi xe</p>
       </div>
 
-      <div className="flex-1 flex gap-6 overflow-hidden rounded-2xl border" style={{ borderColor: 'var(--admin-border)', backgroundColor: 'var(--admin-bg-surface)' }}>
+      {/* Main Board */}
+      <div className="flex-1 bg-white rounded-2xl border shadow-sm flex overflow-hidden" style={{ borderColor: 'var(--admin-border)', backgroundColor: 'var(--admin-bg-card)' }}>
         {/* Left Sidebar: Session List */}
         <div className="w-1/3 flex flex-col border-r" style={{ borderColor: 'var(--admin-border)' }}>
           <div className="p-4 border-b" style={{ borderColor: 'var(--admin-border)' }}>
@@ -169,11 +176,12 @@ export default function ChatDashboard() {
                 <div 
                   key={session.id}
                   onClick={() => setActiveSessionId(session.id)}
-                  className={`p-3 rounded-xl cursor-pointer border transition-all ${activeSessionId === session.id ? 'border-[#FF4C4C] bg-[#FF4C4C]/10' : 'border-transparent hover:bg-gray-100/5'}`}
+                  className={`p-3 rounded-xl cursor-pointer border transition-all ${activeSessionId === session.id ? 'border-[#FF4C4C]' : 'border-transparent hover:opacity-80'}`}
+                  style={{ backgroundColor: activeSessionId === session.id ? 'var(--admin-bg-surface)' : 'transparent' }}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="font-semibold text-sm">Khách hàng ẩn danh</span>
-                    <span className="text-xs opacity-60">
+                    <span className="font-semibold text-sm" style={{ color: 'var(--admin-text-primary)' }}>{session.guestName || 'Khách hàng ẩn danh'}</span>
+                    <span className="text-xs" style={{ color: 'var(--admin-text-muted)' }}>
                       {new Date(session.escalatedAt ?? session.createdAt).toLocaleTimeString()}
                     </span>
                   </div>
@@ -195,19 +203,19 @@ export default function ChatDashboard() {
         </div>
 
         {/* Right Area: Chat Window */}
-        <div className="flex-1 flex flex-col bg-gray-50/50">
+        <div className="flex-1 flex flex-col" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
           {!activeSessionId ? (
-            <div className="flex-1 flex flex-col items-center justify-center opacity-50">
+            <div className="flex-1 flex flex-col items-center justify-center opacity-50" style={{ color: 'var(--admin-text-muted)' }}>
               <MessageSquareWarning size={64} className="mb-4" />
               <p>Chọn một cuộc hội thoại bên trái để bắt đầu hỗ trợ</p>
             </div>
           ) : (
             <>
               {/* Chat Header */}
-              <div className="h-16 border-b flex items-center justify-between px-6 bg-white" style={{ borderColor: 'var(--admin-border)' }}>
+              <div className="h-16 border-b flex items-center justify-between px-6" style={{ borderColor: 'var(--admin-border)', backgroundColor: 'var(--admin-bg-card)' }}>
                  <div>
-                    <h3 className="font-bold">Chat Session</h3>
-                    <p className="text-xs text-gray-500">ID: {activeSessionId}</p>
+                    <h3 className="font-bold" style={{ color: 'var(--admin-text-primary)' }}>Chat Session</h3>
+                    <p className="text-xs" style={{ color: 'var(--admin-text-muted)' }}>ID: {activeSessionId}</p>
                  </div>
                  {activeSession?.status === 'Escalated' && (
                    <button 
@@ -238,10 +246,12 @@ export default function ChatDashboard() {
                       <div className={`max-w-[70%] p-3 rounded-2xl shadow-sm ${
                         isStaff ? 'bg-[#FF4C4C] text-white rounded-tr-sm' 
                         : isBot ? 'bg-indigo-100 text-indigo-900 rounded-tl-sm'
-                        : 'bg-white border text-gray-800 rounded-tl-sm'
-                      }`}>
+                        : 'border rounded-tl-sm'
+                      }`}
+                      style={!isStaff && !isBot ? { backgroundColor: 'var(--admin-bg-card)', borderColor: 'var(--admin-border)', color: 'var(--admin-text-primary)' } : {}}
+                      >
                         {isBot && <p className="text-[10px] font-bold text-indigo-400 mb-1">AI TRỢ LÝ</p>}
-                        {!isStaff && !isBot && <p className="text-[10px] font-bold text-gray-400 mb-1">KHÁCH HÀNG</p>}
+                        {!isStaff && !isBot && <p className="text-[10px] font-bold mb-1" style={{ color: 'var(--admin-text-muted)' }}>KHÁCH HÀNG</p>}
                         <p className="text-sm whitespace-pre-wrap">{displayContent}</p>
                       </div>
                     </div>
@@ -251,7 +261,7 @@ export default function ChatDashboard() {
               </div>
 
               {/* Chat Input */}
-              <div className="p-4 bg-white border-t" style={{ borderColor: 'var(--admin-border)' }}>
+              <div className="p-4 border-t" style={{ borderColor: 'var(--admin-border)', backgroundColor: 'var(--admin-bg-card)' }}>
                 <form onSubmit={handleSendMessage} className="flex gap-2">
                   <input
                     type="text"
@@ -259,7 +269,8 @@ export default function ChatDashboard() {
                     onChange={e => setInputText(e.target.value)}
                     disabled={!isAgentHandling}
                     placeholder={!isAgentHandling ? 'Bấm Tiếp quản để bắt đầu chat...' : 'Nhập tin nhắn hỗ trợ khách hàng...'}
-                    className="flex-1 bg-gray-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#FF4C4C] disabled:opacity-50 text-sm"
+                    className="flex-1 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#FF4C4C] disabled:opacity-50 text-sm transition-colors"
+                    style={{ backgroundColor: 'var(--admin-bg-surface)', color: 'var(--admin-text-primary)', border: '1px solid var(--admin-border)' }}
                   />
                   <button
                     type="submit"

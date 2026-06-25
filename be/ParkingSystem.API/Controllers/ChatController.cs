@@ -20,11 +20,21 @@ public class ChatController : ControllerBase
     [HttpPost("start")]
     public async Task<IActionResult> StartSession([FromBody] StartChatRequest request)
     {
+        var targetBuildingId = request.BuildingId;
+        if (targetBuildingId == null || targetBuildingId == Guid.Empty)
+        {
+            var firstBuilding = await _context.Buildings.FirstOrDefaultAsync();
+            if (firstBuilding != null)
+            {
+                targetBuildingId = firstBuilding.Id;
+            }
+        }
+
         var session = new ChatSession
         {
             Id = Guid.NewGuid(),
             GuestId = request.GuestId,
-            BuildingId = request.BuildingId,
+            BuildingId = targetBuildingId,
             Status = ChatSessionStatus.BotHandling
         };
 
@@ -72,6 +82,25 @@ public class ChatController : ControllerBase
 
         return Ok(sessions);
     }
+
+    [HttpPut("{sessionId}/guest-info")]
+    public async Task<IActionResult> UpdateGuestInfo(Guid sessionId, [FromBody] UpdateGuestInfoRequest request)
+    {
+        var session = await _context.ChatSessions.FindAsync(sessionId);
+        if (session == null) return NotFound();
+
+        session.GuestName = request.Name;
+        session.GuestPhoneOrEmail = request.Phone;
+        await _context.SaveChangesAsync();
+
+        return Ok();
+    }
+}
+
+public class UpdateGuestInfoRequest
+{
+    public string Name { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
 }
 
 public class StartChatRequest
