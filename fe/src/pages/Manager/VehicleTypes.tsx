@@ -69,12 +69,13 @@ const emptyForm = { name: '', description: '' };
 
 function DistributionBar({ counts, total }: { counts: Record<SlotStatus, number>; total: number }) {
   if (total === 0) return <p className="text-xs text-white/30 py-1">Chưa có chỗ đỗ</p>;
-  const statuses: SlotStatus[] = ['Available', 'Occupied', 'Reserved', 'Maintenance'];
+  const statuses: SlotStatus[] = ['Available', 'Occupied', 'Reserved', 'Maintenance', 'TemporaryHeld'];
   const colors: Record<SlotStatus, string> = {
     Available:   '#FF4C4C',
     Occupied:    '#F59E0B',
     Reserved:    '#F59E0B',
     Maintenance: '#F87171',
+    TemporaryHeld: '#9CA3AF'
   };
   return (
     <div className="space-y-2">
@@ -134,11 +135,11 @@ export default function ManagerVehicleTypes() {
       const vms: VehicleTypeVM[] = vts.map(vt => {
         const typeSlots = slotsByType[vt.id] ?? [];
         const counts: Record<SlotStatus, number> = {
-          Available: 0, Occupied: 0, Reserved: 0, Maintenance: 0,
+          Available: 0, Occupied: 0, Reserved: 0, Maintenance: 0, TemporaryHeld: 0
         };
         typeSlots.forEach(s => {
           const statusStr = typeof s.status === 'number' ? SLOT_STATUS_FROM_ENUM[s.status] : s.status;
-          if (statusStr && counts[statusStr] !== undefined) {
+          if (statusStr && counts[statusStr as SlotStatus] !== undefined) {
             counts[statusStr as SlotStatus]++;
           }
         });
@@ -191,7 +192,7 @@ export default function ManagerVehicleTypes() {
       }, token);
       setVehicleTypes(prev => [...prev, {
         ...created,
-        slotCounts: { Available: 0, Occupied: 0, Reserved: 0, Maintenance: 0 },
+        slotCounts: { Available: 0, Occupied: 0, Reserved: 0, Maintenance: 0, TemporaryHeld: 0 },
         totalSlots: 0,
       }]);
       closeModal();
