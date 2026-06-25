@@ -11,6 +11,7 @@ interface ChatSession {
   guestName: string;
   status: 'Escalated' | 'AgentHandling' | 'Closed';
   agentId: string | null;
+  agentName: string | null;
   escalatedAt: string;
   createdAt: string;
 }
@@ -33,6 +34,16 @@ export default function ChatDashboard() {
   const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleCloseSession = async () => {
+    if (!connection || !activeSessionId) return;
+    try {
+      await connection.invoke('CloseSession', activeSessionId);
+      setActiveSessionId(null);
+    } catch (err) {
+      console.error('Close session failed', err);
+    }
+  };
 
   // Auto scroll to bottom of chat
   useEffect(() => {
@@ -190,9 +201,13 @@ export default function ChatDashboard() {
                       <span className="flex items-center gap-1 text-xs font-medium text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md">
                         <Clock size={12}/> Đang chờ...
                       </span>
+                    ) : session.status === 'AgentHandling' ? (
+                      <span className="flex items-center gap-1 text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md truncate max-w-[120px]">
+                        <CheckCircle size={12}/> {session.agentId === user?.userId ? 'Bạn' : (session.agentName || 'NV khác')}
+                      </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                        <CheckCircle size={12}/> Đang xử lý
+                      <span className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-500/10 px-2 py-0.5 rounded-md">
+                        Đã đóng
                       </span>
                     )}
                   </div>
@@ -225,10 +240,18 @@ export default function ChatDashboard() {
                      Tiếp quản ngay
                    </button>
                  )}
-                 {isAgentHandling && (
-                   <span className="text-emerald-500 font-medium text-sm flex items-center gap-1">
-                     <CheckCircle size={16}/> Bạn đang phụ trách
-                   </span>
+                 {isAgentHandling && activeSession?.agentId === user?.userId && (
+                   <div className="flex items-center gap-3">
+                     <span className="text-emerald-500 font-medium text-sm flex items-center gap-1">
+                       <CheckCircle size={16}/> Bạn đang phụ trách
+                     </span>
+                     <button
+                        onClick={handleCloseSession}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-all shadow-sm"
+                     >
+                       Đánh dấu đã giải quyết
+                     </button>
+                   </div>
                  )}
               </div>
 

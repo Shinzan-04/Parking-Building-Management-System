@@ -108,6 +108,7 @@ public class SlotAssignmentService : ISlotAssignmentService
             recommendations.Add(new SlotRecommendation
             {
                 SlotId = slot.Id,
+                FloorId = slot.FloorId,
                 SlotNumber = slot.SlotNumber,
                 FloorName = slot.Floor.Name,
                 FloorIndex = slot.Floor.FloorIndex,

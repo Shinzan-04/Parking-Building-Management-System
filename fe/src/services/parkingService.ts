@@ -52,6 +52,7 @@ export interface UpdateSlotStatusRequest {
 
 export interface SlotRecommendation {
   slotId: string;
+  floorId: string;
   slotNumber: string;
   floorName: string;
   floorIndex: number;

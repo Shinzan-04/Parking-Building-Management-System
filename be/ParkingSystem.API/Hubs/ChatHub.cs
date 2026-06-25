@@ -55,6 +55,15 @@ public class ChatHub : Hub
         // Gửi tin nhắn cho tất cả những người đang mở phiên chat này (Khách và Nhân viên)
         await Clients.Group(sessionId).SendAsync("ReceiveMessage", chatMsg.Id, senderRoleStr, message, chatMsg.CreatedAt);
 
+        // Nếu phiên đã đóng mà user nhắn tin, chuyển lại cho Bot
+        if (senderRole == ChatSenderRole.User && session.Status == ChatSessionStatus.Closed)
+        {
+            session.Status = ChatSessionStatus.BotHandling;
+            session.AgentId = null;
+            await _context.SaveChangesAsync();
+            await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "BotHandling", null);
+        }
+
         // Nếu người gửi là User/Guest và Session đang ở chế độ BotHandling -> Gọi AI
         if (senderRole == ChatSenderRole.User && session.Status == ChatSessionStatus.BotHandling)
         {
@@ -124,5 +133,27 @@ public class ChatHub : Hub
 
         // Báo cho toàn Group biết Nhân viên đã vào
         await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "AgentHandling", session.AgentId);
+    }
+
+    /// <summary>
+    /// Nhân viên kết thúc phiên chat
+    /// </summary>
+    public async Task CloseSession(string sessionId)
+    {
+        if (!Guid.TryParse(sessionId, out var sessionGuid)) return;
+
+        var userIdClaim = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdClaim)) return;
+
+        var session = await _context.ChatSessions.FirstOrDefaultAsync(s => s.Id == sessionGuid);
+        if (session == null) return;
+
+        session.Status = ChatSessionStatus.Closed;
+        session.UpdatedAt = DateTime.UtcNow;
+        
+        await _context.SaveChangesAsync();
+
+        // Báo cho toàn Group biết phiên chat đã đóng
+        await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "Closed", session.AgentId);
     }
 }

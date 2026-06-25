@@ -75,6 +75,7 @@ public class ChatController : ControllerBase
                 s.GuestName,
                 Status = s.Status.ToString(),
                 s.AgentId,
+                AgentName = s.Agent != null ? s.Agent.FullName : null,
                 s.EscalatedAt,
                 s.CreatedAt
             })
