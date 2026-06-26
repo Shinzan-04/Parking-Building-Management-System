@@ -32,6 +32,7 @@ public interface ISlotAssignmentService
 public class SlotRecommendation
 {
     public Guid SlotId { get; set; }
+    public Guid FloorId { get; set; }
     public string SlotNumber { get; set; } = string.Empty;
     public string FloorName { get; set; } = string.Empty;
     public int FloorIndex { get; set; }

@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import './index.css';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Toaster } from 'react-hot-toast';
 
 const AuthPage            = lazy(() => import('./pages/AuthPage'));
 const VerifyEmailPage     = lazy(() => import('./pages/VerifyEmailPage'));
@@ -123,6 +124,7 @@ export default function App() {
         </Routes>
       </Suspense>
       <GlobalChat />
+      <Toaster position="top-center" />
     </BrowserRouter>
   );
 }

@@ -9,6 +9,8 @@ import { getBuildings, getFloorsByBuilding } from '../../services/buildingsServi
 import type { BuildingResponse, FloorResponse } from '../../services/buildingsService';
 import { getSlotsByFloor, SLOT_STATUS_COLORS, SLOT_STATUS_LABELS, SLOT_STATUS_FROM_ENUM } from '../../services/parkingService';
 import type { ParkingSlotDetail, SlotStatus } from '../../services/parkingService';
+import { getVehicleTypes } from '../../services/vehicleTypesService';
+import type { VehicleTypeResponse } from '../../services/vehicleTypesService';
 import {
   Search,
   MapPin,
@@ -28,6 +30,10 @@ import {
   CalendarCheck,
   Ticket,
   User,
+  Layers,
+  Building2,
+  ParkingSquare,
+  CheckCircle2,
 } from 'lucide-react';
 
 // ---------- Leaflet icon fix ----------
@@ -215,6 +221,11 @@ export default function FindParkingPage() {
   const [floorSlots, setFloorSlots] = useState<ParkingSlotDetail[]>([]);
   const [isLoadingFloors, setIsLoadingFloors] = useState(false);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [vehicles, setVehicles] = useState<VehicleTypeResponse[]>([]);
+
+  useEffect(() => {
+    getVehicleTypes().then(setVehicles).catch(console.error);
+  }, []);
 
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locatingUser, setLocatingUser] = useState(false);
@@ -298,17 +309,27 @@ export default function FindParkingPage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Fetch floors when selectedLot changes
+  // Fetch floors and their slots when selectedLot changes
+  const [allBuildingSlots, setAllBuildingSlots] = useState<ParkingSlotDetail[]>([]);
+
   useEffect(() => {
     if (selectedLot) {
       setIsLoadingFloors(true);
       setSelectedFloorId(null);
       setFloorSlots([]);
+      setAllBuildingSlots([]);
       getFloorsByBuilding(selectedLot.id)
-        .then((floors) => {
-          setBuildingFloors(floors.sort((a, b) => a.floorIndex - b.floorIndex));
+        .then(async (floors) => {
+          const sorted = floors.sort((a, b) => a.floorIndex - b.floorIndex);
+          setBuildingFloors(sorted);
+          
+          // Fetch slots for all floors to count them
+          const slotsArrays = await Promise.all(
+            sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
+          );
+          setAllBuildingSlots(slotsArrays.flat());
         })
-        .catch((err) => console.error('Failed to fetch floors:', err))
+        .catch((err) => console.error('Failed to fetch floors/slots:', err))
         .finally(() => setIsLoadingFloors(false));
     } else {
       setBuildingFloors([]);
@@ -882,51 +903,29 @@ export default function FindParkingPage() {
                   </div>
                 </div>
 
-                {/* Stats grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-gray-50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-xl p-3 space-y-1 transition-colors duration-300">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Available Spots</p>
-                    <div className="flex items-end gap-1">
+                {/* Highlight Stats */}
+                <div className="bg-[#FF4C4C]/5 dark:bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 rounded-xl p-4 transition-colors duration-300">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] text-[#FF4C4C] font-bold uppercase tracking-wider">Available Spots</p>
+                    <div className="flex items-baseline gap-1">
                       <span
-                        className="text-xl font-extrabold"
+                        className="text-2xl font-black"
                         style={{ color: availabilityColor(selectedLot) }}
                       >
                         {selectedLot.availableSpots}
                       </span>
-                      <span className="text-xs text-stone-400 mb-0.5">/ {selectedLot.totalSpots}</span>
-                    </div>
-                    {/* Progress bar */}
-                    <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${(selectedLot.availableSpots / selectedLot.totalSpots) * 100}%`,
-                          background: availabilityColor(selectedLot),
-                        }}
-                      />
+                      <span className="text-xs text-stone-500 font-bold">/ {selectedLot.totalSpots}</span>
                     </div>
                   </div>
-
-                  <div className="bg-gray-50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-xl p-3 space-y-1 transition-colors duration-300">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Rating</p>
-                    <div className="flex items-center gap-1.5">
-                      <Star size={14} className="text-amber-500 fill-amber-500" />
-                      <span className="text-xl font-extrabold text-stone-900 dark:text-white transition-colors duration-300">{selectedLot.rating}</span>
-                    </div>
-                    <p className="text-[10px] text-stone-400 font-medium">/ 5.0</p>
-                  </div>
-
-                  <div className="bg-gray-50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-xl p-3 space-y-1 transition-colors duration-300">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Hourly Rate</p>
-                    <p className="text-base font-extrabold text-[#FF4C4C]">
-                      {selectedLot.pricePerHour.toLocaleString('vi-VN')}đ
-                    </p>
-                    <p className="text-[10px] text-stone-400 font-medium">per hour</p>
-                  </div>
-
-                  <div className="bg-gray-50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-xl p-3 space-y-1 transition-colors duration-300">
-                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Open Hours</p>
-                    <p className="text-xs font-bold text-stone-800 dark:text-white transition-colors duration-300">{selectedLot.openHours}</p>
+                  {/* Progress bar */}
+                  <div className="h-2 bg-gray-200/50 dark:bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${(selectedLot.availableSpots / selectedLot.totalSpots) * 100}%`,
+                        background: availabilityColor(selectedLot),
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -937,12 +936,11 @@ export default function FindParkingPage() {
                   </p>
                   <div className="flex gap-2 flex-wrap">
                     {selectedLot.vehicleTypes
-                      .filter((v) => v !== 'all')
+                      .filter((v) => v !== 'all' && v !== 'ev')
                       .map((v) => {
                         const icons: Record<string, any> = {
                           motorbike: Bike,
                           car: Car,
-                          ev: Zap,
                         };
                         const labels: Record<string, string> = {
                           motorbike: 'Motorbike',
@@ -963,22 +961,7 @@ export default function FindParkingPage() {
                   </div>
                 </div>
 
-                {/* Features */}
-                <div>
-                  <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2">
-                    Amenities
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedLot.features.map((f) => (
-                      <span
-                        key={f}
-                        className="text-xs px-3 py-1.5 bg-[#FF4C4C]/5 border border-[#FF4C4C]/10 rounded-full text-[#FF4C4C] font-semibold"
-                      >
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                {/* Features (Removed as requested) */}
 
                 {/* Floors & Slots */}
                 <div className="pt-2 border-t border-gray-100">
@@ -994,58 +977,59 @@ export default function FindParkingPage() {
                     <p className="text-xs text-stone-400 italic">No floors data available.</p>
                   ) : (
                     <div className="space-y-3">
-                      <div className="flex flex-wrap gap-2">
-                        {buildingFloors.map(floor => (
-                          <button
-                            key={floor.id}
-                            onClick={() => setSelectedFloorId(floor.id === selectedFloorId ? null : floor.id)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-300 border ${selectedFloorId === floor.id
-                              ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm'
-                              : 'bg-white dark:bg-[#18181B] text-stone-600 dark:text-stone-400 border-gray-200 dark:border-white/10 hover:border-[#FF4C4C]/50 hover:text-[#FF4C4C]'
-                            }`}
-                          >
-                            {floor.name}
-                          </button>
-                        ))}
+                      <div className="grid grid-cols-2 gap-3">
+                        {buildingFloors.map((floor, idx) => {
+                          const isSelected = selectedFloorId === floor.id;
+                          const floorIconComponents = [ParkingSquare, Car, Layers, Building2];
+                          const FloorIcon = floorIconComponents[idx % floorIconComponents.length];
+                          
+                          return (
+                            <button
+                              key={floor.id}
+                              onClick={() => setSelectedFloorId(isSelected ? null : floor.id)}
+                              className={`relative flex flex-col items-center gap-2 py-3 rounded-2xl border-2 transition-all group ${isSelected
+                                ? 'bg-[#FF4C4C]/5 border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/10'
+                                : 'bg-white dark:bg-[#18181B] border-gray-200/80 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 hover:border-gray-300 dark:hover:border-white/20'
+                                }`}
+                            >
+                              <div
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${isSelected
+                                  ? 'bg-[#FF4C4C]/10 border-2 border-[#FF4C4C]/30'
+                                  : 'bg-gray-100 dark:bg-white/5 border-2 border-gray-200/60 dark:border-white/10 group-hover:bg-[#FF4C4C]/10 group-hover:border-[#FF4C4C]/20'
+                                  }`}
+                              >
+                                <FloorIcon
+                                  size={20}
+                                  strokeWidth={1.5}
+                                  className={`transition-colors ${isSelected ? 'text-[#FF4C4C]' : 'text-stone-500 dark:text-stone-400 group-hover:text-[#FF4C4C]'
+                                    }`}
+                                />
+                              </div>
+                              <div className="text-center">
+                                <p className={`font-bold text-xs ${isSelected ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-stone-200'}`}>
+                                  {floor.name}
+                                </p>
+                                <p className="text-[10px] text-stone-400 mt-0.5">
+                                  {(() => {
+                                    const availableSpots = allBuildingSlots.filter(
+                                      (s) => s.floorId === floor.id &&
+                                        (s.status === 'Available' || String(s.status) === '0')
+                                    ).length;
+                                    return `${availableSpots} spots available`;
+                                  })()}
+                                </p>
+                              </div>
+                              {isSelected && (
+                                <div className="absolute top-2 right-2">
+                                  <CheckCircle2 size={14} className="text-[#FF4C4C]" />
+                                </div>
+                              )}
+                            </button>
+                          );
+                        })}
                       </div>
 
-                      {/* Slots for selected floor */}
-                      {selectedFloorId && (
-                        <div className="mt-3 bg-gray-50 dark:bg-white/5 border border-gray-200/60 dark:border-white/10 rounded-xl p-3 transition-colors duration-300">
-                          {isLoadingSlots ? (
-                            <div className="flex items-center gap-2 text-xs text-stone-500 justify-center py-2">
-                              <Loader2 size={14} className="animate-spin text-[#FF4C4C]" />
-                              Loading slots...
-                            </div>
-                          ) : floorSlots.length === 0 ? (
-                            <p className="text-xs text-stone-500 text-center py-2">No slots on this floor.</p>
-                          ) : (
-                            <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto scrollbar-thin pr-1">
-                              {floorSlots.map(slot => {
-                                const statusStr: SlotStatus = typeof slot.status === 'number' 
-                                  ? SLOT_STATUS_FROM_ENUM[slot.status as number] || 'Available'
-                                  : slot.status || 'Available';
-                                const colors = SLOT_STATUS_COLORS[statusStr] || SLOT_STATUS_COLORS['Available'];
-                                
-                                return (
-                                  <div
-                                    key={slot.id}
-                                    title={SLOT_STATUS_LABELS[statusStr]}
-                                    className={`relative flex flex-col items-center justify-center p-2 rounded-lg border text-xs font-bold transition-all duration-300 ${
-                                      statusStr === 'Available'
-                                        ? 'bg-white dark:bg-white/5 border-emerald-200 dark:border-emerald-500/30 hover:border-emerald-400 text-stone-700 dark:text-stone-300'
-                                        : 'bg-gray-100/50 dark:bg-white/10 border-gray-200 dark:border-white/20 text-stone-400 cursor-not-allowed opacity-70'
-                                    }`}
-                                  >
-                                    <span className="mb-0.5">{slot.slotNumber}</span>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {/* Slots block moved to Bottom Sheet */}
                     </div>
                   )}
                 </div>
@@ -1071,6 +1055,125 @@ export default function FindParkingPage() {
         </div>
       </div>
 
+
+      {/* Bottom Sheet for Floor Slots */}
+      <div
+        className={`fixed inset-x-0 bottom-0 z-[2000] bg-white dark:bg-[#18181B] border-t border-gray-200 dark:border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] rounded-t-[2.5rem] transition-transform duration-500 ease-out transform ${
+          selectedFloorId ? 'translate-y-0' : 'translate-y-full'
+        } max-h-[60vh] flex flex-col pointer-events-auto`}
+      >
+        <div className="flex-none px-8 pt-6 pb-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-extrabold text-stone-900 dark:text-white">
+              {buildingFloors.find(f => f.id === selectedFloorId)?.name || 'Floor Details'}
+            </h3>
+            <p className="text-sm text-stone-500 mt-1">Sơ đồ vị trí các ô đỗ xe</p>
+          </div>
+          <button
+            onClick={() => setSelectedFloorId(null)}
+            className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-white/5 dark:hover:bg-white/10 rounded-full text-stone-500 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-8 py-6 scrollbar-thin bg-gray-50 dark:bg-black/20">
+          {isLoadingSlots ? (
+            <div className="flex flex-col items-center justify-center py-10">
+              <Loader2 size={32} className="animate-spin text-[#FF4C4C] mb-4" />
+              <p className="text-sm font-bold text-stone-500">Loading slots...</p>
+            </div>
+          ) : floorSlots.length === 0 ? (
+            <p className="text-sm text-stone-500 text-center py-10 font-medium">No slots on this floor.</p>
+          ) : (
+            <div className="overflow-x-auto pb-4">
+              <div className="min-w-max mx-auto bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+                {/* Column headers */}
+                <div
+                  className="grid gap-1.5 mb-1"
+                  style={{ gridTemplateColumns: `1.75rem repeat(${Math.min(8, floorSlots.length)}, minmax(0,1fr))` }}
+                >
+                  <div />
+                  {Array.from({ length: Math.min(8, floorSlots.length) }, (_, c) => (
+                    <div
+                      key={c}
+                      className="text-center text-[10px] font-bold text-stone-400 tracking-wider"
+                    >
+                      {String.fromCharCode(65 + c)}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Rows */}
+                <div className="space-y-1.5">
+                  {Array.from({ length: Math.ceil(floorSlots.length / 8) }).map((_, rowIdx) => {
+                    const rowSlots = floorSlots.slice(rowIdx * 8, (rowIdx + 1) * 8);
+                    return (
+                      <div
+                        key={rowIdx}
+                        className="grid gap-1.5 items-center"
+                        style={{ gridTemplateColumns: `1.75rem repeat(8, minmax(0,1fr))` }}
+                      >
+                        <div className="text-center text-[10px] font-bold text-stone-400">
+                          {rowIdx + 1}
+                        </div>
+
+                        {rowSlots.map(slot => {
+                          const statusStr: SlotStatus = typeof slot.status === 'number' 
+                            ? SLOT_STATUS_FROM_ENUM[slot.status as number] || 'Available'
+                            : slot.status || 'Available';
+                          
+                          const slotVehicleType = vehicles.find((v) => v.id === slot.vehicleTypeId);
+                          const isMotorbike = slotVehicleType?.name.toLowerCase().includes('moto') ||
+                            slotVehicleType?.name.toLowerCase().includes('xe máy') ||
+                            slotVehicleType?.name.toLowerCase().includes('bike') ||
+                            slotVehicleType?.name.toLowerCase().includes('xe hai bánh') ||
+                            false;
+                          const SlotIcon = isMotorbike ? Bike : Car;
+
+                          const isAvailable = statusStr === 'Available';
+                          const isOccupied = statusStr === 'Occupied';
+                          const isReserved = statusStr === 'Reserved' || statusStr === 'TemporaryHeld';
+
+                          let slotStyle = '';
+                          if (isAvailable) {
+                            slotStyle = 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 hover:border-emerald-400 cursor-pointer shadow-sm';
+                          } else if (isOccupied) {
+                            slotStyle = 'bg-red-50 dark:bg-red-500/10 border-red-200/60 dark:border-red-500/20 text-red-400/60 dark:text-red-400/50 cursor-not-allowed';
+                          } else if (isReserved) {
+                            slotStyle = 'bg-amber-50 dark:bg-amber-500/10 border-amber-200/60 dark:border-amber-500/20 text-amber-500/70 cursor-not-allowed';
+                          } else {
+                            slotStyle = 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-400 cursor-not-allowed opacity-60';
+                          }
+
+                          return (
+                            <div
+                              key={slot.id}
+                              title={`${SLOT_STATUS_LABELS[statusStr]}`}
+                              className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 border-2 text-[9px] font-bold transition-all select-none ${slotStyle}`}
+                            >
+                              {isOccupied ? (
+                                <SlotIcon size={11} />
+                              ) : (
+                                <SlotIcon size={11} className="opacity-60" />
+                              )}
+                              <span className="leading-none">{slot.slotNumber}</span>
+                            </div>
+                          );
+                        })}
+                        
+                        {rowSlots.length < 8 && Array.from({ length: 8 - rowSlots.length }).map((_, k) => (
+                          <div key={`pad-${k}`} className="h-11" />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
     </div>
   );
