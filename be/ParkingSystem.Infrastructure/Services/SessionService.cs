@@ -17,12 +17,14 @@ public class SessionService : ISessionService
     private readonly ApplicationDbContext _context;
     private readonly IQrCodeService _qrCodeService;
     private readonly ICheckOutService _checkOutService;
+    private readonly INotificationService _notificationService;
 
-    public SessionService(ApplicationDbContext context, IQrCodeService qrCodeService, ICheckOutService checkOutService)
+    public SessionService(ApplicationDbContext context, IQrCodeService qrCodeService, ICheckOutService checkOutService, INotificationService notificationService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
         _checkOutService = checkOutService;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -245,6 +247,8 @@ public class SessionService : ISessionService
             EstimatedFee = s.EstimatedFee,
             PenaltyFee = s.PenaltyFee,
             TotalFee = s.TotalFee,
+            PrePaidAmount = s.PrePaidAmount,
+            GracePeriodEndTime = s.GracePeriodEndTime,
             Duration = durationText,
             EntryImageUrl = s.EntryImageUrl
         };
@@ -354,5 +358,97 @@ public class SessionService : ISessionService
         }
 
         await _context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Tính toán và thực hiện thanh toán trước bằng ví (PrePay).
+    /// </summary>
+    public async Task<SessionDto> PrePayAsync(Guid sessionId, Guid driverId)
+    {
+        var session = await _context.ParkingSessions
+            .Include(s => s.Driver)
+            .FirstOrDefaultAsync(s => s.Id == sessionId && s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted);
+
+        if (session == null)
+            throw new KeyNotFoundException("Không tìm thấy phiên gửi xe hoặc phiên không thuộc về bạn.");
+
+        if (session.Driver == null)
+            throw new InvalidOperationException("Không tìm thấy thông tin tài xế.");
+
+        // Tính phí đỗ xe tính đến thời điểm hiện tại
+        var now = DateTime.UtcNow;
+        var priceResult = await _checkOutService.CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, now);
+
+        // Trừ đi số tiền đã trả trước đó (nếu có)
+        var amountDue = priceResult.TotalFee - session.PrePaidAmount;
+
+        if (amountDue <= 0)
+        {
+            throw new InvalidOperationException("Phiên đỗ xe này chưa phát sinh thêm phí để thanh toán trước.");
+        }
+
+        if (session.Driver.Balance < amountDue)
+        {
+            throw new InvalidOperationException($"Số dư trong ví không đủ. Cần thêm {amountDue - session.Driver.Balance:N0} VND.");
+        }
+
+        // Trừ tiền trong ví
+        session.Driver.Balance -= amountDue;
+
+        // Cập nhật session
+        session.PrePaidAmount += amountDue;
+        session.PrePaidTime = now;
+        session.GracePeriodEndTime = now.AddMinutes(15);
+        session.GraceWarningSent = false;
+
+        // Ghi nhận giao dịch vào ví
+        var walletTx = new ParkingSystem.Domain.Entities.WalletTransaction
+        {
+            Id = Guid.NewGuid(),
+            UserId = driverId,
+            Amount = -amountDue, // Trừ tiền
+            Type = "Payment",
+            Status = "Success",
+            Description = $"Thanh toán trước phí đỗ xe (Session: {session.SessionCode})",
+            ReferenceId = session.Id.ToString(),
+            CreatedAt = now
+        };
+        _context.WalletTransactions.Add(walletTx);
+
+        // Ghi nhận Payment vào hệ thống (để thống kê doanh thu)
+        var payment = new ParkingSystem.Domain.Entities.Payment
+        {
+            Id = Guid.NewGuid(),
+            ParkingSessionId = session.Id,
+            UserId = driverId,
+            Amount = amountDue,
+            PaymentMethod = PaymentMethod.Wallet,
+            Status = PaymentStatus.Success,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+        _context.Payments.Add(payment);
+
+        await _context.SaveChangesAsync();
+
+        // Bắn Notification báo thành công và thời hạn 15 phút
+        await _notificationService.SendAsync(
+            driverId,
+            "✅ Thanh toán trước thành công",
+            $"Bạn đã thanh toán {amountDue:N0} VND. Bạn có 15 phút ân hạn (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}) để đưa xe ra khỏi bãi mà không phát sinh thêm phí.",
+            "PrePaySuccess",
+            sessionId);
+
+        return new SessionDto
+        {
+            Id = session.Id,
+            SessionCode = session.SessionCode,
+            LicensePlate = session.LicensePlate,
+            EntryTime = session.EntryTime,
+            Status = session.Status,
+            TotalFee = priceResult.TotalFee,
+            PrePaidAmount = session.PrePaidAmount,
+            GracePeriodEndTime = session.GracePeriodEndTime
+        };
     }
 }

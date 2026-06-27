@@ -57,6 +57,12 @@ public class CheckOutSearchResult
     public bool IsPlateMismatch { get; set; }
     public string? EntryImageUrl { get; set; }
     public decimal PenaltyFee { get; set; }
+
+    // Thuộc tính AutoPay & PrePay
+    public decimal PrePaidAmount { get; set; }
+    public decimal AmountDue { get; set; }
+    public bool AutoPaidSuccess { get; set; }
+    public string AutoPaidMessage { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -152,6 +158,10 @@ public class CheckOutConfirmResponse
     public PaymentMethod PaymentMethod { get; set; }
     public Guid PaymentId { get; set; }
     public string Message { get; set; } = string.Empty;
+
+    public decimal PrePaidAmount { get; set; }
+    public decimal AmountDue { get; set; }
+    public bool AutoPaidSuccess { get; set; }
 }
 
 /// <summary>
@@ -297,4 +307,16 @@ public class CreateCheckoutPaymentResponse
     public long PayOSOrderCode { get; set; }
     public string CheckoutUrl { get; set; } = string.Empty;
     public string Message { get; set; } = string.Empty;
+}
+
+public class PriceCalculationResult
+{
+    public double TotalHours { get; set; }
+    public decimal TotalFee { get; set; }
+    public string PricingModel { get; set; } = "Hourly";
+    public decimal HourlyRate { get; set; }
+    public decimal? DayPassPrice { get; set; }
+    public decimal? NightPassPrice { get; set; }
+    public decimal? DailyMaxPrice { get; set; }
+    public FeeBreakdownDto? FeeBreakdown { get; set; }
 }

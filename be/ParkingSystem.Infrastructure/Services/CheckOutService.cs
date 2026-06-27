@@ -16,19 +16,22 @@ public class CheckOutService : ICheckOutService
     private readonly IPaymentService _paymentService;
     private readonly ILogger<CheckOutService> _logger;
     private readonly IRealtimeService _realtimeService;
+    private readonly INotificationService _notificationService;
 
     public CheckOutService(
         ApplicationDbContext context,
         ILicensePlateRecognizer lprService,
         IPaymentService paymentService,
         ILogger<CheckOutService> logger,
-        IRealtimeService realtimeService)
+        IRealtimeService realtimeService,
+        INotificationService notificationService)
     {
         _context = context;
         _lprService = lprService;
         _paymentService = paymentService;
         _logger = logger;
         _realtimeService = realtimeService;
+        _notificationService = notificationService;
     }
 
     public async Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
@@ -106,6 +109,22 @@ public class CheckOutService : ICheckOutService
             }
         }
 
+        var amountDue = priceResult.TotalFee + session.PenaltyFee - session.PrePaidAmount;
+        if (session.GracePeriodEndTime.HasValue && exitTime <= session.GracePeriodEndTime.Value)
+        {
+            amountDue = 0;
+        }
+        else if (amountDue < 0)
+        {
+            amountDue = 0;
+        }
+
+        bool isAutoPayEligible = false;
+        if (amountDue > 0 && session.Driver != null && session.Driver.AutoPayEnabled && session.Driver.Balance >= amountDue)
+        {
+            isAutoPayEligible = true;
+        }
+
         return new CheckOutSearchResult
         {
             SessionId = session.Id,
@@ -126,13 +145,17 @@ public class CheckOutService : ICheckOutService
             Message = BuildMessage(session, priceResult),
             IsPlateMismatch = isMismatch,
             EntryImageUrl = session.EntryImageUrl,
-            PenaltyFee = session.PenaltyFee
+            PenaltyFee = session.PenaltyFee,
+            PrePaidAmount = session.PrePaidAmount,
+            AmountDue = amountDue,
+            AutoPaidSuccess = isAutoPayEligible // Use this field as flag for UI to trigger AutoPay
         };
     }
 
     public async Task<CheckOutConfirmResponse> ConfirmCheckOutAsync(CheckOutConfirmRequest request)
     {
         var session = await _context.ParkingSessions
+            .Include(s => s.Driver)
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
@@ -188,6 +211,65 @@ public class CheckOutService : ICheckOutService
 
         // Cộng thêm tiền phạt (nếu có)
         priceResult.TotalFee += session.PenaltyFee;
+
+        var amountDue = priceResult.TotalFee - session.PrePaidAmount;
+        if (session.GracePeriodEndTime.HasValue && exitTime <= session.GracePeriodEndTime.Value)
+        {
+            amountDue = 0;
+        }
+        else if (amountDue < 0)
+        {
+            amountDue = 0;
+        }
+
+        bool isAutoPaid = false;
+        if (amountDue > 0 && session.Driver != null && session.Driver.AutoPayEnabled)
+        {
+            if (session.Driver.Balance >= amountDue)
+            {
+                session.Driver.Balance -= amountDue;
+                
+                var walletTx = new ParkingSystem.Domain.Entities.WalletTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = session.DriverId.Value,
+                    Amount = -amountDue,
+                    Type = "AutoPay",
+                    Status = "Success",
+                    Description = $"Tự động thanh toán phí đỗ xe (Session: {session.SessionCode})",
+                    ReferenceId = session.Id.ToString(),
+                    CreatedAt = exitTime
+                };
+                _context.WalletTransactions.Add(walletTx);
+
+                var autoPayment = new ParkingSystem.Domain.Entities.Payment
+                {
+                    Id = Guid.NewGuid(),
+                    ParkingSessionId = session.Id,
+                    UserId = session.DriverId,
+                    Amount = amountDue,
+                    PaymentMethod = PaymentMethod.Wallet,
+                    Status = PaymentStatus.Success,
+                    CreatedAt = exitTime,
+                    UpdatedAt = exitTime
+                };
+                _context.Payments.Add(autoPayment);
+
+                amountDue = 0;
+                isAutoPaid = true;
+                request.PaymentMethod = PaymentMethod.Wallet;
+
+                if (_notificationService != null)
+                {
+                    await _notificationService.SendAsync(
+                        session.DriverId.Value,
+                        "🚗 Tự động thanh toán qua cổng",
+                        $"Hệ thống đã tự động trừ {autoPayment.Amount:N0} VND từ Ví của bạn để thanh toán phí đỗ xe.",
+                        "AutoPaySuccess",
+                        session.Id);
+                }
+            }
+        }
 
         // Nếu nhân viên bảo vệ đã dùng quyền Duyệt Ngoại Lệ (do sai biển số)
         if (request.IsManualVerified)
@@ -290,7 +372,10 @@ public class CheckOutService : ICheckOutService
                 ChangeAmount = null,
                 PaymentMethod = PaymentMethod.PayOS,
                 PaymentId = existingPayment.Id,
-                Message = BuildMessage(session, priceResult, isConfirm: true)
+                Message = BuildMessage(session, priceResult, isConfirm: true),
+                PrePaidAmount = session.PrePaidAmount,
+                AmountDue = 0,
+                AutoPaidSuccess = false
             };
         }
 
@@ -304,18 +389,23 @@ public class CheckOutService : ICheckOutService
             }
         }
 
-        var payment = new Payment
+        Payment? payment = null;
+        if (!isAutoPaid)
         {
-            Id = Guid.NewGuid(),
-            PayOSOrderCode = GeneratePayOSOrderCode(),
-            ParkingSessionId = session.Id,
-            Amount = priceResult.TotalFee,
-            Description = $"Thanh toan phi gui xe cho bien so {session.LicensePlate}",
-            PaymentDate = exitTime,
-            PaymentMethod = request.PaymentMethod,
-            Status = PaymentStatus.Success,
-            CreatedAt = exitTime
-        };
+            payment = new Payment
+            {
+                Id = Guid.NewGuid(),
+                PayOSOrderCode = GeneratePayOSOrderCode(),
+                ParkingSessionId = session.Id,
+                Amount = amountDue, // Save the actual amount due, not TotalFee (since some might be prepaid)
+                Description = $"Thanh toan phi gui xe cho bien so {session.LicensePlate}",
+                PaymentDate = exitTime,
+                PaymentMethod = request.PaymentMethod,
+                Status = PaymentStatus.Success,
+                CreatedAt = exitTime
+            };
+            _context.Payments.Add(payment);
+        }
 
         session.ExitTime = exitTime;
         session.TotalFee = priceResult.TotalFee;
@@ -343,7 +433,6 @@ public class CheckOutService : ICheckOutService
             });
         }
 
-        _context.Payments.Add(payment);
         await _context.SaveChangesAsync();
 
         await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
@@ -374,8 +463,11 @@ public class CheckOutService : ICheckOutService
             PaymentAmount = request.PaymentAmount,
             ChangeAmount = changeAmount,
             PaymentMethod = request.PaymentMethod,
-            PaymentId = payment.Id,
-            Message = BuildMessage(session, priceResult, isConfirm: true)
+            PaymentId = payment?.Id ?? Guid.Empty,
+            Message = BuildMessage(session, priceResult, isConfirm: true),
+            PrePaidAmount = session.PrePaidAmount,
+            AmountDue = amountDue,
+            AutoPaidSuccess = isAutoPaid
         };
     }
 
@@ -549,7 +641,7 @@ public class CheckOutService : ICheckOutService
         };
     }
 
-    private async Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime, bool isOverdue = false)
+    public async Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime, bool isOverdue = false)
     {
         var pricingPolicy = await _context.PricingPolicies
             .FirstOrDefaultAsync(p => p.VehicleTypeId == vehicleTypeId);
@@ -677,15 +769,4 @@ public class CheckOutService : ICheckOutService
         return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     }
 
-    private class PriceCalculationResult
-    {
-        public double TotalHours { get; set; }
-        public decimal TotalFee { get; set; }
-        public string PricingModel { get; set; } = "Hourly";
-        public decimal HourlyRate { get; set; }
-        public decimal? DayPassPrice { get; set; }
-        public decimal? NightPassPrice { get; set; }
-        public decimal? DailyMaxPrice { get; set; }
-        public FeeBreakdownDto? FeeBreakdown { get; set; }
-    }
 }

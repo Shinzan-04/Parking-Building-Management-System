@@ -19,6 +19,11 @@ public class ParkingSession : BaseEntity
     public decimal PenaltyFee { get; set; }
     public decimal TotalFee { get; set; }
     
+    public decimal PrePaidAmount { get; set; } = 0;
+    public DateTime? PrePaidTime { get; set; }
+    public DateTime? GracePeriodEndTime { get; set; }
+    public bool GraceWarningSent { get; set; } = false;
+
     /// <summary>
     /// Đường dẫn ảnh biển số chụp khi xe vào (bằng chứng tranh chấp)
     /// </summary>

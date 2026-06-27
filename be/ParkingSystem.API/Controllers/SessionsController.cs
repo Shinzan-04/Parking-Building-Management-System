@@ -168,6 +168,37 @@ public class SessionsController : ControllerBase
     }
 
     /// <summary>
+    /// Thanh toán trước phí đỗ xe bằng ví (Driver)
+    /// </summary>
+    [HttpPost("{id}/prepay")]
+    [Authorize(Roles = "Driver")]
+    public async Task<IActionResult> PrePay(Guid id)
+    {
+        try
+        {
+            var driverIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(driverIdClaim)) return Unauthorized();
+
+            var driverId = Guid.Parse(driverIdClaim);
+            var result = await _sessionService.PrePayAsync(id, driverId);
+
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Lỗi hệ thống.", details = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Dev tool: Khôi phục lại thời gian về lúc hiện tại
     /// </summary>
     [HttpPost("dev/reset-time")]

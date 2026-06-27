@@ -30,6 +30,8 @@ public class SessionDto
     public decimal EstimatedFee { get; set; }
     public decimal PenaltyFee { get; set; }
     public decimal TotalFee { get; set; }
+    public decimal PrePaidAmount { get; set; }
+    public DateTime? GracePeriodEndTime { get; set; }
     
     /// <summary>
     /// Thời gian gửi xe tính đến hiện tại (dạng text: "2 giờ 15 phút")

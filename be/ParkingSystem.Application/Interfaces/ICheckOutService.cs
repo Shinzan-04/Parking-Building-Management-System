@@ -13,6 +13,12 @@ public interface ICheckOutService
     /// </summary>
     Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null);
 
+
+    /// <summary>
+    /// Calculate fee for a parking session
+    /// </summary>
+    Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime, bool isOverdue = false);
+
     /// <summary>
     /// Xac nhan thanh toan va giai phong o do khi xe ra bai.
     /// Tao Payment (Status = Success), cap nhat Session, giai phong Slot.

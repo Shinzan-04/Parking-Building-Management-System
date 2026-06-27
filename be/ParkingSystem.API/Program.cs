@@ -102,6 +102,7 @@ builder.Services.AddScoped<INotificationService, ParkingSystem.Infrastructure.Se
 
 // Background Service: Tự động hủy reservation hết hạn (quét mỗi 5 phút)
 builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.ReservationCleanupService>();
+builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.GracePeriodNotifierService>();
 
 // Register LPR Services (Clean Architecture)
 var modelPath = Path.Combine(builder.Environment.ContentRootPath, "Models", "license_plate_detector.onnx");

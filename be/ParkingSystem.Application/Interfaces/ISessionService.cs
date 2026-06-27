@@ -43,4 +43,5 @@ public interface ISessionService
     /// Dev tool: Khôi phục lại thời gian về lúc hiện tại (Reset timer)
     /// </summary>
     Task DevResetTimeAsync(Guid driverId);
+    Task<SessionDto> PrePayAsync(Guid sessionId, Guid driverId);
 }

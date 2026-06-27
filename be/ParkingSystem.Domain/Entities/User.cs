@@ -18,6 +18,11 @@ public class User : BaseEntity
     public int FailedLoginCount { get; set; } = 0;
 
     /// <summary>
+    /// Cho phép tự động trừ tiền trong Ví (AutoPay) khi ra khỏi bãi đỗ
+    /// </summary>
+    public bool AutoPayEnabled { get; set; } = false;
+
+    /// <summary>
     /// Thời điểm hết khóa tài khoản (null = không bị khóa)
     /// </summary>
     public DateTime? LockoutEnd { get; set; }
