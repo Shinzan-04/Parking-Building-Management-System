@@ -31,6 +31,11 @@ public interface IAuthService
     /// </summary>
     Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
 
+    /// <summary>
+    /// Bật/Tắt tính năng AutoPay
+    /// </summary>
+    Task ToggleAutoPayAsync(Guid userId, ToggleAutoPayRequest request);
+
     // ===== P1: Enhanced Auth =====
 
     /// <summary>

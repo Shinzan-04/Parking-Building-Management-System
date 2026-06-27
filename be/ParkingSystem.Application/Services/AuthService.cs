@@ -244,6 +244,18 @@ public class AuthService : IAuthService
         return BuildProfileResponse(user);
     }
 
+    public async Task ToggleAutoPayAsync(Guid userId, ToggleAutoPayRequest request)
+    {
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            throw new InvalidOperationException("Không tìm thấy người dùng.");
+
+        user.AutoPayEnabled = request.AutoPayEnabled;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _userRepository.UpdateAsync(user);
+    }
+
     // ===== HELPER: Tạo AuthResponse với cả Access + Refresh Token =====
     private async Task<AuthResponse> BuildAuthResponse(User user)
     {
@@ -297,6 +309,7 @@ public class AuthService : IAuthService
             Username = user.Username,
             FullName = user.FullName,
             Role = user.Role,
+            AutoPayEnabled = user.AutoPayEnabled,
             Email = user.Email,
             PhoneNumber = user.PhoneNumber,
             DriverCode = user.DriverCode,

@@ -144,6 +144,25 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
+    /// Bật/Tắt tính năng AutoPay
+    /// </summary>
+    [Authorize]
+    [HttpPatch("profile/autopay")]
+    public async Task<IActionResult> ToggleAutoPay([FromBody] ToggleAutoPayRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            await _authService.ToggleAutoPayAsync(userId, request);
+            return Ok(new { message = request.AutoPayEnabled ? "Đã bật Tự động thanh toán." : "Đã tắt Tự động thanh toán." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Cập nhật thông tin profile (tên, SĐT, email)
     /// </summary>
     [Authorize]

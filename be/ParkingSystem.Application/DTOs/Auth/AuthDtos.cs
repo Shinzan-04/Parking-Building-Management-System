@@ -52,12 +52,18 @@ public class UpdateProfileRequest
     public string? Email { get; set; }
 }
 
+public class ToggleAutoPayRequest
+{
+    public bool AutoPayEnabled { get; set; }
+}
+
 public class ProfileResponse
 {
     public Guid UserId { get; set; }
     public string Username { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public Role Role { get; set; }
+    public bool AutoPayEnabled { get; set; }
     public string? Email { get; set; }
     public string? PhoneNumber { get; set; }
     public string DriverCode { get; set; } = string.Empty;
