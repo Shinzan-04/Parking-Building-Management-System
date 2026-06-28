@@ -285,7 +285,7 @@ public class SessionService : ISessionService
 
         bool isPrepaid = session.CheckInMethod == CheckInMethod.Booking && session.Reservation != null;
         DateTime? prepaidStartTime = isPrepaid ? session.Reservation!.StartTime : null;
-        DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : null;
+        DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : session.GracePeriodEndTime;
 
         return new MyActiveSessionResponse
         {
@@ -300,6 +300,7 @@ public class SessionService : ISessionService
             SlotNumber = session.ParkingSlot?.SlotNumber ?? "",
             PricePerHour = 0, // Dùng Block thay vì HourlyRate
             CurrentFee = currentFee,
+            PrePaidAmount = session.PrePaidAmount,
             IsPrepaid = isPrepaid,
             PrepaidStartTime = prepaidStartTime,
             PrepaidEndTime = prepaidEndTime
@@ -398,7 +399,20 @@ public class SessionService : ISessionService
         // Cập nhật session
         session.PrePaidAmount += amountDue;
         session.PrePaidTime = now;
-        session.GracePeriodEndTime = now.AddMinutes(15);
+        
+        // Tính toán giờ kết thúc Block hiện tại
+        var pricingPolicy = await _context.PricingPolicies.FirstOrDefaultAsync(p => p.VehicleTypeId == session.VehicleTypeId);
+        var blockHours = (pricingPolicy != null && pricingPolicy.BlockDurationHours > 0) ? pricingPolicy.BlockDurationHours : 4;
+        var blockTimeSpan = TimeSpan.FromHours(blockHours);
+        var endOfCurrentBlock = session.EntryTime;
+        while (endOfCurrentBlock < now)
+        {
+            endOfCurrentBlock = endOfCurrentBlock.Add(blockTimeSpan);
+        }
+        
+        // Thời gian ân hạn = Max(Cuối Block hiện tại, Hiện tại + 15 phút)
+        var minGraceTime = now.AddMinutes(15);
+        session.GracePeriodEndTime = endOfCurrentBlock > minGraceTime ? endOfCurrentBlock : minGraceTime;
         session.GraceWarningSent = false;
 
         // Ghi nhận giao dịch vào ví
@@ -419,6 +433,7 @@ public class SessionService : ISessionService
         var payment = new ParkingSystem.Domain.Entities.Payment
         {
             Id = Guid.NewGuid(),
+            PayOSOrderCode = long.Parse($"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{Random.Shared.Next(1000, 9999)}"),
             ParkingSessionId = session.Id,
             UserId = driverId,
             Amount = amountDue,

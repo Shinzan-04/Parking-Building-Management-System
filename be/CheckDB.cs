@@ -26,9 +26,12 @@ namespace CheckDB
                 var conn = dbContext.Database.GetDbConnection();
                 await conn.OpenAsync();
                 var cmd = conn.CreateCommand();
-                cmd.CommandText = "ALTER TABLE \"WalletTransactions\" ADD COLUMN IF NOT EXISTS \"RelatedPaymentId\" uuid NULL;";
-                await cmd.ExecuteNonQueryAsync();
-                Console.WriteLine("ALTER TABLE executed successfully.");
+                cmd.CommandText = "SELECT \"SessionCode\", \"CheckInMethod\", \"EntryTime\", \"GracePeriodEndTime\", \"ReservationId\" FROM \"ParkingSessions\" ORDER BY \"EntryTime\" DESC LIMIT 5;";
+                using var reader = await cmd.ExecuteReaderAsync();
+                while (await reader.ReadAsync())
+                {
+                    Console.WriteLine($"SessionCode: {reader[0]}, Method: {reader[1]}, EntryTime: {reader[2]}, GracePeriodEndTime: {reader[3]}, ReservationId: {reader[4]}");
+                }
             }
             catch (Exception ex)
             {

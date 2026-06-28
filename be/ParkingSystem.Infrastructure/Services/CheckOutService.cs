@@ -48,6 +48,7 @@ public class CheckOutService : ICheckOutService
                 .ThenInclude(ps => ps.Floor)
             .Include(s => s.VehicleType)
             .Include(s => s.Reservation)
+            .Include(s => s.Driver)
             .Where(s => s.Status == SessionStatus.Active)
             .ToListAsync();
 
@@ -245,6 +246,7 @@ public class CheckOutService : ICheckOutService
                 var autoPayment = new ParkingSystem.Domain.Entities.Payment
                 {
                     Id = Guid.NewGuid(),
+                    PayOSOrderCode = long.Parse($"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{Random.Shared.Next(1000, 9999)}"),
                     ParkingSessionId = session.Id,
                     UserId = session.DriverId,
                     Amount = amountDue,

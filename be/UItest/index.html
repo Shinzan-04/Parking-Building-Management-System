@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
   <meta charset="UTF-8" />
@@ -1231,11 +1231,16 @@
         // Nếu xe đủ điều kiện AutoPay (Có tiền trong ví & bật tính năng), tự động trigger thanh toán
         if (rk(data, 'AutoPaidSuccess', false) === true) {
            showAlert('info', 'Tài xế đã bật AutoPay. Hệ thống đang tự động trừ tiền trong Ví...');
-           // Tự động gọi API Confirm với phương thức Wallet (0 là Cash nhưng backend sẽ ưu tiên AutoPay)
-           // Ta truyền AutoPay=true để handleCoConfirm biết
            setTimeout(() => {
               handleCoConfirm();
-           }, 1500); // Đợi 1.5s để staff kịp nhìn thấy màn hình confirm rồi tự động chạy
+           }, 1500); 
+        } 
+        // Hoặc nếu số tiền cần thu = 0 (Đã thanh toán trước / Booking), cũng tự động cho qua luôn
+        else if (rk(data, 'AmountDue', 1) === 0) {
+           showAlert('success', 'Xe đã thanh toán đủ tiền trước đó. Đang tự động mở cổng...');
+           setTimeout(() => {
+              handleCoConfirm();
+           }, 1500); 
         }
       }
     } catch (err) {

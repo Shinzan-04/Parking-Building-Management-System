@@ -521,11 +521,20 @@ public class CheckInService : ICheckInService
         // Sinh mã QR cho phiên gửi xe
         var sessionCode = _qrCodeService.GenerateUniqueCode(5);
 
-        // Tạo Parking Session mới (khách vãng lai)
+        // ── AUTO-LINK DRIVER (Nếu khách có đăng ký xe trong hệ thống) ──
+        // Tìm xe đã đăng ký có cùng biển số (so sánh tương đối bằng cách loại bỏ dấu chấm, gạch nối)
+        string cleanSearchPlate = searchPlate.Replace("-", "").Replace(".", "").Replace(" ", "").ToLower();
+        var registeredVehicle = await _context.Vehicles
+            .FirstOrDefaultAsync(v => v.PlateNumber.Replace("-", "").Replace(".", "").Replace(" ", "").ToLower() == cleanSearchPlate 
+                                   && v.VehicleTypeId == request.VehicleTypeId);
+        
+        Guid? matchedDriverId = registeredVehicle?.DriverId;
+
+        // Tạo Parking Session mới (khách vãng lai hoặc khách có tài khoản nhưng check-in bằng camera)
         var session = new ParkingSession
         {
             Id = Guid.NewGuid(),
-            DriverId = null,
+            DriverId = matchedDriverId,
             StaffId = request.StaffId,
             ParkingSlotId = assignedSlot.Id,
             VehicleTypeId = request.VehicleTypeId,

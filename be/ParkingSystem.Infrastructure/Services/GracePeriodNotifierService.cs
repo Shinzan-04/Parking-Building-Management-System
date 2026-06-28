@@ -29,6 +29,8 @@ public class GracePeriodNotifierService : BackgroundService
                 var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 var notificationService = scope.ServiceProvider.GetRequiredService<INotificationService>();
 
+                var checkOutService = scope.ServiceProvider.GetRequiredService<ICheckOutService>();
+
                 var now = DateTime.UtcNow;
                 var warningTime = now.AddMinutes(5); // Tìm các session còn <= 5 phút ân hạn
 
@@ -42,12 +44,16 @@ public class GracePeriodNotifierService : BackgroundService
 
                 foreach (var session in sessionsToWarn)
                 {
-                    if (session.DriverId.HasValue)
+                    // Tính thử xem nếu quá hạn 1 phút thì phí có tăng không (có vượt qua Block hiện tại không)
+                    var futureTime = session.GracePeriodEndTime.Value.AddMinutes(1);
+                    var futureFeeResult = await checkOutService.CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, futureTime);
+
+                    if (futureFeeResult.TotalFee > session.PrePaidAmount && session.DriverId.HasValue)
                     {
                         await notificationService.SendAsync(
                             session.DriverId.Value,
                             "⏳ Sắp hết thời gian ân hạn",
-                            $"Bạn chỉ còn chưa đầy 5 phút thời gian ân hạn (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}). Vui lòng nhanh chóng đưa xe qua cổng để tránh phát sinh thêm phí.",
+                            $"Thời gian ân hạn 15 phút sau khi thanh toán sắp hết (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}). Nếu bạn vẫn tiếp tục gửi, hệ thống sẽ trở lại tính phí theo Block bình thường.",
                             "GracePeriodWarning",
                             session.Id);
                     }
