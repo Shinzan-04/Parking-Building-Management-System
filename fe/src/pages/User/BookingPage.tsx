@@ -63,6 +63,8 @@ interface WizardState {
   slotId: string | null;
   zone: string | null;
   bookingMethod: number; // 0 = Manual, 1 = AIRecommended
+  saveVehicle?: boolean;
+  plateInputType?: 'saved' | 'manual' | null;
 }
 
 interface BookingWizardProps {
@@ -256,33 +258,20 @@ function StepLicensePlate({
   const vehicleLabel = selectedVehicle?.name || 'Car';
   const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
 
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown when clicking outside
+  // Tự động chọn xe mặc định nếu có khi ở tab 'saved'
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  // Tự động chọn xe mặc định nếu có (chỉ chạy 1 lần khi load xong xe)
-  useEffect(() => {
-    if (myVehicles.length > 0 && !state.licensePlate) {
+    if (state.plateInputType === 'saved' && myVehicles.length > 0 && (!state.licensePlate || !myVehicles.find(v => v.plateNumber === state.licensePlate))) {
       const defaultVehicle = myVehicles.find(v => v.isPrimary) || myVehicles[0];
       setState(s => ({
         ...s,
         licensePlate: defaultVehicle.plateNumber,
         vehicleType: defaultVehicle.vehicleTypeId,
       }));
+    } else if (state.plateInputType === 'manual' && myVehicles.length > 0) {
+      // Optional: Clear license plate when switching to manual, or leave it as is
+      // setState(s => ({ ...s, licensePlate: '' }));
     }
-  }, [myVehicles, state.licensePlate, setState]);
+  }, [myVehicles, state.plateInputType, setState, state.licensePlate]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -309,138 +298,160 @@ function StepLicensePlate({
 
       {!loadingMyVehicles && (
         <div className="flex flex-col gap-6">
-          {/* Saved vehicles dropdown */}
-          {myVehicles.length > 0 && (
-            <div className="relative z-10 w-full max-w-sm mx-auto" ref={dropdownRef}>
+
+          {/* Strict Conditional Rendering */}
+          {state.plateInputType === null && (
+            <div className="flex gap-4 w-full max-w-sm mx-auto animate-in fade-in zoom-in-95 duration-200">
               <button
                 type="button"
-                onClick={() => setShowDropdown(!showDropdown)}
-                className="w-full flex items-center justify-between p-3 rounded-2xl bg-white dark:bg-[#18181B] border-2 border-[#FF4C4C]/30 hover:border-[#FF4C4C]/60 transition-all duration-200 shadow-sm shadow-[#FF4C4C]/5"
+                onClick={() => setState((s) => ({ ...s, plateInputType: 'saved' }))}
+                className="flex-1 flex flex-col items-center justify-center gap-3 py-6 px-4 rounded-2xl font-bold transition-all duration-200 border-2 border-gray-200/80 dark:border-white/10 bg-white dark:bg-[#18181B] text-stone-500 hover:border-[#FF4C4C] hover:bg-[#FF4C4C]/5 hover:text-[#FF4C4C] group shadow-sm hover:shadow-md hover:shadow-[#FF4C4C]/10"
               >
-                {(() => {
-                  const selectedV = myVehicles.find(v => v.plateNumber === state.licensePlate);
-                  if (selectedV) {
-                    const lowerName = selectedV.vehicleTypeName?.toLowerCase() || '';
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-gray-100 dark:bg-white/5 text-stone-400 group-hover:bg-[#FF4C4C]/10 group-hover:text-[#FF4C4C]">
+                  <ClipboardList size={24} strokeWidth={1.5} />
+                </div>
+                <span className="text-sm">Xe đã lưu</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setState((s) => ({ ...s, plateInputType: 'manual' }))}
+                className="flex-1 flex flex-col items-center justify-center gap-3 py-6 px-4 rounded-2xl font-bold transition-all duration-200 border-2 border-gray-200/80 dark:border-white/10 bg-white dark:bg-[#18181B] text-stone-500 hover:border-[#FF4C4C] hover:bg-[#FF4C4C]/5 hover:text-[#FF4C4C] group shadow-sm hover:shadow-md hover:shadow-[#FF4C4C]/10"
+              >
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-gray-100 dark:bg-white/5 text-stone-400 group-hover:bg-[#FF4C4C]/10 group-hover:text-[#FF4C4C]">
+                  <span className="text-lg font-black tracking-widest">A1</span>
+                </div>
+                <span className="text-sm">Nhập thủ công</span>
+              </button>
+            </div>
+          )}
+
+          {/* Render Saved Vehicles */}
+          {state.plateInputType === 'saved' && (
+            <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in-95 duration-200">
+              {myVehicles.length > 0 ? (
+                <div className="max-h-[350px] overflow-y-auto pr-2 flex flex-col gap-3 scrollbar-thin">
+                  {myVehicles.map(v => {
+                    const isSelected = state.licensePlate === v.plateNumber;
+                    const lowerName = v.vehicleTypeName?.toLowerCase() || '';
                     const isMotor = lowerName.includes('moto') || lowerName.includes('xe máy') || lowerName.includes('bike');
                     const Icon = isMotor ? Bike : Car;
                     return (
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#FF4C4C]/10 text-[#FF4C4C] flex items-center justify-center">
-                          <Icon size={20} strokeWidth={1.5} />
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-black tracking-wider text-[#FF4C4C]">{selectedV.plateNumber}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <p className="text-[10px] text-stone-800 dark:text-stone-300 font-bold uppercase tracking-wider">{selectedV.vehicleTypeName || 'Phương tiện'}</p>
-                            {selectedV.isPrimary && (
-                              <span className="bg-amber-500/10 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">Mặc định</span>
-                            )}
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => {
+                          setState(s => ({
+                            ...s,
+                            licensePlate: v.plateNumber,
+                            vehicleType: v.vehicleTypeId,
+                          }));
+                        }}
+                        className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 shrink-0 ${isSelected
+                            ? 'border-[#FF4C4C] bg-[#FF4C4C]/5 shadow-sm shadow-[#FF4C4C]/5'
+                            : 'border-gray-200/80 dark:border-white/10 bg-white dark:bg-[#18181B] hover:border-gray-300 dark:hover:border-white/20'
+                          }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isSelected ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]' : 'bg-gray-100 dark:bg-white/5 text-stone-400'
+                            }`}>
+                            <Icon size={24} strokeWidth={1.5} />
+                          </div>
+                          <div className="text-left">
+                            <p className={`text-base font-black tracking-wider ${isSelected ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-white'}`}>
+                              {v.plateNumber}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">{v.vehicleTypeName || 'Phương tiện'}</p>
+                              {v.isPrimary && (
+                                <span className="bg-amber-500/10 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">Mặc định</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
+                        {isSelected && <CheckCircle2 size={20} className="text-[#FF4C4C]" />}
+                      </button>
                     );
-                  }
-                  return (
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/5 text-stone-400 flex items-center justify-center transition-colors">
-                        <Car size={20} strokeWidth={1.5} />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-sm font-black tracking-wider text-stone-800 dark:text-white transition-colors">Xe khác (Nhập thủ công)</p>
-                      </div>
-                    </div>
-                  );
-                })()}
-                <ChevronDown size={18} className={`text-stone-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} />
-              </button>
-
-              {showDropdown && (
-                <div className="absolute top-[calc(100%+8px)] left-0 right-0 bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
-                  <div className="max-h-[220px] overflow-y-auto scrollbar-thin flex flex-col p-2 gap-1">
-                    {myVehicles.map(v => {
-                      const isSelected = state.licensePlate === v.plateNumber;
-                      const lowerName = v.vehicleTypeName?.toLowerCase() || '';
-                      const isMotor = lowerName.includes('moto') || lowerName.includes('xe máy') || lowerName.includes('bike');
-                      const Icon = isMotor ? Bike : Car;
-                      return (
-                        <button
-                          key={v.id}
-                          type="button"
-                          onClick={() => {
-                            setState(s => ({
-                              ...s,
-                              licensePlate: v.plateNumber,
-                              vehicleType: v.vehicleTypeId,
-                            }));
-                            setShowDropdown(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl transition-colors ${isSelected ? 'bg-red-50/50 dark:bg-[#FF4C4C]/10' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${isSelected ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]' : 'bg-gray-100 dark:bg-white/5 text-stone-400'}`}>
-                              <Icon size={16} strokeWidth={1.5} />
-                            </div>
-                            <div className="text-left">
-                              <p className={`text-xs font-black tracking-wider ${isSelected ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-white'}`}>{v.plateNumber}</p>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                <p className="text-[9px] text-stone-500 font-bold uppercase">{v.vehicleTypeName || 'Phương tiện'}</p>
-                                {v.isPrimary && (
-                                  <span className="bg-amber-500/10 text-amber-600 text-[8px] font-bold px-1 rounded-sm">Mặc định</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          {isSelected && <CheckCircle2 size={14} className="text-[#FF4C4C]" />}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-sm text-stone-500">Bạn chưa có xe nào được lưu.</p>
+                  <button
+                    onClick={() => setState((s) => ({ ...s, plateInputType: 'manual' }))}
+                    className="text-sm font-bold text-[#FF4C4C] mt-2 hover:underline"
+                  >
+                    Chuyển sang nhập thủ công
+                  </button>
                 </div>
               )}
             </div>
           )}
 
-          {/* Vehicle type display */}
-          <div className="flex flex-col items-center gap-3 mt-2">
-            <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-white/5 border-2 border-gray-200/60 dark:border-white/10 flex items-center justify-center transition-colors">
-              <VehicleIcon
-                size={40}
-                strokeWidth={1.5}
-                className="text-[#FF4C4C]"
-              />
-            </div>
-            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">{vehicleLabel}</span>
-          </div>
+          {/* Render Manual Input */}
+          {state.plateInputType === 'manual' && (
+            <div className="w-full max-w-sm mx-auto flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
 
-          {/* License plate input */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-full max-w-sm">
-              <input
-                type="text"
-                placeholder={placeholder}
-                value={state.licensePlate}
-                onChange={(e) =>
-                  setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
-                }
-                maxLength={12}
-                className="w-full bg-gray-50 dark:bg-white/5 border-2 border-gray-200/80 dark:border-white/10 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-800 dark:text-white text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 dark:placeholder-stone-600 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
-              />
-            </div>
 
-            {/* Format hint */}
-            <div className="text-center space-y-1">
-              <p className="text-xs text-stone-500 dark:text-stone-400">
-                Format:{' '}
-                <span className="text-stone-700 dark:text-stone-200 font-bold">51A-12345</span>{' '}
-                (car) or{' '}
-                <span className="text-stone-700 dark:text-stone-200 font-bold">59T1-12345</span>{' '}
-                (motorcycle)
-              </p>
-              <p className="text-xs text-stone-400 dark:text-stone-500">
-                This will be linked to your parking session.
-              </p>
+              {/* Vehicle type display */}
+              <div className="flex flex-col items-center gap-3 mt-2">
+                <div className="w-20 h-20 rounded-2xl bg-gray-100 dark:bg-white/5 border-2 border-gray-200/60 dark:border-white/10 flex items-center justify-center transition-colors">
+                  <VehicleIcon
+                    size={40}
+                    strokeWidth={1.5}
+                    className="text-[#FF4C4C]"
+                  />
+                </div>
+                <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">{vehicleLabel}</span>
+              </div>
+
+              {/* License plate input */}
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-full max-w-sm">
+                  <input
+                    type="text"
+                    placeholder={placeholder}
+                    value={state.licensePlate}
+                    onChange={(e) =>
+                      setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
+                    }
+                    maxLength={12}
+                    className="w-full bg-gray-50 dark:bg-white/5 border-2 border-gray-200/80 dark:border-white/10 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-800 dark:text-white text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 dark:placeholder-stone-600 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
+                  />
+                </div>
+
+                {/* Checkbox: Save Vehicle */}
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <input
+                    type="checkbox"
+                    id="saveVehicle"
+                    checked={state.saveVehicle || false}
+                    onChange={(e) => setState((s) => ({ ...s, saveVehicle: e.target.checked }))}
+                    className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-red-500 focus:ring-red-500"
+                  />
+                  <label
+                    htmlFor="saveVehicle"
+                    className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer transition-colors"
+                  >
+                    Lưu phương tiện này để sử dụng cho lần sau
+                  </label>
+                </div>
+
+                {/* Format hint */}
+                {/* <div className="text-center space-y-1">
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Format:{' '}
+                    <span className="text-stone-700 dark:text-stone-200 font-bold">51A-12345</span>{' '}
+                    (car) or{' '}
+                    <span className="text-stone-700 dark:text-stone-200 font-bold">59T1-12345</span>{' '}
+                    (motorcycle)
+                  </p>
+                  <p className="text-xs text-stone-400 dark:text-stone-500">
+                    This will be linked to your parking session.
+                  </p>
+                </div> */}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>
@@ -545,7 +556,7 @@ function StepDateTime({
 
   const exitInfo = useMemo(() => {
     if (!state.entryDate || !state.entryTime) return { time: '--:--', date: '--/--/----', rawDate: '' };
-    
+
     let exTime = state.exitTime;
     let exDate = state.exitDate;
 
@@ -553,7 +564,7 @@ function StepDateTime({
       const entry = new Date(state.entryDate);
       const [h, m] = state.entryTime.split(':').map(Number);
       entry.setHours(h, m, 0, 0);
-      
+
       const exit = new Date(entry.getTime() + state.duration * 60 * 60 * 1000);
       exTime = `${String(exit.getHours()).padStart(2, '0')}:${String(exit.getMinutes()).padStart(2, '0')}`;
       exDate = getLocalDateStr(exit);
@@ -780,16 +791,16 @@ function StepDateTime({
         onSelectTime={(time) => {
           let newExitDate = exitInfo.rawDate || state.exitDate;
           let diffMins = calculateDiffMins(state.entryDate, state.entryTime, newExitDate, time);
-          
+
           if (diffMins <= 0 && state.entryDate === newExitDate) {
-             const exitD = new Date(newExitDate);
-             exitD.setDate(exitD.getDate() + 1);
-             newExitDate = exitD.toISOString().split('T')[0];
-             diffMins = calculateDiffMins(state.entryDate, state.entryTime, newExitDate, time);
+            const exitD = new Date(newExitDate);
+            exitD.setDate(exitD.getDate() + 1);
+            newExitDate = exitD.toISOString().split('T')[0];
+            diffMins = calculateDiffMins(state.entryDate, state.entryTime, newExitDate, time);
           } else if (diffMins <= 0) {
-             diffMins = 0;
+            diffMins = 0;
           }
-          
+
           const diffHours = diffMins > 0 ? Number((diffMins / 60).toFixed(2)) : 0;
           setState((s) => ({ ...s, exitTime: time, exitDate: newExitDate, duration: diffHours }));
         }}
@@ -1398,7 +1409,7 @@ function ConfirmationPopup({
       const [h, m] = state.entryTime.split(':').map(Number);
       const entry = new Date(state.entryDate);
       entry.setHours(h, m, 0, 0);
-      
+
       const exit = new Date(state.exitDate);
       const exTime = state.exitTime || state.entryTime;
       const [exH, exM] = exTime.split(':').map(Number);
@@ -1687,8 +1698,8 @@ function ConfirmationPopup({
                   <button
                     onClick={() => setPaymentMethod('Wallet')}
                     className={`text-left p-4 rounded-xl border-2 transition-all ${paymentMethod === 'Wallet'
-                        ? 'border-[#FF4C4C] bg-red-50 dark:bg-[#FF4C4C]/10'
-                        : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[#18181B] hover:border-red-200 dark:hover:border-[#FF4C4C]/30'
+                      ? 'border-[#FF4C4C] bg-red-50 dark:bg-[#FF4C4C]/10'
+                      : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[#18181B] hover:border-red-200 dark:hover:border-[#FF4C4C]/30'
                       }`}
                   >
                     <div className="flex items-center gap-3 mb-1">
@@ -1727,8 +1738,8 @@ function ConfirmationPopup({
                   <button
                     onClick={() => setPaymentMethod('PayOS')}
                     className={`text-left p-4 rounded-xl border-2 transition-all ${paymentMethod === 'PayOS'
-                        ? 'border-[#FF4C4C] bg-red-50 dark:bg-[#FF4C4C]/10'
-                        : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[#18181B] hover:border-red-200 dark:hover:border-[#FF4C4C]/30'
+                      ? 'border-[#FF4C4C] bg-red-50 dark:bg-[#FF4C4C]/10'
+                      : 'border-gray-200 dark:border-white/10 bg-white dark:bg-[#18181B] hover:border-red-200 dark:hover:border-[#FF4C4C]/30'
                       }`}
                   >
                     <div className="flex items-center gap-3 mb-1">
@@ -2012,7 +2023,8 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
     slot: null,
     slotId: null,
     zone: null,
-    bookingMethod: 0
+    bookingMethod: 0,
+    plateInputType: null
   });
   const [showConfirmPopup, setShowConfirmPopup] = useState(false);
 
@@ -2127,11 +2139,11 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
           const [h, m] = state.entryTime.split(':').map(Number);
           const entry = new Date(state.entryDate);
           entry.setHours(h, m, 0, 0);
-          
+
           const exit = new Date(state.exitDate);
           const [exH, exM] = state.exitTime.split(':').map(Number);
           exit.setHours(exH, exM, 0, 0);
-          
+
           slotsArrays = await Promise.all(
             sorted.map((f) => getAvailableSlotsByFloor(f.id, entry.toISOString(), exit.toISOString()).catch(() => []))
           );
@@ -2169,7 +2181,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
           const [h, m] = state.entryTime.split(':').map(Number);
           const entry = new Date(state.entryDate);
           entry.setHours(h, m, 0, 0);
-          
+
           const exit = new Date(state.exitDate);
           const [exH, exM] = state.exitTime.split(':').map(Number);
           exit.setHours(exH, exM, 0, 0);
@@ -2226,6 +2238,10 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
     if (step < 5 && canAdvance()) setStep((s) => s + 1);
   };
   const handleBack = () => {
+    if (step === 2 && state.plateInputType !== null) {
+      setState(s => ({ ...s, plateInputType: null }));
+      return;
+    }
     if (step > 1) setStep((s) => s - 1);
   };
 
@@ -2265,13 +2281,6 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
   return (
     <>
       <div className="h-[calc(100vh-5rem)] w-full flex items-center justify-center bg-[#F3F3F5] dark:bg-[#0A0A0C] transition-colors duration-300 p-4 sm:p-6 relative">
-        <button
-          onClick={step === 1 ? onClose : handleBack}
-          className="absolute top-4 left-4 sm:top-6 sm:left-6 flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-bold text-stone-600 dark:text-stone-400 bg-white dark:bg-[#18181B] border-2 border-gray-200/60 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 hover:text-stone-900 dark:hover:text-white transition-all shadow-sm z-10"
-        >
-          <ChevronLeft size={18} strokeWidth={2.5} />
-          {step === 1 ? 'Exit' : 'Back'}
-        </button>
         <div
           className="relative w-full max-w-3xl bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-3xl shadow-xl dark:shadow-2xl flex flex-col overflow-hidden max-h-full transition-colors duration-300"
         >
@@ -2304,37 +2313,47 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
           {/* ── Modal Footer ── */}
           <div className="flex-shrink-0 px-6 py-4 border-t border-gray-150 dark:border-white/10 flex flex-col gap-3 bg-gray-50/50 dark:bg-white/5 transition-colors duration-300">
             <div className="flex items-center justify-between gap-3">
-              <div className="w-24"></div> {/* Placeholder to keep center alignment */}
+              <div className="flex-1 flex justify-start">
+                <button
+                  onClick={step === 1 ? onClose : handleBack}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-stone-600 dark:text-stone-400 bg-white dark:bg-white/5 border border-gray-200/80 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 hover:text-stone-900 dark:hover:text-white transition-all shadow-sm"
+                >
+                  <ChevronLeft size={16} strokeWidth={2.5} />
+                  {step === 1 ? 'Exit' : 'Back'}
+                </button>
+              </div>
 
-              <span className="text-xs text-stone-500 font-bold">
+              <div className="flex-1 flex justify-center text-xs text-stone-500 font-bold">
                 {step} / {STEPS.length}
-              </span>
+              </div>
 
-              {step < 5 ? (
-                <button
-                  onClick={handleNext}
-                  disabled={!canAdvance()}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
-                    ? 'bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-sm shadow-[#FF4C4C]/10'
-                    : 'bg-gray-100 dark:bg-white/5 text-stone-300 dark:text-stone-600 border-gray-200/80 dark:border-white/10 cursor-not-allowed'
-                    }`}
-                >
-                  Continue
-                  <ChevronRight size={16} />
-                </button>
-              ) : (
-                <button
-                  onClick={handleConfirm}
-                  disabled={!canAdvance()}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
-                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
-                    : 'bg-gray-100 dark:bg-white/5 text-stone-300 dark:text-stone-600 border-gray-200/80 dark:border-white/10 cursor-not-allowed'
-                    }`}
-                >
-                  <CheckCircle2 size={16} />
-                  Confirm Booking
-                </button>
-              )}
+              <div className="flex-1 flex justify-end">
+                {step < 5 ? (
+                  <button
+                    onClick={handleNext}
+                    disabled={!canAdvance()}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
+                      ? 'bg-[#FF4C4C] hover:bg-[#E13B3B] text-white shadow-sm shadow-[#FF4C4C]/10'
+                      : 'bg-gray-100 dark:bg-white/5 text-stone-300 dark:text-stone-600 border-gray-200/80 dark:border-white/10 cursor-not-allowed'
+                      }`}
+                  >
+                    Continue
+                    <ChevronRight size={16} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleConfirm}
+                    disabled={!canAdvance()}
+                    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${canAdvance()
+                      ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm'
+                      : 'bg-gray-100 dark:bg-white/5 text-stone-300 dark:text-stone-600 border-gray-200/80 dark:border-white/10 cursor-not-allowed'
+                      }`}
+                  >
+                    <CheckCircle2 size={16} />
+                    Confirm Booking
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
