@@ -14,5 +14,7 @@ namespace ParkingSystem.Application.Interfaces
             object? newValues = null, 
             string? reason = null, 
             string? ipAddress = null);
+
+        Task<System.Collections.Generic.IEnumerable<ParkingSystem.Application.DTOs.AuditLog.AuditLogDto>> GetAllLogsAsync();
     }
 }

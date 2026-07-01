@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>System Audit Logs</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 24px;
+    }
+    h1 { color: #4ade80; margin-bottom: 20px; text-align: center; }
+    .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; margin: 0 auto; max-width: 1200px; }
+    .controls { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; justify-content: space-between; }
+    input { width: 300px; padding: 10px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; color: #fff; font-size: 0.9rem; }
+    button { padding: 10px 16px; border: none; border-radius: 8px; background: #4ade80; color: #0f172a; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    button:hover { opacity: 0.9; }
+    
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 12px; border-bottom: 1px solid #334155; }
+    th { color: #7dd3fc; background: #0f172a; position: sticky; top: 0; z-index: 10;}
+    tr:hover { background: #334155; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; }
+    .badge-reissue { background: #fbbf24; color: #000; }
+    .badge-override { background: #ef4444; color: #fff; }
+    .badge-pricing { background: #3b82f6; color: #fff; }
+    .badge-default { background: #94a3b8; color: #000; }
+    pre { background: #0f172a; padding: 8px; border-radius: 4px; font-size: 0.8rem; color: #a7f3d0; overflow-x: auto; max-width: 250px; white-space: pre-wrap; }
+    .status-msg { color: #f87171; text-align: center; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <h1>🛡️ Nhật Ký Kiểm Toán (Audit Log)</h1>
+  
+  <div class="card" id="loginSection" style="max-width: 400px; margin-top: 50px;">
+    <h2 style="text-align: center; color: #7dd3fc; margin-bottom: 20px;">🔑 Đăng nhập Hệ thống</h2>
+    <input type="text" id="loginPhone" placeholder="Số điện thoại hoặc Email" style="width: 100%; margin-bottom: 15px;" value="admin@example.com" />
+    <input type="password" id="loginPassword" placeholder="Mật khẩu" style="width: 100%; margin-bottom: 15px;" value="Admin@123" />
+    <button onclick="login()" style="width: 100%;">Đăng Nhập</button>
+    <div id="loginError" style="color: #f87171; margin-top: 15px; text-align: center; font-size: 0.9rem;"></div>
+  </div>
+
+  <div class="card" id="appSection" style="display: none;">
+    <div class="controls">
+      <div style="color: #94a3b8; font-size: 0.9rem;">
+        Đang đăng nhập với quyền: <b style="color: #4ade80;" id="loggedInUser">Admin</b>
+      </div>
+      <button onclick="fetchAuditLogs()">🔄 Tải lại dữ liệu</button>
+    </div>
+
+    <div id="status" class="status-msg"></div>
+
+    <div style="overflow-x: auto; max-height: 70vh;">
+      <table id="logTable">
+        <thead>
+          <tr>
+            <th>Thời gian</th>
+            <th>Người thực hiện</th>
+            <th>Hành động (Action)</th>
+            <th>Đối tượng (Entity)</th>
+            <th>Dữ liệu Cũ</th>
+            <th>Dữ liệu Mới</th>
+            <th>Lý do</th>
+          </tr>
+        </thead>
+        <tbody id="logTbody">
+          <tr><td colspan="7" style="text-align: center;">Đang tải dữ liệu...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5237';
+
+    function getBadgeClass(actionType) {
+      if(actionType.includes("Reissue")) return "badge-reissue";
+      if(actionType.includes("Override")) return "badge-override";
+      if(actionType.includes("Pricing")) return "badge-pricing";
+      return "badge-default";
+    }
+
+    function formatJson(str) {
+      if(!str) return "-";
+      try {
+        const obj = typeof str === 'string' ? JSON.parse(str) : str;
+        return `<pre>${JSON.stringify(obj, null, 2)}</pre>`;
+      } catch {
+        return str;
+      }
+    }
+
+    let currentToken = '';
+
+    async function login() {
+      const phone = document.getElementById('loginPhone').value.trim();
+      const pass = document.getElementById('loginPassword').value.trim();
+      const errDiv = document.getElementById('loginError');
+      errDiv.textContent = 'Đang đăng nhập...';
+
+      try {
+        const res = await fetch(`${API_BASE}/api/Auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phoneNumber: phone, password: pass })
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
+        
+        currentToken = data.token;
+        document.getElementById('loggedInUser').textContent = data.user.fullName || phone;
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('appSection').style.display = 'block';
+        fetchAuditLogs();
+      } catch (err) {
+        errDiv.textContent = err.message;
+      }
+    }
+
+    async function fetchAuditLogs() {
+      const statusDiv = document.getElementById('status');
+      const tbody = document.getElementById('logTbody');
+
+      if (!currentToken) return;
+
+      statusDiv.textContent = "Đang tải dữ liệu...";
+      tbody.innerHTML = "";
+
+      try {
+        const res = await fetch(`${API_BASE}/api/AuditLogs`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+
+        if (!res.ok) {
+          throw new Error(`Lỗi API: ${res.status} - ${res.statusText}`);
+        }
+
+        const data = await res.json();
+        statusDiv.textContent = "";
+
+        if (data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">Không có bản ghi Audit Log nào.</td></tr>`;
+          return;
+        }
+
+        data.forEach(log => {
+          const date = new Date(log.createdAt).toLocaleString('vi-VN');
+          const badge = getBadgeClass(log.actionType);
+          
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${date}</td>
+            <td><b>${log.userFullName}</b><br><span style="font-size:0.75rem;color:#94a3b8">${log.userId}</span></td>
+            <td><span class="badge ${badge}">${log.actionType}</span></td>
+            <td>${log.entityName}<br><span style="font-size:0.7rem;color:#64748b">${log.entityId || ''}</span></td>
+            <td>${formatJson(log.oldValues)}</td>
+            <td>${formatJson(log.newValues)}</td>
+            <td><i style="color:#cbd5e1">${log.reason || '-'}</i></td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+      } catch (err) {
+        statusDiv.textContent = err.message;
+      }
+    }
+  </script>
+</body>
+</html>
