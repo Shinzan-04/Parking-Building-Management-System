@@ -18,13 +18,15 @@ public class SessionService : ISessionService
     private readonly IQrCodeService _qrCodeService;
     private readonly ICheckOutService _checkOutService;
     private readonly INotificationService _notificationService;
+    private readonly IAuditLogService _auditLogService;
 
-    public SessionService(ApplicationDbContext context, IQrCodeService qrCodeService, ICheckOutService checkOutService, INotificationService notificationService)
+    public SessionService(ApplicationDbContext context, IQrCodeService qrCodeService, ICheckOutService checkOutService, INotificationService notificationService, IAuditLogService auditLogService)
     {
         _context = context;
         _qrCodeService = qrCodeService;
         _checkOutService = checkOutService;
         _notificationService = notificationService;
+        _auditLogService = auditLogService;
     }
 
     /// <summary>
@@ -201,6 +203,8 @@ public class SessionService : ISessionService
         if (session == null)
             throw new KeyNotFoundException("Không tìm thấy phiên gửi xe hoặc xe đã thanh toán.");
 
+        var oldPenaltyFee = session.PenaltyFee;
+
         // Ghi nhận tiền phạt và loại lỗi
         session.PenaltyFee = request.PenaltyFee;
         session.IssueType = IssueType.LostTicket;
@@ -211,6 +215,17 @@ public class SessionService : ISessionService
         // Lưu lại DB
         session.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
+
+        // Ghi Audit Log
+        await _auditLogService.LogAsync(
+            userId: staffId,
+            actionType: "ReissueTicket",
+            entityName: "ParkingSession",
+            entityId: session.Id,
+            oldValues: new { PenaltyFee = oldPenaltyFee },
+            newValues: new { PenaltyFee = session.PenaltyFee },
+            reason: request.Reason ?? "Cấp lại vé mất cho khách hàng"
+        );
 
         return MapToDto(session);
     }

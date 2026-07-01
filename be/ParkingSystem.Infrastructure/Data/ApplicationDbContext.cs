@@ -26,6 +26,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<WalletTransaction> WalletTransactions { get; set; }
     public DbSet<ChatSession> ChatSessions { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
+    public DbSet<AuditLog> AuditLogs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -99,6 +99,7 @@ builder.Services.AddScoped<IImageUploadService, ParkingSystem.Infrastructure.Ser
 builder.Services.AddScoped<IEmailService, ParkingSystem.Infrastructure.Services.GmailEmailService>();
 builder.Services.AddScoped<IOtpService, ParkingSystem.Infrastructure.Services.OtpService>();
 builder.Services.AddScoped<INotificationService, ParkingSystem.Infrastructure.Services.NotificationService>();
+builder.Services.AddScoped<IAuditLogService, ParkingSystem.Infrastructure.Services.AuditLogService>();
 
 // Background Service: Tự động hủy reservation hết hạn (quét mỗi 5 phút)
 builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.ReservationCleanupService>();

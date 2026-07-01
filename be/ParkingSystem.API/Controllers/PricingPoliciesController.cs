@@ -41,7 +41,8 @@ public class PricingPoliciesController : ControllerBase
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Create([FromBody] CreatePricingPolicyRequest request)
     {
-        var policy = await _pricingService.CreateAsync(request);
+        var adminId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+        var policy = await _pricingService.CreateAsync(request, adminId);
         return CreatedAtAction(nameof(GetById), new { id = policy.Id }, policy);
     }
 
@@ -49,7 +50,8 @@ public class PricingPoliciesController : ControllerBase
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdatePricingPolicyRequest request)
     {
-        var policy = await _pricingService.UpdateAsync(id, request);
+        var adminId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+        var policy = await _pricingService.UpdateAsync(id, request, adminId);
         return policy == null ? NotFound() : Ok(policy);
     }
 
@@ -57,7 +59,8 @@ public class PricingPoliciesController : ControllerBase
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Delete(Guid id)
     {
-        var result = await _pricingService.DeleteAsync(id);
+        var adminId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? Guid.Empty.ToString());
+        var result = await _pricingService.DeleteAsync(id, adminId);
         return result ? NoContent() : NotFound();
     }
 }

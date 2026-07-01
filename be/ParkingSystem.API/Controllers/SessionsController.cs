@@ -226,7 +226,7 @@ public class SessionsController : ControllerBase
     /// Trả về SessionDto bao gồm SessionCode (Mã QR cũ) để khách dùng check-out
     /// </summary>
     [HttpPost("{id}/reissue")]
-    [Authorize(Roles = "Manager,Admin")]
+    [Authorize(Roles = "Staff,Manager,Admin")]
     public async Task<IActionResult> ReissueTicket(Guid id, [FromBody] ReissueTicketRequest request)
     {
         try

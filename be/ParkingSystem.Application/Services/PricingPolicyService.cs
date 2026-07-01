@@ -8,10 +8,12 @@ namespace ParkingSystem.Application.Services;
 public class PricingPolicyService : IPricingPolicyService
 {
     private readonly IGenericRepository<PricingPolicy> _repository;
+    private readonly IAuditLogService _auditLogService;
 
-    public PricingPolicyService(IGenericRepository<PricingPolicy> repository)
+    public PricingPolicyService(IGenericRepository<PricingPolicy> repository, IAuditLogService auditLogService)
     {
         _repository = repository;
+        _auditLogService = auditLogService;
     }
 
     public async Task<IEnumerable<PricingPolicyResponse>> GetAllAsync()
@@ -33,7 +35,7 @@ public class PricingPolicyService : IPricingPolicyService
         return policy == null ? null : MapToResponse(policy);
     }
 
-    public async Task<PricingPolicyResponse> CreateAsync(CreatePricingPolicyRequest request)
+    public async Task<PricingPolicyResponse> CreateAsync(CreatePricingPolicyRequest request, Guid adminId)
     {
         var policy = new PricingPolicy
         {
@@ -56,13 +58,35 @@ public class PricingPolicyService : IPricingPolicyService
         };
 
         await _repository.AddAsync(policy);
+
+        await _auditLogService.LogAsync(
+            userId: adminId,
+            actionType: "CreatePricingPolicy",
+            entityName: "PricingPolicy",
+            entityId: policy.Id,
+            oldValues: null,
+            newValues: policy,
+            reason: "Tạo bảng giá mới"
+        );
+
         return MapToResponse(policy);
     }
 
-    public async Task<PricingPolicyResponse?> UpdateAsync(Guid id, UpdatePricingPolicyRequest request)
+    public async Task<PricingPolicyResponse?> UpdateAsync(Guid id, UpdatePricingPolicyRequest request, Guid adminId)
     {
         var policy = await _repository.GetByIdAsync(id);
         if (policy == null) return null;
+
+        var oldValues = new 
+        {
+            HourlyRate = policy.HourlyRate,
+            BlockPrice = policy.BlockPrice,
+            DailyMaxRate = policy.DailyMaxRate,
+            BlockDurationHours = policy.BlockDurationHours,
+            DayBlockRate = policy.DayBlockRate,
+            NightBlockRate = policy.NightBlockRate,
+            DailyRate = policy.DailyRate
+        };
 
         // Cập nhật trường cũ (checkout xe thường)
         policy.HourlyRate = request.HourlyRate;
@@ -80,15 +104,46 @@ public class PricingPolicyService : IPricingPolicyService
         policy.UpdatedAt = DateTime.UtcNow;
 
         await _repository.UpdateAsync(policy);
+
+        await _auditLogService.LogAsync(
+            userId: adminId,
+            actionType: "UpdatePricingPolicy",
+            entityName: "PricingPolicy",
+            entityId: policy.Id,
+            oldValues: oldValues,
+            newValues: new 
+            {
+                HourlyRate = policy.HourlyRate,
+                BlockPrice = policy.BlockPrice,
+                DailyMaxRate = policy.DailyMaxRate,
+                BlockDurationHours = policy.BlockDurationHours,
+                DayBlockRate = policy.DayBlockRate,
+                NightBlockRate = policy.NightBlockRate,
+                DailyRate = policy.DailyRate
+            },
+            reason: "Cập nhật bảng giá"
+        );
+
         return MapToResponse(policy);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, Guid adminId)
     {
         var policy = await _repository.GetByIdAsync(id);
         if (policy == null) return false;
 
         await _repository.DeleteAsync(policy);
+
+        await _auditLogService.LogAsync(
+            userId: adminId,
+            actionType: "DeletePricingPolicy",
+            entityName: "PricingPolicy",
+            entityId: policy.Id,
+            oldValues: policy,
+            newValues: null,
+            reason: "Xóa bảng giá"
+        );
+
         return true;
     }
 

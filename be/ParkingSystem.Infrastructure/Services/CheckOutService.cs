@@ -17,6 +17,7 @@ public class CheckOutService : ICheckOutService
     private readonly ILogger<CheckOutService> _logger;
     private readonly IRealtimeService _realtimeService;
     private readonly INotificationService _notificationService;
+    private readonly IAuditLogService _auditLogService;
 
     public CheckOutService(
         ApplicationDbContext context,
@@ -24,7 +25,8 @@ public class CheckOutService : ICheckOutService
         IPaymentService paymentService,
         ILogger<CheckOutService> logger,
         IRealtimeService realtimeService,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        IAuditLogService auditLogService)
     {
         _context = context;
         _lprService = lprService;
@@ -32,6 +34,7 @@ public class CheckOutService : ICheckOutService
         _logger = logger;
         _realtimeService = realtimeService;
         _notificationService = notificationService;
+        _auditLogService = auditLogService;
     }
 
     public async Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
@@ -278,6 +281,16 @@ public class CheckOutService : ICheckOutService
         {
             session.IssueType = IssueType.WrongPlate;
             session.StaffId = request.StaffId;
+
+            await _auditLogService.LogAsync(
+                userId: request.StaffId,
+                actionType: "ManualPlateOverride",
+                entityName: "ParkingSession",
+                entityId: session.Id,
+                oldValues: new { OriginalPlate = session.LicensePlate },
+                newValues: new { ExitOcrPlate = request.ExitLicensePlateOcr },
+                reason: "Nhân viên xác nhận khớp biển số bằng mắt thường do OCR không nhận diện chính xác"
+            );
         }
 
         // Neu la PayOS, kiem tra payment da duoc xu ly chua
