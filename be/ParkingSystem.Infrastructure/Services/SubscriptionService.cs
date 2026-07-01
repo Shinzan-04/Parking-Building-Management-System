@@ -200,7 +200,7 @@ public class SubscriptionService : ISubscriptionService
                 if (driver == null) throw new InvalidOperationException("Không tìm thấy người dùng.");
 
                 if (driver.Balance < fee)
-                    throw new InvalidOperationException($"INSUFFICIENT_BALANCE:{fee - driver.Balance}:{fee}:{driver.Balance}");
+                    throw new InvalidOperationException($"Số dư trong ví không đủ! Phí vé tháng là {fee:N0} VND, nhưng số dư của bạn chỉ còn {driver.Balance:N0} VND. Vui lòng chọn PayOS hoặc nạp thêm tiền vào ví.");
 
                 driver.Balance -= fee;
                 
@@ -280,7 +280,7 @@ public class SubscriptionService : ISubscriptionService
         var sub = await _context.Subscriptions.FirstOrDefaultAsync(s => s.Id == id && s.DriverId == driverId);
         if (sub == null) return false;
 
-        if (sub.Status == SubscriptionStatus.Active)
+        if (sub.Status == SubscriptionStatus.Active || sub.Status == SubscriptionStatus.PendingPayment)
         {
             sub.Status = SubscriptionStatus.Canceled;
             sub.UpdatedAt = DateTime.UtcNow;

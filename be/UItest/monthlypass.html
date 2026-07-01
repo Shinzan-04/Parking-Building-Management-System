@@ -7,11 +7,36 @@
     <style>
         body { background: #f4f6f9; padding-top: 50px; }
         .card { border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
+        .login-section { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; }
+        .login-card { width: 100%; max-width: 400px; padding: 30px; border-radius: 15px; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
 <div class="container">
-    <div class="row justify-content-center">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 style="color: transparent">.</h2>
+        <button onclick="logout()" class="btn btn-outline-secondary btn-sm" id="logoutBtn" style="display: none;">Đăng xuất</button>
+    </div>
+
+    <!-- Login Section -->
+    <div id="loginSection" class="login-section">
+        <div class="login-card">
+            <h3 class="text-center mb-4 text-primary">Đăng Nhập Cư Dân</h3>
+            <div id="loginErr" class="alert alert-danger d-none"></div>
+            <div class="mb-3">
+                <label>Số điện thoại / Username</label>
+                <input type="text" id="loginUsername" class="form-control" placeholder="0987654321" value="0987654321">
+            </div>
+            <div class="mb-3">
+                <label>Mật khẩu</label>
+                <input type="password" id="loginPassword" class="form-control" placeholder="Mật khẩu" value="User@123">
+            </div>
+            <button onclick="login()" class="btn btn-primary w-100 mt-2">Đăng Nhập</button>
+        </div>
+    </div>
+
+    <!-- Main Section -->
+    <div class="row justify-content-center" id="mainSection" style="display: none;">
         <div class="col-md-6">
             <div class="card p-4">
                 <h3 class="text-center mb-4">Đăng ký Vé tháng</h3>
@@ -42,20 +67,72 @@
 
                 <button id="btnRegister" class="btn btn-primary w-100" disabled>Thanh toán & Đăng ký</button>
             </div>
+
+            <!-- Danh sách gói cước của tôi -->
+            <div class="card p-4 mt-4">
+                <h4 class="text-center mb-3">Vé tháng của tôi</h4>
+                <div id="mySubs" class="d-flex flex-column gap-3">
+                    <p class="text-center text-muted">Đang tải...</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
     const API_BASE = 'http://localhost:5237/api';
-    let token = localStorage.getItem('sp_token');
     
-    if (!token) {
-        alert('Vui lòng đăng nhập trước!');
-        window.location.href = 'index.html';
+    // Check login state on load
+    window.onload = () => {
+        let token = localStorage.getItem('monthlypass_token');
+        if (token) {
+            showMain();
+        }
+    };
+
+    function showMain() {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('mainSection').style.display = 'flex';
+        document.getElementById('logoutBtn').style.display = 'block';
+        loadVehicles();
+        loadMySubscriptions();
+    }
+
+    function logout() {
+        localStorage.removeItem('monthlypass_token');
+        document.getElementById('loginSection').style.display = 'flex';
+        document.getElementById('mainSection').style.display = 'none';
+        document.getElementById('logoutBtn').style.display = 'none';
+    }
+
+    async function login() {
+        const user = document.getElementById('loginUsername').value.trim();
+        const pass = document.getElementById('loginPassword').value;
+        const err = document.getElementById('loginErr');
+        err.classList.add('d-none');
+
+        try {
+            const res = await fetch(API_BASE + '/Auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
+            
+            // Store token securely specifically for this page
+            localStorage.setItem('monthlypass_token', data.accessToken);
+            showMain();
+        } catch (error) {
+            err.textContent = error.message;
+            err.classList.remove('d-none');
+        }
     }
 
     async function apiFetch(endpoint, method = 'GET', body = null) {
+        let token = localStorage.getItem('monthlypass_token');
+        if (!token) throw new Error("Chưa đăng nhập");
+        
         const headers = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
@@ -72,6 +149,8 @@
     }
 
     async function loadVehicles() {
+        const errDiv = document.getElementById('errDiv');
+        errDiv.classList.add('d-none');
         try {
             const vehicles = await apiFetch('/Vehicles/my-vehicles');
             const select = document.getElementById('vehicleSelect');
@@ -82,6 +161,37 @@
         } catch (error) {
             document.getElementById('errDiv').textContent = error.message;
             document.getElementById('errDiv').classList.remove('d-none');
+        }
+    }
+
+    async function loadMySubscriptions() {
+        const container = document.getElementById('mySubs');
+        try {
+            const subs = await apiFetch('/Subscriptions/my-subscriptions');
+            if (subs.length === 0) {
+                container.innerHTML = '<p class="text-center text-muted mb-0">Chưa có vé tháng nào đang hoạt động.</p>';
+                return;
+            }
+            container.innerHTML = '';
+            subs.forEach(s => {
+                const startDate = new Date(s.startDate).toLocaleDateString('vi-VN');
+                const endDate = new Date(s.endDate).toLocaleDateString('vi-VN');
+                const statusBadge = s.statusText === 'Active' 
+                    ? '<span class="badge bg-success">Đang hiệu lực</span>'
+                    : (s.statusText === 'PendingPayment' ? '<span class="badge bg-warning text-dark">Đang chờ thanh toán</span>' : `<span class="badge bg-secondary">${s.statusText}</span>`);
+                
+                container.innerHTML += `
+                    <div class="border rounded p-3 bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0 text-primary">${s.licensePlate} <small class="text-muted">(${s.vehicleTypeName})</small></h5>
+                            ${statusBadge}
+                        </div>
+                        <p class="mb-1 text-muted small">Thời hạn: ${startDate} - ${endDate}</p>
+                    </div>
+                `;
+            });
+        } catch (error) {
+            container.innerHTML = `<p class="text-danger text-center">Lỗi tải danh sách vé tháng: ${error.message}</p>`;
         }
     }
 
@@ -135,6 +245,7 @@
                 document.getElementById('successDiv').classList.remove('d-none');
                 document.getElementById('errDiv').classList.add('d-none');
                 btn.textContent = 'Đã đăng ký';
+                loadMySubscriptions(); // Reload list
             }
         } catch (error) {
             document.getElementById('errDiv').textContent = error.message;
@@ -144,9 +255,6 @@
             btn.textContent = 'Thanh toán & Đăng ký';
         }
     });
-
-    // Load data
-    loadVehicles();
 </script>
 </body>
 </html>

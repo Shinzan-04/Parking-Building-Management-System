@@ -123,6 +123,7 @@
           <th>Giờ đêm</th>
           <th>Max/Ngày (VND)</th>
           <th>Hệ số phụ trội</th>
+          <th>Vé tháng (VND)</th>
           <th></th>
         </tr>
       </thead>
@@ -136,6 +137,7 @@
 <script>
   let vehicleTypes = [];
   let policies = [];
+  let monthlyPolicies = [];
   let editingId = null;
   let editCache = {};
 
@@ -221,13 +223,15 @@
 
   async function loadAll() {
     try {
-      const [vt, pol] = await Promise.all([
+      const [vt, pol, mpol] = await Promise.all([
         apiFetch('/api/VehicleTypes'),
         apiFetch('/api/PricingPolicies'),
+        apiFetch('/api/MonthlyPassPolicies')
       ]);
       if (!vt && !pol) return;
       vehicleTypes = vt || [];
       policies = pol || [];
+      monthlyPolicies = mpol || [];
       renderTable();
     } catch (err) {
       showAlert('error', err.message);
@@ -291,6 +295,11 @@
         ? `<input type="number" id="ev_ot_${vt.id}" value="${cache.overtimeMultiplier ?? pol?.overtimeMultiplier ?? 1.5}" step="0.1" min="1" />`
         : `<span>x${pol?.overtimeMultiplier || 1.5}</span>`;
 
+      const mPol = monthlyPolicies.find(m => m.vehicleTypeId === vt.id);
+      const monthlyPass = isEdit
+        ? `<input type="number" id="ev_mp_${vt.id}" value="${cache.monthlyPrice ?? mPol?.monthlyPrice ?? 0}" step="1000" min="0" />`
+        : fmtMoney(mPol?.monthlyPrice);
+
       const actions = isEdit
         ? `
           <button class="btn-sm save" onclick="savePolicy('${vt.id}')">Lưu</button>
@@ -310,6 +319,7 @@
           <td>${nightTime}</td>
           <td>${dailyMax}</td>
           <td>${overtime}</td>
+          <td>${monthlyPass}</td>
           <td class="action-cell">${actions}</td>
         </tr>
       `;
@@ -324,8 +334,10 @@
       nightBlockRate: pol?.nightBlockRate ?? 0,
       nightStartHour: pol?.nightStartHour ?? 22,
       nightEndHour: pol?.nightEndHour ?? 6,
+      nightEndHour: pol?.nightEndHour ?? 6,
       dailyRate: pol?.dailyRate ?? 0,
-      overtimeMultiplier: pol?.overtimeMultiplier ?? 1.5
+      overtimeMultiplier: pol?.overtimeMultiplier ?? 1.5,
+      monthlyPrice: monthlyPolicies.find(m => m.vehicleTypeId === vtId)?.monthlyPrice ?? 0
     };
     editingId = vtId;
     renderTable();
@@ -334,7 +346,8 @@
   function createPolicy(vtId) {
     editCache[vtId] = { 
       blockDurationHours: 4, dayBlockRate: 0, nightBlockRate: 0, 
-      nightStartHour: 22, nightEndHour: 6, dailyRate: 0, overtimeMultiplier: 1.5 
+      nightStartHour: 22, nightEndHour: 6, dailyRate: 0, overtimeMultiplier: 1.5,
+      monthlyPrice: 0
     };
     editingId = vtId;
     renderTable();
@@ -375,6 +388,30 @@
         });
         if (data) policies.push(data);
       }
+
+      // Handle Monthly Pass Policy
+      const mp = parseFloat(document.getElementById('ev_mp_' + vtId)?.value) || 0;
+      const mExisting = monthlyPolicies.find(m => m.vehicleTypeId === vtId);
+      if (mp > 0 || mExisting) {
+          const mPayload = { vehicleTypeId: vtId, monthlyPrice: mp, description: "Vé tháng", isActive: true };
+          if (mExisting) {
+             const mData = await apiFetch(`/api/MonthlyPassPolicies/${mExisting.id}`, {
+                 method: 'PUT',
+                 body: JSON.stringify(mPayload)
+             });
+             if (mData) {
+                 const mIdx = monthlyPolicies.findIndex(m => m.id === mExisting.id);
+                 monthlyPolicies[mIdx] = { ...monthlyPolicies[mIdx], ...mData };
+             }
+          } else if (mp > 0) {
+             const mData = await apiFetch('/api/MonthlyPassPolicies', {
+                 method: 'POST',
+                 body: JSON.stringify(mPayload)
+             });
+             if (mData) monthlyPolicies.push(mData);
+          }
+      }
+
       if (!data) return;
       showAlert('success', 'Lưu thành công!');
       editingId = null;
