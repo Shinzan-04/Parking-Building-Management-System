@@ -41,6 +41,8 @@ public class PricingPolicyResponse
     public Guid Id { get; set; }
     public Guid VehicleTypeId { get; set; }
     public string VehicleTypeName { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+    public int Version { get; set; }
 
     // Cũ
     public decimal HourlyRate { get; set; }

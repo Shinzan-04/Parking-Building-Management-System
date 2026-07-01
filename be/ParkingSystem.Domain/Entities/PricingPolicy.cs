@@ -18,5 +18,11 @@ public class PricingPolicy : BaseEntity
     public decimal DailyRate { get; set; }
     public decimal OvertimeMultiplier { get; set; } = 1.5m;
 
+    // Phục vụ tính năng Versioning
+    public bool IsActive { get; set; } = true;
+    public int Version { get; set; } = 1;
+    public DateTime EffectiveDate { get; set; } = DateTime.UtcNow;
+    public Guid? PreviousVersionId { get; set; }
+
     public VehicleType VehicleType { get; set; } = null!;
 }

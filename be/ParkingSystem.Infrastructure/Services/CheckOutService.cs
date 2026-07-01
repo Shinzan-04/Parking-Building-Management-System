@@ -96,7 +96,7 @@ public class CheckOutService : ICheckOutService
         }
 
         var exitTime = DateTime.UtcNow;
-        var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+        var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
         if (session.ReservationId != null && session.Reservation != null)
         {
@@ -107,7 +107,7 @@ public class CheckOutService : ICheckOutService
             }
             else
             {
-                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true);
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true, pricingPolicyId: session.Reservation.PricingPolicyId ?? session.PricingPolicyId);
                 priceResult.TotalFee = overdueResult.TotalFee;
                 priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
             }
@@ -196,7 +196,7 @@ public class CheckOutService : ICheckOutService
         }
 
         var exitTime = DateTime.UtcNow;
-        var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+        var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
         if (session.ReservationId != null && session.Reservation != null)
         {
@@ -207,7 +207,7 @@ public class CheckOutService : ICheckOutService
             }
             else
             {
-                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true);
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true, pricingPolicyId: session.Reservation.PricingPolicyId ?? session.PricingPolicyId);
                 priceResult.TotalFee = overdueResult.TotalFee;
                 priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
             }
@@ -554,7 +554,7 @@ public class CheckOutService : ICheckOutService
         var isMatch = normalizedEntryPlate == normalizedExitPlate;
 
         var exitTime = DateTime.UtcNow;
-        var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+        var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
         if (session.ReservationId != null && session.Reservation != null)
         {
@@ -565,7 +565,7 @@ public class CheckOutService : ICheckOutService
             }
             else
             {
-                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true);
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true, pricingPolicyId: session.Reservation.PricingPolicyId ?? session.PricingPolicyId);
                 priceResult.TotalFee = overdueResult.TotalFee;
                 priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
             }
@@ -618,7 +618,7 @@ public class CheckOutService : ICheckOutService
         }
 
         var exitTime = DateTime.UtcNow;
-        var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime);
+        var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
         if (session.ReservationId != null && session.Reservation != null)
         {
@@ -629,7 +629,7 @@ public class CheckOutService : ICheckOutService
             }
             else
             {
-                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true);
+                var overdueResult = await CalculateFeeAsync(session.VehicleTypeId, session.Reservation.EndTime, exitTime, isOverdue: true, pricingPolicyId: session.Reservation.PricingPolicyId ?? session.PricingPolicyId);
                 priceResult.TotalFee = overdueResult.TotalFee;
                 priceResult.FeeBreakdown = overdueResult.FeeBreakdown;
             }
@@ -656,10 +656,19 @@ public class CheckOutService : ICheckOutService
         };
     }
 
-    public async Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime, bool isOverdue = false)
+    public async Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime, bool isOverdue = false, Guid? pricingPolicyId = null)
     {
-        var pricingPolicy = await _context.PricingPolicies
-            .FirstOrDefaultAsync(p => p.VehicleTypeId == vehicleTypeId);
+        PricingPolicy? pricingPolicy = null;
+        if (pricingPolicyId.HasValue)
+        {
+            pricingPolicy = await _context.PricingPolicies.FirstOrDefaultAsync(p => p.Id == pricingPolicyId.Value);
+        }
+
+        if (pricingPolicy == null)
+        {
+            pricingPolicy = await _context.PricingPolicies
+                .FirstOrDefaultAsync(p => p.VehicleTypeId == vehicleTypeId && p.IsActive);
+        }
 
         if (pricingPolicy == null)
         {

@@ -19,7 +19,15 @@ public class PricingPolicyService : IPricingPolicyService
     public async Task<IEnumerable<PricingPolicyResponse>> GetAllAsync()
     {
         var policies = await _repository.GetAllAsync("VehicleType");
-        return policies.Select(p => MapToResponse(p));
+        
+        // Lấy Policy đang Active, nếu không có thì lấy cái mới nhất (để hiển thị giá cũ sau khi chạy Migration)
+        var latestPolicies = policies
+            .GroupBy(p => p.VehicleTypeId)
+            .Select(g => g.FirstOrDefault(p => p.IsActive) ?? g.OrderByDescending(p => p.CreatedAt).FirstOrDefault())
+            .Where(p => p != null)
+            .Select(p => MapToResponse(p!));
+            
+        return latestPolicies;
     }
 
     public async Task<PricingPolicyResponse?> GetByIdAsync(Guid id)
@@ -31,7 +39,7 @@ public class PricingPolicyService : IPricingPolicyService
     public async Task<PricingPolicyResponse?> GetByVehicleTypeIdAsync(Guid vehicleTypeId)
     {
         var policies = await _repository.FindAsync(p => p.VehicleTypeId == vehicleTypeId, "VehicleType");
-        var policy = policies.FirstOrDefault();
+        var policy = policies.FirstOrDefault(p => p.IsActive) ?? policies.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
         return policy == null ? null : MapToResponse(policy);
     }
 
@@ -88,22 +96,33 @@ public class PricingPolicyService : IPricingPolicyService
             DailyRate = policy.DailyRate
         };
 
-        // Cập nhật trường cũ (checkout xe thường)
-        policy.HourlyRate = request.HourlyRate;
-        policy.BlockPrice = request.BlockPrice;
-        policy.DailyMaxRate = request.DailyMaxRate;
-
-        // Cập nhật trường mới (Block Ngày/Đêm cho Booking)
-        policy.BlockDurationHours = request.BlockDurationHours;
-        policy.DayBlockRate = request.DayBlockRate;
-        policy.NightBlockRate = request.NightBlockRate;
-        policy.NightStartHour = request.NightStartHour;
-        policy.NightEndHour = request.NightEndHour;
-        policy.DailyRate = request.DailyRate;
-        policy.OvertimeMultiplier = request.OvertimeMultiplier;
+        // Soft Update: Tắt bảng giá cũ, tạo bảng giá mới
+        policy.IsActive = false;
         policy.UpdatedAt = DateTime.UtcNow;
-
         await _repository.UpdateAsync(policy);
+
+        var newPolicy = new PricingPolicy
+        {
+            Id = Guid.NewGuid(),
+            VehicleTypeId = policy.VehicleTypeId,
+            Version = policy.Version + 1,
+            PreviousVersionId = policy.Id,
+            IsActive = true,
+            EffectiveDate = DateTime.UtcNow,
+
+            HourlyRate = request.HourlyRate,
+            BlockPrice = request.BlockPrice,
+            DailyMaxRate = request.DailyMaxRate,
+            BlockDurationHours = request.BlockDurationHours,
+            DayBlockRate = request.DayBlockRate,
+            NightBlockRate = request.NightBlockRate,
+            NightStartHour = request.NightStartHour,
+            NightEndHour = request.NightEndHour,
+            DailyRate = request.DailyRate,
+            OvertimeMultiplier = request.OvertimeMultiplier
+        };
+
+        await _repository.AddAsync(newPolicy);
 
         await _auditLogService.LogAsync(
             userId: adminId,
@@ -121,18 +140,20 @@ public class PricingPolicyService : IPricingPolicyService
                 NightBlockRate = policy.NightBlockRate,
                 DailyRate = policy.DailyRate
             },
-            reason: "Cập nhật bảng giá"
+            reason: $"Cập nhật bảng giá (Tạo version {newPolicy.Version})"
         );
 
-        return MapToResponse(policy);
+        return MapToResponse(newPolicy);
     }
 
     public async Task<bool> DeleteAsync(Guid id, Guid adminId)
     {
         var policy = await _repository.GetByIdAsync(id);
-        if (policy == null) return false;
+        if (policy == null || !policy.IsActive) return false;
 
-        await _repository.DeleteAsync(policy);
+        policy.IsActive = false;
+        policy.UpdatedAt = DateTime.UtcNow;
+        await _repository.UpdateAsync(policy);
 
         await _auditLogService.LogAsync(
             userId: adminId,
@@ -152,6 +173,8 @@ public class PricingPolicyService : IPricingPolicyService
         Id = p.Id,
         VehicleTypeId = p.VehicleTypeId,
         VehicleTypeName = p.VehicleType?.Name ?? string.Empty,
+        IsActive = p.IsActive,
+        Version = p.Version,
 
         // Trường cũ
         HourlyRate = p.HourlyRate,

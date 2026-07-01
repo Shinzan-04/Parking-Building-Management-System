@@ -8,6 +8,7 @@ public class Reservation : BaseEntity
     public Guid ParkingSlotId { get; set; }
     public Guid VehicleTypeId { get; set; }
     public Guid? VehicleId { get; set; }
+    public Guid? PricingPolicyId { get; set; }
     
     public string BookingCode { get; set; } = string.Empty;
     public string LicensePlate { get; set; } = string.Empty;
@@ -40,6 +41,7 @@ public class Reservation : BaseEntity
     public ParkingSlot ParkingSlot { get; set; } = null!;
     public VehicleType VehicleType { get; set; } = null!;
     public Vehicle? Vehicle { get; set; }
+    public PricingPolicy? PricingPolicy { get; set; }
     
     public ICollection<ReservationLog> Logs { get; set; } = new List<ReservationLog>();
 }

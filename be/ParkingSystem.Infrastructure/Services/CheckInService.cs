@@ -265,6 +265,10 @@ public class CheckInService : ICheckInService
         // Sinh mã QR cho phiên gửi xe (Session Code)
         var sessionCode = _qrCodeService.GenerateUniqueCode(5);
 
+        // Lấy PricingPolicy hiện hành cho loại xe
+        var activePolicy = await _context.PricingPolicies
+            .FirstOrDefaultAsync(p => p.VehicleTypeId == request.VehicleTypeId && p.IsActive);
+        
         // Tạo Parking Session mới
         var session = new ParkingSession
         {
@@ -278,7 +282,8 @@ public class CheckInService : ICheckInService
             CheckInMethod = CheckInMethod.WalkIn,
             EntryTime = DateTime.UtcNow,
             EntryImageUrl = entryImageUrl,
-            Status = SessionStatus.Active
+            Status = SessionStatus.Active,
+            PricingPolicyId = activePolicy?.Id
         };
 
         // Cập nhật trạng thái Slot → Occupied
@@ -361,7 +366,8 @@ public class CheckInService : ICheckInService
             CheckInMethod = CheckInMethod.Booking,
             EntryTime = now,
             EntryImageUrl = entryImageUrl,
-            Status = SessionStatus.Active
+            Status = SessionStatus.Active,
+            PricingPolicyId = reservation.PricingPolicyId // Thừa kế từ lúc đặt chỗ
         };
 
         // Cập nhật trạng thái Reservation → CheckedIn

@@ -74,15 +74,24 @@
 
     /* Empty */
     .empty { padding: 40px; text-align: center; color: var(--muted); font-size: 0.875rem; }
+
+    /* Login */
+    .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; max-width: 400px; margin: 40px auto; text-align: center; }
+    .login-card h2 { color: var(--sky); margin-bottom: 20px; font-size: 1.25rem; }
+    .login-card input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 0.875rem; outline: none; margin-bottom: 16px; }
+    .login-card button { width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--sky); color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .login-card button:hover { background: #0284c7; }
+    .login-error { color: #fca5a5; margin-top: 12px; font-size: 0.875rem; min-height: 20px; }
   </style>
 </head>
 <body>
 
   <header>
-    <div>
+    <div style="flex-grow: 1;">
       <h1>Quản lý Giá Cước</h1>
       <p>Bảng giá tính theo Block Ngày / Đêm</p>
     </div>
+    <button onclick="logout()" class="btn-sm cancel" id="logoutBtn" style="display: none; margin-right: 12px;">Đăng xuất</button>
     <a href="/" class="header-back">&#8592; Check-Out Test</a>
   </header>
 
@@ -94,7 +103,16 @@
 
   <div id="alertBox" class="alert"></div>
 
-  <div class="table-wrap">
+  <div id="loginSection" class="login-card">
+    <h2>🔑 Đăng nhập Hệ thống</h2>
+    <input type="text" id="loginPhone" placeholder="Số điện thoại hoặc Email" value="admin@example.com" />
+    <input type="password" id="loginPassword" placeholder="Mật khẩu" value="Admin@123" />
+    <button onclick="login()">Đăng Nhập</button>
+    <div id="loginError" class="login-error"></div>
+  </div>
+
+  <div id="appSection" style="display: none;">
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -111,6 +129,8 @@
       <tbody id="tbody"></tbody>
     </table>
   </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -125,8 +145,51 @@
     document.getElementById('apiBase').addEventListener('change', () => {
       localStorage.setItem('pr_api_base', document.getElementById('apiBase').value);
     });
-    loadAll();
+    
+    // Check if token exists
+    const token = localStorage.getItem('sp_token');
+    if (token) {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('appSection').style.display = 'block';
+      document.getElementById('logoutBtn').style.display = 'block';
+      loadAll();
+    }
   });
+
+  function logout() {
+    localStorage.removeItem('sp_token');
+    document.getElementById('loginSection').style.display = 'block';
+    document.getElementById('appSection').style.display = 'none';
+    document.getElementById('logoutBtn').style.display = 'none';
+  }
+
+  async function login() {
+    const phone = document.getElementById('loginPhone').value.trim();
+    const pass = document.getElementById('loginPassword').value.trim();
+    const errDiv = document.getElementById('loginError');
+    errDiv.textContent = 'Đang đăng nhập...';
+
+    try {
+      const res = await fetch(getBase() + '/api/Auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: phone, password: pass })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
+      
+      localStorage.setItem('sp_token', data.accessToken);
+      errDiv.textContent = '';
+      
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('appSection').style.display = 'block';
+      document.getElementById('logoutBtn').style.display = 'block';
+      loadAll();
+    } catch (error) {
+      errDiv.textContent = error.message;
+    }
+  }
 
   function getBase() {
     return document.getElementById('apiBase').value.trim() || 'http://localhost:5237';

@@ -17,7 +17,7 @@ public interface ICheckOutService
     /// <summary>
     /// Calculate fee for a parking session
     /// </summary>
-    Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime, bool isOverdue = false);
+    Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime, bool isOverdue = false, Guid? pricingPolicyId = null);
 
     /// <summary>
     /// Xac nhan thanh toan va giai phong o do khi xe ra bai.
