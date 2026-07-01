@@ -83,6 +83,7 @@ builder.Services.AddScoped<IDashboardService, ParkingSystem.Infrastructure.Servi
 builder.Services.AddScoped<ICheckOutService, ParkingSystem.Infrastructure.Services.CheckOutService>();
 builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
 builder.Services.AddScoped<IVehicleService, ParkingSystem.Infrastructure.Services.VehicleService>();
+builder.Services.AddScoped<ISubscriptionService, ParkingSystem.Infrastructure.Services.SubscriptionService>();
 builder.Services.AddScoped<IWalletService, ParkingSystem.Infrastructure.Services.WalletService>();
 builder.Services.AddHttpClient<IAiChatService, ParkingSystem.Infrastructure.Services.GeminiChatService>();
 

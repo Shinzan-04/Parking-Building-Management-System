@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng ký Vé tháng</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f6f9; padding-top: 50px; }
+        .card { border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h3 class="text-center mb-4">Đăng ký Vé tháng</h3>
+                <div id="errDiv" class="alert alert-danger d-none"></div>
+                <div id="successDiv" class="alert alert-success d-none"></div>
+
+                <div class="mb-3">
+                    <label class="form-label">Chọn Xe Đăng Ký (từ Profile)</label>
+                    <select id="vehicleSelect" class="form-select">
+                        <option value="">-- Đang tải danh sách xe --</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Thông tin gói cước</label>
+                    <div id="policyInfo" class="p-3 bg-light rounded text-center">
+                        <i>Vui lòng chọn xe để xem giá cước.</i>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Phương thức thanh toán</label>
+                    <select id="paymentMethod" class="form-select">
+                        <option value="Wallet">Ví điện tử (Trừ tiền từ số dư)</option>
+                        <option value="PayOS">Chuyển khoản QR (PayOS)</option>
+                    </select>
+                </div>
+
+                <button id="btnRegister" class="btn btn-primary w-100" disabled>Thanh toán & Đăng ký</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = 'http://localhost:5237/api';
+    let token = localStorage.getItem('sp_token');
+    
+    if (!token) {
+        alert('Vui lòng đăng nhập trước!');
+        window.location.href = 'index.html';
+    }
+
+    async function apiFetch(endpoint, method = 'GET', body = null) {
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+        const options = { method, headers };
+        if (body) options.body = JSON.stringify(body);
+        
+        const res = await fetch(API_BASE + endpoint, options);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Lỗi hệ thống');
+        }
+        return res.json();
+    }
+
+    async function loadVehicles() {
+        try {
+            const vehicles = await apiFetch('/Vehicles/my-vehicles');
+            const select = document.getElementById('vehicleSelect');
+            select.innerHTML = '<option value="">-- Chọn xe --</option>';
+            vehicles.forEach(v => {
+                select.innerHTML += `<option value="${v.id}" data-type="${v.vehicleTypeId}">${v.plateNumber} (${v.vehicleTypeName})</option>`;
+            });
+        } catch (error) {
+            document.getElementById('errDiv').textContent = error.message;
+            document.getElementById('errDiv').classList.remove('d-none');
+        }
+    }
+
+    document.getElementById('vehicleSelect').addEventListener('change', async function() {
+        const selected = this.options[this.selectedIndex];
+        const typeId = selected.getAttribute('data-type');
+        const btn = document.getElementById('btnRegister');
+        const policyInfo = document.getElementById('policyInfo');
+
+        if (!typeId) {
+            policyInfo.innerHTML = '<i>Vui lòng chọn xe để xem giá cước.</i>';
+            btn.disabled = true;
+            return;
+        }
+
+        try {
+            const policy = await apiFetch(`/MonthlyPassPolicies/vehicle-type/${typeId}`);
+            if (policy) {
+                policyInfo.innerHTML = `
+                    <h4 class="text-success">${policy.monthlyPrice.toLocaleString()} VND / 30 ngày</h4>
+                    <p class="mb-0 text-muted">${policy.description || 'Gói vé tháng'}</p>
+                `;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            policyInfo.innerHTML = `<span class="text-danger">Không có gói vé tháng áp dụng cho loại xe này.</span>`;
+            btn.disabled = true;
+        }
+    });
+
+    document.getElementById('btnRegister').addEventListener('click', async function() {
+        const vehicleId = document.getElementById('vehicleSelect').value;
+        const method = document.getElementById('paymentMethod').value;
+        const btn = document.getElementById('btnRegister');
+
+        btn.disabled = true;
+        btn.textContent = 'Đang xử lý...';
+
+        try {
+            const res = await apiFetch('/Subscriptions/register', 'POST', {
+                vehicleId: vehicleId,
+                paymentMethod: method
+            });
+
+            if (res.checkoutUrl) {
+                // Redirect to PayOS
+                window.location.href = res.checkoutUrl;
+            } else {
+                // Success with Wallet
+                document.getElementById('successDiv').textContent = res.message;
+                document.getElementById('successDiv').classList.remove('d-none');
+                document.getElementById('errDiv').classList.add('d-none');
+                btn.textContent = 'Đã đăng ký';
+            }
+        } catch (error) {
+            document.getElementById('errDiv').textContent = error.message;
+            document.getElementById('errDiv').classList.remove('d-none');
+            document.getElementById('successDiv').classList.add('d-none');
+            btn.disabled = false;
+            btn.textContent = 'Thanh toán & Đăng ký';
+        }
+    });
+
+    // Load data
+    loadVehicles();
+</script>
+</body>
+</html>

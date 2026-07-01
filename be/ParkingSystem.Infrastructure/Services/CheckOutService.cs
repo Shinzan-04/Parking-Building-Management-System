@@ -98,6 +98,9 @@ public class CheckOutService : ICheckOutService
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
+        // Áp dụng Miễn phí nếu có Vé tháng
+        await ApplySubscriptionDiscountAsync(session.LicensePlate, session.VehicleTypeId, priceResult);
+
         if (session.ReservationId != null && session.Reservation != null)
         {
             if (exitTime <= session.Reservation.EndTime)
@@ -556,6 +559,9 @@ public class CheckOutService : ICheckOutService
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
+        // Áp dụng Miễn phí nếu có Vé tháng
+        await ApplySubscriptionDiscountAsync(session.LicensePlate, session.VehicleTypeId, priceResult);
+
         if (session.ReservationId != null && session.Reservation != null)
         {
             if (exitTime <= session.Reservation.EndTime)
@@ -620,6 +626,9 @@ public class CheckOutService : ICheckOutService
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
+        // Áp dụng Miễn phí nếu có Vé tháng
+        await ApplySubscriptionDiscountAsync(session.LicensePlate, session.VehicleTypeId, priceResult);
+
         if (session.ReservationId != null && session.Reservation != null)
         {
             if (exitTime <= session.Reservation.EndTime)
@@ -638,6 +647,43 @@ public class CheckOutService : ICheckOutService
         return new CheckOutSearchResult
         {
             SessionId = session.Id,
+            LicensePlate = session.LicensePlate,
+            SlotNumber = session.ParkingSlot.SlotNumber,
+            FloorName = session.ParkingSlot.Floor?.Name ?? string.Empty,
+            EntryTime = session.EntryTime,
+            EstimatedExitTime = exitTime,
+            TotalHours = priceResult.TotalHours,
+            VehicleTypeName = session.VehicleType.Name,
+            HourlyRate = priceResult.HourlyRate,
+            EstimatedFee = priceResult.TotalFee + session.PenaltyFee,
+            PricingModel = priceResult.PricingModel,
+            DayPassPrice = priceResult.DayPassPrice,
+            NightPassPrice = priceResult.NightPassPrice,
+            DailyMaxPrice = priceResult.DailyMaxPrice,
+            FeeBreakdown = priceResult.FeeBreakdown,
+            Message = BuildMessage(session, priceResult)
+        };
+    }
+
+    private async Task ApplySubscriptionDiscountAsync(string licensePlate, Guid vehicleTypeId, PriceCalculationResult priceResult)
+    {
+        var now = DateTime.UtcNow;
+        var hasActiveSub = await _context.Subscriptions
+            .AnyAsync(s => s.LicensePlate == licensePlate 
+                        && s.VehicleTypeId == vehicleTypeId 
+                        && s.Status == SubscriptionStatus.Active 
+                        && s.StartDate <= now 
+                        && s.EndDate >= now);
+
+        if (hasActiveSub)
+        {
+            priceResult.TotalFee = 0;
+            priceResult.FeeBreakdown = new List<FeeDetail> 
+            { 
+                new FeeDetail { Name = "Vé Tháng (Miễn phí)", Amount = 0, Description = "Khách hàng sử dụng Vé Tháng hợp lệ" } 
+            };
+        }
+    }
             LicensePlate = session.LicensePlate,
             SlotNumber = session.ParkingSlot.SlotNumber,
             FloorName = session.ParkingSlot.Floor?.Name ?? string.Empty,
