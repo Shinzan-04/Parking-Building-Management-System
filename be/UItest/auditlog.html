@@ -28,7 +28,7 @@
     .badge-override { background: #ef4444; color: #fff; }
     .badge-pricing { background: #3b82f6; color: #fff; }
     .badge-default { background: #94a3b8; color: #000; }
-    pre { background: #0f172a; padding: 8px; border-radius: 4px; font-size: 0.8rem; color: #a7f3d0; overflow-x: auto; max-width: 250px; white-space: pre-wrap; }
+    pre { background: #0f172a; padding: 10px; border-radius: 6px; font-size: 0.8rem; color: #a7f3d0; overflow-x: auto; white-space: pre; font-family: monospace; border: 1px solid #334155; margin: 0; }
     .status-msg { color: #f87171; text-align: center; margin-top: 20px; }
   </style>
 </head>
@@ -84,11 +84,48 @@
       return "badge-default";
     }
 
-    function formatJson(str) {
+    const keyDictionary = {
+      "PenaltyFee": "Tiền phạt",
+      "OriginalPlate": "Biển số (Gốc)",
+      "ExitOcrPlate": "Biển số (Camera)",
+      "HourlyRate": "Giá mỗi giờ",
+      "BlockPrice": "Giá Block",
+      "DailyMaxRate": "Giá trần/ngày",
+      "BlockDurationHours": "Thời gian Block (giờ)",
+      "DayBlockRate": "Giá Block Ngày",
+      "NightBlockRate": "Giá Block Đêm",
+      "NightStartHour": "Giờ bắt đầu Đêm",
+      "NightEndHour": "Giờ kết thúc Đêm",
+      "DailyRate": "Giá 1 Ngày",
+      "OvertimeMultiplier": "Hệ số phạt quá giờ"
+    };
+
+    function formatNumber(val) {
+      if (typeof val === 'number') {
+        // Nếu là số lớn hơn 1000 thì coi như tiền tệ
+        if (val > 1000 || val === 0) return val.toLocaleString('vi-VN') + ' đ';
+        return val;
+      }
+      return val;
+    }
+
+    function formatData(str) {
       if(!str) return "-";
       try {
         const obj = typeof str === 'string' ? JSON.parse(str) : str;
-        return `<pre>${JSON.stringify(obj, null, 2)}</pre>`;
+        if (typeof obj !== 'object' || obj === null) return str;
+        
+        let html = '<div style="font-size: 0.85rem; line-height: 1.5;">';
+        for (const [key, value] of Object.entries(obj)) {
+          // Bỏ qua các ID dài dòng không cần thiết cho user đọc
+          if(key === "Id" || key === "VehicleTypeId" || key === "CreatedAt" || key === "UpdatedAt") continue;
+          
+          const label = keyDictionary[key] || key;
+          const formattedVal = formatNumber(value);
+          html += `<div style="margin-bottom: 4px;"><span style="color: #94a3b8;">${label}:</span> <strong style="color: #4ade80;">${formattedVal}</strong></div>`;
+        }
+        html += '</div>';
+        return html;
       } catch {
         return str;
       }
@@ -106,14 +143,14 @@
         const res = await fetch(`${API_BASE}/api/Auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phoneNumber: phone, password: pass })
+          body: JSON.stringify({ username: phone, password: pass })
         });
         
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
         
-        currentToken = data.token;
-        document.getElementById('loggedInUser').textContent = data.user.fullName || phone;
+        currentToken = data.accessToken;
+        document.getElementById('loggedInUser').textContent = data.fullName || phone;
         document.getElementById('loginSection').style.display = 'none';
         document.getElementById('appSection').style.display = 'block';
         fetchAuditLogs();
@@ -159,8 +196,8 @@
             <td><b>${log.userFullName}</b><br><span style="font-size:0.75rem;color:#94a3b8">${log.userId}</span></td>
             <td><span class="badge ${badge}">${log.actionType}</span></td>
             <td>${log.entityName}<br><span style="font-size:0.7rem;color:#64748b">${log.entityId || ''}</span></td>
-            <td>${formatJson(log.oldValues)}</td>
-            <td>${formatJson(log.newValues)}</td>
+            <td>${formatData(log.oldValues)}</td>
+            <td>${formatData(log.newValues)}</td>
             <td><i style="color:#cbd5e1">${log.reason || '-'}</i></td>
           `;
           tbody.appendChild(tr);
