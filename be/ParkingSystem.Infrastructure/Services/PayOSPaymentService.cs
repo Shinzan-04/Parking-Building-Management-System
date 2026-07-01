@@ -110,9 +110,10 @@ public class PayOSPaymentService : IPaymentService
 
             return new PayOSCheckoutResponse
             {
+                PaymentId = payment.Id,
                 OrderCode = orderCode,
                 Amount = request.Amount,
-                Description = request.Description,
+                Description = request.Description ?? string.Empty,
                 CheckoutUrl = result.CheckoutUrl ?? string.Empty,
                 CreatedAt = payment.CreatedAt
             };

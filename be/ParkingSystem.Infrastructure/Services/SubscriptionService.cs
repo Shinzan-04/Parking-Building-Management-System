@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ParkingSystem.Application.DTOs.MonthlyPass;
+using ParkingSystem.Application.DTOs.Payment;
 using ParkingSystem.Application.Interfaces;
 using ParkingSystem.Domain.Entities;
 using ParkingSystem.Domain.Enums;
@@ -72,7 +73,7 @@ public class SubscriptionService : ISubscriptionService
         var vehicleType = await _context.VehicleTypes.FindAsync(request.VehicleTypeId);
         newPolicy.VehicleType = vehicleType;
 
-        await _auditLogService.LogAsync(adminId, "MonthlyPassPolicy", newPolicy.Id.ToString(), "Create", $"Tạo bảng giá vé tháng mới cho {vehicleType?.Name} với giá {request.MonthlyPrice:N0} VND");
+        await _auditLogService.LogAsync(adminId, "Create", "MonthlyPassPolicy", newPolicy.Id, null, null, $"Tạo bảng giá vé tháng mới cho {vehicleType?.Name} với giá {request.MonthlyPrice:N0} VND");
 
         return MapToPolicyResponse(newPolicy);
     }
@@ -93,7 +94,7 @@ public class SubscriptionService : ISubscriptionService
 
         await _context.SaveChangesAsync();
 
-        await _auditLogService.LogAsync(adminId, "MonthlyPassPolicy", policy.Id.ToString(), "Update", $"Cập nhật bảng giá vé tháng. Giá: {oldPrice:N0} -> {request.MonthlyPrice:N0} VND");
+        await _auditLogService.LogAsync(adminId, "Update", "MonthlyPassPolicy", policy.Id, null, null, $"Cập nhật bảng giá vé tháng. Giá: {oldPrice:N0} -> {request.MonthlyPrice:N0} VND");
 
         return MapToPolicyResponse(policy);
     }
@@ -107,7 +108,7 @@ public class SubscriptionService : ISubscriptionService
         policy.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        await _auditLogService.LogAsync(adminId, "MonthlyPassPolicy", policy.Id.ToString(), "Delete", "Vô hiệu hóa bảng giá vé tháng");
+        await _auditLogService.LogAsync(adminId, "Delete", "MonthlyPassPolicy", policy.Id, null, null, "Vô hiệu hóa bảng giá vé tháng");
         return true;
     }
 
@@ -238,33 +239,28 @@ public class SubscriptionService : ISubscriptionService
             }
             else if (request.PaymentMethod == PaymentMethod.PayOS)
             {
-                var payment = new Payment
+                var returnUrl = "http://localhost:5500/monthlypass-result.html";
+                var cancelUrl = "http://localhost:5500/monthlypass.html";
+                var requestPayOs = new CreatePayOSPaymentRequest
                 {
-                    Id = Guid.NewGuid(),
                     Amount = fee,
-                    Description = $"Thanh toán PayOS cho Vé tháng xe {vehicle.PlateNumber}",
-                    PaymentMethod = PaymentMethod.PayOS,
-                    Status = PaymentStatus.Pending,
-                    PayOSOrderCode = long.Parse($"{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}{Random.Shared.Next(1000, 9999)}"),
-                    CreatedAt = now,
-                    UpdatedAt = now
+                    Description = $"Thanh toan ve thang xe {vehicle.PlateNumber}",
+                    UserId = driverId,
+                    ReturnUrl = returnUrl,
+                    CancelUrl = cancelUrl
                 };
-                _context.Payments.Add(payment);
-                subscription.PaymentId = payment.Id;
+                var payOSResponse = await _paymentService.CreatePayOSPaymentAsync(requestPayOs);
+
+                subscription.PaymentId = payOSResponse.PaymentId;
 
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-
-                var returnUrl = "http://localhost:5500/monthlypass-result.html";
-                var cancelUrl = "http://localhost:5500/monthlypass.html";
-                var payOSResponse = await _paymentService.CreatePaymentLinkAsync(payment.Id, returnUrl, cancelUrl);
 
                 return new
                 {
                     Message = "Vui lòng thanh toán qua link PayOS.",
                     SubscriptionId = subscription.Id,
-                    CheckoutUrl = payOSResponse.CheckoutUrl,
-                    QrCode = payOSResponse.QrCode
+                    CheckoutUrl = payOSResponse.CheckoutUrl
                 };
             }
             else

@@ -3,6 +3,7 @@ namespace ParkingSystem.Application.DTOs.Payment;
 public class PayOSCheckoutResponse
 {
     public string CheckoutUrl { get; set; } = string.Empty;
+    public Guid PaymentId { get; set; }
     public long OrderCode { get; set; }
     public decimal Amount { get; set; }
     public string Description { get; set; } = string.Empty;

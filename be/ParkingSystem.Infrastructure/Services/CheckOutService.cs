@@ -678,28 +678,8 @@ public class CheckOutService : ICheckOutService
         if (hasActiveSub)
         {
             priceResult.TotalFee = 0;
-            priceResult.FeeBreakdown = new List<FeeDetail> 
-            { 
-                new FeeDetail { Name = "Vé Tháng (Miễn phí)", Amount = 0, Description = "Khách hàng sử dụng Vé Tháng hợp lệ" } 
-            };
+            priceResult.FeeBreakdown = null;
         }
-    }
-            LicensePlate = session.LicensePlate,
-            SlotNumber = session.ParkingSlot.SlotNumber,
-            FloorName = session.ParkingSlot.Floor?.Name ?? string.Empty,
-            EntryTime = session.EntryTime,
-            EstimatedExitTime = exitTime,
-            TotalHours = priceResult.TotalHours,
-            VehicleTypeName = session.VehicleType.Name,
-            HourlyRate = priceResult.HourlyRate,
-            EstimatedFee = priceResult.TotalFee + session.PenaltyFee,
-            PricingModel = priceResult.PricingModel,
-            DayPassPrice = priceResult.DayPassPrice,
-            NightPassPrice = priceResult.NightPassPrice,
-            DailyMaxPrice = priceResult.DailyMaxPrice,
-            FeeBreakdown = priceResult.FeeBreakdown,
-            Message = BuildMessage(session, priceResult)
-        };
     }
 
     public async Task<PriceCalculationResult> CalculateFeeAsync(Guid vehicleTypeId, DateTime entryTime, DateTime exitTime, bool isOverdue = false, Guid? pricingPolicyId = null)
