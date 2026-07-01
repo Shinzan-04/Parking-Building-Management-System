@@ -265,9 +265,12 @@ public class CheckInService : ICheckInService
         // Sinh mã QR cho phiên gửi xe (Session Code)
         var sessionCode = _qrCodeService.GenerateUniqueCode(5);
 
-        // Lấy PricingPolicy hiện hành cho loại xe
+        // Lấy PricingPolicy (Ưu tiên Active, nếu không có thì lấy cái mới nhất)
         var activePolicy = await _context.PricingPolicies
-            .FirstOrDefaultAsync(p => p.VehicleTypeId == request.VehicleTypeId && p.IsActive);
+            .Where(p => p.VehicleTypeId == request.VehicleTypeId)
+            .OrderByDescending(p => p.IsActive)
+            .ThenByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
         
         // Tạo Parking Session mới
         var session = new ParkingSession
@@ -352,6 +355,13 @@ public class CheckInService : ICheckInService
             reservation.EndTime = reservation.EndTime.Subtract(earlyAmount);
         }
 
+        // 4. Lấy PricingPolicy (Ưu tiên Active, nếu không có thì lấy cái mới nhất)
+        var policy = await _context.PricingPolicies
+            .Where(p => p.VehicleTypeId == reservation.VehicleTypeId)
+            .OrderByDescending(p => p.IsActive)
+            .ThenByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
+
         // Tạo Parking Session liên kết với Reservation
         var session = new ParkingSession
         {
@@ -367,7 +377,7 @@ public class CheckInService : ICheckInService
             EntryTime = now,
             EntryImageUrl = entryImageUrl,
             Status = SessionStatus.Active,
-            PricingPolicyId = reservation.PricingPolicyId // Thừa kế từ lúc đặt chỗ
+            PricingPolicyId = reservation.PricingPolicyId ?? policy?.Id
         };
 
         // Cập nhật trạng thái Reservation → CheckedIn

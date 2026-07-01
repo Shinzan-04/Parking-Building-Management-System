@@ -666,8 +666,20 @@ public class CheckOutService : ICheckOutService
 
         if (pricingPolicy == null)
         {
+            // Lấy bảng giá có hiệu lực sát nhất trước lúc xe vào (để giữ nguyên giá cũ nếu null)
             pricingPolicy = await _context.PricingPolicies
-                .FirstOrDefaultAsync(p => p.VehicleTypeId == vehicleTypeId && p.IsActive);
+                .Where(p => p.VehicleTypeId == vehicleTypeId && p.CreatedAt <= entryTime)
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+
+            // Nếu vẫn không có, lấy bảng giá cũ nhất có thể (chắc ăn)
+            if (pricingPolicy == null)
+            {
+                pricingPolicy = await _context.PricingPolicies
+                    .Where(p => p.VehicleTypeId == vehicleTypeId)
+                    .OrderBy(p => p.CreatedAt)
+                    .FirstOrDefaultAsync();
+            }
         }
 
         if (pricingPolicy == null)
