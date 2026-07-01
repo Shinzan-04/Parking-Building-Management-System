@@ -364,6 +364,10 @@ public class SubscriptionService : ISubscriptionService
             );
         }
 
+        await _auditLogService.LogAsync(driverId, "RequestCancelSub", "Subscription", sub.Id, 
+            new { OldStatus = SubscriptionStatus.Active.ToString() }, 
+            new { NewStatus = sub.Status.ToString(), Reason = reason });
+
         return true;
     }
 
