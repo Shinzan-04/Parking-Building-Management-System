@@ -126,9 +126,9 @@
                 </div>
 
                 <div id="approveSection">
-                    <label class="form-label">Số tiền hoàn lại vào ví (VND):</label>
-                    <input type="number" id="refundAmount" class="form-control" value="0" min="0">
-                    <small class="text-muted">Nhập 0 nếu không hoàn tiền.</small>
+                    <div class="alert alert-info">
+                        <strong>Lưu ý:</strong> Hệ thống sẽ tự động tính và hoàn lại 70% giá trị tiền vé ban đầu vào Ví của tài xế.
+                    </div>
                 </div>
 
                 <div id="rejectSection" class="d-none">
@@ -336,7 +336,6 @@
         document.getElementById('processSubId').value = id;
         document.getElementById('processUserReason').innerText = reason;
         document.getElementById('processAction').value = 'approve';
-        document.getElementById('refundAmount').value = 0;
         document.getElementById('rejectReason').value = '';
         toggleActionFields();
         processModalInstance.show();
@@ -358,21 +357,12 @@
         const action = document.getElementById('processAction').value;
         const isApproved = action === 'approve';
         
-        let refundAmount = 0;
-        let rejectReason = '';
+        const refundAmount = 0; // Server automatically calculates 70%
+        const rejectReason = isApproved ? null : document.getElementById('rejectReason').value.trim();
 
-        if (isApproved) {
-            refundAmount = parseFloat(document.getElementById('refundAmount').value) || 0;
-            if (refundAmount < 0) {
-                alert('Số tiền hoàn không hợp lệ');
-                return;
-            }
-        } else {
-            rejectReason = document.getElementById('rejectReason').value.trim();
-            if (!rejectReason) {
-                alert('Vui lòng nhập lý do từ chối!');
-                return;
-            }
+        if (!isApproved && !rejectReason) {
+            alert('Vui lòng nhập lý do từ chối!');
+            return;
         }
 
         try {

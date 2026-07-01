@@ -124,7 +124,44 @@ public class SubscriptionService : ISubscriptionService
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
 
-        return subs.Select(MapToSubscriptionResponse).ToList();
+        var responses = new List<SubscriptionResponse>();
+        var now = DateTime.UtcNow;
+
+        foreach (var s in subs)
+        {
+            var res = MapToSubscriptionResponse(s);
+            
+            if (s.Status == SubscriptionStatus.Active)
+            {
+                bool isUsed = await _context.ParkingSessions.AnyAsync(p => p.LicensePlate == s.LicensePlate && p.EntryTime >= s.StartDate && p.EntryTime <= now);
+                bool isExpired = (now - s.StartDate).TotalDays > 3;
+
+                if (isUsed)
+                {
+                    res.CanCancel = false;
+                    res.CancelValidationMessage = "Vé đã được sử dụng (có lượt vào ra), không thể hủy.";
+                }
+                else if (isExpired)
+                {
+                    res.CanCancel = false;
+                    res.CancelValidationMessage = "Vé đã đăng ký quá 3 ngày, không thể hủy.";
+                }
+                else
+                {
+                    res.CanCancel = true;
+                    res.CancelValidationMessage = null;
+                }
+            }
+            else
+            {
+                res.CanCancel = false;
+                res.CancelValidationMessage = "Vé không ở trạng thái Active.";
+            }
+
+            responses.Add(res);
+        }
+
+        return responses;
     }
 
     public async Task<List<SubscriptionResponse>> GetAllSubscriptionsAsync()
@@ -300,6 +337,14 @@ public class SubscriptionService : ISubscriptionService
             
         if (sub == null || sub.Status != SubscriptionStatus.Active) return false;
 
+        // Check if used (has any ParkingSession)
+        var isUsed = await _context.ParkingSessions.AnyAsync(p => p.LicensePlate == sub.LicensePlate && p.EntryTime >= sub.StartDate && p.EntryTime <= DateTime.UtcNow);
+        if (isUsed) throw new InvalidOperationException("Vé đã được sử dụng (có lượt vào ra), không thể yêu cầu hủy.");
+
+        // Check if > 3 days
+        if ((DateTime.UtcNow - sub.StartDate).TotalDays > 3)
+            throw new InvalidOperationException("Vé đã đăng ký quá 3 ngày, không thể yêu cầu hủy.");
+
         sub.Status = SubscriptionStatus.PendingCancel;
         sub.CancelReason = reason;
         sub.UpdatedAt = DateTime.UtcNow;
@@ -334,6 +379,14 @@ public class SubscriptionService : ISubscriptionService
         {
             sub.Status = SubscriptionStatus.Canceled;
             
+            // Calculate 70% refund based on original Payment
+            refundAmount = 0;
+            if (sub.PaymentId.HasValue)
+            {
+                var payment = await _context.Payments.FindAsync(sub.PaymentId.Value);
+                if (payment != null) refundAmount = payment.Amount * 0.7m;
+            }
+
             // Hoàn tiền nếu có
             if (refundAmount > 0 && sub.Driver != null)
             {
@@ -345,7 +398,7 @@ public class SubscriptionService : ISubscriptionService
                     Amount = refundAmount,
                     Type = "RefundMonthlyPass",
                     Status = "Success",
-                    Description = $"Hoàn tiền hủy vé tháng xe {sub.LicensePlate}",
+                    Description = $"Hoàn 70% tiền admin duyệt hủy vé tháng xe {sub.LicensePlate}",
                     ReferenceId = sub.Id.ToString(),
                     CreatedAt = DateTime.UtcNow
                 });

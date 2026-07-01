@@ -57,6 +57,9 @@ public class SubscriptionResponse
 
     public string? CancelReason { get; set; }
     public string? CancelRejectReason { get; set; }
+
+    public bool CanCancel { get; set; }
+    public string? CancelValidationMessage { get; set; }
 }
 
 public class RequestCancelSubscriptionRequest

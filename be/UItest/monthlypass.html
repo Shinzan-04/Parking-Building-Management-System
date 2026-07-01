@@ -235,7 +235,9 @@
                     : (s.statusText === 'PendingPayment' ? '<span class="badge bg-warning text-dark">Đang chờ thanh toán</span>' : `<span class="badge bg-secondary">${s.statusText}</span>`);
                 
                 const cancelBtn = (s.statusText === 'Active')
-                    ? `<button onclick="openCancelModal('${s.id}')" class="btn btn-sm btn-outline-danger mt-2">Yêu cầu hủy vé</button>`
+                    ? (s.canCancel 
+                        ? `<button onclick="openCancelModal('${s.id}')" class="btn btn-sm btn-outline-danger mt-2">Yêu cầu hủy vé</button>`
+                        : `<button onclick="alert('${s.cancelValidationMessage}')" class="btn btn-sm btn-outline-danger mt-2">Yêu cầu hủy vé</button>`)
                     : '';
 
                 const rejectAlert = s.cancelRejectReason && s.statusText === 'Active' 

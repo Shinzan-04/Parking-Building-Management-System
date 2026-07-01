@@ -63,18 +63,32 @@ public class SubscriptionsController : ControllerBase
     [HttpPost("{id}/request-cancel")]
     public async Task<IActionResult> RequestCancel(Guid id, [FromBody] RequestCancelSubscriptionRequest request)
     {
-        var driverId = GetCurrentUserId();
-        var result = await _subscriptionService.RequestCancelAsync(id, driverId, request.Reason);
-        return result ? Ok(new { message = "Đã gửi yêu cầu hủy vé tháng." }) : BadRequest("Không thể gửi yêu cầu hủy (vé không tồn tại hoặc không ở trạng thái Active).");
+        try
+        {
+            var driverId = GetCurrentUserId();
+            var result = await _subscriptionService.RequestCancelAsync(id, driverId, request.Reason);
+            return result ? Ok(new { message = "Đã gửi yêu cầu hủy vé tháng." }) : BadRequest(new { message = "Không thể gửi yêu cầu hủy (vé không tồn tại hoặc không ở trạng thái Active)." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [Authorize(Roles = "Admin,Manager")]
     [HttpPost("{id}/process-cancel")]
     public async Task<IActionResult> ProcessCancel(Guid id, [FromBody] ProcessCancelSubscriptionRequest request)
     {
-        var adminId = GetCurrentUserId();
-        var result = await _subscriptionService.ProcessCancelRequestAsync(id, adminId, request.IsApproved, request.RefundAmount, request.RejectReason);
-        return result ? Ok(new { message = "Đã xử lý yêu cầu hủy vé tháng." }) : BadRequest("Không thể xử lý (yêu cầu không tồn tại hoặc đã được xử lý).");
+        try
+        {
+            var adminId = GetCurrentUserId();
+            var result = await _subscriptionService.ProcessCancelRequestAsync(id, adminId, request.IsApproved, request.RefundAmount, request.RejectReason);
+            return result ? Ok(new { message = "Đã xử lý yêu cầu hủy vé tháng." }) : BadRequest(new { message = "Không thể xử lý (yêu cầu không tồn tại hoặc đã được xử lý)." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [Authorize(Roles = "Admin,Manager")]
