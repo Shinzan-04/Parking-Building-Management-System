@@ -15,13 +15,15 @@ public class SubscriptionService : ISubscriptionService
     private readonly IPaymentService _paymentService;
     private readonly ILogger<SubscriptionService> _logger;
     private readonly IAuditLogService _auditLogService;
+    private readonly INotificationService _notificationService;
 
-    public SubscriptionService(ApplicationDbContext context, IPaymentService paymentService, ILogger<SubscriptionService> logger, IAuditLogService auditLogService)
+    public SubscriptionService(ApplicationDbContext context, IPaymentService paymentService, ILogger<SubscriptionService> logger, IAuditLogService auditLogService, INotificationService notificationService)
     {
         _context = context;
         _paymentService = paymentService;
         _logger = logger;
         _auditLogService = auditLogService;
+        _notificationService = notificationService;
     }
 
     // ===== POLICIES =====
@@ -290,6 +292,144 @@ public class SubscriptionService : ISubscriptionService
         return false;
     }
 
+    public async Task<bool> RequestCancelAsync(Guid id, Guid driverId, string reason)
+    {
+        var sub = await _context.Subscriptions
+            .Include(s => s.VehicleType)
+            .FirstOrDefaultAsync(s => s.Id == id && s.DriverId == driverId);
+            
+        if (sub == null || sub.Status != SubscriptionStatus.Active) return false;
+
+        sub.Status = SubscriptionStatus.PendingCancel;
+        sub.CancelReason = reason;
+        sub.UpdatedAt = DateTime.UtcNow;
+        
+        await _context.SaveChangesAsync();
+        
+        // Gửi thông báo cho Admin (tất cả user có role Admin/Manager)
+        var admins = await _context.Users.Where(u => u.Role == Role.Admin || u.Role == Role.Manager).ToListAsync();
+        foreach (var admin in admins)
+        {
+            await _notificationService.SendAsync(
+                admin.Id,
+                "Yêu cầu hủy vé tháng",
+                $"Tài xế yêu cầu hủy vé tháng xe {sub.LicensePlate}. Lý do: {reason}",
+                "CancelRequest",
+                sub.Id
+            );
+        }
+
+        return true;
+    }
+
+    public async Task<bool> ProcessCancelRequestAsync(Guid id, Guid adminId, bool isApproved, decimal refundAmount, string? rejectReason)
+    {
+        var sub = await _context.Subscriptions
+            .Include(s => s.Driver)
+            .FirstOrDefaultAsync(s => s.Id == id);
+            
+        if (sub == null || sub.Status != SubscriptionStatus.PendingCancel) return false;
+
+        if (isApproved)
+        {
+            sub.Status = SubscriptionStatus.Canceled;
+            
+            // Hoàn tiền nếu có
+            if (refundAmount > 0 && sub.Driver != null)
+            {
+                sub.Driver.Balance += refundAmount;
+                _context.WalletTransactions.Add(new WalletTransaction
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = sub.DriverId,
+                    Amount = refundAmount,
+                    Type = "RefundMonthlyPass",
+                    Status = "Success",
+                    Description = $"Hoàn tiền hủy vé tháng xe {sub.LicensePlate}",
+                    ReferenceId = sub.Id.ToString(),
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+
+            await _notificationService.SendAsync(
+                sub.DriverId,
+                "Đã duyệt hủy vé tháng",
+                $"Yêu cầu hủy vé tháng xe {sub.LicensePlate} đã được duyệt. Bạn được hoàn lại {refundAmount:N0} VND vào ví.",
+                "CancelApproved",
+                sub.Id
+            );
+        }
+        else
+        {
+            sub.Status = SubscriptionStatus.Active;
+            sub.CancelRejectReason = rejectReason;
+            
+            await _notificationService.SendAsync(
+                sub.DriverId,
+                "Từ chối hủy vé tháng",
+                $"Yêu cầu hủy vé tháng xe {sub.LicensePlate} bị từ chối. Lý do: {rejectReason}",
+                "CancelRejected",
+                sub.Id
+            );
+        }
+
+        sub.UpdatedAt = DateTime.UtcNow;
+        
+        await _auditLogService.LogAsync(adminId, isApproved ? "ApproveCancelSub" : "RejectCancelSub", "Subscription", sub.Id, 
+            new { OldStatus = SubscriptionStatus.PendingCancel.ToString() }, 
+            new { NewStatus = sub.Status.ToString(), RefundAmount = refundAmount, RejectReason = rejectReason });
+            
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> AdminForceCancelAsync(Guid id, Guid adminId, decimal refundAmount, string reason)
+    {
+        var sub = await _context.Subscriptions
+            .Include(s => s.Driver)
+            .FirstOrDefaultAsync(s => s.Id == id);
+            
+        if (sub == null || (sub.Status != SubscriptionStatus.Active && sub.Status != SubscriptionStatus.PendingCancel && sub.Status != SubscriptionStatus.PendingPayment)) 
+            return false;
+
+        var oldStatus = sub.Status.ToString();
+        sub.Status = SubscriptionStatus.Canceled;
+        sub.CancelReason = "Admin tự hủy: " + reason;
+        sub.UpdatedAt = DateTime.UtcNow;
+        
+        // Hoàn tiền nếu có (chỉ cho Active hoặc PendingCancel)
+        if (refundAmount > 0 && sub.Driver != null && oldStatus != "PendingPayment")
+        {
+            sub.Driver.Balance += refundAmount;
+            _context.WalletTransactions.Add(new WalletTransaction
+            {
+                Id = Guid.NewGuid(),
+                UserId = sub.DriverId,
+                Amount = refundAmount,
+                Type = "RefundMonthlyPass",
+                Status = "Success",
+                Description = $"Hoàn tiền admin hủy vé tháng xe {sub.LicensePlate}",
+                ReferenceId = sub.Id.ToString(),
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await _notificationService.SendAsync(
+            sub.DriverId,
+            "Vé tháng bị hủy",
+            $"Vé tháng xe {sub.LicensePlate} của bạn đã bị quản trị viên hủy. Lý do: {reason}. Bạn được hoàn lại {refundAmount:N0} VND vào ví.",
+            "AdminForceCancel",
+            sub.Id
+        );
+
+        await _auditLogService.LogAsync(adminId, "AdminForceCancelSub", "Subscription", sub.Id, 
+            new { OldStatus = oldStatus }, 
+            new { NewStatus = sub.Status.ToString(), RefundAmount = refundAmount, Reason = reason });
+            
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
     // ===== HELPERS =====
     private MonthlyPassPolicyResponse MapToPolicyResponse(MonthlyPassPolicy p) => new()
     {
@@ -314,6 +454,8 @@ public class SubscriptionService : ISubscriptionService
         EndDate = s.EndDate,
         Status = s.Status,
         PaymentId = s.PaymentId,
-        CreatedAt = s.CreatedAt
+        CreatedAt = s.CreatedAt,
+        CancelReason = s.CancelReason,
+        CancelRejectReason = s.CancelRejectReason
     };
 }

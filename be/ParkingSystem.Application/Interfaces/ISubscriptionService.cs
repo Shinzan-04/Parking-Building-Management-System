@@ -21,4 +21,8 @@ public interface ISubscriptionService
     Task<object> RegisterSubscriptionAsync(Guid driverId, RegisterSubscriptionRequest request);
 
     Task<bool> CancelSubscriptionAsync(Guid id, Guid driverId);
+    
+    Task<bool> RequestCancelAsync(Guid id, Guid driverId, string reason);
+    Task<bool> ProcessCancelRequestAsync(Guid id, Guid adminId, bool isApproved, decimal refundAmount, string? rejectReason);
+    Task<bool> AdminForceCancelAsync(Guid id, Guid adminId, decimal refundAmount, string reason);
 }

@@ -54,6 +54,38 @@ public class SubscriptionResponse
     public string StatusText => Status.ToString();
     public Guid? PaymentId { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    public string? CancelReason { get; set; }
+    public string? CancelRejectReason { get; set; }
+}
+
+public class RequestCancelSubscriptionRequest
+{
+    [Required]
+    [MaxLength(500)]
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class ProcessCancelSubscriptionRequest
+{
+    [Required]
+    public bool IsApproved { get; set; }
+
+    [Range(0, (double)decimal.MaxValue)]
+    public decimal RefundAmount { get; set; }
+
+    [MaxLength(500)]
+    public string? RejectReason { get; set; }
+}
+
+public class AdminForceCancelRequest
+{
+    [Range(0, (double)decimal.MaxValue)]
+    public decimal RefundAmount { get; set; }
+
+    [Required]
+    [MaxLength(500)]
+    public string Reason { get; set; } = string.Empty;
 }
 
 public class RegisterSubscriptionRequest

@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý Vé Tháng - Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" href="#">Parking Admin</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav me-auto" id="navLinks" style="display: none;">
+                <li class="nav-item"><a class="nav-link" href="admin_reservations.html">Duyệt Đặt Chỗ</a></li>
+                <li class="nav-item"><a class="nav-link active" href="admin_monthlypass.html">Quản lý Vé Tháng</a></li>
+            </ul>
+            <div class="d-flex" id="userInfo" style="display: none !important;">
+                <span class="navbar-text me-3" id="adminInfo">Admin</span>
+                <button class="btn btn-outline-light btn-sm" onclick="logout()">Đăng xuất</button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <!-- Login Section -->
+    <div id="loginSection" class="row justify-content-center mt-5">
+        <div class="col-md-4">
+            <div class="card shadow-sm p-4">
+                <h3 class="text-center mb-4 text-primary">Admin Đăng Nhập</h3>
+                <div id="loginErr" class="alert alert-danger d-none"></div>
+                <div class="mb-3">
+                    <label>Username (Admin/Manager)</label>
+                    <input type="text" id="loginUsername" class="form-control" placeholder="admin" value="admin">
+                </div>
+                <div class="mb-3">
+                    <label>Mật khẩu</label>
+                    <input type="password" id="loginPassword" class="form-control" placeholder="Mật khẩu" value="Admin@123">
+                </div>
+                <button onclick="login()" class="btn btn-primary w-100 mt-2">Đăng Nhập</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Section -->
+    <div id="mainSection" style="display: none;">
+        <h2>Quản lý Vé Tháng</h2>
+        <ul class="nav nav-tabs mt-3" id="myTab" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="pending-tab" data-bs-toggle="tab" data-bs-target="#pending-pane" type="button">Yêu cầu hủy vé (Chờ xử lý)</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="all-tab" data-bs-toggle="tab" data-bs-target="#all-pane" type="button">Tất cả vé tháng</button>
+        </li>
+    </ul>
+    
+    <div class="tab-content mt-3" id="myTabContent">
+        <!-- Tab Yêu cầu hủy -->
+        <div class="tab-pane fade show active" id="pending-pane">
+            <div class="table-responsive bg-white rounded shadow-sm p-3">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Biển số</th>
+                            <th>Loại xe</th>
+                            <th>Thời hạn</th>
+                            <th>Lý do hủy</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingCancelTableBody">
+                        <tr><td colspan="5" class="text-center">Đang tải...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab Tất cả -->
+        <div class="tab-pane fade" id="all-pane">
+            <div class="table-responsive bg-white rounded shadow-sm p-3">
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Biển số</th>
+                            <th>Loại xe</th>
+                            <th>Thời hạn</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allTableBody">
+                        <tr><td colspan="5" class="text-center">Đang tải...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Xử lý Hủy -->
+<div class="modal fade" id="processModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Xử lý Yêu cầu Hủy Vé</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="processSubId">
+                <div class="mb-3">
+                    <label class="form-label text-muted">Lý do của khách hàng:</label>
+                    <p id="processUserReason" class="border p-2 bg-light rounded"></p>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Quyết định:</label>
+                    <select id="processAction" class="form-select" onchange="toggleActionFields()">
+                        <option value="approve">Duyệt hủy (Hoàn tiền)</option>
+                        <option value="reject">Từ chối</option>
+                    </select>
+                </div>
+
+                <div id="approveSection">
+                    <label class="form-label">Số tiền hoàn lại vào ví (VND):</label>
+                    <input type="number" id="refundAmount" class="form-control" value="0" min="0">
+                    <small class="text-muted">Nhập 0 nếu không hoàn tiền.</small>
+                </div>
+
+                <div id="rejectSection" class="d-none">
+                    <label class="form-label">Lý do từ chối:</label>
+                    <textarea id="rejectReason" class="form-control" rows="2" placeholder="Ví dụ: Đã qua thời hạn hỗ trợ hủy vé..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-primary" onclick="submitProcess()">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Admin Tự Hủy Vé -->
+<div class="modal fade" id="forceCancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger">Hủy Vé Tháng Khẩn Cấp</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="forceCancelSubId">
+                <p class="text-muted">Bạn đang thực hiện quyền quản trị viên để hủy trực tiếp vé tháng này. Tài xế sẽ nhận được thông báo.</p>
+                <div class="mb-3">
+                    <label class="form-label">Số tiền hoàn lại vào ví (VND):</label>
+                    <input type="number" id="forceRefundAmount" class="form-control" value="0" min="0">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Lý do hủy (bắt buộc):</label>
+                    <textarea id="forceCancelReason" class="form-control" rows="2" placeholder="Ví dụ: Khách vi phạm nội quy, BQL thu hồi vé..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-danger" onclick="submitForceCancel()">Xác nhận Hủy</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const API_BASE = 'http://localhost:5237/api';
+    let processModalInstance = null;
+    let forceCancelModalInstance = null;
+
+    document.addEventListener("DOMContentLoaded", function() {
+        processModalInstance = new bootstrap.Modal(document.getElementById('processModal'));
+        forceCancelModalInstance = new bootstrap.Modal(document.getElementById('forceCancelModal'));
+        checkAdminLogin();
+    });
+
+    async function login() {
+        const user = document.getElementById('loginUsername').value.trim();
+        const pass = document.getElementById('loginPassword').value;
+        const err = document.getElementById('loginErr');
+        err.classList.add('d-none');
+
+        try {
+            const res = await fetch(API_BASE + '/Auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
+            
+            if (data.role !== 'Admin' && data.role !== 'Manager') {
+                throw new Error('Bạn không có quyền truy cập trang này!');
+            }
+
+            // Store token securely specifically for this page
+            localStorage.setItem('admin_monthly_token', data.accessToken);
+            localStorage.setItem('admin_monthly_role', data.role);
+            checkAdminLogin();
+        } catch (error) {
+            err.textContent = error.message;
+            err.classList.remove('d-none');
+        }
+    }
+
+    function checkAdminLogin() {
+        const token = localStorage.getItem('admin_monthly_token');
+        const role = localStorage.getItem('admin_monthly_role');
+        
+        if (!token || (role !== 'Admin' && role !== 'Manager')) {
+            document.getElementById('loginSection').style.display = 'flex';
+            document.getElementById('mainSection').style.display = 'none';
+            document.getElementById('navLinks').style.display = 'none';
+            document.getElementById('userInfo').style.setProperty('display', 'none', 'important');
+            return;
+        }
+        
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('mainSection').style.display = 'block';
+        document.getElementById('navLinks').style.display = 'flex';
+        document.getElementById('userInfo').style.setProperty('display', 'flex', 'important');
+        
+        document.getElementById('adminInfo').innerText = `Role: ${role}`;
+        loadAllSubscriptions();
+    }
+
+    function logout() {
+        localStorage.removeItem('admin_monthly_token');
+        localStorage.removeItem('admin_monthly_role');
+        checkAdminLogin();
+    }
+
+    async function apiFetch(endpoint, method = 'GET', body = null) {
+        const token = localStorage.getItem('admin_monthly_token');
+        const options = {
+            method,
+            headers: { 'Authorization': `Bearer ${token}` }
+        };
+        if (body) {
+            options.headers['Content-Type'] = 'application/json';
+            options.body = JSON.stringify(body);
+        }
+        const response = await fetch(API_BASE + endpoint, options);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Lỗi server');
+        return data;
+    }
+
+    async function loadAllSubscriptions() {
+        try {
+            const subs = await apiFetch('/Subscriptions');
+            renderTables(subs);
+        } catch (error) {
+            console.error(error);
+            document.getElementById('pendingCancelTableBody').innerHTML = `<tr><td colspan="5" class="text-danger text-center">Lỗi: ${error.message}</td></tr>`;
+            document.getElementById('allTableBody').innerHTML = `<tr><td colspan="4" class="text-danger text-center">Lỗi: ${error.message}</td></tr>`;
+        }
+    }
+
+    function renderTables(subs) {
+        const pendingTbody = document.getElementById('pendingCancelTableBody');
+        const allTbody = document.getElementById('allTableBody');
+        
+        pendingTbody.innerHTML = '';
+        allTbody.innerHTML = '';
+
+        let pendingCount = 0;
+
+        subs.forEach(s => {
+            const startDate = new Date(s.startDate).toLocaleDateString('vi-VN');
+            const endDate = new Date(s.endDate).toLocaleDateString('vi-VN');
+            const statusBadge = getStatusBadge(s.statusText);
+
+            // Row for All Tab
+            const forceCancelBtn = (s.statusText === 'Active' || s.statusText === 'PendingPayment' || s.statusText === 'PendingCancel') 
+                ? `<button class="btn btn-sm btn-outline-danger" onclick="openForceCancelModal('${s.id}')">Hủy vé</button>` 
+                : '';
+
+            allTbody.innerHTML += `
+                <tr>
+                    <td><strong>${s.licensePlate}</strong></td>
+                    <td>${s.vehicleTypeName}</td>
+                    <td>${startDate} - ${endDate}</td>
+                    <td>${statusBadge}</td>
+                    <td>${forceCancelBtn}</td>
+                </tr>
+            `;
+
+            // Row for PendingCancel Tab
+            if (s.statusText === 'PendingCancel') {
+                pendingCount++;
+                pendingTbody.innerHTML += `
+                    <tr>
+                        <td><strong>${s.licensePlate}</strong></td>
+                        <td>${s.vehicleTypeName}</td>
+                        <td>${startDate} - ${endDate}</td>
+                        <td class="text-danger">${s.cancelReason || 'Không rõ'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="openProcessModal('${s.id}', '${s.cancelReason || ''}')">Xử lý</button>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+
+        if (pendingCount === 0) {
+            pendingTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Không có yêu cầu nào đang chờ xử lý.</td></tr>';
+        }
+        if (subs.length === 0) {
+            allTbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Chưa có dữ liệu vé tháng.</td></tr>';
+        }
+    }
+
+    function getStatusBadge(status) {
+        switch(status) {
+            case 'Active': return '<span class="badge bg-success">Đang hiệu lực</span>';
+            case 'PendingPayment': return '<span class="badge bg-warning text-dark">Chờ thanh toán</span>';
+            case 'PendingCancel': return '<span class="badge bg-danger">Chờ duyệt hủy</span>';
+            case 'Canceled': return '<span class="badge bg-secondary">Đã hủy</span>';
+            case 'Expired': return '<span class="badge bg-dark">Đã hết hạn</span>';
+            default: return `<span class="badge bg-secondary">${status}</span>`;
+        }
+    }
+
+    function openProcessModal(id, reason) {
+        document.getElementById('processSubId').value = id;
+        document.getElementById('processUserReason').innerText = reason;
+        document.getElementById('processAction').value = 'approve';
+        document.getElementById('refundAmount').value = 0;
+        document.getElementById('rejectReason').value = '';
+        toggleActionFields();
+        processModalInstance.show();
+    }
+
+    function toggleActionFields() {
+        const action = document.getElementById('processAction').value;
+        if (action === 'approve') {
+            document.getElementById('approveSection').classList.remove('d-none');
+            document.getElementById('rejectSection').classList.add('d-none');
+        } else {
+            document.getElementById('approveSection').classList.add('d-none');
+            document.getElementById('rejectSection').classList.remove('d-none');
+        }
+    }
+
+    async function submitProcess() {
+        const id = document.getElementById('processSubId').value;
+        const action = document.getElementById('processAction').value;
+        const isApproved = action === 'approve';
+        
+        let refundAmount = 0;
+        let rejectReason = '';
+
+        if (isApproved) {
+            refundAmount = parseFloat(document.getElementById('refundAmount').value) || 0;
+            if (refundAmount < 0) {
+                alert('Số tiền hoàn không hợp lệ');
+                return;
+            }
+        } else {
+            rejectReason = document.getElementById('rejectReason').value.trim();
+            if (!rejectReason) {
+                alert('Vui lòng nhập lý do từ chối!');
+                return;
+            }
+        }
+
+        try {
+            await apiFetch(`/Subscriptions/${id}/process-cancel`, 'POST', {
+                isApproved: isApproved,
+                refundAmount: refundAmount,
+                rejectReason: rejectReason
+            });
+            alert('Đã xử lý yêu cầu thành công!');
+            processModalInstance.hide();
+            loadAllSubscriptions(); // Reload data
+        } catch (error) {
+            alert('Lỗi xử lý: ' + error.message);
+        }
+    }
+
+    function openForceCancelModal(id) {
+        document.getElementById('forceCancelSubId').value = id;
+        document.getElementById('forceRefundAmount').value = 0;
+        document.getElementById('forceCancelReason').value = '';
+        forceCancelModalInstance.show();
+    }
+
+    async function submitForceCancel() {
+        const id = document.getElementById('forceCancelSubId').value;
+        const refundAmount = parseFloat(document.getElementById('forceRefundAmount').value) || 0;
+        const reason = document.getElementById('forceCancelReason').value.trim();
+
+        if (refundAmount < 0) {
+            alert('Số tiền hoàn không hợp lệ');
+            return;
+        }
+        if (!reason) {
+            alert('Vui lòng nhập lý do hủy vé!');
+            return;
+        }
+
+        try {
+            await apiFetch(`/Subscriptions/${id}/admin-cancel`, 'POST', {
+                refundAmount: refundAmount,
+                reason: reason
+            });
+            alert('Đã hủy vé thành công!');
+            forceCancelModalInstance.hide();
+            loadAllSubscriptions();
+        } catch (error) {
+            alert('Lỗi hủy vé: ' + error.message);
+        }
+    }
+</script>
+</body>
+</html>
