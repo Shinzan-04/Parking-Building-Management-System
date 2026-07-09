@@ -13,6 +13,7 @@ import {
 import {
   ArrowLeft,
   Car,
+  Bike,
   Plus,
   Trash2,
   Edit2,
@@ -267,7 +268,11 @@ export default function MyVehiclePage() {
                   >
                     <div className="flex items-start gap-4">
                       <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-white/5 flex items-center justify-center text-stone-550 dark:text-stone-400 border border-gray-150 dark:border-white/10 shadow-inner shrink-0 transition-colors duration-300">
-                        <Car size={22} />
+                        {vehicle.vehicleTypeName.toLowerCase().includes('motor') || vehicle.vehicleTypeName.toLowerCase().includes('xe máy') ? (
+                          <Bike size={22} />
+                        ) : (
+                          <Car size={22} />
+                        )}
                       </div>
 
                       <div className="space-y-1">
