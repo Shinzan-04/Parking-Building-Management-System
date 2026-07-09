@@ -20,6 +20,7 @@ const AdminPricing      = lazy(() => import('./pages/Admin/Pricing'));
 const AdminSessions     = lazy(() => import('./pages/Admin/Sessions'));
 const AdminReservations = lazy(() => import('./pages/Admin/Reservations'));
 const AdminVehicleTypes = lazy(() => import('./pages/Admin/VehicleTypes'));
+const AdminAuditLogs    = lazy(() => import('./pages/Admin/AuditLogs'));
 
 const ManagerLayout       = lazy(() => import('./pages/Manager/ManagerLayout'));
 const ManagerDashboard    = lazy(() => import('./pages/Manager/Dashboard'));
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="sessions"      element={<AdminSessions />} />
             <Route path="reservations"  element={<AdminReservations />} />
             <Route path="vehicle-types" element={<AdminVehicleTypes />} />
+            <Route path="audit-logs"    element={<AdminAuditLogs />} />
           </Route>
 
           {/* Manager Portal - chỉ Manager */}
