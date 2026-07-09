@@ -48,8 +48,15 @@ export interface PricingPolicyResponse {
   dailyRate: number;             // Giá trọn ngày
   overtimeMultiplier: number;    // Hệ số tính phí overtime (mặc định 1.5)
 
+  // Versioning — thêm từ migration AddPricingPolicyVersioning
+  version: number;               // Số phiên bản (1, 2, 3,...)
+  isActive: boolean;             // Chính sách đang có hiệu lực
+  effectiveDate: string;         // Ngày bắt đầu có hiệu lực (ISO string)
+  previousVersionId: string | null; // ID phiên bản trước đó
+
   createdAt: string;
 }
+
 
 export interface CreatePricingPolicyRequest {
   vehicleTypeId: string;

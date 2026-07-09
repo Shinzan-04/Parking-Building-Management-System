@@ -1,14 +1,16 @@
 /**
  * Admin/Pricing.tsx
  * Quản lý bảng giá Block Ngày/Đêm (dùng cho Booking)
+ * Hỗ trợ Pricing Policy Versioning từ migration AddPricingPolicyVersioning
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Plus, Pencil, Trash2, X,
   AlertTriangle, Loader2, RefreshCw,
   Sun, Moon, TrendingUp, Tag, Zap,
+  CheckCircle2, Clock, GitBranch, History,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getVehicleTypes } from '../../services/buildingsService';
@@ -37,7 +39,35 @@ const emptyForm = {
 };
 
 type PolicyForm = typeof emptyForm;
-type ModalMode  = 'add' | 'edit' | 'delete' | null;
+type ModalMode  = 'add' | 'edit' | 'delete' | 'history' | null;
+
+// ── Nhóm chính sách theo loại xe, lấy bản active + danh sách lịch sử ──────────
+interface PolicyGroup {
+  vehicleTypeId: string;
+  vehicleTypeName: string;
+  active: PricingPolicyResponse | null;
+  history: PricingPolicyResponse[];
+}
+
+function groupPolicies(policies: PricingPolicyResponse[]): PolicyGroup[] {
+  const map = new Map<string, PolicyGroup>();
+  // Sắp xếp theo version giảm dần để active luôn ở đầu
+  const sorted = [...policies].sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
+
+  for (const p of sorted) {
+    const key = p.vehicleTypeId;
+    if (!map.has(key)) {
+      map.set(key, { vehicleTypeId: key, vehicleTypeName: p.vehicleTypeName || '', active: null, history: [] });
+    }
+    const group = map.get(key)!;
+    if (p.isActive && !group.active) {
+      group.active = p;
+    } else {
+      group.history.push(p);
+    }
+  }
+  return Array.from(map.values());
+}
 
 export default function AdminPricing() {
   const { token } = useAuth();
@@ -48,10 +78,11 @@ export default function AdminPricing() {
   const [refreshing, setRefreshing]     = useState(false);
   const [apiError, setApiError]         = useState('');
 
-  const [modal, setModal]           = useState<ModalMode>(null);
-  const [selected, setSelected]     = useState<PricingPolicyResponse | null>(null);
-  const [form, setForm]             = useState<PolicyForm>(emptyForm);
-  const [formError, setFormError]   = useState('');
+  const [modal, setModal]         = useState<ModalMode>(null);
+  const [selected, setSelected]   = useState<PricingPolicyResponse | null>(null);
+  const [historyGroup, setHistoryGroup] = useState<PolicyGroup | null>(null);
+  const [form, setForm]           = useState<PolicyForm>(emptyForm);
+  const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const loadData = useCallback(async (silent = false) => {
@@ -73,8 +104,10 @@ export default function AdminPricing() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  const groups = useMemo(() => groupPolicies(policies), [policies]);
+
   const closeModal = () => {
-    setModal(null); setSelected(null); setFormError(''); setSubmitting(false);
+    setModal(null); setSelected(null); setHistoryGroup(null); setFormError(''); setSubmitting(false);
   };
 
   const openAdd = () => {
@@ -186,8 +219,10 @@ export default function AdminPricing() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Bảng giá & Chính sách phí</h2>
-          <p className="text-sm text-white/40 mt-0.5">{policies.length} chính sách</p>
+          <h2 className="text-2xl font-bold text-white">Bảng giá &amp; Chính sách phí</h2>
+          <p className="text-sm text-white/40 mt-0.5">
+            {groups.length} loại xe · {policies.filter(p => p.isActive).length} chính sách đang áp dụng
+          </p>
         </div>
         <button
           onClick={() => loadData(true)}
@@ -209,7 +244,7 @@ export default function AdminPricing() {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-base font-semibold text-white">Bảng giá Block Ngày / Đêm</h3>
-          <p className="text-xs text-white/40 mt-0.5">Cấu hình giá theo từng block thời gian ban ngày và ban đêm (dùng cho Booking)</p>
+          <p className="text-xs text-white/40 mt-0.5">Mỗi lần cập nhật sẽ tạo phiên bản mới, giữ lại lịch sử để thống kê chính xác</p>
         </div>
         <button
           onClick={openAdd}
@@ -220,65 +255,124 @@ export default function AdminPricing() {
         </button>
       </div>
 
-      {/* Cards */}
+      {/* Policy Groups */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {policies.length === 0 && (
+        {groups.length === 0 && (
           <p className="col-span-3 text-center py-12 text-white/30 text-sm">Chưa có chính sách giá nào.</p>
         )}
-        {policies.map(p => (
-          <div key={p.id} className="glass-card p-5 rounded-2xl space-y-4 hover:border-white/20 transition-all">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <Tag size={16} className="text-amber-500" />
-                </div>
-                <p className="text-xs text-white/40">Block {p.blockDurationHours}h · đêm {p.nightStartHour}h–{p.nightEndHour}h</p>
-              </div>
-              <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-semibold">
-                {p.vehicleTypeName || vehicleTypes.find(v => v.id === p.vehicleTypeId)?.name || p.vehicleTypeId}
-              </span>
-            </div>
 
-            <div className="space-y-2.5">
-              {[
-                { icon: Sun,        label: 'Ban ngày / block',  value: vnd(p.dayBlockRate),        color: '#F59E0B' },
-                { icon: Moon,       label: 'Ban đêm / block',   value: vnd(p.nightBlockRate),      color: '#A78BFA' },
-                { icon: TrendingUp, label: 'Giá trọn ngày',     value: vnd(p.dailyRate),           color: '#F87171' },
-                { icon: Zap,        label: 'Hệ số overtime',    value: `×${p.overtimeMultiplier}`, color: '#34D399' },
-              ].map(row => {
-                const Icon = row.icon;
-                return (
-                  <div key={row.label} className="flex items-center justify-between px-3 py-2 bg-white/[0.04] rounded-xl">
-                    <div className="flex items-center gap-2 text-xs text-white/50">
-                      <Icon size={12} style={{ color: row.color }} />
-                      {row.label}
-                    </div>
-                    <span className="text-sm font-semibold text-white">{row.value}</span>
+        {groups.map(group => {
+          const p = group.active;
+          return (
+            <div key={group.vehicleTypeId} className="glass-card p-5 rounded-2xl space-y-4 hover:border-white/20 transition-all">
+              {/* Card header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/10 flex items-center justify-center">
+                    <Tag size={16} className="text-amber-500" />
                   </div>
-                );
-              })}
-            </div>
+                  <div>
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-semibold">
+                      {group.vehicleTypeName}
+                    </span>
+                  </div>
+                </div>
 
-            <div className="text-xs text-white/30 pt-1 border-t border-white/5">
-              Tạo: {new Date(p.createdAt).toLocaleDateString('vi-VN')}
-            </div>
+                {/* Version & Status badge */}
+                <div className="flex items-center gap-1.5">
+                  {p ? (
+                    <>
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400">
+                        <CheckCircle2 size={10} />
+                        Hiệu lực
+                      </span>
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/5 text-white/40">
+                        <GitBranch size={10} />
+                        v{p.version ?? 1}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/5 text-white/30">
+                      Không active
+                    </span>
+                  )}
+                </div>
+              </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => openEdit(p)}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-amber-500/70 hover:text-amber-500 hover:bg-amber-500/10 transition-all"
-              >
-                <Pencil size={13} /> Sửa
-              </button>
-              <button
-                onClick={() => { setSelected(p); setModal('delete'); }}
-                className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-red-400/60 hover:text-red-400 hover:bg-red-400/10 transition-all"
-              >
-                <Trash2 size={13} /> Xoá
-              </button>
+              {p ? (
+                <>
+                  {/* Effective date */}
+                  {p.effectiveDate && (
+                    <div className="flex items-center gap-1.5 text-xs text-white/30">
+                      <Clock size={11} />
+                      Áp dụng từ: {new Date(p.effectiveDate).toLocaleDateString('vi-VN')}
+                      {p.previousVersionId && (
+                        <span className="ml-1 text-white/20">(có lịch sử)</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Block info */}
+                  <p className="text-xs text-white/30">Block {p.blockDurationHours}h · Đêm {p.nightStartHour}h–{p.nightEndHour}h</p>
+
+                  {/* Rate rows */}
+                  <div className="space-y-2.5">
+                    {[
+                      { icon: Sun,        label: 'Ban ngày / block',  value: vnd(p.dayBlockRate),        color: '#F59E0B' },
+                      { icon: Moon,       label: 'Ban đêm / block',   value: vnd(p.nightBlockRate),      color: '#A78BFA' },
+                      { icon: TrendingUp, label: 'Giá trọn ngày',     value: vnd(p.dailyRate),           color: '#F87171' },
+                      { icon: Zap,        label: 'Hệ số overtime',    value: `×${p.overtimeMultiplier}`, color: '#34D399' },
+                    ].map(row => {
+                      const Icon = row.icon;
+                      return (
+                        <div key={row.label} className="flex items-center justify-between px-3 py-2 bg-white/[0.04] rounded-xl">
+                          <div className="flex items-center gap-2 text-xs text-white/50">
+                            <Icon size={12} style={{ color: row.color }} />
+                            {row.label}
+                          </div>
+                          <span className="text-sm font-semibold text-white">{row.value}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Footer meta */}
+                  <div className="text-xs text-white/30 pt-1 border-t border-white/5">
+                    Tạo: {new Date(p.createdAt).toLocaleDateString('vi-VN')}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openEdit(p)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-amber-500/70 hover:text-amber-500 hover:bg-amber-500/10 transition-all"
+                    >
+                      <Pencil size={13} /> Cập nhật giá
+                    </button>
+                    {group.history.length > 0 && (
+                      <button
+                        onClick={() => { setHistoryGroup(group); setModal('history'); }}
+                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-white/30 hover:text-white/60 hover:bg-white/5 transition-all"
+                        title={`${group.history.length} phiên bản cũ`}
+                      >
+                        <History size={13} />
+                        {group.history.length}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { setSelected(p); setModal('delete'); }}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-red-400/60 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-white/30 py-4 text-center">Không có chính sách đang hiệu lực</p>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ══ Add / Edit Modal ══ */}
@@ -286,9 +380,17 @@ export default function AdminPricing() {
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-md shadow-2xl bg-white dark:bg-[#0E0E10] max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 shrink-0">
-              <h3 className="text-base font-semibold text-gray-800 dark:text-white">
-                {modal === 'add' ? 'Thêm chính sách giá' : `Sửa chính sách · ${selected?.vehicleTypeName}`}
-              </h3>
+              <div>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">
+                  {modal === 'add' ? 'Thêm chính sách giá' : `Cập nhật giá · ${selected?.vehicleTypeName}`}
+                </h3>
+                {modal === 'edit' && (
+                  <p className="text-xs text-white/40 mt-0.5 flex items-center gap-1">
+                    <GitBranch size={10} />
+                    Sẽ tạo phiên bản mới v{(selected?.version ?? 0) + 1} — lịch sử được giữ lại
+                  </p>
+                )}
+              </div>
               <button onClick={closeModal} className="p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
                 <X size={16} />
               </button>
@@ -411,8 +513,64 @@ export default function AdminPricing() {
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                {modal === 'add' ? 'Tạo chính sách' : 'Lưu thay đổi'}
+                {modal === 'add' ? 'Tạo chính sách' : 'Lưu & tạo phiên bản mới'}
               </button>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+
+      {/* ══ History Modal ══ */}
+      {modal === 'history' && historyGroup && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl bg-[#0E0E10] max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 shrink-0">
+              <div>
+                <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                  <History size={16} className="text-white/40" />
+                  Lịch sử phiên bản · {historyGroup.vehicleTypeName}
+                </h3>
+                <p className="text-xs text-white/30 mt-0.5">{historyGroup.history.length} phiên bản cũ</p>
+              </div>
+              <button onClick={closeModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-6 py-4 space-y-3">
+              {historyGroup.history.map(p => (
+                <div key={p.id} className="rounded-xl border border-white/5 bg-white/[0.03] p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/5 text-white/40">
+                        <GitBranch size={10} /> v{p.version ?? '?'}
+                      </span>
+                      <span className="text-xs text-white/30">
+                        {p.effectiveDate ? new Date(p.effectiveDate).toLocaleDateString('vi-VN') : '—'}
+                      </span>
+                    </div>
+                    <span className="text-xs text-white/20">Tạo: {new Date(p.createdAt).toLocaleDateString('vi-VN')}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/[0.03] rounded-lg">
+                      <span className="text-white/40 flex items-center gap-1"><Sun size={10} className="text-amber-400" /> Ngày</span>
+                      <span className="text-white/70 font-medium">{vnd(p.dayBlockRate)}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/[0.03] rounded-lg">
+                      <span className="text-white/40 flex items-center gap-1"><Moon size={10} className="text-violet-400" /> Đêm</span>
+                      <span className="text-white/70 font-medium">{vnd(p.nightBlockRate)}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/[0.03] rounded-lg">
+                      <span className="text-white/40 flex items-center gap-1"><TrendingUp size={10} className="text-red-400" /> Nguyên ngày</span>
+                      <span className="text-white/70 font-medium">{vnd(p.dailyRate)}</span>
+                    </div>
+                    <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/[0.03] rounded-lg">
+                      <span className="text-white/40 flex items-center gap-1"><Zap size={10} className="text-emerald-400" /> Overtime</span>
+                      <span className="text-white/70 font-medium">×{p.overtimeMultiplier}</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -432,7 +590,7 @@ export default function AdminPricing() {
               </div>
             </div>
             <p className="text-sm text-gray-700 dark:text-white/70">
-              Xoá chính sách giá cho <span className="font-semibold text-gray-800 dark:text-white">{selected.vehicleTypeName}</span>?
+              Xoá chính sách <span className="font-semibold text-white">v{selected.version ?? '?'}</span> của <span className="font-semibold text-gray-800 dark:text-white">{selected.vehicleTypeName}</span>?
             </p>
             {formError && <p className="text-xs text-red-400">{formError}</p>}
             <div className="flex gap-3">
