@@ -505,8 +505,8 @@ export function computeEstimatedCostHelper(
     const isCapped = raw > maxAllowed;
 
     const breakdownArr = [];
-    if (dayBlocks > 0) breakdownArr.push(`${dayBlocks} Block Ngày (${policy.dayBlockRate.toLocaleString('vi-VN')}đ/bl)`);
-    if (nightBlocks > 0) breakdownArr.push(`${nightBlocks} Block Đêm (${policy.nightBlockRate.toLocaleString('vi-VN')}đ/bl)`);
+    if (dayBlocks > 0) breakdownArr.push(`${dayBlocks} Day blocks (${policy.dayBlockRate.toLocaleString('vi-VN')}đ/bl)`);
+    if (nightBlocks > 0) breakdownArr.push(`${nightBlocks} Night blocks (${policy.nightBlockRate.toLocaleString('vi-VN')}đ/bl)`);
     const breakdown = breakdownArr.join(' + ');
 
     return { total: capped, isCapped, breakdown, blocksDetails };
@@ -1576,17 +1576,29 @@ function ConfirmationPopup({
     return `${dd}/${mo}/${y}`;
   };
 
-  const exitTime = (() => {
-    if (!state.exitDate || !state.exitTime) return '--:--';
-    return state.exitTime;
+  const exitInfoCalc = (() => {
+    let exTime = state.exitTime;
+    let exDate = state.exitDate;
+
+    if (!exTime || !exDate) {
+      if (!state.entryDate || !state.entryTime) return { date: '--/--/----', time: '--:--' };
+      const [h, m] = state.entryTime.split(':').map(Number);
+      const entry = new Date(state.entryDate);
+      entry.setHours(h, m, 0, 0);
+
+      const exitFallback = new Date(entry.getTime() + (state.duration || 0) * 60 * 60 * 1000);
+      exTime = `${String(exitFallback.getHours()).padStart(2, '0')}:${String(exitFallback.getMinutes()).padStart(2, '0')}`;
+      exDate = getLocalDateStr(exitFallback);
+    }
+    return { date: formatDateDisplay(exDate), time: exTime };
   })();
 
   const rows = [
     { label: 'Parking Lot', value: lot.name },
     { label: 'License Plate', value: state.licensePlate },
-    { label: 'Vehicle Type', value: selectedVehicle ? `${isMotorbike ? '🏍️' : '🚗'} ${selectedVehicle.name}` : 'Not selected' },
+    { label: 'Vehicle Type', value: selectedVehicle ? selectedVehicle.name : 'Not selected' },
     { label: 'Entry Date', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
-    { label: 'Estimated Exit', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
+    { label: 'Estimated Exit', value: `${exitInfoCalc.date} ${exitInfoCalc.time}` },
     { label: 'Duration', value: `${state.duration}h` },
     { label: 'Location', value: `${floorLabel} › Slot ${state.slot}` },
   ];
@@ -1671,14 +1683,14 @@ function ConfirmationPopup({
                 <div className="flex-1 mr-4">
                   <p className="text-xs text-stone-400 font-bold mb-0.5">Estimated Total Cost</p>
                   <p className="text-xs text-stone-500 font-medium leading-relaxed">
-                    Cách tính: {costResult.breakdown}
+                    Calculation: {costResult.breakdown}
                   </p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-2xl font-black text-[#FF4C4C]">{formatCurrency(costResult.total)}</p>
                   {costResult.isCapped && (
                     <span className="text-[9px] font-bold text-purple-500 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded-full mt-1 inline-block">
-                      Giá trần/ngày
+                      Daily Cap applied
                     </span>
                   )}
                 </div>
@@ -1860,7 +1872,7 @@ function ConfirmationPopup({
                   { label: 'License Plate', value: state.licensePlate },
                   { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
                   { label: 'Entry Time', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
-                  { label: 'Est. Exit Time', value: `${formatDateDisplay(state.entryDate)} ${exitTime}` },
+                  { label: 'Est. Exit Time', value: `${exitInfoCalc.date} ${exitInfoCalc.time}` },
                 ].map(({ label, value }, i, arr) => (
                   <div
                     key={label}
