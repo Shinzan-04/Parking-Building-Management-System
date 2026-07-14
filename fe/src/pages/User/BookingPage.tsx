@@ -101,6 +101,7 @@ const todayDateStr = () => {
 
 const nowTimeStr = () => {
   const d = new Date();
+  d.setMinutes(d.getMinutes() + 5);
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 };
 
@@ -310,17 +311,17 @@ function StepLicensePlate({
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-gray-100 dark:bg-white/5 text-stone-400 group-hover:bg-[#FF4C4C]/10 group-hover:text-[#FF4C4C]">
                   <ClipboardList size={24} strokeWidth={1.5} />
                 </div>
-                <span className="text-sm">Xe đã lưu</span>
+                <span className="text-sm">Saved Vehicles</span>
               </button>
               <button
                 type="button"
-                onClick={() => setState((s) => ({ ...s, plateInputType: 'manual' }))}
+                onClick={() => setState((s) => ({ ...s, plateInputType: 'manual', licensePlate: '' }))}
                 className="flex-1 flex flex-col items-center justify-center gap-3 py-6 px-4 rounded-2xl font-bold transition-all duration-200 border-2 border-gray-200/80 dark:border-white/10 bg-white dark:bg-[#18181B] text-stone-500 hover:border-[#FF4C4C] hover:bg-[#FF4C4C]/5 hover:text-[#FF4C4C] group shadow-sm hover:shadow-md hover:shadow-[#FF4C4C]/10"
               >
                 <div className="w-12 h-12 rounded-xl flex items-center justify-center transition-colors bg-gray-100 dark:bg-white/5 text-stone-400 group-hover:bg-[#FF4C4C]/10 group-hover:text-[#FF4C4C]">
                   <span className="text-lg font-black tracking-widest">A1</span>
                 </div>
-                <span className="text-sm">Nhập thủ công</span>
+                <span className="text-sm">Manual Entry</span>
               </button>
             </div>
           )}
@@ -432,7 +433,7 @@ function StepLicensePlate({
                     htmlFor="saveVehicle"
                     className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer transition-colors"
                   >
-                    Lưu phương tiện này để sử dụng cho lần sau
+                    Save this vehicle for future use
                   </label>
                 </div>
 
@@ -751,7 +752,7 @@ function StepDateTime({
         onSelectDate={(date) => {
           let newExitDate = exitInfo.rawDate || state.exitDate;
           if (new Date(date) > new Date(newExitDate)) newExitDate = date;
-          setState((s) => ({ ...s, entryDate: date, exitDate: newExitDate, exitTime: undefined, duration: 1 }));
+          setState((s) => ({ ...s, entryDate: date, exitDate: newExitDate, exitTime: undefined, duration: 4 }));
         }}
       />
 
@@ -761,7 +762,7 @@ function StepDateTime({
         selectedDate={state.entryDate}
         selectedTime={state.entryTime}
         onSelectTime={(time) => {
-          setState((s) => ({ ...s, entryTime: time, exitTime: undefined, duration: 1 }));
+          setState((s) => ({ ...s, entryTime: time, exitTime: undefined, duration: 4 }));
         }}
       />
 
@@ -2018,7 +2019,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
     entryDate: todayDateStr(),
     entryTime: nowTimeStr(),
     exitDate: todayDateStr(),
-    duration: 1,
+    duration: 4,
     floor: null,
     slot: null,
     slotId: null,
@@ -2230,7 +2231,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
         entry.setHours(h, m, 0, 0);
 
         if (entry <= now) {
-          toast.error('Thời gian bắt đầu phải lớn hơn thời điểm hiện tại.');
+          toast.error('Thời gian chọn đã trôi qua. Vui lòng chọn thời gian khác mới hơn.');
           return;
         }
       }

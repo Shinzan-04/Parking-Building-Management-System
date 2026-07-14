@@ -159,15 +159,26 @@ export default function TimePickerModal({
     return 0;
   };
 
+  const [currentTick, setCurrentTick] = useState(0);
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setInterval(() => {
+        setCurrentTick(prev => prev + 1);
+      }, 10000); // refresh limits every 10 seconds while open
+      return () => clearInterval(timer);
+    }
+  }, [isOpen]);
+
   const validHours = useMemo(() => {
     const minH = getMinHour();
     return HOURS.filter(h => h >= minH);
-  }, [minTimeLimit, selectedDate, disablePastTime]);
+  }, [minTimeLimit, selectedDate, disablePastTime, currentTick]);
 
   const validMinutes = useMemo(() => {
     const minM = getMinMinute(selectedHour);
     return MINUTES.filter(m => m >= minM);
-  }, [selectedHour, minTimeLimit, selectedDate, disablePastTime]);
+  }, [selectedHour, minTimeLimit, selectedDate, disablePastTime, currentTick]);
 
   const handleHourScroll = () => {
     if (!hourScrollRef.current || isProgrammaticScrollHour.current) return;
@@ -215,6 +226,23 @@ export default function TimePickerModal({
   };
 
   const handleConfirm = () => {
+    // Realtime Re-Validation to prevent idle selection bypass
+    const currentMinHour = getMinHour();
+    const currentMinMinute = getMinMinute(selectedHour);
+
+    if (selectedHour < currentMinHour || (selectedHour === currentMinHour && selectedMinute < currentMinMinute)) {
+      import('react-hot-toast').then(({ default: toast }) => {
+        toast.error('Thời gian bạn chọn không còn hợp lệ do đã trôi qua hoặc quá gần. Vui lòng chọn khung giờ mới.');
+      });
+      // Force UI refresh
+      setCurrentTick(prev => prev + 1);
+      
+      // Auto-correct to minimum valid time
+      setSelectedHour(currentMinHour);
+      setSelectedMinute(currentMinMinute);
+      return; 
+    }
+
     const hStr = String(selectedHour).padStart(2, '0');
     const mStr = String(selectedMinute).padStart(2, '0');
     onSelectTime(`${hStr}:${mStr}`);
