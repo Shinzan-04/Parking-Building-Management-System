@@ -115,6 +115,8 @@ public class PayOSPaymentService : IPaymentService
                 Amount = request.Amount,
                 Description = request.Description ?? string.Empty,
                 CheckoutUrl = result.CheckoutUrl ?? string.Empty,
+                // QrCode là chuỗi EMVCo VietQR — app ngân hàng có thể quét trực tiếp
+                QrCode = result.QrCode ?? string.Empty,
                 CreatedAt = payment.CreatedAt
             };
         }
@@ -218,25 +220,41 @@ public class PayOSPaymentService : IPaymentService
             // Xử lý nạp tiền vào ví (Top-up Wallet)
             Guid? walletUserId = null;
             decimal walletNewBalance = 0;
+            Guid? activatedSubscriptionId = null;
             if (payment.Status == PaymentStatus.Success && payment.UserId.HasValue && !payment.ReservationId.HasValue && !payment.ParkingSessionId.HasValue)
             {
-                var user = await _context.Users.FindAsync(payment.UserId.Value);
-                if (user != null)
+                // Kiểm tra xem Payment này có thuộc về Subscription (Vé tháng) nào không
+                var subscription = await _context.Subscriptions.FirstOrDefaultAsync(s => s.PaymentId == payment.Id);
+
+                if (subscription != null)
                 {
-                    user.Balance += payment.Amount;
-                    walletNewBalance = user.Balance;
-                    walletUserId = user.Id;
-                    _context.WalletTransactions.Add(new WalletTransaction
+                    // Nếu là thanh toán vé tháng -> Kích hoạt vé
+                    subscription.Status = SubscriptionStatus.Active;
+                    subscription.UpdatedAt = DateTime.UtcNow;
+                    activatedSubscriptionId = subscription.Id;
+                    _logger.LogInformation("Activated Subscription {SubscriptionId} via PayOS Webhook", subscription.Id);
+                }
+                else
+                {
+                    // Nếu không phải vé tháng -> Nạp tiền vào ví
+                    var user = await _context.Users.FindAsync(payment.UserId.Value);
+                    if (user != null)
                     {
-                        Id = Guid.NewGuid(),
-                        UserId = user.Id,
-                        Amount = payment.Amount,
-                        Type = "Deposit",
-                        Status = "Success",
-                        Description = $"Nạp tiền vào ví qua PayOS (Order: {payment.PayOSOrderCode})",
-                        ReferenceId = payment.PayOSOrderCode.ToString(),
-                        CreatedAt = DateTime.UtcNow
-                    });
+                        user.Balance += payment.Amount;
+                        walletNewBalance = user.Balance;
+                        walletUserId = user.Id;
+                        _context.WalletTransactions.Add(new WalletTransaction
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = user.Id,
+                            Amount = payment.Amount,
+                            Type = "Deposit",
+                            Status = "Success",
+                            Description = $"Nạp tiền vào ví qua PayOS (Order: {payment.PayOSOrderCode})",
+                            ReferenceId = payment.PayOSOrderCode.ToString(),
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
                 }
             }
 
@@ -246,6 +264,22 @@ public class PayOSPaymentService : IPaymentService
             if (walletUserId.HasValue)
             {
                 await _realtimeService.SendWalletUpdateAsync(walletUserId.Value, walletNewBalance);
+            }
+
+            // Thông báo cho tài xế khi vé tháng được kích hoạt qua PayOS
+            if (activatedSubscriptionId.HasValue)
+            {
+                var activatedSub = await _context.Subscriptions.FindAsync(activatedSubscriptionId.Value);
+                if (activatedSub != null)
+                {
+                    await _notificationService.SendAsync(
+                        activatedSub.DriverId,
+                        "Vé tháng đã kích hoạt",
+                        $"Vé tháng cho xe {activatedSub.LicensePlate} đã thanh toán thành công và có hiệu lực đến {activatedSub.EndDate:dd/MM/yyyy}.",
+                        "SubscriptionActivated",
+                        activatedSub.Id
+                    );
+                }
             }
 
             // Bắn thông báo Realtime SignalR cho App Driver SAU KHI đã lưu DB thành công
