@@ -51,6 +51,15 @@ public class SubscriptionsController : ControllerBase
     }
 
     [Authorize]
+    [HttpPost("{id}/verify-payment")]
+    public async Task<IActionResult> VerifySubscriptionPayment(Guid id)
+    {
+        var driverId = GetCurrentUserId();
+        var isActive = await _subscriptionService.VerifySubscriptionPaymentAsync(id, driverId);
+        return Ok(new { isActive });
+    }
+
+    [Authorize]
     [HttpPost("{id}/cancel")]
     public async Task<IActionResult> CancelSubscription(Guid id)
     {

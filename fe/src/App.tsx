@@ -21,6 +21,7 @@ const AdminSessions     = lazy(() => import('./pages/Admin/Sessions'));
 const AdminReservations = lazy(() => import('./pages/Admin/Reservations'));
 const AdminVehicleTypes = lazy(() => import('./pages/Admin/VehicleTypes'));
 const AdminAuditLogs    = lazy(() => import('./pages/Admin/AuditLogs'));
+const AdminMonthlyPassRequests = lazy(() => import('./pages/Admin/MonthlyPassRequests'));
 
 const ManagerLayout       = lazy(() => import('./pages/Manager/ManagerLayout'));
 const ManagerDashboard    = lazy(() => import('./pages/Manager/Dashboard'));
@@ -32,6 +33,7 @@ const ManagerReports      = lazy(() => import('./pages/Manager/Reports'));
 const ManagerReservations = lazy(() => import('./pages/Manager/Reservations'));
 const ManagerStaff        = lazy(() => import('./pages/Manager/Staff'));
 const ManagerRefunds      = lazy(() => import('./pages/Manager/Refunds'));
+const ManagerMonthlyPassRequests = lazy(() => import('./pages/Manager/MonthlyPassRequests'));
 
 const GateControlPage  = lazy(() => import('./pages/GateControlPage'));
 const StaffLayout      = lazy(() => import('./pages/Staff/StaffLayout'));
@@ -49,6 +51,7 @@ const LiveSessionPage  = lazy(() => import('./pages/User/LiveSessionPage'));
 const BookingPage      = lazy(() => import('./pages/User/BookingPage'));
 const WalletPage       = lazy(() => import('./pages/User/WalletPage'));
 const UserLayout       = lazy(() => import('./pages/User/UserLayout'));
+const MonthlyPassPage  = lazy(() => import('./pages/User/MonthlyPassPage'));
 export default function App() {
   return (
     <BrowserRouter>
@@ -63,6 +66,7 @@ export default function App() {
             <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
             <Route path="/live-session" element={<ProtectedRoute element={<LiveSessionPage />} />} />
             <Route path="/wallet" element={<ProtectedRoute element={<WalletPage />} />} />
+            <Route path="/monthly-pass" element={<MonthlyPassPage />} />
           </Route>
           <Route path="/payment-result" element={<PaymentResultPage />} />
           <Route path="/payment-success" element={<PaymentResultPage />} />
@@ -87,6 +91,7 @@ export default function App() {
             <Route path="sessions"      element={<AdminSessions />} />
             <Route path="reservations"  element={<AdminReservations />} />
             <Route path="vehicle-types" element={<AdminVehicleTypes />} />
+            <Route path="monthly-pass"  element={<AdminMonthlyPassRequests />} />
             <Route path="audit-logs"    element={<AdminAuditLogs />} />
           </Route>
 
@@ -104,6 +109,7 @@ export default function App() {
             <Route path="reservations"  element={<ManagerReservations />} />
             <Route path="reports"       element={<ManagerReports />} />
             <Route path="refunds"       element={<ManagerRefunds />} />
+            <Route path="monthly-pass"  element={<ManagerMonthlyPassRequests />} />
           </Route>
 
           {/* Staff Portal */}

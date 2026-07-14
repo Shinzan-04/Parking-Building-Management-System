@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Car, MapPin, BarChart3, LogOut,
-  DollarSign, ClipboardList, CalendarCheck, Sun, Moon, Home, UserCheck, Banknote,
+  DollarSign, ClipboardList, CalendarCheck, Sun, Moon, Home, UserCheck, Banknote, Ticket,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
@@ -17,6 +17,7 @@ const navItems = [
   { to: '/manager/sessions',         label: 'Phiên đỗ xe',  icon: ClipboardList,   end: false },
   { to: '/manager/reservations',     label: 'Đặt chỗ',      icon: CalendarCheck,   end: false },
   { to: '/manager/refunds',          label: 'Hoàn tiền',    icon: Banknote,        end: false },
+  { to: '/manager/monthly-pass',     label: 'Vé tháng',     icon: Ticket,          end: false },
   { to: '/manager/reports',          label: 'Báo cáo',      icon: BarChart3,       end: false },
 ];
 

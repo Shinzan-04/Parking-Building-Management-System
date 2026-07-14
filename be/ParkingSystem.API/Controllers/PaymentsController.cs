@@ -77,7 +77,8 @@ public class PaymentsController : ControllerBase
     public async Task<IActionResult> VerifyPayment(
         long orderCode,
         [FromServices] IReservationService reservationService,
-        [FromServices] ParkingSystem.Infrastructure.Data.ApplicationDbContext context)
+        [FromServices] ParkingSystem.Infrastructure.Data.ApplicationDbContext context,
+        [FromServices] INotificationService notificationService)
     {
         try
         {
@@ -98,25 +99,47 @@ public class PaymentsController : ControllerBase
                     }
                     else if (payment.UserId.HasValue && !payment.ReservationId.HasValue && !payment.ParkingSessionId.HasValue && payment.Status == ParkingSystem.Domain.Enums.PaymentStatus.Pending)
                     {
-                        // Xử lý nạp tiền vào ví
-                        var user = await context.Users.FindAsync(payment.UserId.Value);
-                        if (user != null)
+                        // Kiểm tra xem Payment này có thuộc về Subscription (Vé tháng) nào không
+                        var subscription = await context.Subscriptions.FirstOrDefaultAsync(s => s.PaymentId == payment.Id);
+                        
+                        if (subscription != null)
                         {
-                            user.Balance += payment.Amount;
-                            context.WalletTransactions.Add(new ParkingSystem.Domain.Entities.WalletTransaction
-                            {
-                                Id = Guid.NewGuid(),
-                                UserId = user.Id,
-                                Amount = payment.Amount,
-                                Type = "Deposit",
-                                Status = "Success",
-                                Description = $"Nạp tiền vào ví qua PayOS (Order: {payment.PayOSOrderCode})",
-                                ReferenceId = payment.PayOSOrderCode.ToString(),
-                                CreatedAt = DateTime.UtcNow
-                            });
+                            subscription.Status = ParkingSystem.Domain.Enums.SubscriptionStatus.Active;
+                            subscription.UpdatedAt = DateTime.UtcNow;
                             payment.Status = ParkingSystem.Domain.Enums.PaymentStatus.Success;
                             payment.UpdatedAt = DateTime.UtcNow;
                             await context.SaveChangesAsync();
+
+                            await notificationService.SendAsync(
+                                subscription.DriverId,
+                                "Vé tháng đã kích hoạt",
+                                $"Vé tháng cho xe {subscription.LicensePlate} đã thanh toán thành công và có hiệu lực đến {subscription.EndDate:dd/MM/yyyy}.",
+                                "SubscriptionActivated",
+                                subscription.Id
+                            );
+                        }
+                        else
+                        {
+                            // Xử lý nạp tiền vào ví
+                            var user = await context.Users.FindAsync(payment.UserId.Value);
+                            if (user != null)
+                            {
+                                user.Balance += payment.Amount;
+                                context.WalletTransactions.Add(new ParkingSystem.Domain.Entities.WalletTransaction
+                                {
+                                    Id = Guid.NewGuid(),
+                                    UserId = user.Id,
+                                    Amount = payment.Amount,
+                                    Type = "Deposit",
+                                    Status = "Success",
+                                    Description = $"Nạp tiền vào ví qua PayOS (Order: {payment.PayOSOrderCode})",
+                                    ReferenceId = payment.PayOSOrderCode.ToString(),
+                                    CreatedAt = DateTime.UtcNow
+                                });
+                                payment.Status = ParkingSystem.Domain.Enums.PaymentStatus.Success;
+                                payment.UpdatedAt = DateTime.UtcNow;
+                                await context.SaveChangesAsync();
+                            }
                         }
                     }
                 }

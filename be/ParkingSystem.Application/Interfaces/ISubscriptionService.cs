@@ -21,7 +21,13 @@ public interface ISubscriptionService
     Task<object> RegisterSubscriptionAsync(Guid driverId, RegisterSubscriptionRequest request);
 
     Task<bool> CancelSubscriptionAsync(Guid id, Guid driverId);
-    
+
+    /// <summary>
+    /// Verify trạng thái thanh toán PayOS của một Subscription đang PendingPayment và kích hoạt nếu đã thanh toán.
+    /// Dùng khi FE polling / user quay lại kiểm tra thủ công, không phụ thuộc webhook.
+    /// </summary>
+    Task<bool> VerifySubscriptionPaymentAsync(Guid id, Guid driverId);
+
     Task<bool> RequestCancelAsync(Guid id, Guid driverId, string reason);
     Task<bool> ProcessCancelRequestAsync(Guid id, Guid adminId, bool isApproved, decimal refundAmount, string? rejectReason);
     Task<bool> AdminForceCancelAsync(Guid id, Guid adminId, decimal refundAmount, string reason);

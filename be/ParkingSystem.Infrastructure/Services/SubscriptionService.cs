@@ -297,9 +297,14 @@ public class SubscriptionService : ISubscriptionService
 
                 return new
                 {
-                    Message = "Vui lòng thanh toán qua link PayOS.",
+                    Message = "Vui lòng thanh toán qua PayOS.",
                     SubscriptionId = subscription.Id,
-                    CheckoutUrl = payOSResponse.CheckoutUrl
+                    CheckoutUrl = payOSResponse.CheckoutUrl,
+                    // Chuỗi QR VietQR thật — frontend render thành ảnh QR để user quét
+                    QrCode = payOSResponse.QrCode,
+                    // OrderCode — dùng để FE poll GET /api/payments/verify/{orderCode} và kích hoạt vé
+                    // ngay cả khi webhook PayOS không gọi tới được (vd. backend chạy local)
+                    OrderCode = payOSResponse.OrderCode
                 };
             }
             else
@@ -327,6 +332,37 @@ public class SubscriptionService : ISubscriptionService
             return true;
         }
         return false;
+    }
+
+    public async Task<bool> VerifySubscriptionPaymentAsync(Guid id, Guid driverId)
+    {
+        var sub = await _context.Subscriptions.FirstOrDefaultAsync(s => s.Id == id && s.DriverId == driverId);
+        if (sub == null || sub.Status != SubscriptionStatus.PendingPayment || !sub.PaymentId.HasValue)
+            return sub?.Status == SubscriptionStatus.Active;
+
+        var payment = await _context.Payments.FindAsync(sub.PaymentId.Value);
+        if (payment == null || payment.PaymentMethod != PaymentMethod.PayOS)
+            return false;
+
+        var (_, status) = await _paymentService.VerifyPayOSPaymentAsync(payment.PayOSOrderCode);
+        if (status != PaymentStatus.Success)
+            return false;
+
+        payment.Status = PaymentStatus.Success;
+        payment.UpdatedAt = DateTime.UtcNow;
+        sub.Status = SubscriptionStatus.Active;
+        sub.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        await _notificationService.SendAsync(
+            sub.DriverId,
+            "Vé tháng đã kích hoạt",
+            $"Vé tháng cho xe {sub.LicensePlate} đã thanh toán thành công và có hiệu lực đến {sub.EndDate:dd/MM/yyyy}.",
+            "SubscriptionActivated",
+            sub.Id
+        );
+
+        return true;
     }
 
     public async Task<bool> RequestCancelAsync(Guid id, Guid driverId, string reason)
