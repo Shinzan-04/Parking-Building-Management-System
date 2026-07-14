@@ -1411,8 +1411,16 @@ function ConfirmationPopup({
       const entry = new Date(state.entryDate);
       entry.setHours(h, m, 0, 0);
 
-      const exit = new Date(state.exitDate);
-      const exTime = state.exitTime || state.entryTime;
+      let exTime = state.exitTime;
+      let exDate = state.exitDate;
+
+      if (!exTime || !exDate) {
+        const exitFallback = new Date(entry.getTime() + (state.duration || 0) * 60 * 60 * 1000);
+        exTime = `${String(exitFallback.getHours()).padStart(2, '0')}:${String(exitFallback.getMinutes()).padStart(2, '0')}`;
+        exDate = getLocalDateStr(exitFallback);
+      }
+
+      const exit = new Date(exDate);
       const [exH, exM] = exTime.split(':').map(Number);
       exit.setHours(exH, exM, 0, 0);
 
