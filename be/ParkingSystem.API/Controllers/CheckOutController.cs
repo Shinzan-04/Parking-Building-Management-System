@@ -29,7 +29,7 @@ public class CheckOutController : ControllerBase
     /// </summary>
     /// <param name="licensePlate">Bien so xe can tim (khong can chuan hoa truoc)</param>
     [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string? qrCode, [FromQuery] string licensePlate, [FromQuery] Guid? buildingId)
+    public async Task<IActionResult> Search([FromQuery] string? qrCode = null, [FromQuery] string? licensePlate = null, [FromQuery] Guid? buildingId = null)
     {
         if (string.IsNullOrWhiteSpace(qrCode) && string.IsNullOrWhiteSpace(licensePlate))
         {
