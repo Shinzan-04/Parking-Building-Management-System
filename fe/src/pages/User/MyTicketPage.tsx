@@ -72,7 +72,7 @@ export default function MyTicketPage() {
     if (!token) return;
 
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5237'}/hub`, {
+      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5237'}/parking-hub`, {
         accessTokenFactory: () => token
       })
       .withAutomaticReconnect()

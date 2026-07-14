@@ -19,11 +19,19 @@ public class PaddleOcrReader : IPaddleOcrReader, IDisposable
 
     private void InitOcr()
     {
-        _ocrAll = new PaddleOcrAll(LocalFullModels.EnglishV3, PaddleDevice.Mkldnn())
+        try
         {
-            AllowRotateDetection = true,
-            Enable180Classification = true
-        };
+            _ocrAll = new PaddleOcrAll(LocalFullModels.EnglishV3, PaddleDevice.Mkldnn())
+            {
+                AllowRotateDetection = true,
+                Enable180Classification = true
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[OCR WARNING] Failed to initialize PaddleOCR: {ex.Message}. OCR will be disabled.");
+            _ocrAll = null;
+        }
     }
 
     public async Task<(string RawText, float Confidence)> ReadTextAsync(byte[] preprocessedImageBytes)
@@ -33,6 +41,12 @@ public class PaddleOcrReader : IPaddleOcrReader, IDisposable
             using Mat ocrInput = Cv2.ImDecode(preprocessedImageBytes, ImreadModes.Color);
             if (ocrInput.Empty() || ocrInput.Rows < 10 || ocrInput.Cols < 10)
             {
+                return (string.Empty, 0f);
+            }
+
+            if (_ocrAll == null)
+            {
+                Console.WriteLine("[OCR WARNING] OCR model is not loaded. Returning empty text.");
                 return (string.Empty, 0f);
             }
 
