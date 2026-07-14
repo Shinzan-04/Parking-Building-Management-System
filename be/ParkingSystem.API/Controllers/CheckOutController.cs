@@ -29,11 +29,11 @@ public class CheckOutController : ControllerBase
     /// </summary>
     /// <param name="licensePlate">Bien so xe can tim (khong can chuan hoa truoc)</param>
     [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string qrCode, [FromQuery] string licensePlate, [FromQuery] Guid? buildingId)
+    public async Task<IActionResult> Search([FromQuery] string? qrCode, [FromQuery] string licensePlate, [FromQuery] Guid? buildingId)
     {
-        if (string.IsNullOrWhiteSpace(qrCode))
+        if (string.IsNullOrWhiteSpace(qrCode) && string.IsNullOrWhiteSpace(licensePlate))
         {
-            return BadRequest(new { message = "Vui long quet ma QR the xe." });
+            return BadRequest(new { message = "Vui long quet ma QR the xe hoac nhap bien so." });
         }
         if (string.IsNullOrWhiteSpace(licensePlate))
         {
@@ -108,9 +108,9 @@ public class CheckOutController : ControllerBase
     [HttpPost("ocr-checkout")]
     public async Task<IActionResult> OcrCheckOut([FromBody] OcrCheckOutRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.QrCode))
+        if (string.IsNullOrWhiteSpace(request.QrCode) && string.IsNullOrWhiteSpace(request.ImageBase64))
         {
-            return BadRequest(new { message = "Vui long quet ma QR the xe." });
+            return BadRequest(new { message = "Vui long quet ma QR hoac cung cap anh." });
         }
         if (string.IsNullOrWhiteSpace(request.ImageBase64))
         {

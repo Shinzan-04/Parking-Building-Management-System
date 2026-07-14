@@ -281,7 +281,7 @@ export default function GateControlPage() {
 
     setExitLoading(true);
     try {
-      const result = await searchCheckOut(exitLicensePlate, token);
+      const result = await searchCheckOut(exitLicensePlate, token, user?.assignedBuildingId);
       setExitSessionData(result);
       showNotification('success', `Đã tìm thấy phiên đỗ xe của biển số: ${result.licensePlate}`);
     } catch (err: any) {
@@ -345,7 +345,7 @@ export default function GateControlPage() {
 
     setExitLoading(true);
     try {
-      const ocrResult = await ocrCheckOut({ imageBase64 }, token);
+      const ocrResult = await ocrCheckOut({ imageBase64, staffId: user?.userId || '', buildingId: user?.assignedBuildingId }, token);
       
       const mappedData: CheckOutSearchResult = {
         sessionId: ocrResult.sessionId,

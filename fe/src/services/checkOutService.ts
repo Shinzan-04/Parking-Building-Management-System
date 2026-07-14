@@ -92,6 +92,8 @@ export interface CheckOutConfirmResponse {
 
 export interface OcrCheckOutRequest {
   imageBase64: string;
+  staffId?: string;
+  buildingId?: string;
 }
 
 export interface OcrCheckOutResult {
@@ -120,8 +122,13 @@ export interface OcrCheckOutResult {
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 /** Tìm kiếm xe đang gửi trong bãi theo biển số (chuẩn hóa trên BE) */
-export const searchCheckOut = (licensePlate: string, token: string): Promise<CheckOutSearchResult> =>
-  apiFetch(`/api/CheckOut/search?licensePlate=${encodeURIComponent(licensePlate)}`, undefined, token);
+export const searchCheckOut = (licensePlate: string, token: string, buildingId?: string): Promise<CheckOutSearchResult> => {
+  let url = `/api/CheckOut/search?licensePlate=${encodeURIComponent(licensePlate)}`;
+  if (buildingId) {
+    url += `&buildingId=${encodeURIComponent(buildingId)}`;
+  }
+  return apiFetch(url, undefined, token);
+};
 
 /** Xác nhận thanh toán và cho xe ra bãi */
 export const confirmCheckOut = (request: CheckOutConfirmRequest, token: string): Promise<CheckOutConfirmResponse> =>

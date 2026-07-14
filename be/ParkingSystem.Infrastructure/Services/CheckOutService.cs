@@ -37,11 +37,11 @@ public class CheckOutService : ICheckOutService
         _auditLogService = auditLogService;
     }
 
-    public async Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
+    public async Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string? qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
     {
-        if (string.IsNullOrWhiteSpace(qrCode))
+        if (string.IsNullOrWhiteSpace(qrCode) && string.IsNullOrWhiteSpace(licensePlate))
         {
-            throw new InvalidOperationException("Vui long quet ma QR the xe.");
+            throw new InvalidOperationException("Vui long quet ma QR the xe hoac nhap bien so xe.");
         }
 
         var cleanedInput = CleanLicensePlate(licensePlate);
@@ -55,10 +55,19 @@ public class CheckOutService : ICheckOutService
             .Where(s => s.Status == SessionStatus.Active)
             .ToListAsync();
 
-        var session = activeSessions.FirstOrDefault(s => 
-            (!string.IsNullOrEmpty(s.SessionCode) && s.SessionCode.Equals(qrCode, StringComparison.OrdinalIgnoreCase)) ||
-            s.Id.ToString().Equals(qrCode, StringComparison.OrdinalIgnoreCase)
-        );
+        ParkingSession? session = null;
+
+        if (!string.IsNullOrWhiteSpace(qrCode))
+        {
+            session = activeSessions.FirstOrDefault(s => 
+                (!string.IsNullOrEmpty(s.SessionCode) && s.SessionCode.Equals(qrCode, StringComparison.OrdinalIgnoreCase)) ||
+                s.Id.ToString().Equals(qrCode, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+        else if (!string.IsNullOrWhiteSpace(licensePlate))
+        {
+            session = activeSessions.FirstOrDefault(s => CleanLicensePlate(s.LicensePlate) == cleanedInput);
+        }
 
         if (session == null)
         {
@@ -491,9 +500,9 @@ public class CheckOutService : ICheckOutService
 
     public async Task<OcrCheckOutResult> ProcessOcrCheckOutAsync(OcrCheckOutRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.QrCode))
+        if (string.IsNullOrWhiteSpace(request.QrCode) && string.IsNullOrWhiteSpace(request.ImageBase64))
         {
-            throw new InvalidOperationException("Vui long quet ma QR the xe.");
+            throw new InvalidOperationException("Vui long quet ma QR the xe hoac cung cap hinh anh.");
         }
 
         var ocrResult = await _lprService.RecognizeFrameAsync(request.ImageBase64);
@@ -514,10 +523,19 @@ public class CheckOutService : ICheckOutService
             .Where(s => s.Status == SessionStatus.Active)
             .ToListAsync();
 
-        var session = activeSessions.FirstOrDefault(s => 
-            (!string.IsNullOrEmpty(s.SessionCode) && s.SessionCode.Equals(request.QrCode, StringComparison.OrdinalIgnoreCase)) ||
-            s.Id.ToString().Equals(request.QrCode, StringComparison.OrdinalIgnoreCase)
-        );
+        ParkingSession? session = null;
+
+        if (!string.IsNullOrWhiteSpace(request.QrCode))
+        {
+            session = activeSessions.FirstOrDefault(s => 
+                (!string.IsNullOrEmpty(s.SessionCode) && s.SessionCode.Equals(request.QrCode, StringComparison.OrdinalIgnoreCase)) ||
+                s.Id.ToString().Equals(request.QrCode, StringComparison.OrdinalIgnoreCase)
+            );
+        }
+        else
+        {
+            session = activeSessions.FirstOrDefault(s => CleanLicensePlate(s.LicensePlate) == normalizedExitPlate);
+        }
 
         if (session == null)
         {
