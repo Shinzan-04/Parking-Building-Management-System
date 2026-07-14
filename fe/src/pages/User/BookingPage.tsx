@@ -218,10 +218,10 @@ function StepVehicleType({
                   {policy && (
                     <div className="flex flex-col items-center gap-1 text-[11px] text-stone-500 bg-white px-3 py-2 rounded-xl border border-[#FF4C4C]/20 shadow-sm">
                       <div className="flex items-center gap-1.5">
-                        <span>Ngày: <strong className="text-stone-700">{formatCurrency(policy.dayBlockRate)}</strong>/block</span>
+                        <span>Day: <strong className="text-stone-700">{formatCurrency(policy.dayBlockRate)}</strong>/block</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span>Đêm: <strong className="text-stone-700">{formatCurrency(policy.nightBlockRate)}</strong>/block</span>
+                        <span>Night: <strong className="text-stone-700">{formatCurrency(policy.nightBlockRate)}</strong>/block</span>
                       </div>
                     </div>
                   )}
@@ -259,20 +259,21 @@ function StepLicensePlate({
   const vehicleLabel = selectedVehicle?.name || 'Car';
   const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
 
+  const filteredVehicles = useMemo(() => {
+    return myVehicles.filter(v => v.vehicleTypeId === state.vehicleType);
+  }, [myVehicles, state.vehicleType]);
+
   // Tự động chọn xe mặc định nếu có khi ở tab 'saved'
   useEffect(() => {
-    if (state.plateInputType === 'saved' && myVehicles.length > 0 && (!state.licensePlate || !myVehicles.find(v => v.plateNumber === state.licensePlate))) {
-      const defaultVehicle = myVehicles.find(v => v.isPrimary) || myVehicles[0];
+    if (state.plateInputType === 'saved' && filteredVehicles.length > 0 && (!state.licensePlate || !filteredVehicles.find(v => v.plateNumber === state.licensePlate))) {
+      const defaultVehicle = filteredVehicles.find(v => v.isPrimary) || filteredVehicles[0];
       setState(s => ({
         ...s,
         licensePlate: defaultVehicle.plateNumber,
         vehicleType: defaultVehicle.vehicleTypeId,
       }));
-    } else if (state.plateInputType === 'manual' && myVehicles.length > 0) {
-      // Optional: Clear license plate when switching to manual, or leave it as is
-      // setState(s => ({ ...s, licensePlate: '' }));
     }
-  }, [myVehicles, state.plateInputType, setState, state.licensePlate]);
+  }, [filteredVehicles, state.plateInputType, setState, state.licensePlate]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -329,9 +330,9 @@ function StepLicensePlate({
           {/* Render Saved Vehicles */}
           {state.plateInputType === 'saved' && (
             <div className="w-full max-w-sm mx-auto animate-in fade-in zoom-in-95 duration-200">
-              {myVehicles.length > 0 ? (
+              {filteredVehicles.length > 0 ? (
                 <div className="max-h-[350px] overflow-y-auto pr-2 flex flex-col gap-3 scrollbar-thin">
-                  {myVehicles.map(v => {
+                  {filteredVehicles.map(v => {
                     const isSelected = state.licensePlate === v.plateNumber;
                     const lowerName = v.vehicleTypeName?.toLowerCase() || '';
                     const isMotor = lowerName.includes('moto') || lowerName.includes('xe máy') || lowerName.includes('bike');
@@ -348,8 +349,8 @@ function StepLicensePlate({
                           }));
                         }}
                         className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all duration-200 shrink-0 ${isSelected
-                            ? 'border-[#FF4C4C] bg-[#FF4C4C]/5 shadow-sm shadow-[#FF4C4C]/5'
-                            : 'border-gray-200/80 dark:border-white/10 bg-white dark:bg-[#18181B] hover:border-gray-300 dark:hover:border-white/20'
+                          ? 'border-[#FF4C4C] bg-[#FF4C4C]/5 shadow-sm shadow-[#FF4C4C]/5'
+                          : 'border-gray-200/80 dark:border-white/10 bg-white dark:bg-[#18181B] hover:border-gray-300 dark:hover:border-white/20'
                           }`}
                       >
                         <div className="flex items-center gap-4">
