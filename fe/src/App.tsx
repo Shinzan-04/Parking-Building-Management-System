@@ -123,13 +123,9 @@ export default function App() {
             <Route path="slots" element={<StaffSlotList />} />
             <Route path="reservations" element={<StaffReservations />} />
             <Route path="chat" element={<StaffChatDashboard />} />
+            <Route path="gate-control/entry" element={<GateControlPage defaultTab="entry" />} />
+            <Route path="gate-control/exit" element={<GateControlPage defaultTab="exit" />} />
           </Route>
-
-          {/* Gate Control - Staff standalone */}
-          <Route
-            path="/gate-control"
-            element={<ProtectedRoute element={<GateControlPage />} requiredRoles={["Staff"]} />}
-          />
 
         </Routes>
       </Suspense>

@@ -160,8 +160,13 @@ function ExceptionHandlingModal({
   );
 }
 
-export default function GateControlPage() {
-  const [activeTab, setActiveTab] = useState<'entry' | 'exit'>('entry');
+export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?: 'entry' | 'exit' }) {
+  const [activeTab, setActiveTab] = useState<'entry' | 'exit'>(defaultTab);
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
+
   const [entryLicensePlate, setEntryLicensePlate] = useState('');
   const [entryVehicleType, setEntryVehicleType] = useState<VehicleType>('car');
   const [entryImageBase64, setEntryImageBase64] = useState<string | null>(null);
@@ -439,94 +444,9 @@ export default function GateControlPage() {
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'ST';
 
   return (
-    <div className="flex h-screen bg-[#F3F3F5] text-stone-900 font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C] overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-screen bg-[#F3F3F5] text-stone-900 font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C] rounded-2xl overflow-hidden border border-gray-200/60 shadow-sm">
 
-      {/* ===== SIDEBAR TRANG STAFF ===== */}
-      <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200/60 flex flex-col justify-between py-6">
-        <div>
-          {/* Logo */}
-          <div className="px-6 pb-6 border-b border-gray-100 flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center text-white font-extrabold text-sm shadow-sm shadow-[#FF4C4C]/25">
-              P
-            </div>
-            <div>
-              <span className="text-base font-extrabold tracking-tight text-stone-900 block leading-tight">
-                Gate Station<span className="text-[#FF4C4C]">.</span>
-              </span>
-              <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Operator Panel</span>
-            </div>
-          </div>
 
-          {/* User info card */}
-          {user && (
-            <div className="mx-4 my-6 bg-gray-50 border border-gray-200/40 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/20">
-                {initials}
-              </div>
-              <div className="flex flex-col">
-                <span className="font-extrabold text-stone-900 leading-tight">Check-in Gate</span>
-                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Entry</span>
-              </div>
-            </div>
-          )}
-
-          {/* Sidebar Menu Tabs */}
-          <div className="px-3 space-y-1">
-            <button
-              onClick={() => setActiveTab('entry')}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${activeTab === 'entry'
-                  ? 'bg-[#FF4C4C]/5 border-[#FF4C4C]/10 text-[#FF4C4C]'
-                  : 'bg-transparent border-transparent text-stone-500 hover:bg-gray-50 hover:text-stone-900'
-                }`}
-            >
-              <Car size={16} />
-              Entry (Check-in)
-            </button>
-            <button
-              onClick={() => setActiveTab('exit')}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${activeTab === 'exit'
-                  ? 'bg-blue-600/5 border-blue-600/10 text-blue-600'
-                  : 'bg-transparent border-transparent text-stone-500 hover:bg-gray-50 hover:text-stone-900'
-                }`}
-            >
-              <DoorOpen size={16} />
-              Exit (Check-out)
-            </button>
-          </div>
-        </div>
-
-        {/* Bottom Actions */}
-        <div className="px-3 space-y-2">
-          {user && (
-            <Link
-              to={
-                user.role === 'Admin' || user.role === 0 ? '/admin' :
-                  user.role === 'Manager' || user.role === 1 ? '/manager' :
-                    user.role === 'Staff' || user.role === 2 ? '/staff' : '/'
-              }
-              className="w-full flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-stone-600 hover:text-stone-900 font-bold py-2.5 rounded-xl text-xs transition-colors"
-            >
-              <ArrowLeft size={14} />
-              Back to Portal
-            </Link>
-          )}
-          <button
-            onClick={() => {
-              logout();
-              window.location.replace('/auth');
-            }}
-            className="w-full flex items-center justify-center gap-2 border border-red-100 hover:bg-red-50 text-red-500 font-bold py-2.5 rounded-xl text-xs transition-all"
-          >
-            <LogOut size={14} />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* ===== MAIN CONTENT ===== */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-[#F3F3F5]">
-
-        {/* Sub Header */}
         <header className="bg-white border-b border-gray-200/60 px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-stone-900">
@@ -923,9 +843,6 @@ export default function GateControlPage() {
             )}
           </div>
         </div>
-      </main>
-
-
       {/* Exception Modal */}
       <ExceptionHandlingModal
         open={exceptionModalOpen}
