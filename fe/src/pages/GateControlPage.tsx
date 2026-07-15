@@ -69,13 +69,16 @@ function GateStatusBanner({ kind, message }: { kind: 'success' | 'error' | 'info
         ? 'border-red-100 bg-white text-red-700 shadow-red-500/10'
         : 'border-blue-100 bg-white text-blue-700 shadow-blue-500/10';
 
+  const Icon = kind === 'success' ? CheckCircle2 : kind === 'error' ? AlertTriangle : AlertTriangle;
+
   return (
-    <div 
+    <div
       className="fixed top-8 left-1/2 -translate-x-1/2 z-[100]"
       style={{ animation: 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
     >
-      <div className={`rounded-full border px-6 py-3 text-sm font-bold shadow-xl flex items-center gap-2 ${tone}`}>
-        {message}
+      <div className={`w-80 min-h-[4.5rem] rounded-2xl border p-4 shadow-xl flex items-center gap-3.5 ${tone}`}>
+        <Icon size={26} className={`shrink-0 ${kind === 'success' ? 'text-emerald-500' : kind === 'error' ? 'text-red-500' : 'text-blue-500'}`} />
+        <span className="text-sm font-bold leading-snug text-left">{message}</span>
       </div>
     </div>
   );
@@ -170,7 +173,7 @@ export default function GateControlPage() {
   const [exceptionModalOpen, setExceptionModalOpen] = useState(false);
   const [exceptionAction, setExceptionAction] = useState<ExceptionAction | null>(null);
   const [vehicleTypeMap, setVehicleTypeMap] = useState<Record<string, string>>({});
-  
+
   const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -188,7 +191,7 @@ export default function GateControlPage() {
       setLoadingSlots(true);
       getAllSlots(user.assignedBuildingId)
         .then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0)))
-        .catch(() => {})
+        .catch(() => { })
         .finally(() => setLoadingSlots(false));
     }
   }, [user?.assignedBuildingId, token]);
@@ -266,7 +269,7 @@ export default function GateControlPage() {
       setSelectedSlotId(null);
       setSelectedSlotNumber(null);
       if (user?.assignedBuildingId) {
-        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => {});
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => { });
       }
       entryInputRef.current?.focus();
     } catch (err) {
@@ -333,7 +336,7 @@ export default function GateControlPage() {
       exitInputRef.current?.focus();
 
       if (user.assignedBuildingId) {
-        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => {});
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => { });
       }
     } catch (err: any) {
       showNotification('error', err.message || 'Error confirming payment.');
@@ -363,7 +366,7 @@ export default function GateControlPage() {
     setExitLoading(true);
     try {
       const ocrResult = await ocrCheckOut({ imageBase64, staffId: user?.userId || '', buildingId: user?.assignedBuildingId }, token);
-      
+
       const mappedData: CheckOutSearchResult = {
         sessionId: ocrResult.sessionId,
         licensePlate: ocrResult.entryLicensePlate,
@@ -384,7 +387,7 @@ export default function GateControlPage() {
       };
 
       setExitSessionData(mappedData);
-      
+
       if (ocrResult.isMatch) {
         showNotification('success', `License plate match: ${result.licensePlate} (${(result.confidence * 100).toFixed(1)}%)`);
       } else if (ocrResult.exitLicensePlate && ocrResult.entryLicensePlate) {
@@ -437,7 +440,7 @@ export default function GateControlPage() {
 
   return (
     <div className="flex h-screen bg-[#F3F3F5] text-stone-900 font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C] overflow-hidden">
-      
+
       {/* ===== SIDEBAR TRANG STAFF ===== */}
       <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200/60 flex flex-col justify-between py-6">
         <div>
@@ -460,9 +463,9 @@ export default function GateControlPage() {
               <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/20">
                 {initials}
               </div>
-                <div className="flex flex-col">
-                  <span className="font-extrabold text-stone-900 leading-tight">Check-in Gate</span>
-                  <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Entry</span>
+              <div className="flex flex-col">
+                <span className="font-extrabold text-stone-900 leading-tight">Check-in Gate</span>
+                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Entry</span>
               </div>
             </div>
           )}
@@ -471,22 +474,20 @@ export default function GateControlPage() {
           <div className="px-3 space-y-1">
             <button
               onClick={() => setActiveTab('entry')}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${
-                activeTab === 'entry'
+              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${activeTab === 'entry'
                   ? 'bg-[#FF4C4C]/5 border-[#FF4C4C]/10 text-[#FF4C4C]'
                   : 'bg-transparent border-transparent text-stone-500 hover:bg-gray-50 hover:text-stone-900'
-              }`}
+                }`}
             >
               <Car size={16} />
               Entry (Check-in)
             </button>
             <button
               onClick={() => setActiveTab('exit')}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${
-                activeTab === 'exit'
+              className={`w-full flex items-center gap-3 px-4 py-3 text-xs font-bold rounded-xl border transition-all ${activeTab === 'exit'
                   ? 'bg-blue-600/5 border-blue-600/10 text-blue-600'
                   : 'bg-transparent border-transparent text-stone-500 hover:bg-gray-50 hover:text-stone-900'
-              }`}
+                }`}
             >
               <DoorOpen size={16} />
               Exit (Check-out)
@@ -499,9 +500,9 @@ export default function GateControlPage() {
           {user && (
             <Link
               to={
-                user.role === 'Admin'    || user.role === 0 ? '/admin'   :
-                user.role === 'Manager'  || user.role === 1 ? '/manager' :
-                user.role === 'Staff'    || user.role === 2 ? '/staff'   : '/'
+                user.role === 'Admin' || user.role === 0 ? '/admin' :
+                  user.role === 'Manager' || user.role === 1 ? '/manager' :
+                    user.role === 'Staff' || user.role === 2 ? '/staff' : '/'
               }
               className="w-full flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-stone-600 hover:text-stone-900 font-bold py-2.5 rounded-xl text-xs transition-colors"
             >
@@ -524,7 +525,7 @@ export default function GateControlPage() {
 
       {/* ===== MAIN CONTENT ===== */}
       <main className="flex-1 flex flex-col overflow-hidden bg-[#F3F3F5]">
-        
+
         {/* Sub Header */}
         <header className="bg-white border-b border-gray-200/60 px-6 py-4 flex items-center justify-between">
           <div>
@@ -541,7 +542,7 @@ export default function GateControlPage() {
 
         {/* Content body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
+
           {/* Notification banner */}
           {notification && (
             <GateStatusBanner kind={notification.kind} message={notification.message} />
@@ -549,7 +550,7 @@ export default function GateControlPage() {
 
           {/* ── CHẾ ĐỘ CHECK-IN DUY NHẤT (BIỂN SỐ LÀ TRUNG TÂM) ── */}
           <div className="space-y-6">
-              
+
             {activeTab === 'entry' && (
               <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6 w-full max-w-6xl mx-auto mb-6 items-start">
                 {/* Left Column: Camera Scanner */}
@@ -558,7 +559,7 @@ export default function GateControlPage() {
                     <Camera className="w-5 h-5 text-stone-700" />
                     <h3 className="text-sm font-bold text-stone-900 uppercase tracking-widest">CAMERA SCANNER (LICENSE PLATE)</h3>
                   </div>
-                  
+
                   <div className="bg-black relative flex-1 flex flex-col items-center justify-center min-h-[450px] overflow-hidden">
                     {/* Decorative scanner frame corners */}
                     <div className="absolute inset-6 border-2 border-transparent pointer-events-none z-20">
@@ -572,7 +573,7 @@ export default function GateControlPage() {
                     <div className="absolute inset-0 z-10 w-full h-full bg-black">
                       <CameraCapture
                         onSuccess={handleEntryCameraResult}
-                        onCancel={() => {}}
+                        onCancel={() => { }}
                         token={token}
                         inline
                         className="w-full h-full"
@@ -630,11 +631,10 @@ export default function GateControlPage() {
                             key={vehicle.type}
                             type="button"
                             onClick={() => setEntryVehicleType(vehicle.type)}
-                            className={`relative rounded-xl border px-3 py-3 text-xs font-bold transition-all ${
-                              selected
+                            className={`relative rounded-xl border px-3 py-3 text-xs font-bold transition-all ${selected
                                 ? 'border-[#FF4C4C] bg-[#FF4C4C]/5 text-stone-850 shadow-sm'
                                 : 'border-gray-200 bg-white text-stone-600 hover:border-gray-300 hover:text-stone-900'
-                            }`}
+                              }`}
                           >
                             {vehicle.label}
                           </button>
@@ -646,12 +646,12 @@ export default function GateControlPage() {
                     <label className="mb-2 block text-[10px] font-bold text-stone-500 uppercase tracking-wider">Card Assigned Slot</label>
                     <div className="mb-6 rounded-xl bg-stone-50 border border-stone-200 p-4 flex justify-between items-center">
                       <div>
-                                        <div className="font-extrabold text-stone-900 mt-1">
-                        {selectedSlotId ? `Slot ${selectedSlotNumber}` : 'Auto (AI Suggest)'}
-                      </div>
-                      <div className="text-xs text-stone-400 mt-1">
-                        {selectedSlotId ? 'Staff manual choice' : 'Auto allocated by system'}
-                      </div>
+                        <div className="font-extrabold text-stone-900 mt-1">
+                          {selectedSlotId ? `Slot ${selectedSlotNumber}` : 'Auto (AI Suggest)'}
+                        </div>
+                        <div className="text-xs text-stone-400 mt-1">
+                          {selectedSlotId ? 'Staff manual choice' : 'Auto allocated by system'}
+                        </div>
                       </div>
                       <button
                         type="button"
@@ -712,7 +712,7 @@ export default function GateControlPage() {
               <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6 w-full max-w-6xl mx-auto mb-6 items-start">
                 {/* LEFT COLUMN */}
                 <div className="flex flex-col gap-6">
-                  
+
                   {/* Manual Input / Search Block */}
                   {exitCameraMode === 'lpr' && (
                     <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm">
@@ -740,7 +740,7 @@ export default function GateControlPage() {
                       </div>
                       <div className="mt-4 text-[10px] text-stone-400 font-bold flex justify-between px-2">
                         <span>Waiting for vehicle scan...</span>
-                        <span className="flex items-center gap-1"><Camera className="w-3 h-3"/> AI SCAN</span>
+                        <span className="flex items-center gap-1"><Camera className="w-3 h-3" /> AI SCAN</span>
                       </div>
                     </div>
                   )}
@@ -774,9 +774,9 @@ export default function GateControlPage() {
                         </div>
                         <div>
                           <p className="text-[10px] uppercase font-bold tracking-wider text-stone-400">Location</p>
-                        <p className="text-sm font-bold text-stone-800">{exitSessionData.floorName} - Slot {exitSessionData.slotNumber}</p>
-                      </div>
-                        
+                          <p className="text-sm font-bold text-stone-800">{exitSessionData.floorName} - Slot {exitSessionData.slotNumber}</p>
+                        </div>
+
                         {/* Status Row */}
                         <div className="col-span-2 lg:col-span-3 border-t border-gray-100 pt-6 flex justify-between items-center">
                           <span className="text-[10px] text-stone-500 font-bold uppercase tracking-widest">PAYMENT STATUS</span>
@@ -831,19 +831,17 @@ export default function GateControlPage() {
                   {/* Camera Block */}
                   <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-5 shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
-                      <span 
+                      <span
                         onClick={() => setExitCameraMode('lpr')}
-                        className={`text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm cursor-pointer ${
-                          exitCameraMode === 'lpr' ? 'bg-[#1A1F2B] text-white' : 'text-stone-400 hover:bg-gray-100'
-                        }`}
+                        className={`text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm cursor-pointer ${exitCameraMode === 'lpr' ? 'bg-[#1A1F2B] text-white' : 'text-stone-400 hover:bg-gray-100'
+                          }`}
                       >
                         LPR CAMERA
                       </span>
-                      <span 
+                      <span
                         onClick={() => setExitCameraMode('qr')}
-                        className={`text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer ${
-                          exitCameraMode === 'qr' ? 'bg-[#1A1F2B] text-white' : 'text-stone-400 hover:bg-gray-100'
-                        }`}
+                        className={`text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer ${exitCameraMode === 'qr' ? 'bg-[#1A1F2B] text-white' : 'text-stone-400 hover:bg-gray-100'
+                          }`}
                       >
                         QR SCANNER
                       </span>
@@ -858,7 +856,7 @@ export default function GateControlPage() {
                       <div className="relative z-10 w-full h-full">
                         <CameraCapture
                           onSuccess={handleExitCameraResult}
-                          onCancel={() => {}}
+                          onCancel={() => { }}
                           token={token}
                           inline
                           className="w-full h-full rounded-lg"
@@ -872,7 +870,7 @@ export default function GateControlPage() {
                   {/* Payment Block */}
                   <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm flex flex-col flex-1">
                     <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-6">AMOUNT DUE</h3>
-                    
+
                     <div className="text-5xl font-black text-stone-300 mb-8 tracking-tighter flex items-start gap-1">
                       <span className={exitSessionData ? "text-stone-800" : ""}>
                         {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('vi-VN') : '0'}
@@ -941,26 +939,26 @@ export default function GateControlPage() {
         }}
       />
 
-        {/* Map Modal */}
-        {showMap && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm">
+      {/* Map Modal */}
+      {showMap && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-[900px] max-w-[90vw] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-stone-100">
             <div className="p-5 border-b flex justify-between items-center bg-stone-50/50">
               <div>
                 <h3 className="text-xl font-bold text-stone-900">Available Slots Map</h3>
                 <p className="text-xs text-stone-500 mt-1">Manually select a slot (only showing available slots)</p>
               </div>
-                <button
-                  onClick={() => setShowMap(false)}
-                  className="rounded-xl p-2 hover:bg-stone-100 transition-colors"
-                >
-                  <X size={20} className="text-stone-500" />
-                </button>
-              </div>
-              <div className="p-6 overflow-auto bg-stone-50/30 flex-1">
-                {loadingSlots ? (
-                  <div className="py-12 text-center text-sm font-bold text-stone-400">Loading map...</div>
-                ) : (
+              <button
+                onClick={() => setShowMap(false)}
+                className="rounded-xl p-2 hover:bg-stone-100 transition-colors"
+              >
+                <X size={20} className="text-stone-500" />
+              </button>
+            </div>
+            <div className="p-6 overflow-auto bg-stone-50/30 flex-1">
+              {loadingSlots ? (
+                <div className="py-12 text-center text-sm font-bold text-stone-400">Loading map...</div>
+              ) : (
                 <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                   {slots.map(s => {
                     const isSelected = s.id === selectedSlotId;
@@ -977,11 +975,10 @@ export default function GateControlPage() {
                             setShowMap(false);
                           }
                         }}
-                        className={`h-12 flex flex-col items-center justify-center rounded-xl border text-[10px] font-bold transition-all ${
-                          isSelected
+                        className={`h-12 flex flex-col items-center justify-center rounded-xl border text-[10px] font-bold transition-all ${isSelected
                             ? 'bg-[#FF4C4C] border-[#FF4C4C] text-white shadow-md'
                             : 'bg-stone-50 border-stone-200 text-stone-600 hover:border-[#FF4C4C] hover:text-[#FF4C4C]'
-                        }`}
+                          }`}
                       >
                         <Car size={12} className="mb-0.5" />
                         {s.slotNumber}
@@ -990,40 +987,40 @@ export default function GateControlPage() {
                   })}
                 </div>
               )}
-              </div>
             </div>
           </div>
+        </div>
       )}
 
       {/* Check-in Result Modal (Ticket / QR) */}
       {checkInResultData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-              <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border border-stone-100">
-              <div className="p-6 flex flex-col items-center">
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-                </div>
-                <h3 className="text-xl font-bold text-stone-900 mb-1">E-Ticket</h3>
-                <p className="text-xs text-stone-500 font-medium mb-6">Session ID: <span className="font-mono text-[#FF4C4C] font-bold">{checkInResultData.sessionCode}</span></p>
-                
-                {checkInResultData.sessionQrCodeBase64 && (
-                  <div className="bg-white rounded-2xl p-4 inline-block border border-gray-100 mb-6 shadow-sm">
-                    <img
-                      src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
-                      alt="Session QR"
-                      className="w-48 h-48 mx-auto object-contain"
-                    />
-                  </div>
-                )}
-                
-                <div className="w-full space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-100">
-                  <p className="text-sm flex justify-between"><span className="text-stone-500">License Plate:</span> <span className="font-bold text-stone-900 font-mono text-lg">{checkInResultData.licensePlate}</span></p>
-                  <p className="text-sm flex justify-between"><span className="text-stone-500">Vehicle Type:</span> <span className="font-bold text-stone-900">{checkInResultData.vehicleTypeName}</span></p>
-                  <p className="text-sm flex justify-between"><span className="text-stone-500">Location:</span> <span className="font-bold text-[#FF4C4C]">Floor {checkInResultData.floorName}, Slot {checkInResultData.slotNumber}</span></p>
-                  <p className="text-sm flex justify-between"><span className="text-stone-500">Building:</span> <span className="font-bold text-stone-900">{checkInResultData.buildingName}</span></p>
-                </div>
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border border-stone-100">
+            <div className="p-6 flex flex-col items-center">
+              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
               </div>
-            
+              <h3 className="text-xl font-bold text-stone-900 mb-1">E-Ticket</h3>
+              <p className="text-xs text-stone-500 font-medium mb-6">Session ID: <span className="font-mono text-[#FF4C4C] font-bold">{checkInResultData.sessionCode}</span></p>
+
+              {checkInResultData.sessionQrCodeBase64 && (
+                <div className="bg-white rounded-2xl p-4 inline-block border border-gray-100 mb-6 shadow-sm">
+                  <img
+                    src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
+                    alt="Session QR"
+                    className="w-48 h-48 mx-auto object-contain"
+                  />
+                </div>
+              )}
+
+              <div className="w-full space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-100">
+                <p className="text-sm flex justify-between"><span className="text-stone-500">License Plate:</span> <span className="font-bold text-stone-900 font-mono text-lg">{checkInResultData.licensePlate}</span></p>
+                <p className="text-sm flex justify-between"><span className="text-stone-500">Vehicle Type:</span> <span className="font-bold text-stone-900">{checkInResultData.vehicleTypeName}</span></p>
+                <p className="text-sm flex justify-between"><span className="text-stone-500">Location:</span> <span className="font-bold text-[#FF4C4C]">Floor {checkInResultData.floorName}, Slot {checkInResultData.slotNumber}</span></p>
+                <p className="text-sm flex justify-between"><span className="text-stone-500">Building:</span> <span className="font-bold text-stone-900">{checkInResultData.buildingName}</span></p>
+              </div>
+            </div>
+
             <div className="p-4 border-t flex justify-end gap-3 bg-stone-50/50">
               <button
                 onClick={() => setCheckInResultData(null)}
