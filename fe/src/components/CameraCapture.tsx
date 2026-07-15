@@ -80,30 +80,21 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
   // If inline mode, render without backdrop/modal wrapper
   if (inline) {
     return (
-      <div className={className}>
-        <div className="w-full rounded-2xl overflow-hidden bg-black">
-          <div className="relative aspect-video bg-black">
+      <div className={`h-full ${className || ''}`}>
+        <div className="w-full h-full overflow-hidden bg-black">
+          <div className="relative w-full h-full bg-black">
             <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
 
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="relative h-32 w-64 border-2 border-cyan-400 rounded-lg">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+              <div 
+                className="relative h-32 w-64 border-2 border-cyan-400 rounded-lg"
+                style={{ boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.4)' }}
+              >
                 <div className="absolute top-0 left-0 h-4 w-4 border-t-2 border-l-2 border-cyan-400" />
                 <div className="absolute top-0 right-0 h-4 w-4 border-t-2 border-r-2 border-cyan-400" />
                 <div className="absolute bottom-0 left-0 h-4 w-4 border-b-2 border-l-2 border-cyan-400" />
                 <div className="absolute bottom-0 right-0 h-4 w-4 border-b-2 border-r-2 border-cyan-400" />
               </div>
-            </div>
-
-            <div className="absolute inset-0 pointer-events-none">
-              <svg className="h-full w-full" viewBox="0 0 1280 720" preserveAspectRatio="none">
-                <defs>
-                  <mask id="camera-mask-inline">
-                    <rect width="1280" height="720" fill="white" />
-                    <rect x="508" y="328" width="264" height="128" fill="black" />
-                  </mask>
-                </defs>
-                <rect width="1280" height="720" fill="rgba(0,0,0,0.2)" mask="url(#camera-mask-inline)" />
-              </svg>
             </div>
           </div>
 

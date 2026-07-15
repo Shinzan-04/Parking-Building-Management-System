@@ -542,29 +542,23 @@ export default function GateControlPage() {
                     <h3 className="text-sm font-bold text-stone-900 uppercase tracking-widest">CAMERA SCANNER (LICENSE PLATE)</h3>
                   </div>
                   
-                  <div className="p-6 bg-black relative flex-1 flex flex-col items-center justify-center min-h-[450px]">
+                  <div className="bg-black relative flex-1 flex flex-col items-center justify-center min-h-[450px] overflow-hidden">
                     {/* Decorative scanner frame corners */}
-                    <div className="absolute inset-6 border-2 border-transparent pointer-events-none">
+                    <div className="absolute inset-6 border-2 border-transparent pointer-events-none z-20">
                       <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-red-500 rounded-tl-lg" />
                       <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-red-500 rounded-tr-lg" />
                       <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-red-500 rounded-bl-lg" />
                       <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-red-500 rounded-br-lg" />
                     </div>
-                    <div className="absolute inset-16 border-2 border-transparent pointer-events-none">
-                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-[#FF4C4C] rounded-tl-xl opacity-50" />
-                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-[#FF4C4C] rounded-tr-xl opacity-50" />
-                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-[#FF4C4C] rounded-bl-xl opacity-50" />
-                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-[#FF4C4C] rounded-br-xl opacity-50" />
-                    </div>
 
                     {/* CameraCapture Component inside the frame */}
-                    <div className="relative z-10 w-full max-w-sm rounded-xl overflow-hidden shadow-2xl bg-stone-900 border border-stone-800">
+                    <div className="absolute inset-0 z-10 w-full h-full bg-black">
                       <CameraCapture
                         onSuccess={handleEntryCameraResult}
                         onCancel={() => {}}
                         token={token}
                         inline
-                        className="w-full"
+                        className="w-full h-full"
                       />
                     </div>
                   </div>
@@ -698,196 +692,201 @@ export default function GateControlPage() {
             )}
 
             {activeTab === 'exit' && (
-              <div className="flex justify-center w-full mb-6">
-                <div className="w-full max-w-3xl">
-                  <section className="bg-white border border-gray-200/80 rounded-[2.5rem] p-6 shadow-sm flex flex-col justify-between min-h-[580px]">
-                    {/* Cổng Ra (Check-Out) */}
-                    <div>
-                      <div className="mb-5 flex items-center justify-between gap-4">
-                        <div>
-                          <h3 className="text-lg font-bold text-stone-900">Exit Gate</h3>
-                          <p className="text-xs text-stone-400 font-medium">Vehicle check-out and payment collection</p>
-                        </div>
-                        <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-600">
-                          Payment ready
-                        </span>
-                      </div>
+              <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6 w-full max-w-6xl mx-auto mb-6 items-start">
+                {/* LEFT COLUMN */}
+                <div className="flex flex-col gap-6">
+                  
+                  {/* Manual Input / Search Block */}
+                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest">LICENSE PLATE SCANNER (EXIT GATE)</h3>
+                      <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest bg-gray-100 px-2 py-1 rounded-md">ENABLE MANUAL ENTRY</span>
+                    </div>
+                    <div className="relative flex gap-3">
+                      <input
+                        ref={exitInputRef}
+                        type="text"
+                        value={exitLicensePlate}
+                        onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
+                        placeholder="ABC-1234"
+                        className="h-16 min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-6 text-2xl font-black tracking-[0.2em] text-stone-850 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleSearchExit}
+                        className="h-16 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 text-sm font-bold text-white transition-colors shadow-sm"
+                      >
+                        Search
+                      </button>
+                    </div>
+                    <div className="mt-4 text-[10px] text-stone-400 font-bold flex justify-between px-2">
+                      <span>Waiting for vehicle scan...</span>
+                      <span className="flex items-center gap-1"><Camera className="w-3 h-3"/> AI SCAN</span>
+                    </div>
+                  </div>
 
-                      {/* Exit Camera capture */}
-                      <div className="relative mb-6 overflow-hidden rounded-3xl border border-gray-200/60 bg-gray-150">
+                  {/* Session Details Block */}
+                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm min-h-[250px]">
+                    <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-6">ACTIVE SESSION DETAILS</h3>
+                    {exitLoading ? (
+                      <div className="text-center text-sm font-bold text-stone-400 py-12">Đang tải dữ liệu...</div>
+                    ) : exitSessionData ? (
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4">
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Session ID</p>
+                          <p className="text-sm font-bold text-stone-800 font-mono">{exitSessionData.sessionId.slice(0, 8).toUpperCase()}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Session Type</p>
+                          <p className="text-sm font-bold text-stone-800 capitalize">{exitSessionData.vehicleTypeName}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">License Plate</p>
+                          <p className="text-sm font-black text-stone-900 tracking-widest">{exitSessionData.licensePlate}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Entry Time</p>
+                          <p className="text-sm font-bold text-stone-800">{new Date(exitSessionData.entryTime).toLocaleString('vi-VN')}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Duration</p>
+                          <p className="text-sm font-bold text-stone-800">{Math.floor(exitSessionData.totalHours)}h {Math.round((exitSessionData.totalHours % 1) * 60)}m</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Slot Code</p>
+                          <p className="text-sm font-bold text-stone-800">{exitSessionData.floorName} - Ô {exitSessionData.slotNumber}</p>
+                        </div>
+                        
+                        {/* Status Row */}
+                        <div className="col-span-2 lg:col-span-3 border-t border-gray-100 pt-6 flex justify-between items-center">
+                          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-widest">PAYMENT STATUS</span>
+                          <span className="text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg uppercase tracking-wider">Ready for Collection</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4 opacity-40">
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Session ID</p>
+                          <p className="text-sm font-bold text-stone-300">---</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Session Type</p>
+                          <p className="text-sm font-bold text-stone-300">---</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">License Plate</p>
+                          <p className="text-sm font-bold text-stone-300">---</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Entry Time</p>
+                          <p className="text-sm font-bold text-stone-300">--:-- --</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Duration</p>
+                          <p className="text-sm font-bold text-stone-300">--h --m</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Slot Code</p>
+                          <p className="text-sm font-bold text-stone-300">---</p>
+                        </div>
+                        <div className="col-span-2 lg:col-span-3 border-t border-gray-100 pt-6 flex justify-between items-center">
+                          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-widest">PAYMENT STATUS</span>
+                          <span className="text-[10px] font-bold text-stone-400">Pending Lookup</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* History Log Block (Mock) */}
+                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm">
+                    <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-4">HISTORY LOG</h3>
+                    <div className="border border-gray-100 bg-gray-50/50 rounded-xl py-10 flex items-center justify-center">
+                      <span className="text-xs font-medium text-stone-400">No history logs available</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* RIGHT COLUMN */}
+                <div className="flex flex-col gap-6 h-full">
+                  {/* Camera Block */}
+                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="bg-[#1A1F2B] text-white text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm">LPR CAMERA</span>
+                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider px-3 py-2">QR SCANNER</span>
+                      <div className="flex-1" />
+                      <span className="text-[9px] font-black text-red-500 uppercase tracking-widest bg-red-50 px-3 py-2 rounded-md cursor-pointer hover:bg-red-100 transition-colors">TURN OFF CAM</span>
+                    </div>
+                    <div className="relative bg-black rounded-xl overflow-hidden min-h-[220px] flex items-center justify-center border-4 border-black shadow-inner">
+                      <div className="absolute top-4 left-4 flex items-center gap-2 z-20 bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
+                        <span className="text-[10px] text-white font-mono font-bold tracking-wider">LPR-CAM-02</span>
+                      </div>
+                      <div className="relative z-10 w-full h-full">
                         <CameraCapture
                           onSuccess={handleExitCameraResult}
                           onCancel={() => {}}
                           token={token}
                           inline
-                          className="w-full"
+                          className="w-full h-full rounded-lg"
                         />
-                        <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm">
-                          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
-                          Ready to scan
-                        </div>
-                        <div className="absolute top-4 right-4 rounded-full bg-stone-900/80 px-3 py-1 text-[10px] text-stone-300 font-medium font-mono shadow-sm">
-                          CAM-EXIT-01
-                        </div>
                       </div>
+                    </div>
+                  </div>
 
-                      {/* Biển số cổng ra */}
-                      <label className="mb-2 block text-xs font-bold text-stone-500 uppercase tracking-wider">License plate</label>
-                      <div className="flex gap-3">
-                        <input
-                          ref={exitInputRef}
-                          type="text"
-                          value={exitLicensePlate}
-                          onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
-                          placeholder="ABC-1234"
-                          className="h-16 min-w-0 flex-1 rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 text-center text-2xl font-black tracking-[0.35em] text-stone-850 outline-none transition-colors placeholder:text-stone-300 focus:border-blue-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleSearchExit}
-                          className="h-16 rounded-2xl bg-blue-600 hover:bg-blue-700 px-6 text-sm font-bold text-white transition-colors"
-                        >
-                          Search
-                        </button>
+                  {/* Payment Block */}
+                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm flex flex-col flex-1">
+                    <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-6">AMOUNT DUE</h3>
+                    
+                    <div className="text-5xl font-black text-stone-300 mb-8 tracking-tighter flex items-start gap-1">
+                      <span className={exitSessionData ? "text-stone-800" : ""}>
+                        {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('vi-VN') : '0'}
+                      </span>
+                      <span className="text-3xl text-stone-300 mt-1">đ</span>
+                    </div>
+
+                    <div className="space-y-4 mb-8">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-stone-500">Base Fee</span>
+                        <span className="font-bold text-stone-600">
+                          {exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('vi-VN') : '0'} đ
+                        </span>
                       </div>
-                      <p className="mt-2 text-center text-[10px] text-stone-400 font-bold uppercase tracking-widest">
-                        Press <span className="rounded bg-gray-100 px-1.5 py-0.5 font-mono text-stone-600 border border-gray-200/50">F2</span> to focus
-                      </p>
-
-                      {/* Session data display */}
-                      <div className="mt-5 rounded-2xl bg-gray-50 border border-gray-200/50 p-5 min-h-[140px] flex flex-col justify-center">
-                        {exitLoading ? (
-                          <div className="text-center text-xs text-stone-400 font-semibold leading-relaxed">
-                            Đang tải dữ liệu...
-                          </div>
-                        ) : exitSessionData ? (
-                          <div className="space-y-3">
-                            <div className="flex justify-between border-b border-gray-100 pb-2">
-                              <span className="text-xs text-stone-400 font-bold">Giờ vào</span>
-                              <span className="text-xs font-bold text-stone-800">{new Date(exitSessionData.entryTime).toLocaleString('vi-VN')}</span>
-                            </div>
-                            <div className="flex justify-between border-b border-gray-100 pb-2">
-                              <span className="text-xs text-stone-400 font-bold">Phương tiện</span>
-                              <span className="text-xs font-bold text-stone-800 capitalize">{exitSessionData.vehicleTypeName}</span>
-                            </div>
-                            <div className="flex justify-between border-b border-gray-100 pb-2">
-                              <span className="text-xs text-stone-400 font-bold">Vị trí đỗ</span>
-                              <span className="text-xs font-bold text-stone-800 capitalize">{exitSessionData.floorName} - Ô {exitSessionData.slotNumber}</span>
-                            </div>
-                            <div className="flex justify-between pt-1">
-                              <span className="text-xs text-stone-400 font-bold">Thời gian gửi</span>
-                              <span className="text-sm font-bold text-stone-800">
-                                {Math.floor(exitSessionData.totalHours)}h {Math.round((exitSessionData.totalHours % 1) * 60)}m
-                              </span>
-                            </div>
-
-                            {/* Surcharge Logs / Block Breakdown */}
-                            {exitSessionData.feeBreakdown && (
-                              <div className="border-t border-gray-100 pt-3 mt-3">
-                                <span className="text-xs text-stone-400 font-bold mb-3 flex items-center gap-2">
-                                  Surcharge Logs (Quá giờ)
-                                </span>
-                                <div className="space-y-3 max-h-[120px] overflow-y-auto pr-2">
-                                  {exitSessionData.feeBreakdown.dayPassCount > 0 && (
-                                    <div className="flex justify-between items-start pb-2 border-b border-gray-50 border-dashed">
-                                      <div>
-                                        <div className="text-xs font-bold text-red-500 mb-0.5">
-                                          Late Departure (Ngày)
-                                        </div>
-                                        <div className="text-[10px] text-stone-400 font-medium">
-                                          Số lượng: {exitSessionData.feeBreakdown.dayPassCount} block
-                                        </div>
-                                      </div>
-                                      <div className="text-xs font-black text-stone-800">
-                                        + {exitSessionData.feeBreakdown.dayPassTotal.toLocaleString('vi-VN')} đ
-                                      </div>
-                                    </div>
-                                  )}
-                                  {exitSessionData.feeBreakdown.nightPassCount > 0 && (
-                                    <div className="flex justify-between items-start pb-2 border-b border-gray-50 border-dashed">
-                                      <div>
-                                        <div className="text-xs font-bold text-red-500 mb-0.5">
-                                          Late Departure (Đêm)
-                                        </div>
-                                        <div className="text-[10px] text-stone-400 font-medium">
-                                          Số lượng: {exitSessionData.feeBreakdown.nightPassCount} block
-                                        </div>
-                                      </div>
-                                      <div className="text-xs font-black text-stone-800">
-                                        + {exitSessionData.feeBreakdown.nightPassTotal.toLocaleString('vi-VN')} đ
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="border-t border-gray-200/80 pt-3 mt-1 flex items-center justify-between">
-                              <span className="text-xs text-stone-400 font-bold">Total fee</span>
-                              <span className="text-3xl font-black text-emerald-600">{exitSessionData.estimatedFee.toLocaleString('vi-VN')} đ</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center text-xs text-stone-400 font-semibold leading-relaxed">
-                            Enter a license plate or trigger camera detection to view payment details.
-                          </div>
-                        )}
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-stone-500">Overtime Fee</span>
+                        <span className="font-bold text-stone-600">
+                          {exitSessionData ? ((exitSessionData.feeBreakdown?.dayPassTotal || 0) + (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('vi-VN') : '0'} đ
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-5 border-t border-gray-100">
+                        <span className="font-black text-stone-900 uppercase tracking-widest text-[11px]">BALANCE DUE</span>
+                        <span className="font-black text-stone-900 text-lg">
+                          {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('vi-VN') : '0'} đ
+                        </span>
                       </div>
                     </div>
 
-                    <div className="mt-6">
+                    <div className="mt-auto space-y-3">
                       <button
                         type="button"
                         onClick={handleCollectAndOpen}
                         disabled={!exitSessionData}
-                        className="inline-flex h-16 w-full items-center justify-center rounded-2xl bg-blue-600 text-lg font-bold text-white transition-colors hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-gray-150 disabled:text-stone-400"
+                        className="w-full flex items-center justify-center gap-2 h-14 rounded-xl bg-gray-500 hover:bg-gray-600 disabled:bg-gray-200 text-sm font-bold text-white transition-colors shadow-sm"
                       >
-                        COLLECT & OPEN BARRIER
+                        <CheckCircle2 className="w-5 h-5" />
+                        Process & Release
                       </button>
-                      <p className="mt-2 text-center text-[10px] text-stone-400 font-bold tracking-widest uppercase">Shortcut: Enter in input</p>
-                    </div>
-                  </section>
-                </div>
-              </div>
-            )}
-            
-            {/* Global Exception Action Block for Exit Tab */}
-            {activeTab === 'exit' && (
-              <div className="flex justify-center w-full">
-                <div className="w-full max-w-3xl">
-                  <section className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm">
-                    <h4 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-4">Gate Exception Override Tools</h4>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                       <button
                         type="button"
                         onClick={() => openExceptionModal('manual-open')}
-                        className="inline-flex items-center justify-center rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 px-4 py-2.5 text-xs font-bold text-amber-700 transition-colors"
+                        className="w-full h-14 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-stone-700 uppercase tracking-widest transition-colors"
                       >
-                        <DoorOpen className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Manual Gate Open
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openExceptionModal('incident')}
-                        className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-2.5 text-xs font-bold text-red-700 transition-colors"
-                      >
-                        <AlertTriangle className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Report Incident
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openExceptionModal('lost-ticket')}
-                        className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 px-4 py-2.5 text-xs font-bold text-stone-600 transition-colors"
-                      >
-                        <TicketX className="mr-2 h-4 w-4" aria-hidden="true" />
-                        Lost Ticket handling
+                        MANUAL OVERRIDE
                       </button>
                     </div>
-                  </section>
+                  </div>
                 </div>
               </div>
             )}
-
           </div>
         </div>
       </main>
