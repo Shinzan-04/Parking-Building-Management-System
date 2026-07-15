@@ -405,7 +405,7 @@ public class SessionService : ISessionService
 
         if (session.Driver.Balance < amountDue)
         {
-            throw new InvalidOperationException($"Số dư trong ví không đủ. Cần thêm {amountDue - session.Driver.Balance:N0} VND.");
+            throw new InvalidOperationException($"Insufficient wallet balance. Need {amountDue - session.Driver.Balance:N0} VND more.");
         }
 
         // Trừ tiền trong ví

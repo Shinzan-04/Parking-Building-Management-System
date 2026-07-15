@@ -53,6 +53,11 @@ export default function FloatingSessionBanner() {
       }
     });
 
+    connection.on("ReceiveCheckoutSuccess", (sessionId: string) => {
+      // Redirect to the success page
+      navigate(`/checkout-success?sessionId=${sessionId}`);
+    });
+
     connection.start().catch(() => { /* ignore — server may not be running */ });
 
     return () => {

@@ -11,6 +11,9 @@ public interface IRealtimeService
     // Gửi thông báo thanh toán thành công cho App của khách
     Task SendPaymentSuccessAsync(Guid reservationId);
 
+    // Gửi thông báo hoàn thành phiên đỗ xe (Checkout thành công) cho User
+    Task SendCheckoutSuccessAsync(Guid userId, Guid sessionId);
+
     // Gửi Notification cho 1 user cụ thể (theo userId)
     Task SendNotificationAsync(Guid userId, string message);
 

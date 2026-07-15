@@ -4,6 +4,7 @@ import {
   Car, MapPin, Clock, CreditCard, AlertTriangle,
   ChevronLeft, Navigation, Flag, FastForward, RotateCcw
 } from 'lucide-react';
+import * as signalR from '@microsoft/signalr';
 import { useAuth } from '../../hooks/useAuth';
 import { getMyActiveSession, devFastForwardTime, devResetTime } from '../../services/sessionsService';
 import type { MyActiveSessionResponse } from '../../services/sessionsService';
@@ -36,7 +37,7 @@ export default function LiveSessionPage() {
     fetchSession();
   }, [token, navigate]);
 
-  // Timer & API Polling
+  // Timer & API Polling & SignalR
   useEffect(() => {
     if (!session) return;
 
@@ -71,11 +72,28 @@ export default function LiveSessionPage() {
     };
     const feeInterval = setInterval(fetchSessionFee, 60000);
 
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5237'}/parking-hub`, {
+        accessTokenFactory: () => token || ""
+      })
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+
+    connection.on("ReceiveCheckoutSuccess", (checkoutSessionId: string) => {
+      if (session.id === checkoutSessionId) {
+        navigate(`/checkout-success?sessionId=${checkoutSessionId}`);
+      }
+    });
+
+    connection.start().catch(err => console.error("SignalR Connection Error: ", err));
+
     return () => {
       clearInterval(interval);
       clearInterval(feeInterval);
+      connection.stop();
     };
-  }, [session?.entryTime, token]);
+  }, [session?.entryTime, session?.id, token, navigate]);
 
   const handlePayment = () => {
     alert(`Đang tiến hành thanh toán ${dynamicFee.toLocaleString('vi-VN')} đ`);

@@ -44,6 +44,7 @@ const StaffChatDashboard = lazy(() => import('./pages/Staff/ChatDashboard'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
 const FindParkingPage  = lazy(() => import('./pages/User/FindParkingPage'));
 const MyTicketPage     = lazy(() => import('./pages/User/MyTicketPage'));
+const CheckoutSuccessPage = lazy(() => import('./pages/User/CheckoutSuccessPage'));
 const ProfilePage      = lazy(() => import('./pages/User/ProfilePage'));
 const MyVehiclePage    = lazy(() => import('./pages/User/MyVehiclePage'));
 const PaymentResultPage= lazy(() => import('./pages/User/PaymentResult'));
@@ -62,6 +63,7 @@ export default function App() {
             <Route path="/find-parking" element={<FindParkingPage />} />
             <Route path="/booking" element={<ProtectedRoute element={<BookingPage />} />} />
             <Route path="/my-tickets" element={<ProtectedRoute element={<MyTicketPage />} />} />
+            <Route path="/checkout-success" element={<ProtectedRoute element={<CheckoutSuccessPage />} />} />
             <Route path="/profile" element={<ProtectedRoute element={<ProfilePage />} />} />
             <Route path="/my-vehicles" element={<ProtectedRoute element={<MyVehiclePage />} />} />
             <Route path="/live-session" element={<ProtectedRoute element={<LiveSessionPage />} />} />

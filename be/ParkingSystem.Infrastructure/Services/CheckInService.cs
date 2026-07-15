@@ -50,12 +50,12 @@ public class CheckInService : ICheckInService
                                    && r.Status == ReservationStatus.Confirmed);
 
         if (reservation == null)
-            throw new InvalidOperationException("Mã booking không hợp lệ hoặc chưa được xác nhận.");
+            throw new InvalidOperationException("Invalid booking code or not confirmed.");
 
         // Kiểm tra thời gian booking có hợp lệ không
         var now = DateTime.UtcNow;
         if (now > reservation.EndTime)
-            throw new InvalidOperationException("Booking đã hết hạn.");
+            throw new InvalidOperationException("Booking has expired.");
 
         // Đối chiếu biển số OCR với biển số đăng ký trong Booking
         if (!string.Equals(request.LicensePlateOcr.Trim(), reservation.LicensePlate.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -86,7 +86,7 @@ public class CheckInService : ICheckInService
         // 1. Parse JWT từ QR Driver
         var parsed = _tokenService.ParseDriverQrToken(request.DriverQrToken);
         if (parsed == null)
-            throw new InvalidOperationException("Mã QR không hợp lệ hoặc đã bị giả mạo.");
+            throw new InvalidOperationException("Invalid or tampered QR code.");
 
         var (driverId, driverCode) = parsed.Value;
 
@@ -104,7 +104,7 @@ public class CheckInService : ICheckInService
             .ToListAsync();
 
         if (!confirmedReservations.Any())
-            throw new InvalidOperationException($"Không tìm thấy đặt chỗ nào đang chờ check-in cho tài xế {driverCode}.");
+            throw new InvalidOperationException($"No pending reservations found for driver {driverCode}.");
 
         // 3. Tìm reservation khớp với biển số OCR
         var ocrPlate = request.LicensePlateOcr.Trim();
@@ -145,7 +145,7 @@ public class CheckInService : ICheckInService
                                    && r.Status == ReservationStatus.Confirmed);
 
         if (reservation == null)
-            throw new InvalidOperationException("Reservation không tồn tại hoặc không hợp lệ.");
+            throw new InvalidOperationException("Reservation does not exist or is invalid.");
 
         // Staff cho phép → check-in với biển số thực tế và lưu lại ảnh
         return await ProcessBookingCheckIn(reservation, request.ActualLicensePlate, request.StaffId, request.EntryImageBase64);
@@ -183,13 +183,13 @@ public class CheckInService : ICheckInService
         // Kiểm tra loại xe có tồn tại không
         var vehicleType = await _context.VehicleTypes.FindAsync(request.VehicleTypeId);
         if (vehicleType == null)
-            throw new InvalidOperationException("Loại phương tiện không hợp lệ.");
+            throw new InvalidOperationException("Invalid vehicle type.");
 
         // Kiểm tra xe đã đang gửi trong bãi chưa (trùng biển số + đang Active)
         var existingSession = await _context.ParkingSessions
             .AnyAsync(s => s.LicensePlate == request.LicensePlate && s.Status == SessionStatus.Active);
         if (existingSession)
-            throw new InvalidOperationException($"Xe biển số {request.LicensePlate} đang có phiên gửi xe hoạt động.");
+            throw new InvalidOperationException($"Vehicle with license plate {request.LicensePlate} already has an active session.");
 
         // TỰ ĐỘNG LẤY TỪ STAFF NẾU CÓ
         Guid? effectiveBuildingId = request.BuildingId;
@@ -207,7 +207,7 @@ public class CheckInService : ICheckInService
         {
             var buildingExists = await _context.Buildings.AnyAsync(b => b.Id == effectiveBuildingId.Value && !b.IsDeleted);
             if (!buildingExists)
-                throw new InvalidOperationException("Tòa nhà không tồn tại.");
+                throw new InvalidOperationException("Building does not exist.");
         }
 
         ParkingSlot? assignedSlot;
@@ -226,11 +226,11 @@ public class CheckInService : ICheckInService
                                        && s.Status == SlotStatus.Available);
 
             if (assignedSlot == null)
-                throw new InvalidOperationException("Ô đỗ xe không khả dụng hoặc không phù hợp với loại xe.");
+                throw new InvalidOperationException("Parking slot is unavailable or unsuitable for this vehicle type.");
 
             // Validate: Slot phải thuộc tòa nhà đã chọn (nếu có)
             if (request.BuildingId.HasValue && assignedSlot.Floor.BuildingId != request.BuildingId.Value)
-                throw new InvalidOperationException("Ô đỗ xe không thuộc tòa nhà đã chọn.");
+                throw new InvalidOperationException("Parking slot does not belong to the selected building.");
 
             isAIAssigned = false;
         }
@@ -243,7 +243,7 @@ public class CheckInService : ICheckInService
             if (bestSlot == null)
             {
                 var scope = effectiveBuildingId.HasValue ? " trong tòa nhà này" : "";
-                throw new InvalidOperationException($"Bãi xe đã hết chỗ cho loại xe {vehicleType.Name}{scope}.");
+                throw new InvalidOperationException($"No available slots for vehicle type {vehicleType.Name}{scope}.");
             }
 
             assignedSlot = await _context.ParkingSlots
@@ -252,7 +252,7 @@ public class CheckInService : ICheckInService
                 .FirstOrDefaultAsync(s => s.Id == bestSlot.SlotId);
 
             if (assignedSlot == null)
-                throw new InvalidOperationException("Lỗi hệ thống: Không tìm thấy slot được gợi ý.");
+                throw new InvalidOperationException("System error: Suggested slot not found.");
 
             isAIAssigned = true;
             slotScore = bestSlot.Score;
@@ -347,7 +347,7 @@ public class CheckInService : ICheckInService
             var slotStatus = reservation.ParkingSlot.Status;
             if (slotStatus == SlotStatus.Occupied || slotStatus == SlotStatus.TemporaryHeld || slotStatus == SlotStatus.Maintenance)
             {
-                throw new InvalidOperationException($"Bạn đến sớm, nhưng ô đỗ {reservation.ParkingSlot.SlotNumber} hiện đang có xe khác hoặc bảo trì. Vui lòng liên hệ nhân viên để đổi chỗ.");
+                throw new InvalidOperationException($"You arrived early, but slot {reservation.ParkingSlot.SlotNumber} is currently occupied or under maintenance. Please contact staff to change slot.");
             }
 
             var earlyAmount = reservation.StartTime - now;
@@ -450,7 +450,7 @@ public class CheckInService : ICheckInService
         var existingSession = await _context.ParkingSessions
             .AnyAsync(s => s.LicensePlate == searchPlate && s.Status == SessionStatus.Active);
         if (existingSession)
-            throw new InvalidOperationException($"Xe biển số {searchPlate} đang có phiên gửi xe hoạt động.");
+            throw new InvalidOperationException($"Vehicle with license plate {searchPlate} already has an active session.");
 
         // ── BƯỚC 2: Tìm Booking hợp lệ [THỪA THEO RULE - TÍNH NĂNG BOOKING KHÔNG NẰM TRONG 3 FLOW CƠ BẢN] ──
         var validStatuses = new[] { ReservationStatus.Confirmed, ReservationStatus.Paid };
@@ -477,7 +477,7 @@ public class CheckInService : ICheckInService
         // ── BƯỚC 3: KHÔNG CÓ BOOKING → Walk-in ──
         var vehicleType = await _context.VehicleTypes.FindAsync(request.VehicleTypeId);
         if (vehicleType == null)
-            throw new InvalidOperationException("Loại phương tiện không hợp lệ.");
+            throw new InvalidOperationException("Invalid vehicle type.");
 
         // Tự động lấy BuildingId từ Staff để giới hạn phạm vi tìm slot
         Guid? effectiveBuildingId = null;
@@ -503,11 +503,11 @@ public class CheckInService : ICheckInService
                                        && s.Status == SlotStatus.Available);
 
             if (assignedSlot == null)
-                throw new InvalidOperationException("Ô đỗ xe không khả dụng hoặc không phù hợp với loại xe.");
+                throw new InvalidOperationException("Parking slot is unavailable or unsuitable for this vehicle type.");
 
             // Validate: Slot phải thuộc tòa nhà đã chọn (nếu có)
             if (effectiveBuildingId.HasValue && assignedSlot.Floor.BuildingId != effectiveBuildingId.Value)
-                throw new InvalidOperationException("Ô đỗ xe không thuộc tòa nhà đang quản lý.");
+                throw new InvalidOperationException("Parking slot does not belong to the managed building.");
         }
         else
         {
@@ -516,7 +516,7 @@ public class CheckInService : ICheckInService
             if (bestSlot == null)
             {
                 var scope = effectiveBuildingId.HasValue ? " trong tòa nhà này" : "";
-                throw new InvalidOperationException($"Bãi xe đã hết chỗ cho loại xe {vehicleType.Name}{scope}.");
+                throw new InvalidOperationException($"No available slots for vehicle type {vehicleType.Name}{scope}.");
             }
 
             assignedSlot = await _context.ParkingSlots
@@ -525,7 +525,7 @@ public class CheckInService : ICheckInService
                 .FirstOrDefaultAsync(s => s.Id == bestSlot.SlotId);
 
             if (assignedSlot == null)
-                throw new InvalidOperationException("Lỗi hệ thống: Không tìm thấy slot được gợi ý.");
+                throw new InvalidOperationException("System error: Suggested slot not found.");
 
             slotScore = bestSlot.Score;
             slotReason = bestSlot.Reason;

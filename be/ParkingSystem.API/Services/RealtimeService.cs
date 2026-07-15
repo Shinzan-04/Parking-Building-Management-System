@@ -30,6 +30,11 @@ public class RealtimeService : IRealtimeService
         await _hubContext.Clients.All.SendAsync("ReceivePaymentSuccess", reservationId);
     }
 
+    public async Task SendCheckoutSuccessAsync(Guid userId, Guid sessionId)
+    {
+        await _hubContext.Clients.User(userId.ToString()).SendAsync("ReceiveCheckoutSuccess", sessionId.ToString());
+    }
+
     /// <summary>
     /// Gửi tín hiệu realtime thông báo cho 1 user cụ thể (theo UserId trong JWT claim)
     /// </summary>

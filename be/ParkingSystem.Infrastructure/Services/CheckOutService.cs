@@ -41,7 +41,7 @@ public class CheckOutService : ICheckOutService
     {
         if (string.IsNullOrWhiteSpace(qrCode) && string.IsNullOrWhiteSpace(licensePlate))
         {
-            throw new InvalidOperationException("Vui long quet ma QR the xe hoac nhap bien so xe.");
+            throw new InvalidOperationException("Please scan the QR code or enter the license plate.");
         }
 
         var cleanedInput = string.IsNullOrWhiteSpace(licensePlate) ? "" : CleanLicensePlate(licensePlate);
@@ -71,7 +71,7 @@ public class CheckOutService : ICheckOutService
 
         if (session == null)
         {
-            throw new InvalidOperationException("Ma the xe khong hop le hoac phien gui xe khong ton tai.");
+            throw new InvalidOperationException("Invalid card or parking session does not exist.");
         }
 
         bool isMismatch = false;
@@ -88,7 +88,7 @@ public class CheckOutService : ICheckOutService
             {
                 if (requestBuildingId.HasValue && requestBuildingId.Value != staff.AssignedBuildingId.Value)
                 {
-                    throw new InvalidOperationException("Ban khong co quyen check-out xe cho toa nha khac voi toa nha duoc phan cong.");
+                    throw new InvalidOperationException("You do not have permission to check out vehicles for a building other than your assigned one.");
                 }
                 effectiveBuildingId = staff.AssignedBuildingId;
             }
@@ -96,12 +96,12 @@ public class CheckOutService : ICheckOutService
 
         if (!effectiveBuildingId.HasValue)
         {
-            throw new InvalidOperationException("Vui long chon toa nha de thuc hien thao tac (Admin/Manager).");
+            throw new InvalidOperationException("Please select a building to perform this action (Admin/Manager).");
         }
 
         if (session.ParkingSlot.Floor!.BuildingId != effectiveBuildingId.Value)
         {
-            throw new InvalidOperationException("Khong the check-out xe khong thuoc toa nha ma ban duoc phan cong hoac lua chon.");
+            throw new InvalidOperationException("Cannot check out a vehicle that does not belong to your assigned or selected building.");
         }
 
         var exitTime = DateTime.UtcNow;
@@ -180,7 +180,7 @@ public class CheckOutService : ICheckOutService
 
         if (session == null)
         {
-            throw new InvalidOperationException("Khong tim thay phien gui xe hoac xe da thanh toan.");
+            throw new InvalidOperationException("Parking session not found or already paid.");
         }
 
         Guid? effectiveBuildingId = request.BuildingId;
@@ -191,7 +191,7 @@ public class CheckOutService : ICheckOutService
             {
                 if (request.BuildingId.HasValue && request.BuildingId.Value != staff.AssignedBuildingId.Value)
                 {
-                    throw new InvalidOperationException("Ban khong co quyen xac nhan check-out cho toa nha khac voi toa nha duoc phan cong.");
+                    throw new InvalidOperationException("You do not have permission to confirm checkout for a building other than your assigned one.");
                 }
                 effectiveBuildingId = staff.AssignedBuildingId;
             }
@@ -199,12 +199,12 @@ public class CheckOutService : ICheckOutService
 
         if (!effectiveBuildingId.HasValue)
         {
-            throw new InvalidOperationException("Vui long chon toa nha de thuc hien thao tac (Admin/Manager).");
+            throw new InvalidOperationException("Please select a building to perform this action (Admin/Manager).");
         }
 
         if (session.ParkingSlot.Floor!.BuildingId != effectiveBuildingId.Value)
         {
-            throw new InvalidOperationException("Khong the xac nhan check-out cho xe khong thuoc toa nha ma ban duoc phan cong hoac lua chon.");
+            throw new InvalidOperationException("Cannot confirm checkout for a vehicle that does not belong to your assigned or selected building.");
         }
 
         var exitTime = DateTime.UtcNow;
@@ -315,7 +315,7 @@ public class CheckOutService : ICheckOutService
 
             if (existingPayment == null)
             {
-                throw new InvalidOperationException("Chua tao thanh toan PayOS. Vui long tao QR thanh toan truoc.");
+                throw new InvalidOperationException("PayOS payment not created. Please create a payment QR first.");
             }
 
             if (existingPayment.Status == PaymentStatus.Pending)
@@ -333,18 +333,18 @@ public class CheckOutService : ICheckOutService
 
                     if (payosStatus != PaymentStatus.Success)
                     {
-                        throw new InvalidOperationException("Thanh toan PayOS chua hoan tat. Vui long thanh toan QR truoc.");
+                        throw new InvalidOperationException("PayOS payment incomplete. Please complete the QR payment first.");
                     }
                 }
                 else
                 {
-                    throw new InvalidOperationException("Thanh toan PayOS chua hoan tat. Vui long thanh toan QR truoc.");
+                    throw new InvalidOperationException("PayOS payment incomplete. Please complete the QR payment first.");
                 }
             }
 
             if (existingPayment.Status == PaymentStatus.Failed)
             {
-                throw new InvalidOperationException("Thanh toan PayOS that bai. Vui long tao QR moi va thu lai.");
+                throw new InvalidOperationException("PayOS payment failed. Please generate a new QR and try again.");
             }
 
             // PayOS da thanh toan -> chi cap nhat session, khong tao payment moi
@@ -378,6 +378,10 @@ public class CheckOutService : ICheckOutService
 
             await _realtimeService.SendSlotStatusUpdateAsync(psSlot.Id, psSlot.Status.ToString());
             await _realtimeService.SendDashboardUpdateAsync();
+            if (session.DriverId.HasValue)
+            {
+                await _realtimeService.SendCheckoutSuccessAsync(session.DriverId.Value, session.Id);
+            }
 
             return new CheckOutConfirmResponse
             {
@@ -412,7 +416,7 @@ public class CheckOutService : ICheckOutService
             if (request.PaymentAmount.Value < priceResult.TotalFee)
             {
                 throw new InvalidOperationException(
-                    $"So tien khach dua ({request.PaymentAmount.Value:N0} VND) nho hon phi gui xe ({priceResult.TotalFee:N0} VND).");
+                    $"Amount provided ({request.PaymentAmount.Value:N0} VND) is less than the parking fee ({priceResult.TotalFee:N0} VND).");
             }
         }
 
@@ -464,6 +468,10 @@ public class CheckOutService : ICheckOutService
 
         await _realtimeService.SendSlotStatusUpdateAsync(slot.Id, slot.Status.ToString());
         await _realtimeService.SendDashboardUpdateAsync();
+        if (session.DriverId.HasValue)
+        {
+            await _realtimeService.SendCheckoutSuccessAsync(session.DriverId.Value, session.Id);
+        }
 
         decimal? changeAmount = null;
         if (request.PaymentMethod == PaymentMethod.Cash && request.PaymentAmount.HasValue)
@@ -502,14 +510,14 @@ public class CheckOutService : ICheckOutService
     {
         if (string.IsNullOrWhiteSpace(request.QrCode) && string.IsNullOrWhiteSpace(request.ImageBase64))
         {
-            throw new InvalidOperationException("Vui long quet ma QR the xe hoac cung cap hinh anh.");
+            throw new InvalidOperationException("Please scan the card QR or provide an image.");
         }
 
         var ocrResult = await _lprService.RecognizeFrameAsync(request.ImageBase64);
 
         if (!ocrResult.IsDetected || string.IsNullOrWhiteSpace(ocrResult.LicensePlate))
         {
-            throw new InvalidOperationException("Khong the nhan dien duoc bien so xe. Vui long chup anh ro hon va thu lai.");
+            throw new InvalidOperationException("Cannot recognize the license plate. Please take a clearer picture and try again.");
         }
 
         var exitPlate = ocrResult.LicensePlate.Trim();
@@ -539,12 +547,12 @@ public class CheckOutService : ICheckOutService
 
         if (session == null)
         {
-            throw new InvalidOperationException("Ma the xe khong hop le hoac phien gui xe khong ton tai.");
+            throw new InvalidOperationException("Invalid card or parking session does not exist.");
         }
 
         if (CleanLicensePlate(session.LicensePlate) != normalizedExitPlate)
         {
-            throw new InvalidOperationException($"Bien so xe tu camera ({exitPlate}) khong khop voi the xe.");
+            throw new InvalidOperationException($"License plate from camera ({exitPlate}) does not match the card.");
         }
 
         Guid? effectiveBuildingId = request.BuildingId;
@@ -555,7 +563,7 @@ public class CheckOutService : ICheckOutService
             {
                 if (request.BuildingId.HasValue && request.BuildingId.Value != staff.AssignedBuildingId.Value)
                 {
-                    throw new InvalidOperationException("Ban khong co quyen check-out xe cho toa nha khac voi toa nha duoc phan cong.");
+                    throw new InvalidOperationException("You do not have permission to check out vehicles for a building other than your assigned one.");
                 }
                 effectiveBuildingId = staff.AssignedBuildingId;
             }
@@ -563,12 +571,12 @@ public class CheckOutService : ICheckOutService
 
         if (!effectiveBuildingId.HasValue)
         {
-            throw new InvalidOperationException("Vui long chon toa nha de thuc hien thao tac (Admin/Manager).");
+            throw new InvalidOperationException("Please select a building to perform this action (Admin/Manager).");
         }
 
         if (session.ParkingSlot.Floor!.BuildingId != effectiveBuildingId.Value)
         {
-            throw new InvalidOperationException("Khong the check-out xe khong thuoc toa nha ma ban duoc phan cong hoac lua chon.");
+            throw new InvalidOperationException("Cannot check out a vehicle that does not belong to your assigned or selected building.");
         }
 
         var normalizedEntryPlate = CleanLicensePlate(session.LicensePlate);
@@ -638,7 +646,7 @@ public class CheckOutService : ICheckOutService
 
         if (session == null)
         {
-            throw new InvalidOperationException("Khong tim thay phien gui xe hoac xe da thanh toan.");
+            throw new InvalidOperationException("Parking session not found or already paid.");
         }
 
         var exitTime = DateTime.UtcNow;
@@ -728,7 +736,7 @@ public class CheckOutService : ICheckOutService
 
         if (pricingPolicy == null)
         {
-            throw new InvalidOperationException("Khong tim thay bang gia (Pricing Policy) cho loai xe nay.");
+            throw new InvalidOperationException("Pricing policy not found for this vehicle type.");
         }
 
         var duration = exitTime - entryTime;

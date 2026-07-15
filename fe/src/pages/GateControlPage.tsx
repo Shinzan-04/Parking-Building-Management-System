@@ -12,6 +12,7 @@ import {
   Car,
   Bike,
   Ticket,
+  Loader,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -63,10 +64,10 @@ function GateStatusBanner({ kind, message }: { kind: 'success' | 'error' | 'info
   if (!message) return null;
   const tone =
     kind === 'success'
-      ? 'border-emerald-250 bg-emerald-50 text-emerald-700 shadow-emerald-500/20'
+      ? 'border-emerald-100 bg-white text-emerald-700 shadow-emerald-500/10'
       : kind === 'error'
-        ? 'border-red-250 bg-red-50 text-red-700 shadow-red-500/20'
-        : 'border-blue-250 bg-blue-50 text-blue-700 shadow-blue-500/20';
+        ? 'border-red-100 bg-white text-red-700 shadow-red-500/10'
+        : 'border-blue-100 bg-white text-blue-700 shadow-blue-500/10';
 
   return (
     <div 
@@ -459,9 +460,9 @@ export default function GateControlPage() {
               <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-xs shrink-0 shadow-sm shadow-[#FF4C4C]/20">
                 {initials}
               </div>
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-stone-800 truncate leading-snug">{user.fullName}</p>
-                <p className="text-[9px] font-bold text-stone-400 uppercase tracking-widest mt-0.5">{user.role}</p>
+                <div className="flex flex-col">
+                  <span className="font-extrabold text-stone-900 leading-tight">Check-in Gate</span>
+                  <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">Entry</span>
               </div>
             </div>
           )}
@@ -477,7 +478,7 @@ export default function GateControlPage() {
               }`}
             >
               <Car size={16} />
-              Cổng Vào (Check-in)
+              Entry (Check-in)
             </button>
             <button
               onClick={() => setActiveTab('exit')}
@@ -488,7 +489,7 @@ export default function GateControlPage() {
               }`}
             >
               <DoorOpen size={16} />
-              Cổng Ra (Check-out)
+              Exit (Check-out)
             </button>
           </div>
         </div>
@@ -505,7 +506,7 @@ export default function GateControlPage() {
               className="w-full flex items-center justify-center gap-2 border border-gray-200 hover:bg-gray-50 text-stone-600 hover:text-stone-900 font-bold py-2.5 rounded-xl text-xs transition-colors"
             >
               <ArrowLeft size={14} />
-              Quay lại Portal
+              Back to Portal
             </Link>
           )}
           <button
@@ -516,7 +517,7 @@ export default function GateControlPage() {
             className="w-full flex items-center justify-center gap-2 border border-red-100 hover:bg-red-50 text-red-500 font-bold py-2.5 rounded-xl text-xs transition-all"
           >
             <LogOut size={14} />
-            Đăng xuất
+            Logout
           </button>
         </div>
       </aside>
@@ -645,19 +646,19 @@ export default function GateControlPage() {
                     <label className="mb-2 block text-[10px] font-bold text-stone-500 uppercase tracking-wider">Card Assigned Slot</label>
                     <div className="mb-6 rounded-xl bg-stone-50 border border-stone-200 p-4 flex justify-between items-center">
                       <div>
-                        <div className="text-sm font-black text-stone-800">
-                          {selectedSlotId ? `Ô ${selectedSlotNumber}` : 'Tự động (AI Suggest)'}
-                        </div>
-                        <p className="mt-0.5 text-[10px] text-stone-500 font-medium">
-                          {selectedSlotId ? 'Staff chọn thủ công' : 'Hệ thống tự động xếp chỗ'}
-                        </p>
+                                        <div className="font-extrabold text-stone-900 mt-1">
+                        {selectedSlotId ? `Slot ${selectedSlotNumber}` : 'Auto (AI Suggest)'}
+                      </div>
+                      <div className="text-xs text-stone-400 mt-1">
+                        {selectedSlotId ? 'Staff manual choice' : 'Auto allocated by system'}
+                      </div>
                       </div>
                       <button
                         type="button"
                         onClick={() => setShowMap(true)}
                         className="text-[#FF4C4C] hover:text-[#E13B3B] hover:bg-[#FF4C4C]/10 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors"
                       >
-                        Thay đổi
+                        Change
                       </button>
                     </div>
 
@@ -772,9 +773,9 @@ export default function GateControlPage() {
                           <p className="text-sm font-bold text-stone-800">{Math.floor(exitSessionData.totalHours)}h {Math.round((exitSessionData.totalHours % 1) * 60)}m</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Slot Code</p>
-                          <p className="text-sm font-bold text-stone-800">{exitSessionData.floorName} - Ô {exitSessionData.slotNumber}</p>
-                        </div>
+                          <p className="text-[10px] uppercase font-bold tracking-wider text-stone-400">Location</p>
+                        <p className="text-sm font-bold text-stone-800">{exitSessionData.floorName} - Slot {exitSessionData.slotNumber}</p>
+                      </div>
                         
                         {/* Status Row */}
                         <div className="col-span-2 lg:col-span-3 border-t border-gray-100 pt-6 flex justify-between items-center">
@@ -943,12 +944,12 @@ export default function GateControlPage() {
         {/* Map Modal */}
         {showMap && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm">
-            <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl">
-              <div className="flex items-center justify-between mb-4 border-b border-gray-100 pb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-stone-900">Bản đồ vị trí trống</h3>
-                  <p className="text-xs text-stone-500 mt-1">Chọn vị trí thủ công cho phương tiện (chỉ hiện ô còn trống)</p>
-                </div>
+          <div className="bg-white rounded-2xl w-[900px] max-w-[90vw] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-stone-100">
+            <div className="p-5 border-b flex justify-between items-center bg-stone-50/50">
+              <div>
+                <h3 className="text-xl font-bold text-stone-900">Available Slots Map</h3>
+                <p className="text-xs text-stone-500 mt-1">Manually select a slot (only showing available slots)</p>
+              </div>
                 <button
                   onClick={() => setShowMap(false)}
                   className="rounded-xl p-2 hover:bg-stone-100 transition-colors"
@@ -956,10 +957,10 @@ export default function GateControlPage() {
                   <X size={20} className="text-stone-500" />
                 </button>
               </div>
-
-              {loadingSlots ? (
-                <div className="py-12 text-center text-sm font-bold text-stone-400">Đang tải bản đồ...</div>
-              ) : (
+              <div className="p-6 overflow-auto bg-stone-50/30 flex-1">
+                {loadingSlots ? (
+                  <div className="py-12 text-center text-sm font-bold text-stone-400">Loading map...</div>
+                ) : (
                 <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                   {slots.map(s => {
                     const isSelected = s.id === selectedSlotId;
@@ -989,6 +990,7 @@ export default function GateControlPage() {
                   })}
                 </div>
               )}
+              </div>
             </div>
           </div>
       )}
@@ -996,33 +998,40 @@ export default function GateControlPage() {
       {/* Check-in Result Modal (Ticket / QR) */}
       {checkInResultData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm text-center border border-gray-100">
-            <h3 className="text-xl font-bold text-stone-900 mb-1">Vé Gửi Xe Điện Tử</h3>
-            <p className="text-xs text-stone-500 font-medium mb-6">Mã phiên: <span className="font-mono text-[#FF4C4C] font-bold">{checkInResultData.sessionCode}</span></p>
-
-            {checkInResultData.sessionQrCodeBase64 && (
-              <div className="bg-gray-50 rounded-2xl p-4 inline-block border border-gray-200 mb-6 shadow-inner">
-                <img
-                  src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
-                  alt="Session QR"
-                  className="w-48 h-48 mx-auto object-contain"
-                />
+              <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border border-stone-100">
+              <div className="p-6 flex flex-col items-center">
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                </div>
+                <h3 className="text-xl font-bold text-stone-900 mb-1">E-Ticket</h3>
+                <p className="text-xs text-stone-500 font-medium mb-6">Session ID: <span className="font-mono text-[#FF4C4C] font-bold">{checkInResultData.sessionCode}</span></p>
+                
+                {checkInResultData.sessionQrCodeBase64 && (
+                  <div className="bg-white rounded-2xl p-4 inline-block border border-gray-100 mb-6 shadow-sm">
+                    <img
+                      src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
+                      alt="Session QR"
+                      className="w-48 h-48 mx-auto object-contain"
+                    />
+                  </div>
+                )}
+                
+                <div className="w-full space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-100">
+                  <p className="text-sm flex justify-between"><span className="text-stone-500">License Plate:</span> <span className="font-bold text-stone-900 font-mono text-lg">{checkInResultData.licensePlate}</span></p>
+                  <p className="text-sm flex justify-between"><span className="text-stone-500">Vehicle Type:</span> <span className="font-bold text-stone-900">{checkInResultData.vehicleTypeName}</span></p>
+                  <p className="text-sm flex justify-between"><span className="text-stone-500">Location:</span> <span className="font-bold text-[#FF4C4C]">Floor {checkInResultData.floorName}, Slot {checkInResultData.slotNumber}</span></p>
+                  <p className="text-sm flex justify-between"><span className="text-stone-500">Building:</span> <span className="font-bold text-stone-900">{checkInResultData.buildingName}</span></p>
+                </div>
               </div>
-            )}
-
-            <div className="space-y-2 text-left bg-gray-50 rounded-2xl p-4 border border-gray-100">
-              <p className="text-sm flex justify-between"><span className="text-stone-500">Biển số:</span> <span className="font-bold text-stone-900 font-mono text-lg">{checkInResultData.licensePlate}</span></p>
-              <p className="text-sm flex justify-between"><span className="text-stone-500">Loại xe:</span> <span className="font-bold text-stone-900">{checkInResultData.vehicleTypeName}</span></p>
-              <p className="text-sm flex justify-between"><span className="text-stone-500">Vị trí:</span> <span className="font-bold text-[#FF4C4C]">Tầng {checkInResultData.floorName}, Ô {checkInResultData.slotNumber}</span></p>
-              <p className="text-sm flex justify-between"><span className="text-stone-500">Tòa nhà:</span> <span className="font-bold text-stone-900">{checkInResultData.buildingName}</span></p>
+            
+            <div className="p-4 border-t flex justify-end gap-3 bg-stone-50/50">
+              <button
+                onClick={() => setCheckInResultData(null)}
+                className="h-10 px-6 rounded-xl font-bold text-sm bg-stone-900 text-white hover:bg-stone-800 transition-colors w-full"
+              >
+                Print & Close
+              </button>
             </div>
-
-            <button
-              onClick={() => setCheckInResultData(null)}
-              className="mt-6 w-full py-3 bg-[#FF4C4C] text-white rounded-xl font-bold hover:bg-[#E13B3B] transition-colors"
-            >
-              In vé & Đóng
-            </button>
           </div>
         </div>
       )}

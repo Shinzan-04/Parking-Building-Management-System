@@ -503,3 +503,5 @@ start-postgres.bat
 
 # AI Context backup (Xoay tua account Antigravity)
 AI_CONTEXT.md
+# Frontend dist
+fe/dist/
