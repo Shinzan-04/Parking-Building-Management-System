@@ -59,23 +59,23 @@ const EXCEPTION_COPY: Record<
   },
 };
 
-function GateStatusBanner({
-  kind,
-  message,
-}: {
-  kind: 'success' | 'error' | 'info';
-  message: string;
-}) {
+function GateStatusBanner({ kind, message }: { kind: 'success' | 'error' | 'info'; message: string }) {
+  if (!message) return null;
   const tone =
     kind === 'success'
-      ? 'border-emerald-250 bg-emerald-50 text-emerald-700'
+      ? 'border-emerald-250 bg-emerald-50 text-emerald-700 shadow-emerald-500/20'
       : kind === 'error'
-        ? 'border-red-250 bg-red-50 text-red-700'
-        : 'border-blue-250 bg-blue-50 text-blue-700';
+        ? 'border-red-250 bg-red-50 text-red-700 shadow-red-500/20'
+        : 'border-blue-250 bg-blue-50 text-blue-700 shadow-blue-500/20';
 
   return (
-    <div className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${tone}`}>
-      {message}
+    <div 
+      className="fixed top-8 left-1/2 -translate-x-1/2 z-[100]"
+      style={{ animation: 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
+    >
+      <div className={`rounded-full border px-6 py-3 text-sm font-bold shadow-xl flex items-center gap-2 ${tone}`}>
+        {message}
+      </div>
     </div>
   );
 }
@@ -233,17 +233,17 @@ export default function GateControlPage() {
 
   const handleConfirmEntry = async () => {
     if (!entryLicensePlate.trim()) {
-      showNotification('error', 'Vui lòng nhập biển số xe.');
+      showNotification('error', 'Please enter a license plate.');
       return;
     }
     if (!token) {
-      showNotification('error', 'Bạn cần đăng nhập để thực hiện check-in.');
+      showNotification('error', 'You must be logged in to check-in.');
       return;
     }
 
     const vtId = vehicleTypeMap[entryVehicleType.toLowerCase()];
     if (!vtId) {
-      showNotification('error', `Không tìm thấy loại xe "${entryVehicleType}" trong hệ thống.`);
+      showNotification('error', `Vehicle type "${entryVehicleType}" not found in the system.`);
       return;
     }
 
@@ -256,7 +256,7 @@ export default function GateControlPage() {
       }, token);
 
       showNotification('success',
-        `✓ Check-in thành công: ${result.licensePlate} → Tòa ${result.buildingName}, Tầng ${result.floorName}, Ô ${result.slotNumber}`
+        `✓ Check-in successful: ${result.licensePlate} → Bldg ${result.buildingName}, Flr ${result.floorName}, Slot ${result.slotNumber}`
       );
       setCheckInResultData(result);
       setEntryLicensePlate('');
@@ -269,7 +269,7 @@ export default function GateControlPage() {
       }
       entryInputRef.current?.focus();
     } catch (err) {
-      showNotification('error', err instanceof Error ? err.message : 'Check-in thất bại.');
+      showNotification('error', err instanceof Error ? err.message : 'Check-in failed.');
     }
   };
 
@@ -284,9 +284,9 @@ export default function GateControlPage() {
     try {
       const result = await searchCheckOut(exitLicensePlate, token, user?.assignedBuildingId);
       setExitSessionData(result);
-      showNotification('success', `Đã tìm thấy phiên đỗ xe của biển số: ${result.licensePlate}`);
+      showNotification('success', `Session found for license plate: ${result.licensePlate}`);
     } catch (err: any) {
-      showNotification('error', err.message || 'Không tìm thấy phiên gửi xe hợp lệ.');
+      showNotification('error', err.message || 'No valid parking session found.');
       setExitSessionData(null);
     } finally {
       setExitLoading(false);
@@ -299,9 +299,9 @@ export default function GateControlPage() {
     try {
       const result = await searchCheckOutByQr(qrCode, token, user?.assignedBuildingId);
       setExitSessionData(result);
-      showNotification('success', `Đã tìm thấy phiên đỗ xe.`);
+      showNotification('success', `Parking session found.`);
     } catch (err: any) {
-      showNotification('error', err.message || 'Không tìm thấy phiên đỗ xe hợp lệ từ mã QR này.');
+      showNotification('error', err.message || 'No valid session found for this QR code.');
       setExitSessionData(null);
     } finally {
       setExitLoading(false);
@@ -314,7 +314,7 @@ export default function GateControlPage() {
       return;
     }
     if (!token || !user) {
-      showNotification('error', 'Bạn cần đăng nhập để thực hiện.');
+      showNotification('error', 'You must be logged in to perform this action.');
       return;
     }
 
@@ -326,7 +326,7 @@ export default function GateControlPage() {
         paymentAmount: exitSessionData.estimatedFee,
       }, token);
 
-      showNotification('success', `Thanh toán thành công: ${result.totalFee.toLocaleString('vi-VN')} đ. Mở Barrier!`);
+      showNotification('success', `Payment successful: ${result.totalFee.toLocaleString('vi-VN')} đ. Barrier opened!`);
       setExitLicensePlate('');
       setExitSessionData(null);
       exitInputRef.current?.focus();
@@ -335,7 +335,7 @@ export default function GateControlPage() {
         getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => {});
       }
     } catch (err: any) {
-      showNotification('error', err.message || 'Lỗi khi xác nhận thanh toán.');
+      showNotification('error', err.message || 'Error confirming payment.');
     }
   };
 
@@ -350,7 +350,7 @@ export default function GateControlPage() {
     setEntryImageBase64(imageBase64);
     showNotification(
       'info',
-      `Nhận diện: ${result.licensePlate} (Độ tin cậy: ${(result.confidence * 100).toFixed(1)}%) — Xác nhận và bấm CHECK-IN`
+      `Detected: ${result.licensePlate} (Confidence: ${(result.confidence * 100).toFixed(1)}%) — Confirm and click CHECK-IN`
     );
     entryInputRef.current?.focus();
   };
@@ -385,13 +385,13 @@ export default function GateControlPage() {
       setExitSessionData(mappedData);
       
       if (ocrResult.isMatch) {
-        showNotification('success', `Biển số khớp: ${result.licensePlate} (${(result.confidence * 100).toFixed(1)}%)`);
-      } else {
-        showNotification('error', `Cảnh báo: OCR (${ocrResult.exitLicensePlate}) khác DB (${ocrResult.entryLicensePlate})`);
+        showNotification('success', `License plate match: ${result.licensePlate} (${(result.confidence * 100).toFixed(1)}%)`);
+      } else if (ocrResult.exitLicensePlate && ocrResult.entryLicensePlate) {
+        showNotification('error', `Warning: OCR (${ocrResult.exitLicensePlate}) mismatch with DB (${ocrResult.entryLicensePlate})`);
       }
       exitInputRef.current?.focus();
     } catch (err: any) {
-      showNotification('error', err.message || 'Không tìm thấy phiên gửi xe cho biển số này.');
+      showNotification('error', err.message || 'No parking session found for this license plate.');
       setExitSessionData(null);
     } finally {
       setExitLoading(false);
@@ -748,7 +748,7 @@ export default function GateControlPage() {
                   <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm min-h-[250px]">
                     <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-6">ACTIVE SESSION DETAILS</h3>
                     {exitLoading ? (
-                      <div className="text-center text-sm font-bold text-stone-400 py-12">Đang tải dữ liệu...</div>
+                      <div className="text-center text-sm font-bold text-stone-400 py-12">Loading data...</div>
                     ) : exitSessionData ? (
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4">
                         <div>
