@@ -6,12 +6,12 @@ import { useTheme } from '../../hooks/useTheme';
 import NotificationBell from '../../components/NotificationBell';
 
 const navItems = [
-  { to: '/staff', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/staff/reservations', label: 'Danh sách Đặt chỗ', icon: CalendarCheck, end: false },
-  { to: '/staff/slots', label: 'Danh sách Slot', icon: MapPin, end: false },
+  { to: '/staff/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/staff/reservations', label: 'Reservations', icon: CalendarCheck, end: false },
+  { to: '/staff/slots', label: 'Parking Slots', icon: MapPin, end: false },
   { to: '/staff/chat', label: 'Live Chat', icon: MessageSquare, end: false },
   {
-    label: 'Kiểm soát cổng', icon: DoorOpen,
+    label: 'Gate Control', icon: DoorOpen,
     children: [
       { to: '/staff/gate-control/entry', label: 'Check-in' },
       { to: '/staff/gate-control/exit', label: 'Check-out' }
@@ -21,7 +21,7 @@ const navItems = [
 
 export default function StaffLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(['Kiểm soát cổng']);
+  const [expandedMenus, setExpandedMenus] = useState<string[]>(['Gate Control']);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
@@ -170,12 +170,12 @@ export default function StaffLayout() {
 
           <button
             onClick={handleLogout}
-            title={isCollapsed ? 'Đăng xuất' : undefined}
+            title={isCollapsed ? 'Logout' : undefined}
             className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2.5 rounded-xl text-sm font-medium hover:text-red-500 hover:bg-red-400/10 transition-all`}
             style={{ color: 'var(--admin-text-muted)' }}
           >
             <LogOut size={17} className="shrink-0" />
-            {!isCollapsed && 'Đăng xuất'}
+            {!isCollapsed && 'Logout'}
           </button>
         </div>
       </aside>
@@ -191,10 +191,10 @@ export default function StaffLayout() {
         >
           <div>
             <h1 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
-              Bảng điều khiển Staff
+              Staff Dashboard
             </h1>
             <p className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>
-              Hệ thống quản lý bãi đỗ xe
+              Parking Management System
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -202,7 +202,7 @@ export default function StaffLayout() {
               onClick={toggleTheme}
               className="p-2 rounded-xl transition-colors"
               style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
-              title={theme === 'dark' ? 'Chuyển Light mode' : 'Chuyển Dark mode'}
+              title={theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}
             >
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
             </button>

@@ -19,7 +19,7 @@ export default function StaffDashboard() {
 
   const buildingId = user?.assignedBuildingId;
 
-  const today = new Date().toLocaleDateString('vi-VN', {
+  const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
   });
 
@@ -93,7 +93,7 @@ export default function StaffDashboard() {
       setOverdueCount(summary.totalOverdue);
       setRecentSessions(sessionsRes.items.slice(0, 6));
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -124,7 +124,7 @@ export default function StaffDashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm" style={{ color: 'var(--admin-text-faint)' }}>Đang tải dữ liệu...</p>
+        <p className="text-sm" style={{ color: 'var(--admin-text-faint)' }}>Loading data...</p>
       </div>
     );
   }
@@ -134,10 +134,10 @@ export default function StaffDashboard() {
     : 0;
 
   const kpiCards = [
-    { label: 'Xe đang đỗ',        value: stats?.occupiedSlots ?? 0, unit: 'xe',  icon: Car,        color: '#FF4C4C' },
-    { label: 'Chỗ còn trống',     value: stats?.availableSlots ?? 0, unit: 'chỗ', icon: MapPin,     color: '#FF4C4C' },
-    { label: 'Tỷ lệ lấp đầy',    value: `${occupancyPct}%`,        unit: '',    icon: TrendingUp, color: '#A78BFA' },
-    { label: 'Phiên đang hoạt động', value: stats?.activeSessions ?? 0, unit: 'phiên', icon: Clock, color: '#34D399' },
+    { label: 'Parked vehicles', value: stats?.occupiedSlots ?? 0, unit: 'vehicles', icon: Car, color: '#FF4C4C' },
+    { label: 'Available slots', value: stats?.availableSlots ?? 0, unit: 'slots', icon: MapPin, color: '#FF4C4C' },
+    { label: 'Occupancy rate', value: `${occupancyPct}%`, unit: '', icon: TrendingUp, color: '#A78BFA' },
+    { label: 'Active sessions', value: stats?.activeSessions ?? 0, unit: 'sessions', icon: Clock, color: '#34D399' },
   ];
 
   return (
@@ -148,7 +148,7 @@ export default function StaffDashboard() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h2 className="text-2xl font-bold" style={{ color: 'var(--admin-text-primary)' }}>
-              Tổng quan tòa nhà
+              Building Overview
             </h2>
             {buildingName && (
               <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[#FF4C4C]/10 text-[#FF4C4C]">
@@ -180,7 +180,7 @@ export default function StaffDashboard() {
         <div className="flex items-center gap-3 px-5 py-3.5 rounded-xl" style={{ backgroundColor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)' }}>
           <AlertTriangle size={16} className="text-red-400 shrink-0 animate-pulse" />
           <p className="text-sm text-red-400 font-medium">
-            <span className="font-bold">{overdueCount}</span> xe đang quá giờ đỗ — cần xử lý ngay
+            <span className="font-bold">{overdueCount}</span> overtime vehicles — action required
           </p>
         </div>
       )}
@@ -210,14 +210,14 @@ export default function StaffDashboard() {
         <div className="glass-card p-6 rounded-2xl flex flex-col gap-5">
           <div>
             <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
-              Tình trạng bãi đỗ
+              Parking Status
             </h3>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--admin-text-faint)' }}>Dữ liệu real-time</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--admin-text-faint)' }}>Real-time data</p>
           </div>
 
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span style={{ color: 'var(--admin-text-muted)' }}>Tỷ lệ lấp đầy</span>
+              <span style={{ color: 'var(--admin-text-muted)' }}>Occupancy Rate</span>
               <span className="font-semibold text-[#FF4C4C]">{occupancyPct}%</span>
             </div>
             <div className="h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--admin-bg-card)' }}>
@@ -230,9 +230,9 @@ export default function StaffDashboard() {
 
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Tổng chỗ',  value: stats?.totalSlots ?? 0 },
-              { label: 'Đang dùng', value: stats?.occupiedSlots ?? 0, red: true },
-              { label: 'Còn trống', value: stats?.availableSlots ?? 0 },
+              { label: 'Total Slots', value: stats?.totalSlots ?? 0 },
+              { label: 'Occupied', value: stats?.occupiedSlots ?? 0, red: true },
+              { label: 'Available', value: stats?.availableSlots ?? 0 },
             ].map(item => (
               <div key={item.label} className="rounded-xl px-3 py-3 text-center" style={{ backgroundColor: 'var(--admin-bg-card)' }}>
                 <p className={`text-xl font-bold ${item.red ? 'text-[#FF4C4C]' : ''}`} style={item.red ? {} : { color: 'var(--admin-text-primary)' }}>
@@ -248,16 +248,16 @@ export default function StaffDashboard() {
         <div className="glass-card p-6 rounded-2xl flex flex-col gap-5">
           <div>
             <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
-              Tổng kết hôm nay
+              Today's Summary
             </h3>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--admin-text-faint)' }}>Trong tòa nhà được gán</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--admin-text-faint)' }}>In assigned building</p>
           </div>
 
           <div className="space-y-3">
             {[
-              { label: 'Lượt hoàn thành hôm nay', value: todayCompleted, unit: 'lượt' },
-              { label: 'Doanh thu hôm nay',        value: `${vnd(todayRevenue)}đ`, unit: '' },
-              { label: 'Xe quá giờ',               value: overdueCount, unit: 'xe', warn: overdueCount > 0 },
+              { label: 'Completed sessions', value: todayCompleted, unit: 'sessions' },
+              { label: 'Today\'s revenue', value: `${vnd(todayRevenue)} VND`, unit: '' },
+              { label: 'Overtime vehicles', value: overdueCount, unit: 'vehicles', warn: overdueCount > 0 },
             ].map(item => (
               <div key={item.label} className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'var(--admin-border)' }}>
                 <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>{item.label}</span>
@@ -275,23 +275,23 @@ export default function StaffDashboard() {
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--admin-border)' }}>
           <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
-            Phiên đỗ xe gần đây
+            Recent Parking Sessions
           </h3>
           <span className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>
-            {recentSessions.length} phiên gần nhất
+            Last {recentSessions.length} sessions
           </span>
         </div>
 
         {recentSessions.length === 0 ? (
           <div className="flex items-center justify-center py-12 text-sm" style={{ color: 'var(--admin-text-faint)' }}>
-            Không có dữ liệu
+            No data available
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b" style={{ borderColor: 'var(--admin-border)' }}>
-                  {['Biển số', 'Tầng / Chỗ', 'Giờ vào', 'Giờ ra', 'Phí', 'Trạng thái'].map(h => (
+                  {['License Plate', 'Floor / Slot', 'Entry Time', 'Exit Time', 'Fee', 'Status'].map(h => (
                     <th key={h} className="text-left text-xs font-medium px-4 py-3 first:pl-6" style={{ color: 'var(--admin-text-faint)' }}>{h}</th>
                   ))}
                 </tr>
@@ -309,36 +309,36 @@ export default function StaffDashboard() {
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--admin-text-muted)' }}>
                         <Clock size={12} style={{ color: 'var(--admin-text-faint)' }} />
-                        {new Date(s.entryTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(s.entryTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>
                         {s.exitTime
-                          ? new Date(s.exitTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+                          ? new Date(s.exitTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
                           : '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="text-sm font-medium" style={{ color: 'var(--admin-text-primary)' }}>
-                        {s.totalFee > 0 ? `${vnd(s.totalFee)}đ` : '—'}
+                        {s.totalFee > 0 ? `${vnd(s.totalFee)} VND` : '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
                       {s.status === 'Completed' ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}>
                           <CheckCircle2 size={11} />
-                          Đã ra
+                          Completed
                         </span>
                       ) : s.status === 'Overdue' ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-400/10 text-red-400">
                           <AlertTriangle size={11} />
-                          Quá giờ
+                          Overdue
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FF4C4C]/10 text-[#FF4C4C]">
                           <span className="w-1.5 h-1.5 bg-[#FF4C4C] rounded-full animate-pulse" />
-                          Đang đỗ
+                          Parked
                         </span>
                       )}
                     </td>

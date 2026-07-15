@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import './index.css';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -119,7 +119,8 @@ export default function App() {
             path="/staff"
             element={<ProtectedRoute element={<StaffLayout />} requiredRoles={["Staff"]} />}
           >
-            <Route index element={<StaffDashboard />} />
+            <Route index element={<Navigate to="/staff/dashboard" replace />} />
+            <Route path="dashboard" element={<StaffDashboard />} />
             <Route path="slots" element={<StaffSlotList />} />
             <Route path="reservations" element={<StaffReservations />} />
             <Route path="chat" element={<StaffChatDashboard />} />
