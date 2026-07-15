@@ -100,14 +100,14 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
 
           <canvas ref={canvasRef} className="hidden" />
 
-          {error && <div className="px-4 py-2 text-sm text-red-300">{error}</div>}
+          {error && <div className="absolute top-4 left-4 right-4 z-30 px-4 py-2 text-sm text-red-300 bg-black/60 rounded-lg backdrop-blur-sm">{error}</div>}
 
-          <div className="p-3 flex items-center justify-end gap-3">
+          <div className="absolute bottom-4 right-4 z-30">
             <button
               type="button"
               onClick={captureAndScan}
               disabled={loading}
-              className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-cyan-400 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
