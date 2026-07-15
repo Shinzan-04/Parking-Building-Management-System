@@ -130,6 +130,15 @@ export const searchCheckOut = (licensePlate: string, token: string, buildingId?:
   return apiFetch(url, undefined, token);
 };
 
+/** Tìm kiếm xe đang gửi trong bãi theo mã QR */
+export const searchCheckOutByQr = (qrCode: string, token: string, buildingId?: string): Promise<CheckOutSearchResult> => {
+  let url = `/api/CheckOut/search?qrCode=${encodeURIComponent(qrCode)}`;
+  if (buildingId) {
+    url += `&buildingId=${encodeURIComponent(buildingId)}`;
+  }
+  return apiFetch(url, undefined, token);
+};
+
 /** Xác nhận thanh toán và cho xe ra bãi */
 export const confirmCheckOut = (request: CheckOutConfirmRequest, token: string): Promise<CheckOutConfirmResponse> =>
   apiFetch(`/api/CheckOut/confirm`, {

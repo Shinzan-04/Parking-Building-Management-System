@@ -21,7 +21,7 @@ import type { CheckInResult, SmartCheckInRequest } from '../services/checkInServ
 import type { ScanPlateResponse } from '../services/ocrService';
 import { getAllSlots } from '../services/parkingService';
 import type { ParkingSlotDetail } from '../services/parkingService';
-import { searchCheckOut, confirmCheckOut, ocrCheckOut } from '../services/checkOutService';
+import { searchCheckOut, searchCheckOutByQr, confirmCheckOut, ocrCheckOut } from '../services/checkOutService';
 import type { CheckOutSearchResult } from '../services/checkOutService';
 import { MapPin, X } from 'lucide-react';
 type VehicleType = 'car' | 'motorbike' | 'ev';
@@ -162,6 +162,7 @@ export default function GateControlPage() {
   const [entryVehicleType, setEntryVehicleType] = useState<VehicleType>('car');
   const [entryImageBase64, setEntryImageBase64] = useState<string | null>(null);
   const [exitLicensePlate, setExitLicensePlate] = useState('');
+  const [exitCameraMode, setExitCameraMode] = useState<'lpr' | 'qr'>('lpr');
   const [exitSessionData, setExitSessionData] = useState<CheckOutSearchResult | null>(null);
   const [exitLoading, setExitLoading] = useState(false);
   const [notification, setNotification] = useState<{ kind: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -286,6 +287,21 @@ export default function GateControlPage() {
       showNotification('success', `Đã tìm thấy phiên đỗ xe của biển số: ${result.licensePlate}`);
     } catch (err: any) {
       showNotification('error', err.message || 'Không tìm thấy phiên gửi xe hợp lệ.');
+      setExitSessionData(null);
+    } finally {
+      setExitLoading(false);
+    }
+  };
+
+  const handleQrExitSuccess = async (qrCode: string): Promise<void> => {
+    if (!token) return;
+    setExitLoading(true);
+    try {
+      const result = await searchCheckOutByQr(qrCode, token, user?.assignedBuildingId);
+      setExitSessionData(result);
+      showNotification('success', `Đã tìm thấy phiên đỗ xe.`);
+    } catch (err: any) {
+      showNotification('error', err.message || 'Không tìm thấy phiên đỗ xe hợp lệ từ mã QR này.');
       setExitSessionData(null);
     } finally {
       setExitLoading(false);
@@ -697,33 +713,36 @@ export default function GateControlPage() {
                 <div className="flex flex-col gap-6">
                   
                   {/* Manual Input / Search Block */}
-                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest">LICENSE PLATE SCANNER (EXIT GATE)</h3>
-                      <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest bg-gray-100 px-2 py-1 rounded-md">ENABLE MANUAL ENTRY</span>
+                  {exitCameraMode === 'lpr' && (
+                    <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest">LICENSE PLATE SCANNER (EXIT GATE)</h3>
+                        <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest bg-gray-100 px-2 py-1 rounded-md">ENABLE MANUAL ENTRY</span>
+                      </div>
+                      <div className="relative flex gap-3">
+                        <input
+                          ref={exitInputRef}
+                          type="text"
+                          value={exitLicensePlate}
+                          onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
+                          placeholder="ABC-1234"
+                          className="h-16 min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-6 text-2xl font-black tracking-[0.2em] text-stone-850 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleSearchExit}
+                          disabled={exitLoading}
+                          className="h-16 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 text-sm font-bold text-white transition-colors shadow-sm disabled:opacity-50"
+                        >
+                          {exitLoading ? <Loader className="w-5 h-5 animate-spin mx-auto" /> : 'Search'}
+                        </button>
+                      </div>
+                      <div className="mt-4 text-[10px] text-stone-400 font-bold flex justify-between px-2">
+                        <span>Waiting for vehicle scan...</span>
+                        <span className="flex items-center gap-1"><Camera className="w-3 h-3"/> AI SCAN</span>
+                      </div>
                     </div>
-                    <div className="relative flex gap-3">
-                      <input
-                        ref={exitInputRef}
-                        type="text"
-                        value={exitLicensePlate}
-                        onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
-                        placeholder="ABC-1234"
-                        className="h-16 min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-6 text-2xl font-black tracking-[0.2em] text-stone-850 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSearchExit}
-                        className="h-16 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 text-sm font-bold text-white transition-colors shadow-sm"
-                      >
-                        Search
-                      </button>
-                    </div>
-                    <div className="mt-4 text-[10px] text-stone-400 font-bold flex justify-between px-2">
-                      <span>Waiting for vehicle scan...</span>
-                      <span className="flex items-center gap-1"><Camera className="w-3 h-3"/> AI SCAN</span>
-                    </div>
-                  </div>
+                  )}
 
                   {/* Session Details Block */}
                   <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm min-h-[250px]">
@@ -811,15 +830,29 @@ export default function GateControlPage() {
                   {/* Camera Block */}
                   <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-5 shadow-sm">
                     <div className="flex items-center gap-2 mb-4">
-                      <span className="bg-[#1A1F2B] text-white text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm">LPR CAMERA</span>
-                      <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider px-3 py-2">QR SCANNER</span>
+                      <span 
+                        onClick={() => setExitCameraMode('lpr')}
+                        className={`text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm cursor-pointer ${
+                          exitCameraMode === 'lpr' ? 'bg-[#1A1F2B] text-white' : 'text-stone-400 hover:bg-gray-100'
+                        }`}
+                      >
+                        LPR CAMERA
+                      </span>
+                      <span 
+                        onClick={() => setExitCameraMode('qr')}
+                        className={`text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer ${
+                          exitCameraMode === 'qr' ? 'bg-[#1A1F2B] text-white' : 'text-stone-400 hover:bg-gray-100'
+                        }`}
+                      >
+                        QR SCANNER
+                      </span>
                       <div className="flex-1" />
                       <span className="text-[9px] font-black text-red-500 uppercase tracking-widest bg-red-50 px-3 py-2 rounded-md cursor-pointer hover:bg-red-100 transition-colors">TURN OFF CAM</span>
                     </div>
                     <div className="relative bg-black rounded-xl overflow-hidden min-h-[220px] flex items-center justify-center border-4 border-black shadow-inner">
                       <div className="absolute top-4 left-4 flex items-center gap-2 z-20 bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                        <span className="text-[10px] text-white font-mono font-bold tracking-wider">LPR-CAM-02</span>
+                        <span className="text-[10px] text-white font-mono font-bold tracking-wider">{exitCameraMode === 'lpr' ? 'LPR-CAM-02' : 'QR-CAM'}</span>
                       </div>
                       <div className="relative z-10 w-full h-full">
                         <CameraCapture
@@ -828,6 +861,8 @@ export default function GateControlPage() {
                           token={token}
                           inline
                           className="w-full h-full rounded-lg"
+                          mode={exitCameraMode}
+                          onQrSuccess={handleQrExitSuccess}
                         />
                       </div>
                     </div>
