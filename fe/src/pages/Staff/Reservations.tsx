@@ -19,7 +19,7 @@ import type { ParkingSlotDetail } from '../../services/parkingService';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmtDateTime(iso: string) {
-  return new Date(iso).toLocaleString('vi-VN', {
+  return new Date(iso).toLocaleString('en-US', {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -91,14 +91,14 @@ function ReservationCard({
           <div className="flex items-start gap-2 px-3 py-2 bg-white/[0.04] rounded-xl">
             <Clock size={12} className="text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[10px] text-white/40 uppercase tracking-wider">Bắt đầu</p>
+              <p className="text-[10px] text-white/40 uppercase tracking-wider">Start</p>
               <p className="text-xs text-white font-medium">{fmtDateTime(r.startTime)}</p>
             </div>
           </div>
           <div className="flex items-start gap-2 px-3 py-2 bg-white/[0.04] rounded-xl">
             <Clock size={12} className="text-[#FF4C4C] shrink-0 mt-0.5" />
             <div>
-              <p className="text-[10px] text-white/40 uppercase tracking-wider">Kết thúc</p>
+              <p className="text-[10px] text-white/40 uppercase tracking-wider">End</p>
               <p className="text-xs text-white font-medium">{fmtDateTime(r.endTime)}</p>
             </div>
           </div>
@@ -106,7 +106,7 @@ function ReservationCard({
       </div>
 
       <p className="text-[10px] text-white/30 border-t border-white/5 pt-2">
-        Yêu cầu lúc: {fmtDateTime(r.createdAt)}
+        Requested at: {fmtDateTime(r.createdAt)}
       </p>
 
       {/* Actions */}
@@ -116,13 +116,13 @@ function ReservationCard({
             onClick={() => onApprove(r)}
             className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-black bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity"
           >
-            <Check size={14} /> Duyệt
+            <Check size={14} /> Approve
           </button>
           <button
             onClick={() => onReject(r)}
             className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-red-400 bg-red-400/10 hover:bg-red-400/20 transition-all"
           >
-            <X size={14} /> Từ chối
+            <X size={14} /> Reject
           </button>
         </div>
       )}
@@ -133,7 +133,7 @@ function ReservationCard({
             onClick={() => onReassign(r)}
             className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold text-blue-400 bg-blue-400/10 hover:bg-blue-400/20 transition-all border border-blue-400/20"
           >
-            <RefreshCcw size={14} /> Đổi chỗ cho khách
+            <RefreshCcw size={14} /> Reassign Slot
           </button>
         </div>
       )}
@@ -183,7 +183,7 @@ export default function StaffReservations() {
       const data = await getAllActiveReservations(token);
       setReservations(data);
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải danh sách đặt chỗ.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load reservations.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -199,7 +199,7 @@ export default function StaffReservations() {
       const slots = await getAllSlots(user?.assignedBuildingId);
       setAvailableSlots(slots.filter(s => s.status === 'Available'));
     } catch (err) {
-      setReassignError('Không thể tải danh sách chỗ trống.');
+      setReassignError('Unable to load available slots.');
     } finally {
       setLoadingSlots(false);
     }
@@ -225,7 +225,7 @@ export default function StaffReservations() {
       await loadData(true);
       setApproveTarget(null);
     } catch (e) {
-      setApproveError(e instanceof Error ? e.message : 'Duyệt thất bại.');
+      setApproveError(e instanceof Error ? e.message : 'Approval failed.');
       setApproving(false);
     }
   };
@@ -234,7 +234,7 @@ export default function StaffReservations() {
 
   const handleReject = async () => {
     if (!rejectTarget || !token) return;
-    if (!rejectReason.trim()) { setRejectError('Vui lòng nhập lý do từ chối.'); return; }
+    if (!rejectReason.trim()) { setRejectError('Please enter a rejection reason.'); return; }
     setRejecting(true);
     setRejectError('');
     try {
@@ -244,7 +244,7 @@ export default function StaffReservations() {
       setRejectTarget(null);
       setRejectReason('');
     } catch (e) {
-      setRejectError(e instanceof Error ? e.message : 'Từ chối thất bại.');
+      setRejectError(e instanceof Error ? e.message : 'Rejection failed.');
       setRejecting(false);
     }
   };
@@ -253,7 +253,7 @@ export default function StaffReservations() {
 
   const handleReassign = async () => {
     if (!reassignTarget || !token || !selectedSlotId) {
-      setReassignError('Vui lòng chọn một ô đỗ mới.');
+      setReassignError('Please select a new slot.');
       return;
     }
     setReassigning(true);
@@ -263,7 +263,7 @@ export default function StaffReservations() {
       await loadData(true);
       setReassignTarget(null);
     } catch (e) {
-      setReassignError(e instanceof Error ? e.message : 'Đổi chỗ thất bại.');
+      setReassignError(e instanceof Error ? e.message : 'Reassignment failed.');
     } finally {
       setReassigning(false);
     }
@@ -283,7 +283,7 @@ export default function StaffReservations() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-white/40">Đang tải danh sách đặt chỗ...</p>
+        <p className="text-sm text-white/40">Loading reservations...</p>
       </div>
     );
   }
@@ -294,9 +294,9 @@ export default function StaffReservations() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Quản lý đặt chỗ</h2>
+          <h2 className="text-2xl font-bold text-white">Reservation Management</h2>
           <p className="text-sm text-white/40 mt-0.5">
-            Duyệt yêu cầu và hỗ trợ đổi chỗ cho khách
+            Review requests and assist with slot changes
           </p>
         </div>
         <button
@@ -323,7 +323,7 @@ export default function StaffReservations() {
             activeTab === 'pending' ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]' : 'text-white/50 hover:bg-white/5'
           }`}
         >
-          <CalendarCheck size={16} /> Chờ duyệt
+          <CalendarCheck size={16} /> Pending
           {pendingList.length > 0 && (
             <span className="ml-1 bg-[#FF4C4C] text-black px-1.5 py-0.5 rounded-md text-[10px]">{pendingList.length}</span>
           )}
@@ -334,7 +334,7 @@ export default function StaffReservations() {
             activeTab === 'active' ? 'bg-blue-400/10 text-blue-400' : 'text-white/50 hover:bg-white/5'
           }`}
         >
-          <CheckCircle2 size={16} /> Đã duyệt / Hoạt động
+          <CheckCircle2 size={16} /> Approved / Active
           {activeList.length > 0 && (
             <span className="ml-1 bg-white/20 text-white px-1.5 py-0.5 rounded-md text-[10px]">{activeList.length}</span>
           )}
@@ -346,7 +346,7 @@ export default function StaffReservations() {
         {displayList.length === 0 ? (
           <div className="glass-card rounded-2xl flex flex-col items-center justify-center py-16 gap-3 text-white/30">
             <ClipboardList size={28} />
-            <p className="text-sm">Không có dữ liệu trong mục này</p>
+            <p className="text-sm">No data in this section</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -372,20 +372,20 @@ export default function StaffReservations() {
                 <CheckCircle2 size={20} className="text-[#FF4C4C]" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Xác nhận duyệt</h3>
-                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Đặt chỗ sẽ được chấp nhận</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Confirm Approval</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Reservation will be accepted</p>
               </div>
             </div>
 
             <p className="text-sm text-gray-700 dark:text-white/70">
-              Duyệt yêu cầu đặt chỗ cho biển số{' '}
+              Approve reservation request for license plate{' '}
               <span className="font-bold font-mono text-gray-800 dark:text-white">{approveTarget.licensePlate}</span>{' '}
-              tại slot <span className="font-semibold text-gray-800 dark:text-white">{approveTarget.slotNumber}</span>?
+              at slot <span className="font-semibold text-gray-800 dark:text-white">{approveTarget.slotNumber}</span>?
             </p>
 
             <div className="text-xs text-gray-400 dark:text-white/40 space-y-1 px-3 py-2.5 bg-gray-50 dark:bg-white/5 rounded-xl">
-              <p>📅 Từ: {fmtDateTime(approveTarget.startTime)}</p>
-              <p>📅 Đến: {fmtDateTime(approveTarget.endTime)}</p>
+              <p>📅 From: {fmtDateTime(approveTarget.startTime)}</p>
+              <p>📅 To: {fmtDateTime(approveTarget.endTime)}</p>
             </div>
 
             {approveError && (
@@ -399,7 +399,7 @@ export default function StaffReservations() {
                 onClick={() => setApproveTarget(null)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={handleApprove}
@@ -407,7 +407,7 @@ export default function StaffReservations() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-black bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {approving && <Loader2 size={14} className="animate-spin" />}
-                Xác nhận duyệt
+                Confirm Approval
               </button>
             </div>
           </div>
@@ -423,19 +423,19 @@ export default function StaffReservations() {
                 <XCircle size={20} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Từ chối đặt chỗ</h3>
-                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Biển số: {rejectTarget.licensePlate}</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Reject Reservation</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">License Plate: {rejectTarget.licensePlate}</p>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
                 <FileText size={11} className="inline mr-1" />
-                Lý do từ chối <span className="text-red-400">*</span>
+                Reason for rejection <span className="text-red-400">*</span>
               </label>
               <textarea
                 rows={3}
-                placeholder="Nhập lý do từ chối yêu cầu đặt chỗ này..."
+                placeholder="Enter the reason for rejecting this request..."
                 value={rejectReason}
                 onChange={e => setRejectReason(e.target.value)}
                 className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-red-400/50 transition-colors resize-none"
@@ -453,7 +453,7 @@ export default function StaffReservations() {
                 onClick={() => setRejectTarget(null)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={handleReject}
@@ -461,7 +461,7 @@ export default function StaffReservations() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
               >
                 {rejecting && <Loader2 size={14} className="animate-spin" />}
-                Xác nhận từ chối
+                Confirm Rejection
               </button>
             </div>
           </div>
@@ -477,34 +477,34 @@ export default function StaffReservations() {
                 <RefreshCcw size={20} className="text-blue-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Đổi chỗ cho khách</h3>
-                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Xử lý sự cố ô đỗ bị chiếm</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Reassign Slot</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Handle occupied slot issues</p>
               </div>
             </div>
 
             <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-sm text-gray-600 dark:text-white/70">
-              <p>Biển số: <span className="font-bold text-gray-800 dark:text-white">{reassignTarget.licensePlate}</span></p>
-              <p>Ô đỗ hiện tại: <span className="font-semibold text-red-400">{reassignTarget.slotNumber}</span> (Đang gặp sự cố)</p>
+              <p>License Plate: <span className="font-bold text-gray-800 dark:text-white">{reassignTarget.licensePlate}</span></p>
+              <p>Current slot: <span className="font-semibold text-red-400">{reassignTarget.slotNumber}</span> (Occupied/Issue)</p>
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
                 <LayoutGrid size={11} className="inline mr-1" />
-                Chọn ô đỗ mới (trống) <span className="text-red-400">*</span>
+                Select a new slot (available) <span className="text-red-400">*</span>
               </label>
               
               {loadingSlots ? (
-                <div className="text-xs text-gray-400 dark:text-white/40 flex items-center gap-2 py-2"><Loader2 size={12} className="animate-spin" /> Đang tải...</div>
+                <div className="text-xs text-gray-400 dark:text-white/40 flex items-center gap-2 py-2"><Loader2 size={12} className="animate-spin" /> Loading...</div>
               ) : (
                 <select
                   value={selectedSlotId}
                   onChange={e => setSelectedSlotId(e.target.value)}
                   className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-400/50 transition-colors"
                 >
-                  <option value="" disabled className="dark:bg-stone-900">-- Vui lòng chọn một ô trống --</option>
+                  <option value="" disabled className="dark:bg-stone-900">-- Please select an available slot --</option>
                   {availableSlots.map(s => (
                     <option key={s.id} value={s.id} className="dark:bg-stone-900">
-                      Ô {s.slotNumber} (Tầng {s.floorName})
+                      Slot {s.slotNumber} (Floor {s.floorName})
                     </option>
                   ))}
                 </select>
@@ -522,7 +522,7 @@ export default function StaffReservations() {
                 onClick={() => setReassignTarget(null)}
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
               >
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={handleReassign}
@@ -530,7 +530,7 @@ export default function StaffReservations() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 {reassigning && <Loader2 size={14} className="animate-spin" />}
-                Xác nhận đổi
+                Confirm Reassignment
               </button>
             </div>
           </div>

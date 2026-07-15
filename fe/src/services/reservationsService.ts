@@ -109,16 +109,16 @@ export const getAiSuggestions = (vehicleTypeId: string, buildingId?: string, top
 // ─── Manager / Staff endpoints ────────────────────────────────────────────────
 
 export const RESERVATION_STATUS_LABELS: Record<string, string> = {
-  PaymentPending: 'Chờ thanh toán',
-  Paid: 'Đã thanh toán',
-  PendingReview: 'Chờ duyệt',
-  Confirmed: 'Đã duyệt',
-  CheckedIn: 'Đã vào bãi',
-  Completed: 'Hoàn thành',
-  Cancelled: 'Đã hủy',
-  Rejected: 'Đã từ chối',
-  NoShow: 'Quá hạn',
-  PaymentFailed: 'Thanh toán lỗi'
+  PaymentPending: 'Payment Pending',
+  Paid: 'Paid',
+  PendingReview: 'Pending Review',
+  Confirmed: 'Confirmed',
+  CheckedIn: 'Checked In',
+  Completed: 'Completed',
+  Cancelled: 'Cancelled',
+  Rejected: 'Rejected',
+  NoShow: 'No Show',
+  PaymentFailed: 'Payment Failed'
 };
 
 export interface ReviewReservationRequest {

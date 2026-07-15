@@ -118,7 +118,7 @@ export default function StaffDashboard() {
     };
   }, [loadData]);
 
-  const vnd = (n: number) => new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 0 }).format(n);
+  const vnd = (n: number) => new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 }).format(n);
 
   if (loading) {
     return (
@@ -195,7 +195,7 @@ export default function StaffDashboard() {
               </div>
             </div>
             <p className="text-2xl font-bold" style={{ color: 'var(--admin-text-primary)' }}>
-              {typeof value === 'number' ? value.toLocaleString('vi-VN') : value}
+              {typeof value === 'number' ? value.toLocaleString('en-US') : value}
               {unit && <span className="text-sm font-normal ml-1" style={{ color: 'var(--admin-text-faint)' }}>{unit}</span>}
             </p>
             <p className="text-sm mt-1" style={{ color: 'var(--admin-text-muted)' }}>{label}</p>
@@ -236,7 +236,7 @@ export default function StaffDashboard() {
             ].map(item => (
               <div key={item.label} className="rounded-xl px-3 py-3 text-center" style={{ backgroundColor: 'var(--admin-bg-card)' }}>
                 <p className={`text-xl font-bold ${item.red ? 'text-[#FF4C4C]' : ''}`} style={item.red ? {} : { color: 'var(--admin-text-primary)' }}>
-                  {item.value.toLocaleString('vi-VN')}
+                  {item.value.toLocaleString('en-US')}
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--admin-text-faint)' }}>{item.label}</p>
               </div>
@@ -262,7 +262,7 @@ export default function StaffDashboard() {
               <div key={item.label} className="flex items-center justify-between py-3 border-b" style={{ borderColor: 'var(--admin-border)' }}>
                 <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>{item.label}</span>
                 <span className={`text-base font-bold ${item.warn ? 'text-red-400' : ''}`} style={item.warn ? {} : { color: 'var(--admin-text-primary)' }}>
-                  {typeof item.value === 'number' ? item.value.toLocaleString('vi-VN') : item.value}
+                  {typeof item.value === 'number' ? item.value.toLocaleString('en-US') : item.value}
                   {item.unit && <span className="text-xs font-normal ml-1" style={{ color: 'var(--admin-text-faint)' }}>{item.unit}</span>}
                 </span>
               </div>

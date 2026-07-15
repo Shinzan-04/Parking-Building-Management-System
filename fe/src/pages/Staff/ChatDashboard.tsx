@@ -60,7 +60,7 @@ export default function ChatDashboard() {
         setSessions(data);
       }
     } catch (err) {
-      console.error('Lỗi khi tải danh sách chat:', err);
+      console.error('Error loading chat list:', err);
     }
   };
 
@@ -80,7 +80,7 @@ export default function ChatDashboard() {
           setMessages(data);
         }
       } catch (err) {
-        console.error('Lỗi khi tải tin nhắn:', err);
+        console.error('Error loading messages:', err);
       }
     };
     fetchMessages();
@@ -98,7 +98,7 @@ export default function ChatDashboard() {
       .build();
 
     newConnection.on('NewEscalatedSession', (sessionId: string) => {
-      console.log('Có phiên chat cần hỗ trợ:', sessionId);
+      console.log('Session needs support:', sessionId);
       fetchSessions(); // Reload list
     });
 
@@ -119,7 +119,7 @@ export default function ChatDashboard() {
       })
       .catch(err => {
         if (err.name !== 'AbortError' && !err.message?.includes('negotiation')) {
-          console.error('Lỗi kết nối SignalR:', err);
+          console.error('SignalR connection error:', err);
         }
       });
 
@@ -162,14 +162,14 @@ export default function ChatDashboard() {
   const isAgentHandling = activeSession?.status === 'AgentHandling';
 
   if (!buildingId) {
-     return <div className="p-8 text-center text-red-500">Bạn chưa được phân công quản lý tòa nhà nào, không thể sử dụng Live Chat.</div>
+     return <div className="p-8 text-center text-red-500">You haven't been assigned to any building, Live Chat is unavailable.</div>
   }
 
   return (
     <div className="h-[calc(100vh-9rem)] flex flex-col -mt-4">
       <div className="mb-4">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--admin-text-primary)' }}>Live Chat Dashboard</h1>
-        <p style={{ color: 'var(--admin-text-muted)' }}>Hỗ trợ trực tiếp khách hàng gặp sự cố tại bãi xe</p>
+        <p style={{ color: 'var(--admin-text-muted)' }}>Directly support customers experiencing issues in the parking lot</p>
       </div>
 
       {/* Main Board */}
@@ -177,11 +177,11 @@ export default function ChatDashboard() {
         {/* Left Sidebar: Session List */}
         <div className="w-1/3 flex flex-col border-r" style={{ borderColor: 'var(--admin-border)' }}>
           <div className="p-4 border-b" style={{ borderColor: 'var(--admin-border)' }}>
-            <h2 className="font-bold">Danh sách yêu cầu</h2>
+            <h2 className="font-bold">Request List</h2>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-2">
             {sessions.length === 0 ? (
-               <p className="text-center text-sm mt-10 opacity-50">Không có yêu cầu hỗ trợ nào</p>
+               <p className="text-center text-sm mt-10 opacity-50">No support requests</p>
             ) : (
               sessions.map(session => (
                 <div 
@@ -191,7 +191,7 @@ export default function ChatDashboard() {
                   style={{ backgroundColor: activeSessionId === session.id ? 'var(--admin-bg-surface)' : 'transparent' }}
                 >
                   <div className="flex justify-between items-start mb-1">
-                    <span className="font-semibold text-sm" style={{ color: 'var(--admin-text-primary)' }}>{session.guestName || 'Khách hàng ẩn danh'}</span>
+                    <span className="font-semibold text-sm" style={{ color: 'var(--admin-text-primary)' }}>{session.guestName || 'Anonymous Customer'}</span>
                     <span className="text-xs" style={{ color: 'var(--admin-text-muted)' }}>
                       {new Date(session.escalatedAt ?? session.createdAt).toLocaleTimeString()}
                     </span>
@@ -199,15 +199,15 @@ export default function ChatDashboard() {
                   <div className="flex items-center gap-2">
                     {session.status === 'Escalated' ? (
                       <span className="flex items-center gap-1 text-xs font-medium text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md">
-                        <Clock size={12}/> Đang chờ...
+                        <Clock size={12}/> Waiting...
                       </span>
                     ) : session.status === 'AgentHandling' ? (
                       <span className="flex items-center gap-1 text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-md truncate max-w-[120px]">
-                        <CheckCircle size={12}/> {session.agentId === user?.userId ? 'Bạn' : (session.agentName || 'NV khác')}
+                        <CheckCircle size={12}/> {session.agentId === user?.userId ? 'You' : (session.agentName || 'Other Staff')}
                       </span>
                     ) : (
                       <span className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-500/10 px-2 py-0.5 rounded-md">
-                        Đã đóng
+                        Closed
                       </span>
                     )}
                   </div>
@@ -222,7 +222,7 @@ export default function ChatDashboard() {
           {!activeSessionId ? (
             <div className="flex-1 flex flex-col items-center justify-center opacity-50" style={{ color: 'var(--admin-text-muted)' }}>
               <MessageSquareWarning size={64} className="mb-4" />
-              <p>Chọn một cuộc hội thoại bên trái để bắt đầu hỗ trợ</p>
+              <p>Select a conversation on the left to start supporting</p>
             </div>
           ) : (
             <>
@@ -237,19 +237,19 @@ export default function ChatDashboard() {
                       onClick={handleTakeover}
                       className="bg-[#FF4C4C] hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-lg"
                    >
-                     Tiếp quản ngay
+                     Takeover now
                    </button>
                  )}
                  {isAgentHandling && activeSession?.agentId === user?.userId && (
                    <div className="flex items-center gap-3">
                      <span className="text-emerald-500 font-medium text-sm flex items-center gap-1">
-                       <CheckCircle size={16}/> Bạn đang phụ trách
+                       <CheckCircle size={16}/> You are handling this
                      </span>
                      <button
                         onClick={handleCloseSession}
                         className="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-all shadow-sm"
                      >
-                       Đánh dấu đã giải quyết
+                       Mark as resolved
                      </button>
                    </div>
                  )}
@@ -273,8 +273,8 @@ export default function ChatDashboard() {
                       }`}
                       style={!isStaff && !isBot ? { backgroundColor: 'var(--admin-bg-card)', borderColor: 'var(--admin-border)', color: 'var(--admin-text-primary)' } : {}}
                       >
-                        {isBot && <p className="text-[10px] font-bold text-indigo-400 mb-1">AI TRỢ LÝ</p>}
-                        {!isStaff && !isBot && <p className="text-[10px] font-bold mb-1" style={{ color: 'var(--admin-text-muted)' }}>KHÁCH HÀNG</p>}
+                        {isBot && <p className="text-[10px] font-bold text-indigo-400 mb-1">AI ASSISTANT</p>}
+                        {!isStaff && !isBot && <p className="text-[10px] font-bold mb-1" style={{ color: 'var(--admin-text-muted)' }}>CUSTOMER</p>}
                         <p className="text-sm whitespace-pre-wrap">{displayContent}</p>
                       </div>
                     </div>
@@ -291,7 +291,7 @@ export default function ChatDashboard() {
                     value={inputText}
                     onChange={e => setInputText(e.target.value)}
                     disabled={!isAgentHandling}
-                    placeholder={!isAgentHandling ? 'Bấm Tiếp quản để bắt đầu chat...' : 'Nhập tin nhắn hỗ trợ khách hàng...'}
+                    placeholder={!isAgentHandling ? 'Click Takeover to start chatting...' : 'Enter message to support the customer...'}
                     className="flex-1 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#FF4C4C] disabled:opacity-50 text-sm transition-colors"
                     style={{ backgroundColor: 'var(--admin-bg-surface)', color: 'var(--admin-text-primary)', border: '1px solid var(--admin-border)' }}
                   />

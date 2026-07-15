@@ -27,10 +27,10 @@ const STATUS_COLORS: Record<SlotStatus, string> = {
 };
 
 const STATUS_VI: Record<SlotStatus, string> = {
-  Available:   'Trống',
-  Occupied:    'Đang đỗ',
-  Reserved:    'Đặt trước',
-  Maintenance: 'Bảo trì',
+  Available:   'Available',
+  Occupied:    'Occupied',
+  Reserved:    'Reserved',
+  Maintenance: 'Maintenance',
 };
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
@@ -85,7 +85,7 @@ function SlotRow({ slot, floorName, token }: { slot: ParkingSlotSummary, floorNa
           </span>
           {loadingPlate ? (
             <span className="text-xs text-[#FF4C4C] mt-1 flex items-center gap-1">
-              <Loader2 size={10} className="animate-spin" /> Đang tải...
+              <Loader2 size={10} className="animate-spin" /> Loading...
             </span>
           ) : licensePlate ? (
             <span className={`text-xs font-mono font-bold mt-1 px-2 py-0.5 rounded w-fit ${isOverdue ? 'bg-red-500/20 text-red-400' : 'bg-white/10'}`} style={isOverdue ? {} : { color: 'var(--admin-text-primary)' }}>
@@ -93,7 +93,7 @@ function SlotRow({ slot, floorName, token }: { slot: ParkingSlotSummary, floorNa
             </span>
           ) : (statusKey === 'Occupied' || statusKey === 'Reserved') ? (
             <span className="text-xs font-mono mt-1 px-2 py-0.5 rounded bg-white/5 w-fit" style={{ color: 'var(--admin-text-muted)' }}>
-              Không xác định
+              Unknown
             </span>
           ) : null}
         </div>
@@ -106,7 +106,7 @@ function SlotRow({ slot, floorName, token }: { slot: ParkingSlotSummary, floorNa
           {isOverdue && (
             <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-pink-500/20 text-pink-500 uppercase tracking-wider">
               <AlertTriangle size={10} />
-              Lố giờ
+              Overdue
             </span>
           )}
         </div>
@@ -150,7 +150,7 @@ export default function StaffSlotList() {
         setBuildingName(b.name ?? '');
       }
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -198,7 +198,7 @@ export default function StaffSlotList() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm" style={{ color: 'var(--admin-text-faint)' }}>Đang tải danh sách slot...</p>
+        <p className="text-sm" style={{ color: 'var(--admin-text-faint)' }}>Loading slots...</p>
       </div>
     );
   }
@@ -208,7 +208,7 @@ export default function StaffSlotList() {
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Building2 size={36} style={{ color: 'var(--admin-text-faint)' }} />
         <p className="text-sm font-medium" style={{ color: 'var(--admin-text-muted)' }}>
-          Tài khoản chưa được gán tòa nhà. Vui lòng liên hệ Manager.
+          Account is not assigned to a building. Please contact your Manager.
         </p>
       </div>
     );
@@ -222,7 +222,7 @@ export default function StaffSlotList() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h2 className="text-2xl font-bold" style={{ color: 'var(--admin-text-primary)' }}>
-              Danh sách Slot
+              Parking Slots
             </h2>
             {buildingName && (
               <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[#FF4C4C]/10 text-[#FF4C4C]">
@@ -232,7 +232,7 @@ export default function StaffSlotList() {
             )}
           </div>
           <p className="text-sm" style={{ color: 'var(--admin-text-faint)' }}>
-            Tổng {slots.length} slot
+            Total {slots.length} slots
           </p>
         </div>
         <button
@@ -255,11 +255,11 @@ export default function StaffSlotList() {
       {/* Summary chips */}
       <div className="flex flex-wrap gap-3">
         {([
-          { key: '',            label: `Tất cả (${slots.length})` },
-          { key: 'Available',   label: `Trống (${counts.available})` },
-          { key: 'Occupied',    label: `Đang đỗ (${counts.occupied})` },
-          { key: 'Reserved',    label: `Đặt trước (${counts.reserved})` },
-          { key: 'Maintenance', label: `Bảo trì (${counts.maintenance})` },
+          { key: '',            label: `All (${slots.length})` },
+          { key: 'Available',   label: `Available (${counts.available})` },
+          { key: 'Occupied',    label: `Occupied (${counts.occupied})` },
+          { key: 'Reserved',    label: `Reserved (${counts.reserved})` },
+          { key: 'Maintenance', label: `Maintenance (${counts.maintenance})` },
         ] as { key: string; label: string }[]).map(({ key, label }) => (
           <button
             key={key}
@@ -282,7 +282,7 @@ export default function StaffSlotList() {
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--admin-text-faint)' }} />
           <input
             type="text"
-            placeholder="Tìm theo số ô, loại xe..."
+            placeholder="Search by slot number, vehicle type..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm border outline-none transition-colors"
@@ -304,7 +304,7 @@ export default function StaffSlotList() {
             borderColor: 'var(--admin-border)',
           }}
         >
-          <option value="">Tất cả tầng</option>
+          <option value="">All floors</option>
           {floors.map(f => (
             <option key={f.id} value={f.id}>{f.name}</option>
           ))}
@@ -317,7 +317,7 @@ export default function StaffSlotList() {
           <table className="w-full">
             <thead>
               <tr className="border-b" style={{ borderColor: 'var(--admin-border)' }}>
-                {['Số ô', 'Tầng', 'Loại xe', 'Trạng thái'].map(h => (
+                {['Slot', 'Floor', 'Vehicle Type', 'Status'].map(h => (
                   <th key={h} className="text-left text-xs font-medium px-4 py-3 first:pl-6" style={{ color: 'var(--admin-text-faint)' }}>
                     {h}
                   </th>
@@ -328,7 +328,7 @@ export default function StaffSlotList() {
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="text-center py-12 text-sm" style={{ color: 'var(--admin-text-faint)' }}>
-                    Không có slot phù hợp
+                    No matching slots found
                   </td>
                 </tr>
               ) : filtered.map(slot => (
@@ -343,7 +343,7 @@ export default function StaffSlotList() {
           </table>
         </div>
         <div className="px-6 py-3 border-t text-xs" style={{ borderColor: 'var(--admin-border)', color: 'var(--admin-text-faint)' }}>
-          Hiển thị {filtered.length} / {slots.length} slot
+          Showing {filtered.length} / {slots.length} slots
         </div>
       </div>
     </div>

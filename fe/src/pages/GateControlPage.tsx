@@ -335,7 +335,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
         paymentAmount: exitSessionData.estimatedFee,
       }, token);
 
-      showNotification('success', `Payment successful: ${result.totalFee.toLocaleString('vi-VN')} đ. Barrier opened!`);
+      showNotification('success', `Payment successful: ${result.totalFee.toLocaleString('en-US')} VND. Barrier opened!`);
       setExitLicensePlate('');
       setExitSessionData(null);
       exitInputRef.current?.focus();
@@ -354,7 +354,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   };
 
   const handleEntryCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
-    // Camera chỉ scan biển số → điền vào input → Staff xác nhận rồi bấm CHECK-IN
+    // Camera chỉ scan biển số → VNDiền vào input → Staff xác nhận rồi bấm CHECK-IN
     setEntryLicensePlate(result.licensePlate);
     setEntryImageBase64(imageBase64);
     showNotification(
@@ -686,7 +686,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         </div>
                         <div>
                           <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Entry Time</p>
-                          <p className="text-sm font-bold text-stone-800">{new Date(exitSessionData.entryTime).toLocaleString('vi-VN')}</p>
+                          <p className="text-sm font-bold text-stone-800">{new Date(exitSessionData.entryTime).toLocaleString('en-US')}</p>
                         </div>
                         <div>
                           <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Duration</p>
@@ -793,28 +793,28 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
                     <div className="text-5xl font-black text-stone-300 mb-8 tracking-tighter flex items-start gap-1">
                       <span className={exitSessionData ? "text-stone-800" : ""}>
-                        {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('vi-VN') : '0'}
+                        {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('en-US') : '0'}
                       </span>
-                      <span className="text-3xl text-stone-300 mt-1">đ</span>
+                      <span className="text-3xl text-stone-300 mt-1">VND</span>
                     </div>
 
                     <div className="space-y-4 mb-8">
                       <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-stone-500">Base Fee</span>
                         <span className="font-bold text-stone-600">
-                          {exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('vi-VN') : '0'} đ
+                          {exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-stone-500">Overtime Fee</span>
                         <span className="font-bold text-stone-600">
-                          {exitSessionData ? ((exitSessionData.feeBreakdown?.dayPassTotal || 0) + (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('vi-VN') : '0'} đ
+                          {exitSessionData ? ((exitSessionData.feeBreakdown?.dayPassTotal || 0) + (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
                         </span>
                       </div>
                       <div className="flex justify-between items-center pt-5 border-t border-gray-100">
                         <span className="font-black text-stone-900 uppercase tracking-widest text-[11px]">BALANCE DUE</span>
                         <span className="font-black text-stone-900 text-lg">
-                          {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('vi-VN') : '0'} đ
+                          {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('en-US') : '0'} VND
                         </span>
                       </div>
                     </div>
