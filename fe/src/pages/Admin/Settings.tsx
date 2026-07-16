@@ -21,7 +21,7 @@ interface SystemSettings {
 
 const DEFAULTS: SystemSettings = {
   parkingName:     'ParkingSystem Vietnam',
-  address:         '123 Đường Lê Lợi, Quận 1, TP.HCM',
+  address:         '123 Le Loi Street, District 1, Ho Chi Minh City',
   phone:           '028 1234 5678',
   email:           'admin@parkingsystem.vn',
   website:         'https://parkingsystem.vn',
@@ -122,8 +122,8 @@ export default function AdminSettings() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">Cài đặt hệ thống</h2>
-          <p className="text-sm text-white/40 mt-0.5">Cấu hình thông tin và tùy chọn hệ thống</p>
+          <h2 className="text-2xl font-bold text-white">System Settings</h2>
+          <p className="text-sm text-white/40 mt-0.5">Configure system information and preferences</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -142,7 +142,7 @@ export default function AdminSettings() {
               : saved
               ? <CheckCircle2 size={14} />
               : <Save size={14} />}
-            {saving ? 'Đang lưu...' : saved ? 'Đã lưu!' : 'Lưu thay đổi'}
+            {saving ? 'Saving...' : saved ? 'Saved!' : 'Save changes'}
           </button>
         </div>
       </div>
@@ -150,46 +150,46 @@ export default function AdminSettings() {
       {saved && (
         <div className="flex items-center gap-3 px-4 py-3 bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 rounded-xl">
           <CheckCircle2 size={15} className="text-[#FF4C4C] shrink-0" />
-          <p className="text-sm text-[#FF4C4C]">Đã lưu cài đặt thành công.</p>
+          <p className="text-sm text-[#FF4C4C]">Settings saved successfully.</p>
         </div>
       )}
 
       {/* Parking Info */}
-      <SectionCard title="Thông tin bãi đỗ xe" icon={Building2}>
+      <SectionCard title="Parking Information" icon={Building2}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Tên bãi đỗ xe">
-            <TextInput value={settings.parkingName} onChange={set('parkingName')} placeholder="Tên hệ thống" />
+          <Field label="Parking Name">
+            <TextInput value={settings.parkingName} onChange={set('parkingName')} placeholder="System name" />
           </Field>
           <Field label="Website">
             <TextInput value={settings.website} onChange={set('website')} placeholder="https://..." />
           </Field>
         </div>
-        <Field label="Địa chỉ">
-          <TextInput value={settings.address} onChange={set('address')} placeholder="Địa chỉ đầy đủ" />
+        <Field label="Address">
+          <TextInput value={settings.address} onChange={set('address')} placeholder="Full address" />
         </Field>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Field label="Số điện thoại">
+          <Field label="Phone Number">
             <TextInput value={settings.phone} onChange={set('phone')} placeholder="028 ..." icon={Phone} />
           </Field>
-          <Field label="Email liên hệ">
+          <Field label="Contact Email">
             <TextInput type="email" value={settings.email} onChange={set('email')} placeholder="admin@..." icon={Mail} />
           </Field>
         </div>
       </SectionCard>
 
       {/* Operating Hours */}
-      <SectionCard title="Giờ hoạt động & Đơn vị" icon={Clock}>
+      <SectionCard title="Operating Hours & Units" icon={Clock}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Field label="Giờ mở cửa (h)">
+          <Field label="Opening Hour (h)">
             <TextInput type="number" value={settings.openingHour} onChange={set('openingHour')} placeholder="6" />
           </Field>
-          <Field label="Giờ đóng cửa (h)">
+          <Field label="Closing Hour (h)">
             <TextInput type="number" value={settings.closingHour} onChange={set('closingHour')} placeholder="23" />
           </Field>
-          <Field label="Giờ tối đa / phiên">
+          <Field label="Max Hours / Session">
             <TextInput type="number" value={settings.maxSessionHours} onChange={set('maxSessionHours')} placeholder="24" />
           </Field>
-          <Field label="Đơn vị tiền tệ">
+          <Field label="Currency">
             <select
               value={settings.currency}
               onChange={e => set('currency')(e.target.value)}
@@ -201,7 +201,7 @@ export default function AdminSettings() {
             </select>
           </Field>
         </div>
-        <Field label="Múi giờ">
+        <Field label="Timezone">
           <select
             value={settings.timezone}
             onChange={e => set('timezone')(e.target.value)}

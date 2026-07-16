@@ -13,23 +13,23 @@ import {
 const PAGE_SIZE = 15;
 
 const STATUS_OPTIONS = [
-  { value: '',             label: 'Tất cả'        },
-  { value: 'Refunding',    label: 'Chờ duyệt'     },
-  { value: 'Refunded',     label: 'Đã hoàn tiền'  },
-  { value: 'RefundFailed', label: 'Từ chối / Lỗi' },
-  { value: 'Success',      label: 'Thành công'     },
-  { value: 'Pending',      label: 'Đang chờ'       },
-  { value: 'Failed',       label: 'Thất bại'       },
+  { value: '',             label: 'All'             },
+  { value: 'Refunding',    label: 'Pending Review'  },
+  { value: 'Refunded',     label: 'Refunded'        },
+  { value: 'RefundFailed', label: 'Rejected / Error' },
+  { value: 'Success',      label: 'Success'         },
+  { value: 'Pending',      label: 'Pending'         },
+  { value: 'Failed',       label: 'Failed'          },
 ];
 
 function statusBadge(status: PaymentStatus) {
   const map: Record<PaymentStatus, { cls: string; label: string; icon: React.ReactNode }> = {
-    Pending:      { cls: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',  label: 'Đang chờ',      icon: <Clock size={11} />        },
-    Success:      { cls: 'bg-green-500/15  text-green-400  border-green-500/30',   label: 'Thành công',    icon: <CheckCircle2 size={11} /> },
-    Failed:       { cls: 'bg-red-500/15    text-red-400    border-red-500/30',     label: 'Thất bại',      icon: <XCircle size={11} />      },
-    Refunding:    { cls: 'bg-blue-500/15   text-blue-400   border-blue-500/30',    label: 'Chờ duyệt',    icon: <RotateCcw size={11} />    },
-    Refunded:     { cls: 'bg-teal-500/15   text-teal-400   border-teal-500/30',    label: 'Đã hoàn tiền', icon: <CheckCircle2 size={11} /> },
-    RefundFailed: { cls: 'bg-orange-500/15 text-orange-400 border-orange-500/30',  label: 'Từ chối / Lỗi',icon: <AlertCircle size={11} />  },
+    Pending:      { cls: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',  label: 'Pending',        icon: <Clock size={11} />        },
+    Success:      { cls: 'bg-green-500/15  text-green-400  border-green-500/30',   label: 'Success',        icon: <CheckCircle2 size={11} /> },
+    Failed:       { cls: 'bg-red-500/15    text-red-400    border-red-500/30',     label: 'Failed',         icon: <XCircle size={11} />      },
+    Refunding:    { cls: 'bg-blue-500/15   text-blue-400   border-blue-500/30',    label: 'Pending Review', icon: <RotateCcw size={11} />    },
+    Refunded:     { cls: 'bg-teal-500/15   text-teal-400   border-teal-500/30',    label: 'Refunded',       icon: <CheckCircle2 size={11} /> },
+    RefundFailed: { cls: 'bg-orange-500/15 text-orange-400 border-orange-500/30',  label: 'Rejected / Error', icon: <AlertCircle size={11} />  },
   };
   const cfg = map[status] ?? { cls: 'bg-gray-500/15 text-gray-400 border-gray-500/30', label: status, icon: null };
   return (
@@ -52,7 +52,7 @@ function DetailModal({ item, onClose }: { item: PaymentListItem; onClose: () => 
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h3 className="text-base font-semibold text-white">Chi tiết giao dịch</h3>
+          <h3 className="text-base font-semibold text-white">Transaction Details</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 transition-colors">
             <X size={18} />
           </button>
@@ -63,15 +63,15 @@ function DetailModal({ item, onClose }: { item: PaymentListItem; onClose: () => 
             {([
               ['Payment ID',      item.paymentId],
               ['Order Code',      `#${item.payOSOrderCode}`],
-              ['Số tiền',         fmt(item.amount)],
-              ['Trạng thái',      null as null],
-              ['Phương thức',     item.paymentMethod],
-              ['Ngày thanh toán', fmtDt(item.paymentDate)],
-              ['Người dùng',      item.userFullName ?? '—'],
+              ['Amount',          fmt(item.amount)],
+              ['Status',          null as null],
+              ['Method',          item.paymentMethod],
+              ['Payment Date',    fmtDt(item.paymentDate)],
+              ['User',            item.userFullName ?? '—'],
               ['Email',           item.userEmail ?? '—'],
               ['Reservation ID',  item.reservationId ?? '—'],
               ['Session ID',      item.parkingSessionId ?? '—'],
-              ['Mô tả',           item.description ?? '—'],
+              ['Description',     item.description ?? '—'],
             ] as [string, string | null][]).map(([k, v]) => (
               <div key={k} className="space-y-1">
                 <p className="text-xs text-white/40">{k}</p>
@@ -84,17 +84,17 @@ function DetailModal({ item, onClose }: { item: PaymentListItem; onClose: () => 
 
           {(item.refundedAt || item.refundReferenceId || item.refundFailureReason) && (
             <div className="rounded-xl p-4 space-y-2.5 bg-white/5 border border-white/10">
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/40">Thông tin hoàn tiền</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/40">Refund Information</p>
               {([
-                ['Thời gian hoàn',       fmtDt(item.refundedAt)],
+                ['Refund Time',           fmtDt(item.refundedAt)],
                 ['Reference ID',          item.refundReferenceId],
                 ['Provider',              item.refundProvider],
                 ['Transaction ID',        item.refundTransactionId],
-                ['Lý do từ chối / lỗi',  item.refundFailureReason],
+                ['Rejection / Error Reason', item.refundFailureReason],
               ] as [string, string | null][]).filter(([, v]) => v).map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3 text-sm">
                   <span className="text-white/40 shrink-0">{k}</span>
-                  <span className={`font-medium text-right break-all ${k.includes('chối') ? 'text-orange-400' : 'text-white'}`}>{v}</span>
+                  <span className={`font-medium text-right break-all ${k.includes('Rejection') ? 'text-orange-400' : 'text-white'}`}>{v}</span>
                 </div>
               ))}
             </div>
@@ -102,7 +102,7 @@ function DetailModal({ item, onClose }: { item: PaymentListItem; onClose: () => 
 
           <div className="flex items-start gap-2 rounded-xl p-3 bg-yellow-500/10 border border-yellow-500/20 text-xs text-yellow-400">
             <AlertCircle size={14} className="shrink-0 mt-0.5" />
-            Bạn chỉ có quyền xem. Việc chấp thuận hoặc từ chối thuộc thẩm quyền Admin.
+            You have view-only access. Approving or rejecting refunds is an Admin responsibility.
           </div>
         </div>
       </div>
@@ -133,7 +133,7 @@ export default function ManagerRefunds() {
       const res = await getPaymentList(token, { status: statusFilter || undefined, page, pageSize: PAGE_SIZE });
       setItems(res.items); setTotal(res.totalCount);
     } catch (e: unknown) {
-      setError((e as Error).message ?? 'Lỗi tải dữ liệu');
+      setError((e as Error).message ?? 'Failed to load data');
     } finally { setLoading(false); }
   }, [token, statusFilter, page]);
 
@@ -158,10 +158,10 @@ export default function ManagerRefunds() {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2 text-white">
             <Banknote size={22} className="text-[#FF4C4C]" />
-            Báo cáo hoàn tiền
+            Refund Report
           </h2>
           <p className="text-sm mt-0.5 text-white/40">
-            Theo dõi các yêu cầu và lịch sử hoàn tiền (chỉ xem)
+            Track refund requests and history (view-only)
           </p>
         </div>
         <button
@@ -169,17 +169,17 @@ export default function ManagerRefunds() {
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 transition-all"
         >
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-          Làm mới
+          Refresh
         </button>
       </div>
 
-      {/* Summary cards — chỉ hiện khi xem tất cả */}
+      {/* Summary cards — only shown when viewing all */}
       {statusFilter === '' && (
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Chờ duyệt',    count: refundingCount, color: 'text-blue-400',   bg: 'bg-blue-500/10',   border: 'border-blue-500/20',   icon: <RotateCcw size={18} className="text-blue-400" /> },
-            { label: 'Đã hoàn',      count: refundedCount,  color: 'text-teal-400',   bg: 'bg-teal-500/10',   border: 'border-teal-500/20',   icon: <CheckCircle2 size={18} className="text-teal-400" /> },
-            { label: 'Từ chối/Lỗi', count: failedCount,    color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', icon: <AlertCircle size={18} className="text-orange-400" /> },
+            { label: 'Pending Review', count: refundingCount, color: 'text-blue-400',   bg: 'bg-blue-500/10',   border: 'border-blue-500/20',   icon: <RotateCcw size={18} className="text-blue-400" /> },
+            { label: 'Refunded',       count: refundedCount,  color: 'text-teal-400',   bg: 'bg-teal-500/10',   border: 'border-teal-500/20',   icon: <CheckCircle2 size={18} className="text-teal-400" /> },
+            { label: 'Rejected/Error', count: failedCount,    color: 'text-orange-400', bg: 'bg-orange-500/10', border: 'border-orange-500/20', icon: <AlertCircle size={18} className="text-orange-400" /> },
           ].map(({ label, count, color, bg, border, icon }) => (
             <div key={label} className={`rounded-xl p-4 border ${bg} ${border} flex items-center gap-3`}>
               {icon}
@@ -212,7 +212,7 @@ export default function ManagerRefunds() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
           <input
             type="text"
-            placeholder="Tìm theo tên, email, mã đơn..."
+            placeholder="Search by name, email, order code..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white placeholder-white/25 outline-none focus:border-[#FF4C4C]/50 focus:ring-1 focus:ring-[#FF4C4C]/30 transition-colors"
@@ -221,7 +221,7 @@ export default function ManagerRefunds() {
       </div>
 
       <p className="text-xs text-white/30">
-        {loading ? 'Đang tải...' : `Hiển thị ${filtered.length} / ${totalCount} giao dịch`}
+        {loading ? 'Loading...' : `Showing ${filtered.length} / ${totalCount} transactions`}
       </p>
 
       {error && (
@@ -236,7 +236,7 @@ export default function ManagerRefunds() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/10 bg-white/[0.03]">
-                {['Mã đơn', 'Người dùng', 'Số tiền', 'Trạng thái', 'Ngày TT', 'Ngày hoàn', 'Chi tiết'].map(h => (
+                {['Order Code', 'User', 'Amount', 'Status', 'Payment Date', 'Refund Date', 'Details'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white/30">{h}</th>
                 ))}
               </tr>
@@ -244,11 +244,11 @@ export default function ManagerRefunds() {
             <tbody>
               {loading && filtered.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-14 text-center text-white/30">
-                  <RefreshCw size={20} className="animate-spin mx-auto mb-2" />Đang tải...
+                  <RefreshCw size={20} className="animate-spin mx-auto mb-2" />Loading...
                 </td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-14 text-center text-sm text-white/30">
-                  Không tìm thấy giao dịch nào
+                  No transactions found
                 </td></tr>
               ) : filtered.map(item => (
                 <tr key={item.paymentId} className="border-t border-white/[0.06] hover:bg-white/[0.03] transition-colors">
@@ -276,7 +276,7 @@ export default function ManagerRefunds() {
                     <button
                       onClick={() => setDetailItem(item)}
                       className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors"
-                      title="Xem chi tiết"
+                      title="View details"
                     ><Info size={15} /></button>
                   </td>
                 </tr>
@@ -293,7 +293,7 @@ export default function ManagerRefunds() {
             onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
             className="p-2 rounded-xl border border-white/10 bg-white/5 disabled:opacity-30 hover:bg-white/10 text-white/50 transition-colors"
           ><ChevronLeft size={16} /></button>
-          <span className="text-sm text-white/40 px-2">Trang {page} / {totalPages}</span>
+          <span className="text-sm text-white/40 px-2">Page {page} / {totalPages}</span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
             className="p-2 rounded-xl border border-white/10 bg-white/5 disabled:opacity-30 hover:bg-white/10 text-white/50 transition-colors"

@@ -26,7 +26,7 @@ function getLast7Days() {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     return {
-      label: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][d.getDay()],
+      label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
       date: toUTCDateStr(d),
     };
   });
@@ -41,7 +41,7 @@ function RevenueTooltip({ active, payload, label }: {
   return (
     <div className="bg-[var(--admin-bg-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
       <p className="text-white/60 mb-1">{label}</p>
-      <p className="text-amber-500 font-semibold">{vnd(payload[0].value)}đ</p>
+      <p className="text-amber-500 font-semibold">{vnd(payload[0].value)} VND</p>
     </div>
   );
 }
@@ -89,13 +89,13 @@ export default function Dashboard() {
         pageSize: 200,
       };
 
-      // Tất cả song song
+      // All in parallel
       const [firstPage, buildings] = await Promise.all([
         searchSessions({ ...sessionParams, page: 1 }, token),
         getBuildings(),
       ]);
 
-      // Fetch trang còn lại nếu có
+      // Fetch remaining pages if any
       const allItems = [...firstPage.items];
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
@@ -116,7 +116,7 @@ export default function Dashboard() {
       setTodayCompleted(summary.totalCompletedToday);
       setOccupancyPct(totalCap > 0 ? Math.round((summary.totalActive / totalCap) * 100) : 0);
 
-      // Revenue chart — nhóm theo ngày exit
+      // Revenue chart — grouped by exit date
       const rev: Record<string, number> = {};
       last7.forEach(d => { rev[d.date] = 0; });
       allItems.forEach(s => {
@@ -126,10 +126,10 @@ export default function Dashboard() {
       });
       setRevenueData(last7.map(d => ({ label: d.label, revenue: rev[d.date] ?? 0 })));
 
-      // Bảng giao dịch: 8 session mới nhất (bao gồm cả Active từ summary)
+      // Transaction table: 8 most recent sessions (including Active from summary)
       setRecentSessions(allItems.slice(0, 8));
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -144,7 +144,7 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-white/40">Đang tải dữ liệu...</p>
+        <p className="text-sm text-white/40">Loading data...</p>
       </div>
     );
   }
@@ -155,7 +155,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">Tổng quan</h2>
+          <h2 className="text-2xl font-bold text-white">Overview</h2>
           <p className="text-sm text-white/40 capitalize mt-0.5">{today}</p>
         </div>
         <button onClick={() => loadData(true)} disabled={refreshing}
@@ -176,7 +176,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-3 px-5 py-3.5 bg-red-400/10 border border-red-400/20 rounded-xl">
           <AlertTriangle size={16} className="text-red-400 shrink-0 animate-pulse" />
           <p className="text-sm text-red-400 font-medium">
-            <span className="font-bold">{overdueCount}</span> xe đang quá giờ đỗ — cần xử lý ngay
+            <span className="font-bold">{overdueCount}</span> vehicles overdue — needs immediate attention
           </p>
         </div>
       )}
@@ -184,10 +184,10 @@ export default function Dashboard() {
       {/* Stats cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { label: 'Tổng chỗ đỗ',         value: totalSpots.toLocaleString('vi-VN'),  unit: 'chỗ',          icon: Building2,  color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-          { label: 'Xe đang đỗ (real-time)',value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% lấp đầy`, icon: Car, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-          { label: 'Doanh thu hôm nay',    value: vnd(todayRevenue),                   unit: `đ · ${todayCompleted} lượt`, icon: Banknote, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-          { label: 'Tỷ lệ lấp đầy',       value: `${occupancyPct}%`,                  unit: `${activeCount} / ${totalSpots} chỗ`, icon: TrendingUp, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+          { label: 'Total Spots',         value: totalSpots.toLocaleString('vi-VN'),  unit: 'spots',          icon: Building2,  color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'Vehicles Parked (real-time)',value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% occupied`, icon: Car, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'Revenue Today',    value: vnd(todayRevenue),                   unit: `VND · ${todayCompleted} sessions`, icon: Banknote, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'Occupancy Rate',       value: `${occupancyPct}%`,                  unit: `${activeCount} / ${totalSpots} spots`, icon: TrendingUp, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
         ].map(stat => {
           const Icon = stat.icon;
           return (
@@ -209,12 +209,12 @@ export default function Dashboard() {
       <div className="glass-card p-6 rounded-2xl">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h3 className="text-base font-semibold text-white">Doanh thu 7 ngày qua</h3>
+            <h3 className="text-base font-semibold text-white">Revenue — Last 7 Days</h3>
             <p className="text-xs text-white/40 mt-0.5">
-              Tổng: {vnd(revenueData.reduce((s, d) => s + d.revenue, 0))}đ
+              Total: {vnd(revenueData.reduce((s, d) => s + d.revenue, 0))} VND
             </p>
           </div>
-          <span className="text-xs text-white/40 bg-white/5 px-3 py-1 rounded-full">7 ngày gần nhất</span>
+          <span className="text-xs text-white/40 bg-white/5 px-3 py-1 rounded-full">Last 7 days</span>
         </div>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={revenueData} barSize={28}>
@@ -235,20 +235,20 @@ export default function Dashboard() {
       {/* Recent transactions */}
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">Giao dịch gần đây</h3>
-          <span className="text-xs text-white/30">{recentSessions.length} phiên</span>
+          <h3 className="text-base font-semibold text-white">Recent Transactions</h3>
+          <span className="text-xs text-white/30">{recentSessions.length} sessions</span>
         </div>
 
         {recentSessions.length === 0 ? (
           <div className="flex items-center justify-center py-12 text-white/30 text-sm">
-            Không có dữ liệu trong 7 ngày qua
+            No data in the last 7 days
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5">
-                  {['Biển số', 'Tòa nhà', 'Giờ vào', 'Giờ ra', 'Thời gian', 'Phí', 'Trạng thái'].map(h => (
+                  {['License Plate', 'Building', 'Entry Time', 'Exit Time', 'Duration', 'Fee', 'Status'].map(h => (
                     <th key={h} className="text-left text-xs font-medium text-white/40 px-4 py-3 first:pl-6">{h}</th>
                   ))}
                 </tr>
@@ -281,24 +281,24 @@ export default function Dashboard() {
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="text-sm font-medium text-white">
-                        {s.totalFee > 0 ? `${vnd(s.totalFee)}đ` : '—'}
+                        {s.totalFee > 0 ? `${vnd(s.totalFee)} VND` : '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
                       {s.status === 'Completed' ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-white/50">
                           <CheckCircle2 size={11} />
-                          Đã ra
+                          Exited
                         </span>
                       ) : s.status === 'Overdue' ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-400/10 text-red-400">
                           <AlertTriangle size={11} />
-                          Quá giờ
+                          Overdue
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FF4C4C]/10 text-[#FF4C4C]">
                           <span className="w-1.5 h-1.5 bg-[#FF4C4C] rounded-full animate-pulse" />
-                          Đang đỗ
+                          Parked
                         </span>
                       )}
                     </td>

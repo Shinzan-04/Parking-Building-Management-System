@@ -1,12 +1,12 @@
 /**
  * Manager/VehicleTypes.tsx
- * Nhánh: Feature/ManageVehicleTypes-Manager
- * Quản lý loại phương tiện và phân bổ chỗ đỗ theo loại xe
+ * Branch: Feature/ManageVehicleTypes-Manager
+ * Manage vehicle types and slot allocation by vehicle type
  *
- * Tính năng:
- *  - Xem danh sách loại phương tiện với thống kê slot
- *  - Thêm / Sửa / Xoá loại xe
- *  - Xem phân bổ slot Available / Occupied / Reserved / Maintenance theo từng loại
+ * Features:
+ *  - View the list of vehicle types with slot statistics
+ *  - Add / Edit / Delete vehicle types
+ *  - View slot distribution Available / Occupied / Reserved / Maintenance by type
  */
 
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -40,10 +40,10 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
   });
   if (res.status === 204) return undefined as T;
   const text = await res.text();
-  if (!text.trim()) { if (res.ok) return undefined as T; throw new Error(`Lỗi ${res.status}.`); }
+  if (!text.trim()) { if (res.ok) return undefined as T; throw new Error(`Error ${res.status}.`); }
   let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Phản hồi không hợp lệ.'); }
-  if (!res.ok) throw new Error((data as { message?: string }).message ?? `Lỗi ${res.status}.`);
+  try { data = JSON.parse(text); } catch { throw new Error('Invalid response.'); }
+  if (!res.ok) throw new Error((data as { message?: string }).message ?? `Error ${res.status}.`);
   return data as T;
 }
 
@@ -68,7 +68,7 @@ const emptyForm = { name: '', description: '' };
 // ─── Slot distribution bar ────────────────────────────────────────────────────
 
 function DistributionBar({ counts, total }: { counts: Record<SlotStatus, number>; total: number }) {
-  if (total === 0) return <p className="text-xs text-white/30 py-1">Chưa có chỗ đỗ</p>;
+  if (total === 0) return <p className="text-xs text-white/30 py-1">No parking slots yet</p>;
   const statuses: SlotStatus[] = ['Available', 'Occupied', 'Reserved', 'Maintenance', 'TemporaryHeld'];
   const colors: Record<SlotStatus, string> = {
     Available:   '#FF4C4C',
@@ -152,7 +152,7 @@ export default function AdminVehicleTypes() {
 
       setVehicleTypes(vms);
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -176,7 +176,7 @@ export default function AdminVehicleTypes() {
   const openDelete = (vt: VehicleTypeVM) => { setSelected(vt); setModalType('delete'); };
 
   const validateForm = () => {
-    if (!form.name.trim()) return 'Vui lòng nhập tên loại phương tiện.';
+    if (!form.name.trim()) return 'Please enter the vehicle type name.';
     return '';
   };
 
@@ -197,7 +197,7 @@ export default function AdminVehicleTypes() {
       }]);
       closeModal();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
     }
   };
@@ -217,7 +217,7 @@ export default function AdminVehicleTypes() {
       }));
       closeModal();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
     }
   };
@@ -230,7 +230,7 @@ export default function AdminVehicleTypes() {
       setVehicleTypes(prev => prev.filter(vt => vt.id !== selected.id));
       closeModal();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Không thể xoá loại xe này. Có thể đang có slot liên kết.');
+      setFormError(e instanceof Error ? e.message : 'Unable to delete this vehicle type. It may have linked slots.');
       setSubmitting(false);
     }
   };
@@ -252,7 +252,7 @@ export default function AdminVehicleTypes() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-white/40">Đang tải dữ liệu phương tiện...</p>
+        <p className="text-sm text-white/40">Loading vehicle data...</p>
       </div>
     );
   }
@@ -263,9 +263,9 @@ export default function AdminVehicleTypes() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Loại phương tiện</h2>
+          <h2 className="text-2xl font-bold text-white">Vehicle Types</h2>
           <p className="text-sm text-white/40 mt-0.5">
-            {vehicleTypes.length} loại xe · {totalSlots} chỗ đỗ tổng cộng
+            {vehicleTypes.length} vehicle types · {totalSlots} total slots
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -273,7 +273,7 @@ export default function AdminVehicleTypes() {
             onClick={() => loadData(true)}
             disabled={refreshing}
             className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
-            title="Làm mới"
+            title="Refresh"
           >
             <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
           </button>
@@ -282,7 +282,7 @@ export default function AdminVehicleTypes() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FF4C4C] hover:bg-[#ff3333] text-black font-semibold text-sm hover:opacity-90 transition-opacity"
           >
             <Plus size={16} />
-            Thêm loại xe
+            Add Vehicle Type
           </button>
         </div>
       </div>
@@ -297,9 +297,9 @@ export default function AdminVehicleTypes() {
       {/* Summary stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Tổng chỗ đỗ',  value: totalSlots,     icon: ParkingSquare, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-          { label: 'Chỗ còn trống', value: totalAvailable, icon: CircleCheck,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-          { label: 'Đang có xe',    value: totalOccupied,  icon: Car,           color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5' },
+          { label: 'Total Slots',     value: totalSlots,     icon: ParkingSquare, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+          { label: 'Available Slots', value: totalAvailable, icon: CircleCheck,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'Occupied',        value: totalOccupied,  icon: Car,           color: '#F59E0B', bg: 'from-amber-500/20 to-amber-500/5' },
         ].map(s => {
           const Icon = s.icon;
           return (
@@ -319,7 +319,7 @@ export default function AdminVehicleTypes() {
         <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
         <input
           type="text"
-          placeholder="Tìm loại phương tiện..."
+          placeholder="Search vehicle type..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
@@ -329,7 +329,7 @@ export default function AdminVehicleTypes() {
       {/* Vehicle type cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {filtered.length === 0 && (
-          <p className="col-span-3 text-center py-12 text-white/30 text-sm">Không tìm thấy loại xe nào.</p>
+          <p className="col-span-3 text-center py-12 text-white/30 text-sm">No vehicle types found.</p>
         )}
         {filtered.map(vt => {
           const availPct = vt.totalSlots > 0 ? Math.round((vt.slotCounts.Available / vt.totalSlots) * 100) : 0;
@@ -344,13 +344,13 @@ export default function AdminVehicleTypes() {
                   <div>
                     <p className="font-semibold text-white">{vt.name}</p>
                     <p className="text-xs text-white/40 mt-0.5 line-clamp-1">
-                      {vt.description || 'Chưa có mô tả'}
+                      {vt.description || 'No description yet'}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
                   <p className="text-lg font-bold text-[#FF4C4C]">{availPct}%</p>
-                  <p className="text-[10px] text-white/30">còn trống</p>
+                  <p className="text-[10px] text-white/30">available</p>
                 </div>
               </div>
 
@@ -374,9 +374,9 @@ export default function AdminVehicleTypes() {
               <div className="flex items-center justify-between text-xs text-white/40 pt-1 border-t border-white/5">
                 <span className="flex items-center gap-1.5">
                   <LayoutGrid size={11} />
-                  {vt.totalSlots} chỗ đỗ
+                  {vt.totalSlots} slots
                 </span>
-                <span>Tạo: {vt.createdAt ? new Date(vt.createdAt).toLocaleDateString('vi-VN') : 'Không rõ'}</span>
+                <span>Created: {vt.createdAt ? new Date(vt.createdAt).toLocaleDateString('vi-VN') : 'Unknown'}</span>
               </div>
 
               {/* Actions */}
@@ -385,13 +385,13 @@ export default function AdminVehicleTypes() {
                   onClick={() => openEdit(vt)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-[#FF4C4C]/70 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all"
                 >
-                  <Pencil size={13} /> Chỉnh sửa
+                  <Pencil size={13} /> Edit
                 </button>
                 <button
                   onClick={() => openDelete(vt)}
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-red-400/60 hover:text-red-400 hover:bg-red-400/10 transition-all"
                 >
-                  <Trash2 size={13} /> Xoá
+                  <Trash2 size={13} /> Delete
                 </button>
               </div>
             </div>
@@ -405,7 +405,7 @@ export default function AdminVehicleTypes() {
           <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
               <h3 className="text-base font-semibold text-white">
-                {modalType === 'add' ? 'Thêm loại phương tiện' : `Chỉnh sửa · ${selected?.name}`}
+                {modalType === 'add' ? 'Add Vehicle Type' : `Edit · ${selected?.name}`}
               </h3>
               <button onClick={closeModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
                 <X size={16} />
@@ -414,20 +414,20 @@ export default function AdminVehicleTypes() {
 
             <div className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Tên loại xe <span className="text-red-400">*</span></label>
+                <label className="block text-xs font-medium text-white/50 mb-1.5">Vehicle Type Name <span className="text-red-400">*</span></label>
                 <input
                   type="text"
-                  placeholder="Ví dụ: Xe máy, Ô tô, Xe tải..."
+                  placeholder="E.g.: Motorbike, Car, Truck..."
                   value={form.name}
                   onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Mô tả</label>
+                <label className="block text-xs font-medium text-white/50 mb-1.5">Description</label>
                 <textarea
                   rows={3}
-                  placeholder="Mô tả về loại phương tiện này..."
+                  placeholder="Description of this vehicle type..."
                   value={form.description}
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors resize-none"
@@ -444,7 +444,7 @@ export default function AdminVehicleTypes() {
 
             <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
               <button onClick={closeModal} className="px-5 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={modalType === 'add' ? handleAdd : handleEdit}
@@ -452,7 +452,7 @@ export default function AdminVehicleTypes() {
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                {modalType === 'add' ? 'Thêm loại xe' : 'Lưu thay đổi'}
+                {modalType === 'add' ? 'Add Vehicle Type' : 'Save changes'}
               </button>
             </div>
           </div>
@@ -468,22 +468,22 @@ export default function AdminVehicleTypes() {
                 <AlertTriangle size={18} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Xoá loại phương tiện</h3>
-                <p className="text-xs text-white/40 mt-0.5">Hành động không thể hoàn tác</p>
+                <h3 className="text-base font-semibold text-white">Delete Vehicle Type</h3>
+                <p className="text-xs text-white/40 mt-0.5">This action cannot be undone</p>
               </div>
             </div>
             <p className="text-sm text-white/70">
-              Xoá loại xe <span className="font-semibold text-white">"{selected.name}"</span>?{' '}
+              Delete vehicle type <span className="font-semibold text-white">"{selected.name}"</span>?{' '}
               {selected.totalSlots > 0 && (
                 <span className="text-amber-400">
-                  ⚠ Loại xe này đang có {selected.totalSlots} chỗ đỗ liên kết!
+                  ⚠ This vehicle type has {selected.totalSlots} linked parking slots!
                 </span>
               )}
             </p>
             {formError && <p className="text-xs text-red-400">{formError}</p>}
             <div className="flex gap-3">
               <button onClick={closeModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">
-                Hủy
+                Cancel
               </button>
               <button
                 onClick={handleDelete}
@@ -491,7 +491,7 @@ export default function AdminVehicleTypes() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                Xác nhận xoá
+                Confirm Delete
               </button>
             </div>
           </div>
