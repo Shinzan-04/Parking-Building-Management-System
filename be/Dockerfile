@@ -8,7 +8,6 @@ COPY ["ParkingSystem.API/ParkingSystem.API.csproj", "ParkingSystem.API/"]
 COPY ["ParkingSystem.Application/ParkingSystem.Application.csproj", "ParkingSystem.Application/"]
 COPY ["ParkingSystem.Domain/ParkingSystem.Domain.csproj", "ParkingSystem.Domain/"]
 COPY ["ParkingSystem.Infrastructure/ParkingSystem.Infrastructure.csproj", "ParkingSystem.Infrastructure/"]
-COPY ["CheckDB.csproj", "./"]
 
 # Restore dependencies
 RUN dotnet restore "ParkingSystem.API/ParkingSystem.API.csproj"
