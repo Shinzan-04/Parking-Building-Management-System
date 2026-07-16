@@ -150,7 +150,7 @@ function ExceptionHandlingModal({
           <button
             type="button"
             onClick={() => onConfirm(note)}
-            className="rounded-xl bg-stone-900 hover:bg-stone-850 px-4 py-2 text-xs font-bold text-white transition-opacity"
+            className="rounded-xl bg-stone-900 hover:bg-stone-850 px-4 py-2 text-xs font-bold text-[#fff] transition-opacity"
           >
             {copy.confirmLabel}
           </button>
@@ -480,13 +480,22 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     <h3 className="text-sm font-bold text-stone-900 uppercase tracking-widest">CAMERA SCANNER (LICENSE PLATE)</h3>
                   </div>
 
-                  <div className="bg-black relative flex-1 flex flex-col items-center justify-center min-h-[450px] overflow-hidden">
+                  <div className="bg-black relative flex-1 flex flex-col items-center justify-center min-h-[450px] overflow-hidden rounded-xl">
+                    {/* Camera Status Labels */}
+                    <div className="absolute top-4 left-4 z-30 flex items-center gap-2 bg-emerald-500/20 px-3 py-1.5 rounded-full backdrop-blur-md border border-emerald-500/30">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Ready to scan</span>
+                    </div>
+                    <div className="absolute top-4 right-4 z-30 bg-black/50 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/10">
+                      <span className="text-[10px] font-mono font-bold text-[#fff] tracking-widest">CAM-ENTRY-01</span>
+                    </div>
+
                     {/* Decorative scanner frame corners */}
-                    <div className="absolute inset-6 border-2 border-transparent pointer-events-none z-20">
-                      <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-red-500 rounded-tl-lg" />
-                      <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-red-500 rounded-tr-lg" />
-                      <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-red-500 rounded-bl-lg" />
-                      <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-red-500 rounded-br-lg" />
+                    <div className="absolute top-16 bottom-20 inset-x-10 border-2 border-transparent pointer-events-none z-40">
+                      <div className="absolute top-0 left-0 w-10 h-10 border-t-[3px] border-l-[3px] border-red-500 rounded-tl-xl" />
+                      <div className="absolute top-0 right-0 w-10 h-10 border-t-[3px] border-r-[3px] border-red-500 rounded-tr-xl" />
+                      <div className="absolute bottom-0 left-0 w-10 h-10 border-b-[3px] border-l-[3px] border-red-500 rounded-bl-xl" />
+                      <div className="absolute bottom-0 right-0 w-10 h-10 border-b-[3px] border-r-[3px] border-red-500 rounded-br-xl" />
                     </div>
 
                     {/* CameraCapture Component inside the frame */}
@@ -586,7 +595,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     <button
                       type="button"
                       onClick={handleConfirmEntry}
-                      className="inline-flex h-14 w-full items-center justify-center rounded-xl bg-gray-500 text-sm font-bold text-white transition-colors hover:bg-gray-600 shadow-sm"
+                      className="inline-flex h-14 w-full items-center justify-center rounded-xl bg-gray-500 text-sm font-bold text-[#fff] transition-colors hover:bg-gray-600 shadow-sm"
                     >
                       <Zap className="mr-2 w-4 h-4" />
                       VALIDATE TICKET
@@ -653,7 +662,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                           type="button"
                           onClick={handleSearchExit}
                           disabled={exitLoading}
-                          className="h-16 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 text-sm font-bold text-white transition-colors shadow-sm disabled:opacity-50"
+                          className="h-16 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 text-sm font-bold text-[#fff] transition-colors shadow-sm disabled:opacity-50"
                         >
                           {exitLoading ? <Loader className="w-5 h-5 animate-spin mx-auto" /> : 'Search'}
                         </button>
@@ -753,14 +762,14 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     <div className="flex items-center gap-2 mb-4">
                       <span
                         onClick={() => setExitCameraMode('lpr')}
-                        className={`text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm cursor-pointer ${exitCameraMode === 'lpr' ? 'bg-[#1A1F2B] text-white' : 'text-stone-400 hover:bg-gray-100'
+                        className={`text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm cursor-pointer ${exitCameraMode === 'lpr' ? 'bg-[#1A1F2B] text-[#fff]' : 'text-stone-400 hover:bg-gray-100'
                           }`}
                       >
                         LPR CAMERA
                       </span>
                       <span
                         onClick={() => setExitCameraMode('qr')}
-                        className={`text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer ${exitCameraMode === 'qr' ? 'bg-[#1A1F2B] text-white' : 'text-stone-400 hover:bg-gray-100'
+                        className={`text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer ${exitCameraMode === 'qr' ? 'bg-[#1A1F2B] text-[#fff]' : 'text-stone-400 hover:bg-gray-100'
                           }`}
                       >
                         QR SCANNER
@@ -771,7 +780,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     <div className="relative bg-black rounded-xl overflow-hidden min-h-[220px] flex items-center justify-center border-4 border-black shadow-inner">
                       <div className="absolute top-4 left-4 flex items-center gap-2 z-20 bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                        <span className="text-[10px] text-white font-mono font-bold tracking-wider">{exitCameraMode === 'lpr' ? 'LPR-CAM-02' : 'QR-CAM'}</span>
+                        <span className="text-[10px] text-[#fff] font-mono font-bold tracking-wider">{exitCameraMode === 'lpr' ? 'LPR-CAM-02' : 'QR-CAM'}</span>
                       </div>
                       <div className="relative z-10 w-full h-full">
                         <CameraCapture
@@ -824,7 +833,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         type="button"
                         onClick={handleCollectAndOpen}
                         disabled={!exitSessionData}
-                        className="w-full flex items-center justify-center gap-2 h-14 rounded-xl bg-gray-500 hover:bg-gray-600 disabled:bg-gray-200 text-sm font-bold text-white transition-colors shadow-sm"
+                        className="w-full flex items-center justify-center gap-2 h-14 rounded-xl bg-gray-500 hover:bg-gray-600 disabled:bg-gray-200 text-sm font-bold text-[#fff] transition-colors shadow-sm"
                       >
                         <CheckCircle2 className="w-5 h-5" />
                         Process & Release
@@ -893,7 +902,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                           }
                         }}
                         className={`h-12 flex flex-col items-center justify-center rounded-xl border text-[10px] font-bold transition-all ${isSelected
-                            ? 'bg-[#FF4C4C] border-[#FF4C4C] text-white shadow-md'
+                            ? 'bg-[#FF4C4C] border-[#FF4C4C] text-[#fff] shadow-md'
                             : 'bg-stone-50 border-stone-200 text-stone-600 hover:border-[#FF4C4C] hover:text-[#FF4C4C]'
                           }`}
                       >
@@ -941,7 +950,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
             <div className="p-4 border-t flex justify-end gap-3 bg-stone-50/50">
               <button
                 onClick={() => setCheckInResultData(null)}
-                className="h-10 px-6 rounded-xl font-bold text-sm bg-stone-900 text-white hover:bg-stone-800 transition-colors w-full"
+                className="h-10 px-6 rounded-xl font-bold text-sm bg-stone-900 text-[#fff] hover:bg-stone-800 transition-colors w-full"
               >
                 Print & Close
               </button>

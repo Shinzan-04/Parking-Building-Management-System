@@ -16,7 +16,7 @@ function daysLeft(endDate: string): number {
 function getDashboardPath(role: string | number): string | null {
   if (role === 'Admin'   || role === 0) return '/admin';
   if (role === 'Manager' || role === 1) return '/manager';
-  if (role === 'Staff'   || role === 2) return '/gate-control';
+  if (role === 'Staff'   || role === 2) return '/staff';
   return null;
 }
 
