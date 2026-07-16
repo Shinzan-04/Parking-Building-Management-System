@@ -4,8 +4,7 @@ services:
     env: docker
     region: singapore # You can change this to your preferred region
     plan: free # Render's free tier (can be upgraded)
-    dockerfilePath: ./be/Dockerfile
-    dockerContext: .
+    dockerfilePath: Dockerfile
     autoDeploy: true
     envVars:
       - key: ConnectionStrings__DefaultConnection
