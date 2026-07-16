@@ -134,6 +134,12 @@ export default function ChatDashboard() {
   useEffect(() => {
     if (connection && activeSessionId) {
        connection.invoke('JoinSession', activeSessionId);
+       
+       return () => {
+         connection.invoke('LeaveSession', activeSessionId).catch(err => {
+            console.error('Leave session failed', err);
+         });
+       };
     }
   }, [connection, activeSessionId]);
 

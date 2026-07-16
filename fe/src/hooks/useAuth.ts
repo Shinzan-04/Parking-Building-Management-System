@@ -85,6 +85,8 @@ export function useAuth() {
     // Xóa session ở client ngay lập tức để tránh độ trễ giao diện
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem('guest_id');
+    localStorage.removeItem('chat_session_id');
     setUser(null);
     setError(null);
 

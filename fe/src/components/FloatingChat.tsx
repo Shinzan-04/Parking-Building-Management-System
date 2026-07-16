@@ -60,6 +60,21 @@ export const FloatingChat: React.FC = () => {
       .catch(console.error);
   }, []);
 
+  // Reset chat state when user account changes (logout/login)
+  useEffect(() => {
+    setSessionId(null);
+    setMessages([]);
+    setIsOpen(false);
+    setStatus('BotHandling');
+    setHasSubmittedInfo(false);
+    
+    if (connection) {
+      connection.stop().catch(console.error);
+      setConnection(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.userId]);
+
   // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

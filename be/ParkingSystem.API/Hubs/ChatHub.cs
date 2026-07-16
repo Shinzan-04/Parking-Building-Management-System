@@ -61,7 +61,7 @@ public class ChatHub : Hub
             session.Status = ChatSessionStatus.BotHandling;
             session.AgentId = null;
             await _context.SaveChangesAsync();
-            await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "BotHandling", null);
+            await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "BotHandling", null, sessionId);
         }
 
         // Nếu người gửi là User/Guest và Session đang ở chế độ BotHandling -> Gọi AI
@@ -86,7 +86,7 @@ public class ChatHub : Hub
                 session.EscalatedAt = DateTime.UtcNow;
                 
                 // Báo cho user biết session đang chờ nhân viên
-                await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "Escalated", null);
+                await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "Escalated", null, sessionId);
 
                 // Báo cho toàn bộ nhân viên của tòa nhà này biết có người cần hỗ trợ
                 if (session.BuildingId.HasValue)
@@ -112,6 +112,16 @@ public class ChatHub : Hub
         }
     }
 
+
+
+    /// <summary>
+    /// Rời channel của một phiên chat cụ thể
+    /// </summary>
+    public async Task LeaveSession(string sessionId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, sessionId);
+    }
+
     /// <summary>
     /// Nhân viên bấm "Tiếp quản" phiên chat
     /// </summary>
@@ -132,7 +142,13 @@ public class ChatHub : Hub
         await _context.SaveChangesAsync();
 
         // Báo cho toàn Group biết Nhân viên đã vào
-        await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "AgentHandling", session.AgentId);
+        await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "AgentHandling", session.AgentId, sessionId);
+        
+        // Báo cho toàn bộ nhân viên tòa nhà để cập nhật sidebar real-time
+        if (session.BuildingId.HasValue)
+        {
+            await Clients.Group($"Building_{session.BuildingId.Value}").SendAsync("SessionStatusChanged", "AgentHandling", session.AgentId, sessionId);
+        }
     }
 
     /// <summary>
@@ -154,6 +170,12 @@ public class ChatHub : Hub
         await _context.SaveChangesAsync();
 
         // Báo cho toàn Group biết phiên chat đã đóng
-        await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "Closed", session.AgentId);
+        await Clients.Group(sessionId).SendAsync("SessionStatusChanged", "Closed", session.AgentId, sessionId);
+        
+        // Báo cho toàn bộ nhân viên tòa nhà để cập nhật sidebar real-time
+        if (session.BuildingId.HasValue)
+        {
+            await Clients.Group($"Building_{session.BuildingId.Value}").SendAsync("SessionStatusChanged", "Closed", session.AgentId, sessionId);
+        }
     }
 }
