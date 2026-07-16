@@ -3,20 +3,20 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Copy solution and project files
-COPY ["ParkingBuildingManager.sln", "./"]
-COPY ["ParkingSystem.API/ParkingSystem.API.csproj", "ParkingSystem.API/"]
-COPY ["ParkingSystem.Application/ParkingSystem.Application.csproj", "ParkingSystem.Application/"]
-COPY ["ParkingSystem.Domain/ParkingSystem.Domain.csproj", "ParkingSystem.Domain/"]
-COPY ["ParkingSystem.Infrastructure/ParkingSystem.Infrastructure.csproj", "ParkingSystem.Infrastructure/"]
+COPY ["be/ParkingBuildingManager.sln", "be/"]
+COPY ["be/ParkingSystem.API/ParkingSystem.API.csproj", "be/ParkingSystem.API/"]
+COPY ["be/ParkingSystem.Application/ParkingSystem.Application.csproj", "be/ParkingSystem.Application/"]
+COPY ["be/ParkingSystem.Domain/ParkingSystem.Domain.csproj", "be/ParkingSystem.Domain/"]
+COPY ["be/ParkingSystem.Infrastructure/ParkingSystem.Infrastructure.csproj", "be/ParkingSystem.Infrastructure/"]
 
 # Restore dependencies
-RUN dotnet restore "ParkingSystem.API/ParkingSystem.API.csproj"
+RUN dotnet restore "be/ParkingSystem.API/ParkingSystem.API.csproj"
 
 # Copy the rest of the source code
-COPY . .
+COPY ["be/", "be/"]
 
 # Build and publish the API
-WORKDIR "/src/ParkingSystem.API"
+WORKDIR "/src/be/ParkingSystem.API"
 RUN dotnet publish "ParkingSystem.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Runtime Stage
