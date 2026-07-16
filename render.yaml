@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: parking-system-backend
+    env: docker
+    region: singapore # You can change this to your preferred region
+    plan: free # Render's free tier (can be upgraded)
+    dockerfilePath: ./be/Dockerfile
+    dockerContext: ./be
+    autoDeploy: true
+    envVars:
+      - key: ConnectionStrings__DefaultConnection
+        value: "Host=your_postgres_host;Database=your_db;Username=your_user;Password=your_password"
+      - key: Jwt__Key
+        value: "YOUR_SUPER_SECRET_JWT_KEY_AT_LEAST_32_CHARS"
+      - key: Jwt__Issuer
+        value: "ParkingSystem"
+      - key: Jwt__Audience
+        value: "ParkingSystemUsers"
