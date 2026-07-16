@@ -171,7 +171,8 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   const [entryVehicleType, setEntryVehicleType] = useState<VehicleType>('car');
   const [entryImageBase64, setEntryImageBase64] = useState<string | null>(null);
   const [exitLicensePlate, setExitLicensePlate] = useState('');
-  const [exitCameraMode, setExitCameraMode] = useState<'lpr' | 'qr'>('lpr');
+  const [exitQrCode, setExitQrCode] = useState('');
+
   const [isExitCameraOff, setIsExitCameraOff] = useState(false);
   const [exitSessionData, setExitSessionData] = useState<CheckOutSearchResult | null>(null);
   const [exitLoading, setExitLoading] = useState(false);
@@ -284,6 +285,10 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   };
 
   const handleSearchExit = async () => {
+    if (!exitQrCode.trim()) {
+      showNotification('error', 'Please scan or enter the QR Code first.');
+      return;
+    }
     if (!exitLicensePlate.trim()) {
       showNotification('error', 'Please enter a license plate for exit lookup.');
       return;
@@ -292,9 +297,13 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
     setExitLoading(true);
     try {
-      const result = await searchCheckOut(exitLicensePlate, token, user?.assignedBuildingId);
+      const result = await searchCheckOutByQr(exitQrCode, exitLicensePlate, token, user?.assignedBuildingId);
       setExitSessionData(result);
-      showNotification('success', `Session found for license plate: ${result.licensePlate}`);
+      if (result.isPlateMismatch) {
+        showNotification('error', 'WARNING: Scanned license plate does NOT match the ticket!');
+      } else {
+        showNotification('success', `Session found for license plate: ${result.licensePlate}`);
+      }
     } catch (err: any) {
       showNotification('error', err.message || 'No valid parking session found.');
       setExitSessionData(null);
@@ -304,18 +313,8 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   };
 
   const handleQrExitSuccess = async (qrCode: string): Promise<void> => {
-    if (!token) return;
-    setExitLoading(true);
-    try {
-      const result = await searchCheckOutByQr(qrCode, token, user?.assignedBuildingId);
-      setExitSessionData(result);
-      showNotification('success', `Parking session found.`);
-    } catch (err: any) {
-      showNotification('error', err.message || 'No valid session found for this QR code.');
-      setExitSessionData(null);
-    } finally {
-      setExitLoading(false);
-    }
+    setExitQrCode(qrCode);
+    showNotification('success', `Scanned QR Code: ${qrCode}`);
   };
 
   const handleCollectAndOpen = async () => {
@@ -367,45 +366,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
   const handleExitCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
     setExitLicensePlate(result.licensePlate);
-    if (!token) return;
-
-    setExitLoading(true);
-    try {
-      const ocrResult = await ocrCheckOut({ imageBase64, staffId: user?.userId || '', buildingId: user?.assignedBuildingId }, token);
-
-      const mappedData: CheckOutSearchResult = {
-        sessionId: ocrResult.sessionId,
-        licensePlate: ocrResult.entryLicensePlate,
-        slotNumber: ocrResult.slotNumber,
-        floorName: ocrResult.floorName,
-        entryTime: ocrResult.entryTime,
-        estimatedExitTime: ocrResult.estimatedExitTime,
-        totalHours: ocrResult.totalHours,
-        vehicleTypeName: ocrResult.vehicleTypeName,
-        hourlyRate: ocrResult.hourlyRate,
-        estimatedFee: ocrResult.estimatedFee,
-        pricingModel: ocrResult.pricingModel,
-        dayPassPrice: ocrResult.dayPassPrice,
-        nightPassPrice: ocrResult.nightPassPrice,
-        dailyMaxPrice: ocrResult.dailyMaxPrice,
-        feeBreakdown: ocrResult.feeBreakdown,
-        message: ocrResult.message
-      };
-
-      setExitSessionData(mappedData);
-
-      if (ocrResult.isMatch) {
-        showNotification('success', `License plate match: ${result.licensePlate} (${(result.confidence * 100).toFixed(1)}%)`);
-      } else if (ocrResult.exitLicensePlate && ocrResult.entryLicensePlate) {
-        showNotification('error', `Warning: OCR (${ocrResult.exitLicensePlate}) mismatch with DB (${ocrResult.entryLicensePlate})`);
-      }
-      exitInputRef.current?.focus();
-    } catch (err: any) {
-      showNotification('error', err.message || 'No parking session found for this license plate.');
-      setExitSessionData(null);
-    } finally {
-      setExitLoading(false);
-    }
+    showNotification('info', `License plate scanned: ${result.licensePlate}. Please scan QR ticket.`);
   };
 
   useEffect(() => {
@@ -644,36 +605,47 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 <div className="flex flex-col gap-6">
 
                   {/* Manual Input / Search Block */}
-                  {exitCameraMode === 'lpr' && (
+
                     <div className="glass-card rounded-[1.5rem] p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-[11px] font-bold admin-text-faint uppercase tracking-widest">LICENSE PLATE SCANNER (EXIT GATE)</h3>
+                        <h3 className="text-[11px] font-bold admin-text-faint uppercase tracking-widest">MANUAL ENTRY & SEARCH</h3>
                         <span className="text-[9px] font-bold admin-text-faint uppercase tracking-widest admin-bg-surface border admin-border px-2 py-1 rounded-md">ENABLE MANUAL ENTRY</span>
                       </div>
-                      <div className="relative flex gap-3">
-                        <input
-                          ref={exitInputRef}
-                          type="text"
-                          value={exitLicensePlate}
-                          onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
-                          placeholder="ABC-1234"
-                          className="h-16 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-2xl font-black tracking-[0.2em] admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleSearchExit}
-                          disabled={exitLoading}
-                          className="h-16 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 text-sm font-bold text-[#fff] transition-colors shadow-sm disabled:opacity-50"
-                        >
-                          {exitLoading ? <Loader className="w-5 h-5 animate-spin mx-auto" /> : 'Search'}
-                        </button>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex gap-3">
+                          <input
+                            type="text"
+                            value={exitQrCode}
+                            onChange={(event) => setExitQrCode(event.target.value)}
+                            placeholder="Mã Thẻ Xe / QR Code"
+                            className="h-14 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-sm font-medium admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10"
+                          />
+                        </div>
+                        <div className="flex gap-3">
+                          <input
+                            ref={exitInputRef}
+                            type="text"
+                            value={exitLicensePlate}
+                            onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
+                            placeholder="Biển số (e.g. 30A-123.45)"
+                            className="h-16 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-2xl font-black tracking-[0.2em] admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleSearchExit}
+                            disabled={exitLoading || !exitQrCode.trim() || !exitLicensePlate.trim()}
+                            className="h-16 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 text-sm font-bold text-[#fff] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[120px]"
+                          >
+                            {exitLoading ? <Loader className="w-5 h-5 animate-spin" /> : 'Search'}
+                          </button>
+                        </div>
                       </div>
                       <div className="mt-4 text-[10px] admin-text-faint font-bold flex justify-between px-2">
                         <span>Waiting for vehicle scan...</span>
                         <span className="flex items-center gap-1"><Camera className="w-3 h-3" /> AI SCAN</span>
                       </div>
                     </div>
-                  )}
+
 
                   {/* Session Details Block */}
                   <div className="glass-card rounded-[1.5rem] p-6 min-h-[250px]">
@@ -760,22 +732,8 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 <div className="flex flex-col gap-6 h-full">
                   {/* Camera Block */}
                   <div className="glass-card rounded-[1.5rem] p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                      <span
-                        onClick={() => setExitCameraMode('lpr')}
-                        className={`text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm cursor-pointer ${exitCameraMode === 'lpr' ? 'bg-[#FF4C4C] text-white' : 'admin-text-muted hover:admin-bg-surface/10'
-                          }`}
-                      >
-                        LPR CAMERA
-                      </span>
-                      <span
-                        onClick={() => setExitCameraMode('qr')}
-                        className={`text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer ${exitCameraMode === 'qr' ? 'bg-[#FF4C4C] text-white' : 'admin-text-muted hover:admin-bg-surface/10'
-                          }`}
-                      >
-                        QR SCANNER
-                      </span>
-                      <div className="flex-1" />
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[10px] font-bold admin-text-muted uppercase tracking-widest">LIVE CAMERAS</span>
                       <span 
                         onClick={() => setIsExitCameraOff(!isExitCameraOff)}
                         className={`text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-md cursor-pointer transition-colors ${
@@ -784,33 +742,60 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                             : 'text-red-400 bg-red-500/10 hover:bg-red-500/20'
                         }`}
                       >
-                        {isExitCameraOff ? 'TURN ON CAM' : 'TURN OFF CAM'}
+                        {isExitCameraOff ? 'TURN ON CAMS' : 'TURN OFF CAMS'}
                       </span>
                     </div>
-                    <div className="relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center border-4 border-black shadow-inner">
-                      <div className="absolute top-4 left-4 flex items-center gap-2 z-20 bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
-                        <span className={`w-1.5 h-1.5 rounded-full ${isExitCameraOff ? 'bg-stone-500' : 'bg-red-500 animate-pulse'}`}></span>
-                        <span className={`text-[10px] font-mono font-bold tracking-wider ${isExitCameraOff ? 'text-stone-500' : 'text-[#fff]'}`}>
-                          {isExitCameraOff ? 'OFFLINE' : (exitCameraMode === 'lpr' ? 'LPR-CAM-02' : 'QR-CAM')}
-                        </span>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* LPR Camera */}
+                      <div className="relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center border-2 border-black shadow-inner group">
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5 z-20 bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
+                          <span className={`w-1.5 h-1.5 rounded-full ${isExitCameraOff ? 'bg-stone-500' : 'bg-red-500 animate-pulse'}`}></span>
+                          <span className={`text-[8px] font-mono font-bold tracking-wider ${isExitCameraOff ? 'text-stone-500' : 'text-[#fff]'}`}>LPR-CAM</span>
+                        </div>
+                        <div className="relative z-10 w-full h-full">
+                          {!isExitCameraOff ? (
+                            <CameraCapture
+                              onSuccess={handleExitCameraResult}
+                              onCancel={() => { }}
+                              token={token}
+                              inline
+                              className="w-full h-full rounded-lg object-cover"
+                              mode="lpr"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-stone-500">
+                              <Camera className="w-5 h-5 mb-1 opacity-20" />
+                              <span className="text-[8px] font-bold uppercase tracking-widest opacity-50">Offline</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="relative z-10 w-full h-full">
-                        {!isExitCameraOff ? (
-                          <CameraCapture
-                            onSuccess={handleExitCameraResult}
-                            onCancel={() => { }}
-                            token={token}
-                            inline
-                            className="w-full h-full rounded-lg"
-                            mode={exitCameraMode}
-                            onQrSuccess={handleQrExitSuccess}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-stone-500">
-                            <Camera className="w-8 h-8 mb-2 opacity-20" />
-                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">Camera Disabled</span>
-                          </div>
-                        )}
+
+                      {/* QR Scanner */}
+                      <div className="relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center border-2 border-black shadow-inner group">
+                        <div className="absolute top-2 left-2 flex items-center gap-1.5 z-20 bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
+                          <span className={`w-1.5 h-1.5 rounded-full ${isExitCameraOff ? 'bg-stone-500' : 'bg-emerald-500 animate-pulse'}`}></span>
+                          <span className={`text-[8px] font-mono font-bold tracking-wider ${isExitCameraOff ? 'text-stone-500' : 'text-[#fff]'}`}>QR-CAM</span>
+                        </div>
+                        <div className="relative z-10 w-full h-full">
+                          {!isExitCameraOff ? (
+                            <CameraCapture
+                              onSuccess={() => {}}
+                              onCancel={() => { }}
+                              token={token}
+                              inline
+                              className="w-full h-full rounded-lg object-cover"
+                              mode="qr"
+                              onQrSuccess={handleQrExitSuccess}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-stone-500">
+                              <Camera className="w-5 h-5 mb-1 opacity-20" />
+                              <span className="text-[8px] font-bold uppercase tracking-widest opacity-50">Offline</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

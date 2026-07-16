@@ -31,13 +31,13 @@ public class CheckOutController : ControllerBase
     [HttpGet("search")]
     public async Task<IActionResult> Search([FromQuery] string? qrCode = null, [FromQuery] string? licensePlate = null, [FromQuery] Guid? buildingId = null)
     {
-        if (string.IsNullOrWhiteSpace(qrCode) && string.IsNullOrWhiteSpace(licensePlate))
+        if (string.IsNullOrWhiteSpace(qrCode))
         {
-            return BadRequest(new { message = "Vui long quet ma QR the xe hoac nhap bien so." });
+            return BadRequest(new { message = "Xe chưa được duyệt mất vé. Vui lòng quét mã QR!" });
         }
         if (string.IsNullOrWhiteSpace(licensePlate))
         {
-            return BadRequest(new { message = "Bien so xe khong duoc de trong." });
+            return BadRequest(new { message = "Biển số xe không được để trống." });
         }
 
         try

@@ -21,78 +21,35 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const html5QrCodeRef = useRef<Html5Qrcode | null>(null);
-  const isProcessingRef = useRef(false);
 
   useEffect(() => {
-    // If mode is QR, we use html5-qrcode
-    if (mode === 'qr') {
-      const initQrScanner = async () => {
-        try {
-          html5QrCodeRef.current = new Html5Qrcode("qr-reader");
-          await html5QrCodeRef.current.start(
-            { facingMode: "environment" },
-            {
-              fps: 10,
-              qrbox: { width: 250, height: 250 },
-            },
-            async (decodedText) => {
-              if (isProcessingRef.current) return;
-              isProcessingRef.current = true;
-              try {
-                if (onQrSuccess) {
-                  await onQrSuccess(decodedText);
-                }
-              } finally {
-                // Unlock after API finishes
-                setTimeout(() => { isProcessingRef.current = false; }, 1500); // add a slight delay to prevent instant double scans
-              }
-            },
-            (errorMessage) => {
-              // ignore parse errors (happens constantly when no QR is in view)
-            }
-          );
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to start QR scanner');
+    // Both LPR and QR now use manual capture from standard video stream
+    const initCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+        });
+
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          streamRef.current = stream;
         }
-      };
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to access camera');
+      }
+    };
 
-      initQrScanner();
+    initCamera();
 
-      return () => {
-        if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
-          html5QrCodeRef.current.stop().catch(console.error);
-        }
-      };
-    } else {
-      // mode === 'lpr'
-      const initCamera = async () => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-          });
-
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            streamRef.current = stream;
-          }
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to access camera');
-        }
-      };
-
-      initCamera();
-
-      return () => {
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach((track) => track.stop());
-        }
-      };
-    }
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
   }, [mode]);
 
   const captureAndScan = async () => {
-    if (mode !== 'lpr' || !videoRef.current || !canvasRef.current) return;
+    if (!videoRef.current || !canvasRef.current) return;
 
     try {
       setLoading(true);
@@ -106,57 +63,73 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
       canvasRef.current.height = videoRef.current.videoHeight;
       context.drawImage(videoRef.current, 0, 0);
 
-      // Convert to base64
-      const imageBase64 = canvasRef.current.toDataURL('image/jpeg').split(',')[1];
+      if (mode === 'lpr') {
+        // LPR MODE: Convert to base64 and call OCR API
+        const imageBase64 = canvasRef.current.toDataURL('image/jpeg').split(',')[1];
+        const result = await scanPlate(imageBase64, token);
 
-      // Send to OCR service
-      const result = await scanPlate(imageBase64, token);
-
-      if (result) {
-        onSuccess(result, imageBase64);
+        if (result) {
+          onSuccess(result, imageBase64);
+        } else {
+          setError('No license plate detected. Please try again.');
+        }
+        setLoading(false);
       } else {
-        setError('No license plate detected. Please try again.');
+        // QR MODE: Convert to File and use Html5Qrcode.scanFile
+        canvasRef.current.toBlob(async (blob) => {
+          if (!blob) {
+            setError('Failed to capture image');
+            setLoading(false);
+            return;
+          }
+          const file = new File([blob], 'qr.jpg', { type: 'image/jpeg' });
+          try {
+            const qrScanner = new Html5Qrcode("hidden-qr-reader");
+            const result = await qrScanner.scanFileV2(file, false);
+            if (onQrSuccess) {
+              await onQrSuccess(result.decodedText);
+            }
+          } catch (err) {
+            setError('No QR code detected. Please try again.');
+          } finally {
+            setLoading(false);
+          }
+        }, 'image/jpeg');
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to scan plate');
-    } finally {
+      setError(err instanceof Error ? err.message : 'Failed to scan image');
       setLoading(false);
     }
   };
 
   const renderContent = () => {
-    if (mode === 'qr') {
-      return (
-        <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
-          <div id="qr-reader" className="w-full h-full [&_video]:w-full [&_video]:h-full [&_video]:object-cover [&_video]:!object-cover"></div>
-        </div>
-      );
-    }
-
     return (
       <div className="relative w-full h-full bg-black">
         <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
           <div 
-            className="relative h-32 w-64 border-2 border-cyan-400 rounded-lg"
+            className={`relative border-2 rounded-lg ${mode === 'lpr' ? 'h-32 w-64 border-cyan-400' : 'h-48 w-48 border-emerald-400'}`}
             style={{ boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.4)' }}
           >
-            <div className="absolute top-0 left-0 h-4 w-4 border-t-2 border-l-2 border-cyan-400" />
-            <div className="absolute top-0 right-0 h-4 w-4 border-t-2 border-r-2 border-cyan-400" />
-            <div className="absolute bottom-0 left-0 h-4 w-4 border-b-2 border-l-2 border-cyan-400" />
-            <div className="absolute bottom-0 right-0 h-4 w-4 border-b-2 border-r-2 border-cyan-400" />
+            <div className={`absolute top-0 left-0 h-4 w-4 border-t-2 border-l-2 ${mode === 'lpr' ? 'border-cyan-400' : 'border-emerald-400'}`} />
+            <div className={`absolute top-0 right-0 h-4 w-4 border-t-2 border-r-2 ${mode === 'lpr' ? 'border-cyan-400' : 'border-emerald-400'}`} />
+            <div className={`absolute bottom-0 left-0 h-4 w-4 border-b-2 border-l-2 ${mode === 'lpr' ? 'border-cyan-400' : 'border-emerald-400'}`} />
+            <div className={`absolute bottom-0 right-0 h-4 w-4 border-b-2 border-r-2 ${mode === 'lpr' ? 'border-cyan-400' : 'border-emerald-400'}`} />
           </div>
         </div>
         <canvas ref={canvasRef} className="hidden" />
+        <div id="hidden-qr-reader" className="absolute opacity-0 pointer-events-none w-10 h-10 -z-10"></div>
         {error && <div className="absolute top-4 left-4 right-4 z-30 px-4 py-2 text-sm text-red-300 bg-black/60 rounded-lg backdrop-blur-sm">{error}</div>}
         <div className="absolute bottom-4 right-4 z-30">
           <button
             type="button"
             onClick={captureAndScan}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2.5 text-sm font-bold text-white shadow-lg transition-all hover:bg-cyan-400 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+              mode === 'lpr' ? 'bg-cyan-500 hover:bg-cyan-400' : 'bg-emerald-500 hover:bg-emerald-400'
+            }`}
           >
-            {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+            {loading ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
             <span>Capture</span>
           </button>
         </div>
