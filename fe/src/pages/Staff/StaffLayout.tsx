@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import toast from 'react-hot-toast';
-import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import NotificationBell from '../../components/NotificationBell';
@@ -25,6 +25,7 @@ const navItems = [
 
 export default function StaffLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [driving, setDriving] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['Gate Control']);
   const [pendingChatCount, setPendingChatCount] = useState(0);
   const navigate = useNavigate();
@@ -35,6 +36,11 @@ export default function StaffLayout() {
 
   const handleLogout = () => { logout(); navigate('/auth'); };
   const initials = user?.fullName?.charAt(0)?.toUpperCase() ?? 'S';
+
+  const handleLogoClick = () => {
+    setDriving(true);
+    setTimeout(() => { setDriving(false); setIsCollapsed(c => !c); }, 550);
+  };
 
   const refreshPendingChatCount = useCallback(async () => {
     if (!buildingId) return;
@@ -98,34 +104,25 @@ export default function StaffLayout() {
     >
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-screen flex flex-col z-30 border-r transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}
+        className={`fixed top-0 left-0 h-screen flex flex-col z-30 border-r transition-all duration-300 ${isCollapsed ? 'w-[68px]' : 'w-64'}`}
         style={{ backgroundColor: 'var(--admin-bg-surface)', borderColor: 'var(--admin-border)' }}
       >
-        {/* Toggle Button */}
-        <button
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-1/2 -translate-y-1/2 w-4 h-10 bg-white border border-gray-200 border-l-0 rounded-r-lg flex items-center justify-center text-gray-400 hover:text-stone-900 shadow-sm z-40 transition-colors"
-        >
-          <div className={`transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}`}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="5 3 19 12 5 21 5 3"></polygon>
-            </svg>
-          </div>
-        </button>
-
+        {/* Logo — click to toggle */}
         <div
-          className={`px-4 py-4 border-b flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} relative`}
+          className="px-3 py-4 border-b flex items-center cursor-pointer select-none"
           style={{ borderColor: 'var(--admin-border)', minHeight: 64 }}
+          onClick={handleLogoClick}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
-          <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30 shrink-0">
-            <Car size={18} className="text-white" />
+          <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30 shrink-0 overflow-hidden hover:scale-105 transition-transform duration-200">
+            <Car size={18} className={`text-white ${driving ? 'animate-car-drive' : ''}`} />
           </div>
           {!isCollapsed && (
-            <div className="overflow-hidden whitespace-nowrap transition-opacity duration-300">
-              <p className="text-sm font-bold leading-tight" style={{ color: 'var(--admin-text-primary)' }}>
+            <div className="ml-3 overflow-hidden">
+              <p className="text-sm font-bold leading-tight whitespace-nowrap" style={{ color: 'var(--admin-text-primary)' }}>
                 PARKING<span className="text-[#FF4C4C]">.</span>
               </p>
-              <p className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>Staff Panel</p>
+              <p className="text-xs whitespace-nowrap" style={{ color: 'var(--admin-text-faint)' }}>Staff Panel</p>
             </div>
           )}
         </div>
@@ -249,7 +246,7 @@ export default function StaffLayout() {
       </aside>
 
       {/* Main area */}
-      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isCollapsed ? 'ml-20' : 'ml-64'}`}>
+      <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${isCollapsed ? 'ml-[68px]' : 'ml-64'}`}>
         <header
           className="sticky top-0 z-20 backdrop-blur-md border-b px-8 py-4 flex items-center justify-between overflow-visible"
           style={{
