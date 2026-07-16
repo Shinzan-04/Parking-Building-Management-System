@@ -1,7 +1,7 @@
 /**
  * Admin/Pricing.tsx
- * Quản lý bảng giá Block Ngày/Đêm (dùng cho Booking)
- * Hỗ trợ Pricing Policy Versioning từ migration AddPricingPolicyVersioning
+ * Manages Day/Night Block pricing (used for Booking)
+ * Supports Pricing Policy Versioning from the AddPricingPolicyVersioning migration
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -41,7 +41,7 @@ const emptyForm = {
 type PolicyForm = typeof emptyForm;
 type ModalMode  = 'add' | 'edit' | 'delete' | 'history' | null;
 
-// ── Nhóm chính sách theo loại xe, lấy bản active + danh sách lịch sử ──────────
+// ── Group policies by vehicle type, get the active version + history list ──────────
 interface PolicyGroup {
   vehicleTypeId: string;
   vehicleTypeName: string;
@@ -51,7 +51,7 @@ interface PolicyGroup {
 
 function groupPolicies(policies: PricingPolicyResponse[]): PolicyGroup[] {
   const map = new Map<string, PolicyGroup>();
-  // Sắp xếp theo version giảm dần để active luôn ở đầu
+  // Sort by version descending so the active one is always first
   const sorted = [...policies].sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
 
   for (const p of sorted) {
@@ -92,12 +92,12 @@ export default function AdminPricing() {
     setApiError('');
     const errors: string[] = [];
     const [vts, allPolicies] = await Promise.all([
-      getVehicleTypes().catch(() => { errors.push('loại xe'); return [] as VehicleTypeResponse[]; }),
-      getAllPolicies(token).catch(() => { errors.push('chính sách giá'); return [] as PricingPolicyResponse[]; }),
+      getVehicleTypes().catch(() => { errors.push('vehicle types'); return [] as VehicleTypeResponse[]; }),
+      getAllPolicies(token).catch(() => { errors.push('pricing policies'); return [] as PricingPolicyResponse[]; }),
     ]);
     setVehicleTypes(vts);
     setPolicies(allPolicies);
-    if (errors.length) setApiError(`Không thể tải: ${errors.join(', ')}.`);
+    if (errors.length) setApiError(`Failed to load: ${errors.join(', ')}.`);
     setLoading(false);
     setRefreshing(false);
   }, [token]);
@@ -133,16 +133,16 @@ export default function AdminPricing() {
   };
 
   const validate = (): string => {
-    if (modal === 'add' && !form.vehicleTypeId) return 'Vui lòng chọn loại xe.';
-    if (Number(form.blockDurationHours) <= 0) return 'Thời lượng block phải > 0 giờ.';
-    if (Number(form.dayBlockRate) < 0) return 'Giá block ban ngày phải >= 0.';
-    if (Number(form.nightBlockRate) < 0) return 'Giá block ban đêm phải >= 0.';
-    if (Number(form.dailyRate) < 0) return 'Giá trọn ngày phải >= 0.';
-    if (Number(form.overtimeMultiplier) <= 0) return 'Hệ số overtime phải > 0.';
+    if (modal === 'add' && !form.vehicleTypeId) return 'Please select a vehicle type.';
+    if (Number(form.blockDurationHours) <= 0) return 'Block duration must be > 0 hours.';
+    if (Number(form.dayBlockRate) < 0) return 'Day block rate must be >= 0.';
+    if (Number(form.nightBlockRate) < 0) return 'Night block rate must be >= 0.';
+    if (Number(form.dailyRate) < 0) return 'Full-day rate must be >= 0.';
+    if (Number(form.overtimeMultiplier) <= 0) return 'Overtime multiplier must be > 0.';
     const ns = Number(form.nightStartHour);
     const ne = Number(form.nightEndHour);
-    if (isNaN(ns) || ns < 0 || ns > 23) return 'Giờ bắt đầu đêm phải từ 0–23.';
-    if (isNaN(ne) || ne < 0 || ne > 23) return 'Giờ kết thúc đêm phải từ 0–23.';
+    if (isNaN(ns) || ns < 0 || ns > 23) return 'Night start hour must be from 0-23.';
+    if (isNaN(ne) || ne < 0 || ne > 23) return 'Night end hour must be from 0-23.';
     return '';
   };
 
@@ -170,7 +170,7 @@ export default function AdminPricing() {
       setPolicies(prev => [...prev, created]);
       closeModal();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
     }
   };
@@ -186,7 +186,7 @@ export default function AdminPricing() {
       setPolicies(prev => prev.map(p => p.id === selected.id ? updated : p));
       closeModal();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
     }
   };
@@ -199,7 +199,7 @@ export default function AdminPricing() {
       setPolicies(prev => prev.filter(p => p.id !== selected.id));
       closeModal();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Không thể xoá.');
+      setFormError(e instanceof Error ? e.message : 'Failed to delete.');
       setSubmitting(false);
     }
   };
@@ -208,7 +208,7 @@ export default function AdminPricing() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-white/40">Đang tải bảng giá...</p>
+        <p className="text-sm text-white/40">Loading pricing...</p>
       </div>
     );
   }
@@ -219,9 +219,9 @@ export default function AdminPricing() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Bảng giá &amp; Chính sách phí</h2>
+          <h2 className="text-2xl font-bold text-white">Pricing &amp; Fee Policies</h2>
           <p className="text-sm text-white/40 mt-0.5">
-            {groups.length} loại xe · {policies.filter(p => p.isActive).length} chính sách đang áp dụng
+            {groups.length} vehicle types · {policies.filter(p => p.isActive).length} active policies
           </p>
         </div>
         <button
@@ -243,22 +243,22 @@ export default function AdminPricing() {
       {/* Section header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-base font-semibold text-white">Bảng giá Block Ngày / Đêm</h3>
-          <p className="text-xs text-white/40 mt-0.5">Mỗi lần cập nhật sẽ tạo phiên bản mới, giữ lại lịch sử để thống kê chính xác</p>
+          <h3 className="text-base font-semibold text-white">Day/Night Block Pricing</h3>
+          <p className="text-xs text-white/40 mt-0.5">Each update creates a new version, keeping history for accurate reporting</p>
         </div>
         <button
           onClick={openAdd}
           disabled={vehicleTypes.length === 0}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FF4C4C] hover:bg-[#ff3333] text-black font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
         >
-          <Plus size={15} /> Thêm chính sách
+          <Plus size={15} /> Add Policy
         </button>
       </div>
 
       {/* Policy Groups */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {groups.length === 0 && (
-          <p className="col-span-3 text-center py-12 text-white/30 text-sm">Chưa có chính sách giá nào.</p>
+          <p className="col-span-3 text-center py-12 text-white/30 text-sm">No pricing policies yet.</p>
         )}
 
         {groups.map(group => {
@@ -284,7 +284,7 @@ export default function AdminPricing() {
                     <>
                       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400">
                         <CheckCircle2 size={10} />
-                        Hiệu lực
+                        Active
                       </span>
                       <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-white/5 text-white/40">
                         <GitBranch size={10} />
@@ -293,7 +293,7 @@ export default function AdminPricing() {
                     </>
                   ) : (
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/5 text-white/30">
-                      Không active
+                      Inactive
                     </span>
                   )}
                 </div>
@@ -305,23 +305,23 @@ export default function AdminPricing() {
                   {p.effectiveDate && (
                     <div className="flex items-center gap-1.5 text-xs text-white/30">
                       <Clock size={11} />
-                      Áp dụng từ: {new Date(p.effectiveDate).toLocaleDateString('vi-VN')}
+                      Effective from: {new Date(p.effectiveDate).toLocaleDateString('vi-VN')}
                       {p.previousVersionId && (
-                        <span className="ml-1 text-white/20">(có lịch sử)</span>
+                        <span className="ml-1 text-white/20">(has history)</span>
                       )}
                     </div>
                   )}
 
                   {/* Block info */}
-                  <p className="text-xs text-white/30">Block {p.blockDurationHours}h · Đêm {p.nightStartHour}h–{p.nightEndHour}h</p>
+                  <p className="text-xs text-white/30">Block {p.blockDurationHours}h · Night {p.nightStartHour}h-{p.nightEndHour}h</p>
 
                   {/* Rate rows */}
                   <div className="space-y-2.5">
                     {[
-                      { icon: Sun,        label: 'Ban ngày / block',  value: vnd(p.dayBlockRate),        color: '#F59E0B' },
-                      { icon: Moon,       label: 'Ban đêm / block',   value: vnd(p.nightBlockRate),      color: '#A78BFA' },
-                      { icon: TrendingUp, label: 'Giá trọn ngày',     value: vnd(p.dailyRate),           color: '#F87171' },
-                      { icon: Zap,        label: 'Hệ số overtime',    value: `×${p.overtimeMultiplier}`, color: '#34D399' },
+                      { icon: Sun,        label: 'Day / block',       value: vnd(p.dayBlockRate),        color: '#F59E0B' },
+                      { icon: Moon,       label: 'Night / block',     value: vnd(p.nightBlockRate),      color: '#A78BFA' },
+                      { icon: TrendingUp, label: 'Full-day rate',     value: vnd(p.dailyRate),           color: '#F87171' },
+                      { icon: Zap,        label: 'Overtime multiplier', value: `×${p.overtimeMultiplier}`, color: '#34D399' },
                     ].map(row => {
                       const Icon = row.icon;
                       return (
@@ -338,7 +338,7 @@ export default function AdminPricing() {
 
                   {/* Footer meta */}
                   <div className="text-xs text-white/30 pt-1 border-t border-white/5">
-                    Tạo: {new Date(p.createdAt).toLocaleDateString('vi-VN')}
+                    Created: {new Date(p.createdAt).toLocaleDateString('vi-VN')}
                   </div>
 
                   {/* Actions */}
@@ -347,13 +347,13 @@ export default function AdminPricing() {
                       onClick={() => openEdit(p)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-amber-500/70 hover:text-amber-500 hover:bg-amber-500/10 transition-all"
                     >
-                      <Pencil size={13} /> Cập nhật giá
+                      <Pencil size={13} /> Update Price
                     </button>
                     {group.history.length > 0 && (
                       <button
                         onClick={() => { setHistoryGroup(group); setModal('history'); }}
                         className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-white/30 hover:text-white/60 hover:bg-white/5 transition-all"
-                        title={`${group.history.length} phiên bản cũ`}
+                        title={`${group.history.length} previous versions`}
                       >
                         <History size={13} />
                         {group.history.length}
@@ -368,7 +368,7 @@ export default function AdminPricing() {
                   </div>
                 </>
               ) : (
-                <p className="text-xs text-white/30 py-4 text-center">Không có chính sách đang hiệu lực</p>
+                <p className="text-xs text-white/30 py-4 text-center">No active policy</p>
               )}
             </div>
           );
@@ -382,12 +382,12 @@ export default function AdminPricing() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 shrink-0">
               <div>
                 <h3 className="text-base font-semibold text-gray-800 dark:text-white">
-                  {modal === 'add' ? 'Thêm chính sách giá' : `Cập nhật giá · ${selected?.vehicleTypeName}`}
+                  {modal === 'add' ? 'Add Pricing Policy' : `Update Price · ${selected?.vehicleTypeName}`}
                 </h3>
                 {modal === 'edit' && (
                   <p className="text-xs text-white/40 mt-0.5 flex items-center gap-1">
                     <GitBranch size={10} />
-                    Sẽ tạo phiên bản mới v{(selected?.version ?? 0) + 1} — lịch sử được giữ lại
+                    Will create new version v{(selected?.version ?? 0) + 1} — history is preserved
                   </p>
                 )}
               </div>
@@ -400,13 +400,13 @@ export default function AdminPricing() {
 
               {modal === 'add' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Loại xe <span className="text-red-400">*</span></label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Vehicle Type <span className="text-red-400">*</span></label>
                   <select
                     value={form.vehicleTypeId}
                     onChange={e => setForm(f => ({ ...f, vehicleTypeId: e.target.value }))}
                     className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                   >
-                    <option value="">-- Chọn loại xe --</option>
+                    <option value="">-- Select vehicle type --</option>
                     {vehicleTypes.map(vt => (
                       <option key={vt.id} value={vt.id}>{vt.name}</option>
                     ))}
@@ -415,7 +415,7 @@ export default function AdminPricing() {
               )}
 
               <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Thời lượng 1 block (giờ)</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Block duration (hours)</label>
                 <input
                   type="number" min={1} placeholder="4"
                   value={form.blockDurationHours}
@@ -427,10 +427,10 @@ export default function AdminPricing() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
-                    <Sun size={11} className="inline mr-1 text-amber-400" />Giá block ban ngày (đ)
+                    <Sun size={11} className="inline mr-1 text-amber-400" />Day block rate (VND)
                   </label>
                   <input
-                    type="number" min={0} placeholder="VD: 30000"
+                    type="number" min={0} placeholder="e.g. 30000"
                     value={form.dayBlockRate}
                     onChange={e => setForm(p => ({ ...p, dayBlockRate: e.target.value }))}
                     className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
@@ -438,10 +438,10 @@ export default function AdminPricing() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
-                    <Moon size={11} className="inline mr-1 text-violet-400" />Giá block ban đêm (đ)
+                    <Moon size={11} className="inline mr-1 text-violet-400" />Night block rate (VND)
                   </label>
                   <input
-                    type="number" min={0} placeholder="VD: 20000"
+                    type="number" min={0} placeholder="e.g. 20000"
                     value={form.nightBlockRate}
                     onChange={e => setForm(p => ({ ...p, nightBlockRate: e.target.value }))}
                     className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
@@ -452,7 +452,7 @@ export default function AdminPricing() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
-                    <Moon size={11} className="inline mr-1 text-violet-400" />Giờ bắt đầu đêm
+                    <Moon size={11} className="inline mr-1 text-violet-400" />Night start hour
                   </label>
                   <input
                     type="number" min={0} max={23} placeholder="22"
@@ -463,7 +463,7 @@ export default function AdminPricing() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
-                    <Sun size={11} className="inline mr-1 text-amber-400" />Giờ kết thúc đêm
+                    <Sun size={11} className="inline mr-1 text-amber-400" />Night end hour
                   </label>
                   <input
                     type="number" min={0} max={23} placeholder="6"
@@ -476,9 +476,9 @@ export default function AdminPricing() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Giá trọn ngày (đ)</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Full-day rate (VND)</label>
                   <input
-                    type="number" min={0} placeholder="VD: 150000"
+                    type="number" min={0} placeholder="e.g. 150000"
                     value={form.dailyRate}
                     onChange={e => setForm(p => ({ ...p, dailyRate: e.target.value }))}
                     className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
@@ -486,7 +486,7 @@ export default function AdminPricing() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
-                    <Zap size={11} className="inline mr-1 text-emerald-400" />Hệ số overtime
+                    <Zap size={11} className="inline mr-1 text-emerald-400" />Overtime multiplier
                   </label>
                   <input
                     type="number" min={1} step={0.1} placeholder="1.5"
@@ -506,14 +506,14 @@ export default function AdminPricing() {
             </div>
 
             <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10 flex justify-end gap-3 shrink-0">
-              <button onClick={closeModal} className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">Hủy</button>
+              <button onClick={closeModal} className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">Cancel</button>
               <button
                 onClick={modal === 'add' ? handleAdd : handleEdit}
                 disabled={submitting}
                 className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-black bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                {modal === 'add' ? 'Tạo chính sách' : 'Lưu & tạo phiên bản mới'}
+                {modal === 'add' ? 'Create Policy' : 'Save & Create New Version'}
               </button>
             </div>
           </div>
@@ -528,9 +528,9 @@ export default function AdminPricing() {
               <div>
                 <h3 className="text-base font-semibold text-white flex items-center gap-2">
                   <History size={16} className="text-white/40" />
-                  Lịch sử phiên bản · {historyGroup.vehicleTypeName}
+                  Version History · {historyGroup.vehicleTypeName}
                 </h3>
-                <p className="text-xs text-white/30 mt-0.5">{historyGroup.history.length} phiên bản cũ</p>
+                <p className="text-xs text-white/30 mt-0.5">{historyGroup.history.length} previous versions</p>
               </div>
               <button onClick={closeModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
                 <X size={16} />
@@ -549,19 +549,19 @@ export default function AdminPricing() {
                         {p.effectiveDate ? new Date(p.effectiveDate).toLocaleDateString('vi-VN') : '—'}
                       </span>
                     </div>
-                    <span className="text-xs text-white/20">Tạo: {new Date(p.createdAt).toLocaleDateString('vi-VN')}</span>
+                    <span className="text-xs text-white/20">Created: {new Date(p.createdAt).toLocaleDateString('vi-VN')}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/[0.03] rounded-lg">
-                      <span className="text-white/40 flex items-center gap-1"><Sun size={10} className="text-amber-400" /> Ngày</span>
+                      <span className="text-white/40 flex items-center gap-1"><Sun size={10} className="text-amber-400" /> Day</span>
                       <span className="text-white/70 font-medium">{vnd(p.dayBlockRate)}</span>
                     </div>
                     <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/[0.03] rounded-lg">
-                      <span className="text-white/40 flex items-center gap-1"><Moon size={10} className="text-violet-400" /> Đêm</span>
+                      <span className="text-white/40 flex items-center gap-1"><Moon size={10} className="text-violet-400" /> Night</span>
                       <span className="text-white/70 font-medium">{vnd(p.nightBlockRate)}</span>
                     </div>
                     <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/[0.03] rounded-lg">
-                      <span className="text-white/40 flex items-center gap-1"><TrendingUp size={10} className="text-red-400" /> Nguyên ngày</span>
+                      <span className="text-white/40 flex items-center gap-1"><TrendingUp size={10} className="text-red-400" /> Full day</span>
                       <span className="text-white/70 font-medium">{vnd(p.dailyRate)}</span>
                     </div>
                     <div className="flex items-center justify-between px-2.5 py-1.5 bg-white/[0.03] rounded-lg">
@@ -585,20 +585,20 @@ export default function AdminPricing() {
                 <AlertTriangle size={18} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Xoá chính sách giá</h3>
-                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Hành động không thể hoàn tác</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Delete Pricing Policy</h3>
+                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">This action cannot be undone</p>
               </div>
             </div>
             <p className="text-sm text-gray-700 dark:text-white/70">
-              Xoá chính sách <span className="font-semibold text-white">v{selected.version ?? '?'}</span> của <span className="font-semibold text-gray-800 dark:text-white">{selected.vehicleTypeName}</span>?
+              Delete policy <span className="font-semibold text-white">v{selected.version ?? '?'}</span> for <span className="font-semibold text-gray-800 dark:text-white">{selected.vehicleTypeName}</span>?
             </p>
             {formError && <p className="text-xs text-red-400">{formError}</p>}
             <div className="flex gap-3">
-              <button onClick={closeModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">Hủy</button>
+              <button onClick={closeModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">Cancel</button>
               <button onClick={handleDelete} disabled={submitting}
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50">
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                Xác nhận xoá
+                Confirm Delete
               </button>
             </div>
           </div>
