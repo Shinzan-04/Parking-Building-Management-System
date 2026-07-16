@@ -172,6 +172,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   const [entryImageBase64, setEntryImageBase64] = useState<string | null>(null);
   const [exitLicensePlate, setExitLicensePlate] = useState('');
   const [exitCameraMode, setExitCameraMode] = useState<'lpr' | 'qr'>('lpr');
+  const [isExitCameraOff, setIsExitCameraOff] = useState(false);
   const [exitSessionData, setExitSessionData] = useState<CheckOutSearchResult | null>(null);
   const [exitLoading, setExitLoading] = useState(false);
   const [notification, setNotification] = useState<{ kind: 'success' | 'error' | 'info'; message: string } | null>(null);
@@ -775,23 +776,41 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         QR SCANNER
                       </span>
                       <div className="flex-1" />
-                      <span className="text-[9px] font-black text-red-500 uppercase tracking-widest bg-red-50 px-3 py-2 rounded-md cursor-pointer hover:bg-red-100 transition-colors">TURN OFF CAM</span>
+                      <span 
+                        onClick={() => setIsExitCameraOff(!isExitCameraOff)}
+                        className={`text-[9px] font-black uppercase tracking-widest px-3 py-2 rounded-md cursor-pointer transition-colors ${
+                          isExitCameraOff 
+                            ? 'bg-red-500/20 text-red-500 border border-red-500/30'
+                            : 'text-red-400 bg-red-500/10 hover:bg-red-500/20'
+                        }`}
+                      >
+                        {isExitCameraOff ? 'TURN ON CAM' : 'TURN OFF CAM'}
+                      </span>
                     </div>
-                    <div className="relative bg-black rounded-xl overflow-hidden min-h-[220px] flex items-center justify-center border-4 border-black shadow-inner">
+                    <div className="relative bg-black rounded-xl overflow-hidden aspect-video flex items-center justify-center border-4 border-black shadow-inner">
                       <div className="absolute top-4 left-4 flex items-center gap-2 z-20 bg-black/40 px-2 py-1 rounded backdrop-blur-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                        <span className="text-[10px] text-[#fff] font-mono font-bold tracking-wider">{exitCameraMode === 'lpr' ? 'LPR-CAM-02' : 'QR-CAM'}</span>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isExitCameraOff ? 'bg-stone-500' : 'bg-red-500 animate-pulse'}`}></span>
+                        <span className={`text-[10px] font-mono font-bold tracking-wider ${isExitCameraOff ? 'text-stone-500' : 'text-[#fff]'}`}>
+                          {isExitCameraOff ? 'OFFLINE' : (exitCameraMode === 'lpr' ? 'LPR-CAM-02' : 'QR-CAM')}
+                        </span>
                       </div>
                       <div className="relative z-10 w-full h-full">
-                        <CameraCapture
-                          onSuccess={handleExitCameraResult}
-                          onCancel={() => { }}
-                          token={token}
-                          inline
-                          className="w-full h-full rounded-lg"
-                          mode={exitCameraMode}
-                          onQrSuccess={handleQrExitSuccess}
-                        />
+                        {!isExitCameraOff ? (
+                          <CameraCapture
+                            onSuccess={handleExitCameraResult}
+                            onCancel={() => { }}
+                            token={token}
+                            inline
+                            className="w-full h-full rounded-lg"
+                            mode={exitCameraMode}
+                            onQrSuccess={handleQrExitSuccess}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-stone-500">
+                            <Camera className="w-8 h-8 mb-2 opacity-20" />
+                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-50">Camera Disabled</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
