@@ -40,6 +40,7 @@ export default function ChatDashboard() {
     try {
       await connection.invoke('CloseSession', activeSessionId);
       setActiveSessionId(null);
+      window.dispatchEvent(new CustomEvent('chatSessionUpdated'));
     } catch (err) {
       console.error('Close session failed', err);
     }
@@ -141,6 +142,7 @@ export default function ChatDashboard() {
     if (!connection || !activeSessionId) return;
     try {
       await connection.invoke('TakeoverSession', activeSessionId);
+      window.dispatchEvent(new CustomEvent('chatSessionUpdated'));
     } catch (err) {
       console.error('Takeover failed', err);
     }

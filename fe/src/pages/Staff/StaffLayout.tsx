@@ -1,9 +1,13 @@
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import * as signalR from '@microsoft/signalr';
+import toast from 'react-hot-toast';
 import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import NotificationBell from '../../components/NotificationBell';
+
+const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
 const navItems = [
   { to: '/staff/dashboard', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -22,13 +26,70 @@ const navItems = [
 export default function StaffLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>(['Gate Control']);
+  const [pendingChatCount, setPendingChatCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const buildingId = user?.assignedBuildingId;
 
   const handleLogout = () => { logout(); navigate('/auth'); };
   const initials = user?.fullName?.charAt(0)?.toUpperCase() ?? 'S';
+
+  const refreshPendingChatCount = useCallback(async () => {
+    if (!buildingId) return;
+    try {
+      const res = await fetch(`${API_URL}/api/Chat/sessions?buildingId=${buildingId}`);
+      if (!res.ok) return;
+      const sessions = await res.json();
+      const escalated = Array.isArray(sessions)
+        ? sessions.filter((s: { status: string }) => s.status === 'Escalated').length
+        : 0;
+      setPendingChatCount(escalated);
+    } catch { /* ignore */ }
+  }, [buildingId]);
+
+  useEffect(() => { refreshPendingChatCount(); }, [refreshPendingChatCount]);
+
+  // Refresh badge instantly when ChatDashboard takes over/closes a session locally
+  useEffect(() => {
+    const handler = () => refreshPendingChatCount();
+    window.addEventListener('chatSessionUpdated', handler);
+    return () => window.removeEventListener('chatSessionUpdated', handler);
+  }, [refreshPendingChatCount]);
+
+  // Global connection to /chatHub so escalation alerts (toast + badge) work
+  // from any Staff page, not just when ChatDashboard is open.
+  const activeChatSessionRef = useRef<string | null>(null);
+  activeChatSessionRef.current = location.pathname.startsWith('/staff/chat') ? 'open' : null;
+
+  useEffect(() => {
+    if (!buildingId) return;
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${API_URL}/chatHub`, { accessTokenFactory: () => user?.accessToken || '' })
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build();
+
+    connection.on('NewEscalatedSession', () => {
+      refreshPendingChatCount();
+      // Avoid a redundant toast if the staff member is already on the Live Chat page
+      if (!activeChatSessionRef.current) {
+        toast('New chat support request', { icon: '💬' });
+      }
+    });
+
+    connection.on('SessionStatusChanged', () => {
+      refreshPendingChatCount();
+    });
+
+    connection.start()
+      .then(() => connection.invoke('JoinBuildingGroup', buildingId))
+      .catch(() => { /* ignore */ });
+
+    return () => { connection.stop(); };
+  }, [buildingId, user?.accessToken, refreshPendingChatCount]);
 
   return (
     <div
@@ -130,7 +191,7 @@ export default function StaffLayout() {
                 end={item.end}
                 title={isCollapsed ? item.label : undefined}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
+                  `relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${isActive
                     ? 'bg-[#FF4C4C]/10 text-[#FF4C4C] border border-[#FF4C4C]/20'
                     : 'hover:bg-[var(--admin-bg-card)]'
                   }`
@@ -141,7 +202,14 @@ export default function StaffLayout() {
                   <>
                     <item.icon size={17} className="shrink-0" />
                     {!isCollapsed && <span className="truncate">{item.label}</span>}
-                    {isActive && !isCollapsed && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#FF4C4C] shrink-0" />}
+                    {item.to === '/staff/chat' && pendingChatCount > 0 && (
+                      <span
+                        className={`shrink-0 flex items-center justify-center rounded-full bg-[#FF4C4C] text-white text-[10px] font-bold ${isCollapsed ? 'absolute -top-1 -right-1 w-4 h-4' : 'ml-auto min-w-[18px] h-[18px] px-1'}`}
+                      >
+                        {pendingChatCount > 9 ? '9+' : pendingChatCount}
+                      </span>
+                    )}
+                    {isActive && !isCollapsed && item.to !== '/staff/chat' && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#FF4C4C] shrink-0" />}
                   </>
                 )}
               </NavLink>
