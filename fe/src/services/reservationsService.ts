@@ -70,6 +70,7 @@ export interface CreateReservationRequest {
   startTime: string;
   endTime: string;
   bookingMethod?: number; // 0 = Manual, 1 = AIRecommended
+  paymentMethod?: number; // 0 = Wallet, 4 = PayOS
 }
 
 export const getMyReservations = (token: string): Promise<ReservationResponse[]> =>

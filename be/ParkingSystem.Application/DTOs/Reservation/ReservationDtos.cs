@@ -28,6 +28,11 @@ public class CreateReservationRequest
 
     public DateTime StartTime { get; set; }
     public DateTime EndTime { get; set; }
+
+    /// <summary>
+    /// Phương thức thanh toán: Wallet (0) hoặc PayOS (4). Mặc định Wallet.
+    /// </summary>
+    public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Wallet;
 }
 
 // ===== RESPONSE =====

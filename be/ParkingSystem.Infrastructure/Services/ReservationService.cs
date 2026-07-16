@@ -241,17 +241,24 @@ public class ReservationService : IReservationService
             _context.Reservations.Add(reservation);
             LogState(reservation, "Create", "Người dùng tạo đặt chỗ");
 
-            // Nếu có phí thì trừ tiền từ Ví tài xế
+            // Nếu có phí thì xử lý thanh toán
             if (fee > 0)
             {
-                var driver = await _context.Users.FirstOrDefaultAsync(u => u.Id == driverId);
-                if (driver == null) throw new InvalidOperationException("Không tìm thấy thông tin tài xế.");
-
-                if (driver.Balance < fee)
+                if (request.PaymentMethod == PaymentMethod.PayOS)
                 {
-                    var required = fee - driver.Balance;
-                    throw new InvalidOperationException($"INSUFFICIENT_BALANCE:{required}:{fee}:{driver.Balance}");
+                    // Chờ thanh toán qua PayOS (FE sẽ gọi API tạo thanh toán)
+                    reservation.Status = ReservationStatus.PaymentPending;
                 }
+                else
+                {
+                    var driver = await _context.Users.FirstOrDefaultAsync(u => u.Id == driverId);
+                    if (driver == null) throw new InvalidOperationException("Không tìm thấy thông tin tài xế.");
+
+                    if (driver.Balance < fee)
+                    {
+                        var required = fee - driver.Balance;
+                        throw new InvalidOperationException($"INSUFFICIENT_BALANCE:{required}:{fee}:{driver.Balance}");
+                    }
 
                 // Trừ ví và tạo Transaction
                 driver.Balance -= fee;
@@ -287,6 +294,7 @@ public class ReservationService : IReservationService
 
                 bookingFee = fee;
                 _logger.LogInformation("Thanh toán Booking bằng Ví thành công. ReservationId={Id}, Fee={Fee}", reservation.Id, fee);
+                }
             }
 
             // Lưu trước để Commit

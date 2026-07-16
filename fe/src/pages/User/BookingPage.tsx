@@ -1448,7 +1448,8 @@ function ConfirmationPopup({
         buildingId: lot.id,
         startTime: entry.toISOString(),
         endTime: exit.toISOString(),
-        bookingMethod: state.bookingMethod
+        bookingMethod: state.bookingMethod,
+        paymentMethod: paymentMethod === 'PayOS' ? 4 : 0
       };
 
       const res = await createReservation(payload, token);

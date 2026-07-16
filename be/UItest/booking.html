@@ -218,7 +218,12 @@
       <option value="0">Manual (tự chọn slot)</option>
       <option value="1">AI Recommended</option>
     </select>
-    <button class="btn-primary" onclick="createBooking()">📅 Tạo Booking</button>
+    <label>Phương thức thanh toán</label>
+    <select id="paymentMethod">
+      <option value="0">Ví (Wallet) - Trừ tiền ngay</option>
+      <option value="4">PayOS QR - Chờ thanh toán</option>
+    </select>
+    <button class="btn-primary" onclick="createBooking()" style="margin-top:12px;">📅 Tạo Booking</button>
 
     <!-- NẠP TIỀN & SỐ DƯ VÍ -->
     <div class="wallet-box" id="wallet-box" style="margin-top:16px; background:#0f2a1e; padding:16px; border:1px solid #22c55e; border-radius:8px;">
@@ -374,6 +379,7 @@ async function createBooking() {
   const vehicleId = document.getElementById('vehicleId').value;
   const slotId = document.getElementById('slotId').value;
   const method = parseInt(document.getElementById('bookingMethod').value);
+  const paymentMethod = parseInt(document.getElementById('paymentMethod').value);
   const startRaw = document.getElementById('startTime').value;
   const endRaw = document.getElementById('endTime').value;
 
@@ -383,6 +389,7 @@ async function createBooking() {
 
   const body = {
     bookingMethod: method,
+    paymentMethod: paymentMethod,
     vehicleId,
     parkingSlotId: slotId || null,
     startTime: new Date(startRaw).toISOString(),
@@ -396,11 +403,32 @@ async function createBooking() {
   if (r.ok) {
     const d = r.data;
     currentReservationId = d.id;
-    log('log-booking', `✅ Booking tạo thành công! Tiền đã được trừ từ ví.`, 'ok');
-    log('log-booking', `📋 Code: ${d.bookingCode}`, 'ok');
-    log('log-booking', `🅿️ Slot: ${d.slotNumber}`, 'ok');
-    log('log-booking', `💰 Phí đã trừ: ${(d.bookingFee || 0).toLocaleString('vi-VN')} VND`, 'info');
-    log('log-booking', `📌 Status: ${d.status}`, 'info');
+    
+    if (paymentMethod === 4) {
+      log('log-booking', `✅ Booking tạo thành công (Chờ thanh toán). Status: ${d.status}`, 'ok');
+      // Tao thanh toan PayOS
+      const payOSRes = await apiFetch('/api/payments/payos/create', 'POST', {
+          amount: d.bookingFee || 0,
+          description: "Thanh toan don dat cho",
+          reservationId: d.id,
+          returnUrl: window.location.href.split('?')[0],
+          cancelUrl: window.location.href.split('?')[0]
+      });
+      if (payOSRes.ok) {
+          log('log-booking', `🔗 PayOS Link tạo thành công! Đang chuyển hướng...`, 'ok');
+          setTimeout(() => {
+              window.location.href = payOSRes.data.checkoutUrl;
+          }, 1500);
+      } else {
+          log('log-booking', `❌ Lỗi tạo link PayOS: ${JSON.stringify(payOSRes.data)}`, 'err');
+      }
+    } else {
+      log('log-booking', `✅ Booking tạo thành công! Tiền đã được trừ từ ví.`, 'ok');
+      log('log-booking', `📋 Code: ${d.bookingCode}`, 'ok');
+      log('log-booking', `🅿️ Slot: ${d.slotNumber}`, 'ok');
+      log('log-booking', `💰 Phí đã trừ: ${(d.bookingFee || 0).toLocaleString('vi-VN')} VND`, 'info');
+      log('log-booking', `📌 Status: ${d.status}`, 'info');
+    }
 
     // Cập nhật lại số dư
     await loadWalletBalance();
