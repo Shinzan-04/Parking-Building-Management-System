@@ -56,7 +56,7 @@ const EXCEPTION_COPY: Record<
     title: 'Lost Ticket Handling',
     description: 'Use the override flow to process vehicles that cannot present a valid ticket.',
     confirmLabel: 'Apply Override',
-    tone: 'border-stone-300 bg-stone-50 text-stone-700',
+    tone: 'border-stone-300 admin-bg-base admin-text',
   },
 };
 
@@ -64,10 +64,10 @@ function GateStatusBanner({ kind, message }: { kind: 'success' | 'error' | 'info
   if (!message) return null;
   const tone =
     kind === 'success'
-      ? 'border-emerald-100 bg-white text-emerald-700 shadow-emerald-500/10'
+      ? 'border-emerald-100 admin-bg-surface text-emerald-700 shadow-emerald-500/10'
       : kind === 'error'
-        ? 'border-red-100 bg-white text-red-700 shadow-red-500/10'
-        : 'border-blue-100 bg-white text-blue-700 shadow-blue-500/10';
+        ? 'border-red-100 admin-bg-surface text-red-700 shadow-red-500/10'
+        : 'border-blue-100 admin-bg-surface text-blue-700 shadow-blue-500/10';
 
   const Icon = kind === 'success' ? CheckCircle2 : kind === 'error' ? AlertTriangle : AlertTriangle;
 
@@ -111,46 +111,46 @@ function ExceptionHandlingModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 px-4 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl text-stone-950">
+      <div className="w-full max-w-lg rounded-3xl border admin-border admin-bg-surface p-6 shadow-2xl admin-text">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className={`text-2xs font-bold uppercase tracking-[0.2em] px-2.5 py-1 rounded-full border w-fit ${copy.tone}`}>
               Exception flow
             </p>
-            <h3 className="mt-3 text-xl font-bold text-stone-900">{copy.title}</h3>
+            <h3 className="mt-3 text-xl font-bold admin-text">{copy.title}</h3>
           </div>
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-semibold text-stone-500 transition-colors hover:bg-gray-50 hover:text-stone-900"
+            className="rounded-xl border admin-border px-3 py-1.5 text-xs font-semibold admin-text-muted transition-colors hover:admin-bg-base hover:admin-text"
           >
             Close
           </button>
         </div>
 
-        <p className="mt-4 text-xs font-semibold leading-relaxed text-stone-500">{copy.description}</p>
+        <p className="mt-4 text-xs font-semibold leading-relaxed admin-text-muted">{copy.description}</p>
 
-        <label className="mt-6 block text-xs font-bold text-stone-700 uppercase tracking-wider">Operator note</label>
+        <label className="mt-6 block text-xs font-bold admin-text uppercase tracking-wider">Operator note</label>
         <textarea
           value={note}
           onChange={(event) => setNote(event.target.value)}
           placeholder="Enter a short note for the audit trail..."
           rows={4}
-          className="mt-2 w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-stone-800 outline-none transition-colors placeholder:text-stone-300 focus:border-[#FF4C4C]"
+          className="mt-2 w-full rounded-2xl border admin-border admin-bg-base px-4 py-3 text-sm admin-text outline-none transition-colors placeholder:admin-text-faint focus:border-[#FF4C4C]"
         />
 
         <div className="mt-6 flex items-center justify-end gap-3">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
-            className="rounded-xl border border-gray-200 px-4 py-2 text-xs font-bold text-stone-500 transition-colors hover:bg-gray-50 hover:text-stone-900"
+            className="rounded-xl border admin-border px-4 py-2 text-xs font-bold admin-text-muted transition-colors hover:admin-bg-base hover:admin-text"
           >
             Cancel
           </button>
           <button
             type="button"
             onClick={() => onConfirm(note)}
-            className="rounded-xl bg-stone-900 hover:bg-stone-850 px-4 py-2 text-xs font-bold text-[#fff] transition-opacity"
+            className="rounded-xl bg-[#FF4C4C] hover:bg-[#E13B3B] px-4 py-2 text-xs font-bold text-white transition-colors"
           >
             {copy.confirmLabel}
           </button>
@@ -444,19 +444,19 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'ST';
 
   return (
-    <div className="flex-1 flex flex-col min-h-screen bg-[#F3F3F5] text-stone-900 font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C] rounded-2xl overflow-hidden border border-gray-200/60 shadow-sm">
+    <div className="flex-1 flex flex-col min-h-screen admin-bg-base admin-text font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C] rounded-2xl overflow-hidden border admin-border shadow-sm">
 
 
-        <header className="bg-white border-b border-gray-200/60 px-6 py-4 flex items-center justify-between">
+        <header className="admin-bg-surface border-b admin-border px-6 py-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-stone-900">
+            <h2 className="text-lg font-bold admin-text">
               Gate Station
             </h2>
-            <p className="text-2xs text-stone-400 font-bold uppercase tracking-wider mt-0.5">Live barrier and security check</p>
+            <p className="text-2xs admin-text-faint font-bold uppercase tracking-wider mt-0.5">Live barrier and security check</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-2xs font-extrabold text-stone-400 uppercase tracking-widest">Active online</span>
+            <span className="text-2xs font-extrabold admin-text-faint uppercase tracking-widest">Active online</span>
           </div>
         </header>
 
@@ -474,10 +474,10 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
             {activeTab === 'entry' && (
               <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6 w-full max-w-6xl mx-auto mb-6 items-start">
                 {/* Left Column: Camera Scanner */}
-                <div className="bg-white border border-gray-200/80 rounded-[1.5rem] shadow-sm flex flex-col overflow-hidden h-full">
-                  <div className="p-5 border-b border-gray-100 flex items-center gap-3 bg-gray-50/50">
-                    <Camera className="w-5 h-5 text-stone-700" />
-                    <h3 className="text-sm font-bold text-stone-900 uppercase tracking-widest">CAMERA SCANNER (LICENSE PLATE)</h3>
+                <div className="glass-card rounded-[1.5rem] flex flex-col overflow-hidden h-full">
+                  <div className="p-5 border-b admin-border flex items-center gap-3 admin-bg-surface">
+                    <Camera className="w-5 h-5 admin-text-muted" />
+                    <h3 className="text-sm font-bold admin-text uppercase tracking-widest">CAMERA SCANNER (LICENSE PLATE)</h3>
                   </div>
 
                   <div className="bg-black relative flex-1 flex flex-col items-center justify-center min-h-[450px] overflow-hidden rounded-xl">
@@ -509,33 +509,33 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       />
                     </div>
                   </div>
-                  <div className="bg-white p-5 text-center border-t border-gray-100">
-                    <p className="text-[11px] font-bold text-stone-500 uppercase tracking-[0.2em]">PLEASE ASK CUSTOMER TO ALIGN LICENSE PLATE IN FRAME</p>
+                  <div className="admin-bg-surface p-5 text-center border-t admin-border">
+                    <p className="text-[11px] font-bold admin-text-faint uppercase tracking-[0.2em]">PLEASE ASK CUSTOMER TO ALIGN LICENSE PLATE IN FRAME</p>
                   </div>
                 </div>
 
                 {/* Right Column: Manual Entry & Exceptions */}
                 <div className="flex flex-col gap-6">
                   {/* Manual Entry Block */}
-                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm flex flex-col">
-                    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-gray-100">
-                      <span className="font-mono font-bold text-lg text-stone-800">{`>_`}</span>
-                      <h3 className="text-sm font-bold text-stone-900 uppercase tracking-widest">MANUAL ENTRY</h3>
+                  <div className="glass-card rounded-[1.5rem] p-6 flex flex-col">
+                    <div className="flex items-center gap-2 mb-6 pb-4 border-b admin-border">
+                      <span className="font-mono font-bold text-lg admin-text">{`>_`}</span>
+                      <h3 className="text-sm font-bold admin-text uppercase tracking-widest">MANUAL ENTRY</h3>
                     </div>
 
                     {/* Info box */}
-                    <div className="mb-6 rounded-xl bg-blue-50/50 p-4 border border-blue-100">
-                      <p className="text-xs font-medium text-blue-800 leading-relaxed">
+                    <div className="mb-6 rounded-xl admin-bg-surface/5 p-4 border admin-border">
+                      <p className="text-xs font-medium admin-text-muted leading-relaxed">
                         In case of camera scan failure, manually enter the <br />
-                        <span className="font-bold uppercase tracking-wider text-blue-900">LICENSE PLATE</span>.
+                        <span className="font-bold uppercase tracking-wider admin-text">LICENSE PLATE</span>.
                       </p>
                     </div>
 
                     {/* Input license plate */}
-                    <label className="mb-2 block text-[10px] font-bold text-stone-500 uppercase tracking-wider">License plate</label>
+                    <label className="mb-2 block text-[10px] font-bold admin-text-muted uppercase tracking-wider">License plate</label>
                     <div className="relative mb-6">
                       <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                        <svg className="w-5 h-5 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        <svg className="w-5 h-5 admin-text-faint" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                       </div>
                       <input
                         ref={entryInputRef}
@@ -543,14 +543,14 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         value={entryLicensePlate}
                         onChange={(event) => setEntryLicensePlate(event.target.value.toUpperCase())}
                         placeholder="EX: 30A-123.45"
-                        className="h-14 w-full rounded-xl border border-gray-200 bg-white pl-12 pr-4 text-lg font-black tracking-widest text-stone-800 outline-none transition-all placeholder:text-stone-300 focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10 shadow-sm"
+                        className="h-14 w-full rounded-xl border admin-border admin-bg-surface pl-12 pr-4 text-lg font-black tracking-widest admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10 shadow-sm"
                       />
                     </div>
 
                     {/* Vehicle Type */}
                     <div className="flex items-center justify-between mb-2">
-                      <label className="block text-[10px] font-bold text-stone-500 uppercase tracking-wider">Vehicle type</label>
-                      <span className="text-[10px] text-stone-400 font-bold">Keyboard: 1 / 2 / 3</span>
+                      <label className="block text-[10px] font-bold admin-text-muted uppercase tracking-wider">Vehicle type</label>
+                      <span className="text-[10px] admin-text-faint font-bold">Keyboard: 1 / 2 / 3</span>
                     </div>
                     <div className="grid grid-cols-3 gap-3 mb-6">
                       {VEHICLE_TYPES.map((vehicle) => {
@@ -561,8 +561,8 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                             type="button"
                             onClick={() => setEntryVehicleType(vehicle.type)}
                             className={`relative rounded-xl border px-3 py-3 text-xs font-bold transition-all ${selected
-                                ? 'border-[#FF4C4C] bg-[#FF4C4C]/5 text-stone-850 shadow-sm'
-                                : 'border-gray-200 bg-white text-stone-600 hover:border-gray-300 hover:text-stone-900'
+                                ? 'border-[#FF4C4C] bg-[#FF4C4C]/10 text-[#FF4C4C] shadow-sm'
+                                : 'admin-border admin-bg-surface admin-text-muted hover:border-[#FF4C4C]/40 hover:admin-text'
                               }`}
                           >
                             {vehicle.label}
@@ -572,13 +572,13 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     </div>
 
                     {/* Assigned Slot */}
-                    <label className="mb-2 block text-[10px] font-bold text-stone-500 uppercase tracking-wider">Card Assigned Slot</label>
-                    <div className="mb-6 rounded-xl bg-stone-50 border border-stone-200 p-4 flex justify-between items-center">
+                    <label className="mb-2 block text-[10px] font-bold admin-text-muted uppercase tracking-wider">Card Assigned Slot</label>
+                    <div className="mb-6 rounded-xl admin-bg-surface border admin-border p-4 flex justify-between items-center">
                       <div>
-                        <div className="font-extrabold text-stone-900 mt-1">
+                        <div className="font-extrabold admin-text mt-1">
                           {selectedSlotId ? `Slot ${selectedSlotNumber}` : 'Auto (AI Suggest)'}
                         </div>
-                        <div className="text-xs text-stone-400 mt-1">
+                        <div className="text-xs admin-text-faint mt-1">
                           {selectedSlotId ? 'Staff manual choice' : 'Auto allocated by system'}
                         </div>
                       </div>
@@ -595,22 +595,22 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     <button
                       type="button"
                       onClick={handleConfirmEntry}
-                      className="inline-flex h-14 w-full items-center justify-center rounded-xl bg-gray-500 text-sm font-bold text-[#fff] transition-colors hover:bg-gray-600 shadow-sm"
+                      className="inline-flex h-14 w-full items-center justify-center rounded-xl bg-[#FF4C4C] hover:bg-[#E13B3B] text-sm font-bold text-white transition-colors shadow-sm"
                     >
                       <Zap className="mr-2 w-4 h-4" />
                       VALIDATE TICKET
                     </button>
-                    <p className="mt-3 text-center text-[10px] text-stone-400 font-bold tracking-widest uppercase">Shortcut: F1</p>
+                    <p className="mt-3 text-center text-[10px] admin-text-faint font-bold tracking-widest uppercase">Shortcut: F1</p>
                   </div>
 
                   {/* Exception Block */}
-                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm">
-                    <h4 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-4">Gate Exception Override Tools</h4>
+                  <div className="glass-card rounded-[1.5rem] p-6">
+                    <h4 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-4">Gate Exception Override Tools</h4>
                     <div className="flex flex-col gap-2">
                       <button
                         type="button"
                         onClick={() => openExceptionModal('manual-open')}
-                        className="inline-flex items-center justify-start rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 px-4 py-3 text-xs font-bold text-amber-700 transition-colors text-left"
+                        className="inline-flex items-center justify-start rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-3 text-xs font-bold text-amber-500 transition-colors text-left"
                       >
                         <DoorOpen className="mr-3 h-4 w-4" aria-hidden="true" />
                         Manual Gate Open
@@ -618,7 +618,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       <button
                         type="button"
                         onClick={() => openExceptionModal('incident')}
-                        className="inline-flex items-center justify-start rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-3 text-xs font-bold text-red-700 transition-colors text-left"
+                        className="inline-flex items-center justify-start rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-4 py-3 text-xs font-bold text-red-500 transition-colors text-left"
                       >
                         <AlertTriangle className="mr-3 h-4 w-4" aria-hidden="true" />
                         Report Incident
@@ -626,7 +626,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       <button
                         type="button"
                         onClick={() => openExceptionModal('lost-ticket')}
-                        className="inline-flex items-center justify-start rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 px-4 py-3 text-xs font-bold text-stone-600 transition-colors text-left"
+                        className="inline-flex items-center justify-start rounded-xl border admin-border admin-bg-surface hover:admin-bg-surface/10 px-4 py-3 text-xs font-bold admin-text-muted transition-colors text-left"
                       >
                         <TicketX className="mr-3 h-4 w-4" aria-hidden="true" />
                         Lost Ticket Handling
@@ -644,10 +644,10 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
                   {/* Manual Input / Search Block */}
                   {exitCameraMode === 'lpr' && (
-                    <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm">
+                    <div className="glass-card rounded-[1.5rem] p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest">LICENSE PLATE SCANNER (EXIT GATE)</h3>
-                        <span className="text-[9px] font-bold text-stone-400 uppercase tracking-widest bg-gray-100 px-2 py-1 rounded-md">ENABLE MANUAL ENTRY</span>
+                        <h3 className="text-[11px] font-bold admin-text-faint uppercase tracking-widest">LICENSE PLATE SCANNER (EXIT GATE)</h3>
+                        <span className="text-[9px] font-bold admin-text-faint uppercase tracking-widest admin-bg-surface border admin-border px-2 py-1 rounded-md">ENABLE MANUAL ENTRY</span>
                       </div>
                       <div className="relative flex gap-3">
                         <input
@@ -656,7 +656,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                           value={exitLicensePlate}
                           onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
                           placeholder="ABC-1234"
-                          className="h-16 min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-6 text-2xl font-black tracking-[0.2em] text-stone-850 outline-none transition-all focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                          className="h-16 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-2xl font-black tracking-[0.2em] admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10"
                         />
                         <button
                           type="button"
@@ -667,7 +667,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                           {exitLoading ? <Loader className="w-5 h-5 animate-spin mx-auto" /> : 'Search'}
                         </button>
                       </div>
-                      <div className="mt-4 text-[10px] text-stone-400 font-bold flex justify-between px-2">
+                      <div className="mt-4 text-[10px] admin-text-faint font-bold flex justify-between px-2">
                         <span>Waiting for vehicle scan...</span>
                         <span className="flex items-center gap-1"><Camera className="w-3 h-3" /> AI SCAN</span>
                       </div>
@@ -675,82 +675,82 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   )}
 
                   {/* Session Details Block */}
-                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm min-h-[250px]">
-                    <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-6">ACTIVE SESSION DETAILS</h3>
+                  <div className="glass-card rounded-[1.5rem] p-6 min-h-[250px]">
+                    <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-6">ACTIVE SESSION DETAILS</h3>
                     {exitLoading ? (
-                      <div className="text-center text-sm font-bold text-stone-400 py-12">Loading data...</div>
+                      <div className="text-center text-sm font-bold admin-text-faint py-12">Loading data...</div>
                     ) : exitSessionData ? (
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4">
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Session ID</p>
-                          <p className="text-sm font-bold text-stone-800 font-mono">{exitSessionData.sessionId.slice(0, 8).toUpperCase()}</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session ID</p>
+                          <p className="text-sm font-bold admin-text font-mono">{exitSessionData.sessionId.slice(0, 8).toUpperCase()}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Session Type</p>
-                          <p className="text-sm font-bold text-stone-800 capitalize">{exitSessionData.vehicleTypeName}</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session Type</p>
+                          <p className="text-sm font-bold admin-text capitalize">{exitSessionData.vehicleTypeName}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">License Plate</p>
-                          <p className="text-sm font-black text-stone-900 tracking-widest">{exitSessionData.licensePlate}</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">License Plate</p>
+                          <p className="text-sm font-black admin-text tracking-widest">{exitSessionData.licensePlate}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Entry Time</p>
-                          <p className="text-sm font-bold text-stone-800">{new Date(exitSessionData.entryTime).toLocaleString('en-US')}</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Entry Time</p>
+                          <p className="text-sm font-bold admin-text">{new Date(exitSessionData.entryTime).toLocaleString('en-US')}</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Duration</p>
-                          <p className="text-sm font-bold text-stone-800">{Math.floor(exitSessionData.totalHours)}h {Math.round((exitSessionData.totalHours % 1) * 60)}m</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Duration</p>
+                          <p className="text-sm font-bold admin-text">{Math.floor(exitSessionData.totalHours)}h {Math.round((exitSessionData.totalHours % 1) * 60)}m</p>
                         </div>
                         <div>
-                          <p className="text-[10px] uppercase font-bold tracking-wider text-stone-400">Location</p>
-                          <p className="text-sm font-bold text-stone-800">{exitSessionData.floorName} - Slot {exitSessionData.slotNumber}</p>
+                          <p className="text-[10px] uppercase font-bold tracking-wider admin-text-faint">Location</p>
+                          <p className="text-sm font-bold admin-text">{exitSessionData.floorName} - Slot {exitSessionData.slotNumber}</p>
                         </div>
 
                         {/* Status Row */}
-                        <div className="col-span-2 lg:col-span-3 border-t border-gray-100 pt-6 flex justify-between items-center">
-                          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-widest">PAYMENT STATUS</span>
+                        <div className="col-span-2 lg:col-span-3 border-t admin-border pt-6 flex justify-between items-center">
+                          <span className="text-[10px] admin-text-muted font-bold uppercase tracking-widest">PAYMENT STATUS</span>
                           <span className="text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg uppercase tracking-wider">Ready for Collection</span>
                         </div>
                       </div>
                     ) : (
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4 opacity-40">
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Session ID</p>
-                          <p className="text-sm font-bold text-stone-300">---</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session ID</p>
+                          <p className="text-sm font-bold admin-text-faint">---</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Session Type</p>
-                          <p className="text-sm font-bold text-stone-300">---</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session Type</p>
+                          <p className="text-sm font-bold admin-text-faint">---</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">License Plate</p>
-                          <p className="text-sm font-bold text-stone-300">---</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">License Plate</p>
+                          <p className="text-sm font-bold admin-text-faint">---</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Entry Time</p>
-                          <p className="text-sm font-bold text-stone-300">--:-- --</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Entry Time</p>
+                          <p className="text-sm font-bold admin-text-faint">--:-- --</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Duration</p>
-                          <p className="text-sm font-bold text-stone-300">--h --m</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Duration</p>
+                          <p className="text-sm font-bold admin-text-faint">--h --m</p>
                         </div>
                         <div>
-                          <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Slot Code</p>
-                          <p className="text-sm font-bold text-stone-300">---</p>
+                          <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Slot Code</p>
+                          <p className="text-sm font-bold admin-text-faint">---</p>
                         </div>
-                        <div className="col-span-2 lg:col-span-3 border-t border-gray-100 pt-6 flex justify-between items-center">
-                          <span className="text-[10px] text-stone-500 font-bold uppercase tracking-widest">PAYMENT STATUS</span>
-                          <span className="text-[10px] font-bold text-stone-400">Pending Lookup</span>
+                        <div className="col-span-2 lg:col-span-3 border-t admin-border pt-6 flex justify-between items-center">
+                          <span className="text-[10px] admin-text-muted font-bold uppercase tracking-widest">PAYMENT STATUS</span>
+                          <span className="text-[10px] font-bold admin-text-faint">Pending Lookup</span>
                         </div>
                       </div>
                     )}
                   </div>
 
                   {/* History Log Block (Mock) */}
-                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm">
-                    <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-4">HISTORY LOG</h3>
-                    <div className="border border-gray-100 bg-gray-50/50 rounded-xl py-10 flex items-center justify-center">
-                      <span className="text-xs font-medium text-stone-400">No history logs available</span>
+                  <div className="glass-card rounded-[1.5rem] p-6">
+                    <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-4">HISTORY LOG</h3>
+                    <div className="border admin-border admin-bg-surface rounded-xl py-10 flex items-center justify-center">
+                      <span className="text-xs font-medium admin-text-faint">No history logs available</span>
                     </div>
                   </div>
                 </div>
@@ -758,18 +758,18 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 {/* RIGHT COLUMN */}
                 <div className="flex flex-col gap-6 h-full">
                   {/* Camera Block */}
-                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-5 shadow-sm">
+                  <div className="glass-card rounded-[1.5rem] p-5">
                     <div className="flex items-center gap-2 mb-4">
                       <span
                         onClick={() => setExitCameraMode('lpr')}
-                        className={`text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm cursor-pointer ${exitCameraMode === 'lpr' ? 'bg-[#1A1F2B] text-[#fff]' : 'text-stone-400 hover:bg-gray-100'
+                        className={`text-[10px] font-bold px-4 py-2 rounded-lg uppercase tracking-wider shadow-sm cursor-pointer ${exitCameraMode === 'lpr' ? 'bg-[#FF4C4C] text-white' : 'admin-text-muted hover:admin-bg-surface/10'
                           }`}
                       >
                         LPR CAMERA
                       </span>
                       <span
                         onClick={() => setExitCameraMode('qr')}
-                        className={`text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer ${exitCameraMode === 'qr' ? 'bg-[#1A1F2B] text-[#fff]' : 'text-stone-400 hover:bg-gray-100'
+                        className={`text-[10px] font-bold uppercase tracking-wider px-3 py-2 rounded-lg cursor-pointer ${exitCameraMode === 'qr' ? 'bg-[#FF4C4C] text-white' : 'admin-text-muted hover:admin-bg-surface/10'
                           }`}
                       >
                         QR SCANNER
@@ -797,32 +797,32 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   </div>
 
                   {/* Payment Block */}
-                  <div className="bg-white border border-gray-200/80 rounded-[1.5rem] p-6 shadow-sm flex flex-col flex-1">
-                    <h3 className="text-[11px] font-bold text-stone-500 uppercase tracking-widest mb-6">AMOUNT DUE</h3>
+                  <div className="glass-card rounded-[1.5rem] p-6 flex flex-col flex-1">
+                    <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-6">AMOUNT DUE</h3>
 
-                    <div className="text-5xl font-black text-stone-300 mb-8 tracking-tighter flex items-start gap-1">
-                      <span className={exitSessionData ? "text-stone-800" : ""}>
+                    <div className="text-5xl font-black admin-text-faint mb-8 tracking-tighter flex items-start gap-1">
+                      <span className={exitSessionData ? "admin-text" : ""}>
                         {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('en-US') : '0'}
                       </span>
-                      <span className="text-3xl text-stone-300 mt-1">VND</span>
+                      <span className="text-3xl admin-text-faint mt-1">VND</span>
                     </div>
 
                     <div className="space-y-4 mb-8">
                       <div className="flex justify-between items-center text-sm">
-                        <span className="font-bold text-stone-500">Base Fee</span>
-                        <span className="font-bold text-stone-600">
+                        <span className="font-bold admin-text-muted">Base Fee</span>
+                        <span className="font-bold admin-text-muted">
                           {exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-sm">
-                        <span className="font-bold text-stone-500">Overtime Fee</span>
-                        <span className="font-bold text-stone-600">
+                        <span className="font-bold admin-text-muted">Overtime Fee</span>
+                        <span className="font-bold admin-text-muted">
                           {exitSessionData ? ((exitSessionData.feeBreakdown?.dayPassTotal || 0) + (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
                         </span>
                       </div>
-                      <div className="flex justify-between items-center pt-5 border-t border-gray-100">
-                        <span className="font-black text-stone-900 uppercase tracking-widest text-[11px]">BALANCE DUE</span>
-                        <span className="font-black text-stone-900 text-lg">
+                      <div className="flex justify-between items-center pt-5 border-t admin-border">
+                        <span className="font-black admin-text uppercase tracking-widest text-[11px]">BALANCE DUE</span>
+                        <span className="font-black admin-text text-lg">
                           {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('en-US') : '0'} VND
                         </span>
                       </div>
@@ -833,7 +833,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         type="button"
                         onClick={handleCollectAndOpen}
                         disabled={!exitSessionData}
-                        className="w-full flex items-center justify-center gap-2 h-14 rounded-xl bg-gray-500 hover:bg-gray-600 disabled:bg-gray-200 text-sm font-bold text-[#fff] transition-colors shadow-sm"
+                        className="w-full flex items-center justify-center gap-2 h-14 rounded-xl bg-[#FF4C4C] hover:bg-[#E13B3B] disabled:opacity-40 text-sm font-bold text-white transition-colors shadow-sm"
                       >
                         <CheckCircle2 className="w-5 h-5" />
                         Process & Release
@@ -841,7 +841,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       <button
                         type="button"
                         onClick={() => openExceptionModal('manual-open')}
-                        className="w-full h-14 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-stone-700 uppercase tracking-widest transition-colors"
+                        className="w-full h-14 rounded-xl border admin-border admin-bg-surface hover:admin-bg-surface/10 text-xs font-bold admin-text-muted uppercase tracking-widest transition-colors"
                       >
                         MANUAL OVERRIDE
                       </button>
@@ -868,22 +868,22 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       {/* Map Modal */}
       {showMap && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-[900px] max-w-[90vw] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-stone-100">
-            <div className="p-5 border-b flex justify-between items-center bg-stone-50/50">
+          <div className="admin-bg-surface rounded-2xl w-[900px] max-w-[90vw] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border admin-border">
+            <div className="p-5 border-b flex justify-between items-center admin-bg-base">
               <div>
-                <h3 className="text-xl font-bold text-stone-900">Available Slots Map</h3>
-                <p className="text-xs text-stone-500 mt-1">Manually select a slot (only showing available slots)</p>
+                <h3 className="text-xl font-bold admin-text">Available Slots Map</h3>
+                <p className="text-xs admin-text-muted mt-1">Manually select a slot (only showing available slots)</p>
               </div>
               <button
                 onClick={() => setShowMap(false)}
-                className="rounded-xl p-2 hover:bg-stone-100 transition-colors"
+                className="rounded-xl p-2 hover:bg-white/10 transition-colors"
               >
-                <X size={20} className="text-stone-500" />
+                <X size={20} className="admin-text-muted" />
               </button>
             </div>
-            <div className="p-6 overflow-auto bg-stone-50/30 flex-1">
+            <div className="p-6 overflow-auto admin-bg-base flex-1">
               {loadingSlots ? (
-                <div className="py-12 text-center text-sm font-bold text-stone-400">Loading map...</div>
+                <div className="py-12 text-center text-sm font-bold admin-text-faint">Loading map...</div>
               ) : (
                 <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                   {slots.map(s => {
@@ -903,7 +903,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         }}
                         className={`h-12 flex flex-col items-center justify-center rounded-xl border text-[10px] font-bold transition-all ${isSelected
                             ? 'bg-[#FF4C4C] border-[#FF4C4C] text-[#fff] shadow-md'
-                            : 'bg-stone-50 border-stone-200 text-stone-600 hover:border-[#FF4C4C] hover:text-[#FF4C4C]'
+                            : 'admin-bg-base admin-border admin-text-muted hover:border-[#FF4C4C] hover:text-[#FF4C4C]'
                           }`}
                       >
                         <Car size={12} className="mb-0.5" />
@@ -921,16 +921,16 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       {/* Check-in Result Modal (Ticket / QR) */}
       {checkInResultData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border border-stone-100">
+          <div className="admin-bg-surface rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border admin-border">
             <div className="p-6 flex flex-col items-center">
               <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
                 <CheckCircle2 className="w-8 h-8 text-emerald-600" />
               </div>
-              <h3 className="text-xl font-bold text-stone-900 mb-1">E-Ticket</h3>
-              <p className="text-xs text-stone-500 font-medium mb-6">Session ID: <span className="font-mono text-[#FF4C4C] font-bold">{checkInResultData.sessionCode}</span></p>
+              <h3 className="text-xl font-bold admin-text mb-1">E-Ticket</h3>
+              <p className="text-xs admin-text-muted font-medium mb-6">Session ID: <span className="font-mono text-[#FF4C4C] font-bold">{checkInResultData.sessionCode}</span></p>
 
               {checkInResultData.sessionQrCodeBase64 && (
-                <div className="bg-white rounded-2xl p-4 inline-block border border-gray-100 mb-6 shadow-sm">
+                <div className="admin-bg-surface rounded-2xl p-4 inline-block border admin-border mb-6 shadow-sm">
                   <img
                     src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
                     alt="Session QR"
@@ -939,18 +939,18 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 </div>
               )}
 
-              <div className="w-full space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-100">
-                <p className="text-sm flex justify-between"><span className="text-stone-500">License Plate:</span> <span className="font-bold text-stone-900 font-mono text-lg">{checkInResultData.licensePlate}</span></p>
-                <p className="text-sm flex justify-between"><span className="text-stone-500">Vehicle Type:</span> <span className="font-bold text-stone-900">{checkInResultData.vehicleTypeName}</span></p>
-                <p className="text-sm flex justify-between"><span className="text-stone-500">Location:</span> <span className="font-bold text-[#FF4C4C]">Floor {checkInResultData.floorName}, Slot {checkInResultData.slotNumber}</span></p>
-                <p className="text-sm flex justify-between"><span className="text-stone-500">Building:</span> <span className="font-bold text-stone-900">{checkInResultData.buildingName}</span></p>
+              <div className="w-full space-y-3 admin-bg-base p-4 rounded-xl border admin-border">
+                <p className="text-sm flex justify-between"><span className="admin-text-muted">License Plate:</span> <span className="font-bold admin-text font-mono text-lg">{checkInResultData.licensePlate}</span></p>
+                <p className="text-sm flex justify-between"><span className="admin-text-muted">Vehicle Type:</span> <span className="font-bold admin-text">{checkInResultData.vehicleTypeName}</span></p>
+                <p className="text-sm flex justify-between"><span className="admin-text-muted">Location:</span> <span className="font-bold text-[#FF4C4C]">Floor {checkInResultData.floorName}, Slot {checkInResultData.slotNumber}</span></p>
+                <p className="text-sm flex justify-between"><span className="admin-text-muted">Building:</span> <span className="font-bold admin-text">{checkInResultData.buildingName}</span></p>
               </div>
             </div>
 
-            <div className="p-4 border-t flex justify-end gap-3 bg-stone-50/50">
+            <div className="p-4 border-t flex justify-end gap-3 admin-bg-base">
               <button
                 onClick={() => setCheckInResultData(null)}
-                className="h-10 px-6 rounded-xl font-bold text-sm bg-stone-900 text-[#fff] hover:bg-stone-800 transition-colors w-full"
+                className="h-10 px-6 rounded-xl font-bold text-sm bg-[#FF4C4C] hover:bg-[#E13B3B] text-white transition-colors w-full"
               >
                 Print & Close
               </button>
