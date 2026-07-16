@@ -11,7 +11,7 @@ public interface ICheckOutService
     /// Tim kiem phien gui xe dang hoat dong theo QR Code va doi chieu bien so.
     /// Su dung exact match 100% tren bien so da chuan hoa.
     /// </summary>
-    Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string? qrCode, string? licensePlate, Guid? staffId = null, Guid? requestBuildingId = null);
+    Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string? qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null);
 
 
     /// <summary>

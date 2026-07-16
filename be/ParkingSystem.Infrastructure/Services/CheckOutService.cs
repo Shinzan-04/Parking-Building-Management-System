@@ -37,14 +37,14 @@ public class CheckOutService : ICheckOutService
         _auditLogService = auditLogService;
     }
 
-    public async Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string? qrCode, string? licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
+    public async Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string? qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
     {
         if (string.IsNullOrWhiteSpace(qrCode) && string.IsNullOrWhiteSpace(licensePlate))
         {
             throw new InvalidOperationException("Please scan the QR code or enter the license plate.");
         }
 
-        var cleanedInput = string.IsNullOrWhiteSpace(licensePlate) ? "" : CleanLicensePlate(licensePlate);
+        var cleanedInput = CleanLicensePlate(licensePlate);
 
         var activeSessions = await _context.ParkingSessions
             .Include(s => s.ParkingSlot)
@@ -75,7 +75,7 @@ public class CheckOutService : ICheckOutService
         }
 
         bool isMismatch = false;
-        if (!string.IsNullOrWhiteSpace(licensePlate) && CleanLicensePlate(session.LicensePlate) != cleanedInput)
+        if (CleanLicensePlate(session.LicensePlate) != cleanedInput)
         {
             isMismatch = true;
         }

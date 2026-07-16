@@ -35,6 +35,10 @@ public class CheckOutController : ControllerBase
         {
             return BadRequest(new { message = "Vui long quet ma QR the xe hoac nhap bien so." });
         }
+        if (string.IsNullOrWhiteSpace(licensePlate))
+        {
+            return BadRequest(new { message = "Bien so xe khong duoc de trong." });
+        }
 
         try
         {
