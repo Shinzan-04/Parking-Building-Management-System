@@ -149,7 +149,9 @@ public class CheckOutController : ControllerBase
             {
                 Amount = priceResult.EstimatedFee,
                 Description = $"Gui xe {priceResult.LicensePlate}",
-                ParkingSessionId = request.SessionId
+                ParkingSessionId = request.SessionId,
+                ReturnUrl = request.ReturnUrl,
+                CancelUrl = request.CancelUrl
             };
 
             var payOSResult = await _paymentService.CreatePayOSPaymentAsync(payOSRequest);

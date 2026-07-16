@@ -142,6 +142,19 @@ public class PaymentsController : ControllerBase
                             }
                         }
                     }
+                    else if (payment.ParkingSessionId.HasValue && payment.Status == ParkingSystem.Domain.Enums.PaymentStatus.Pending)
+                    {
+                        var session = await context.ParkingSessions.FindAsync(payment.ParkingSessionId.Value);
+                        if (session != null && session.Status == ParkingSystem.Domain.Enums.SessionStatus.Active)
+                        {
+                            session.PrePaidAmount += payment.Amount;
+                            session.GracePeriodEndTime = DateTime.UtcNow.AddMinutes(15);
+                            session.UpdatedAt = DateTime.UtcNow;
+                        }
+                        payment.Status = ParkingSystem.Domain.Enums.PaymentStatus.Success;
+                        payment.UpdatedAt = DateTime.UtcNow;
+                        await context.SaveChangesAsync();
+                    }
                 }
             }
             else if (status == ParkingSystem.Domain.Enums.PaymentStatus.Failed)

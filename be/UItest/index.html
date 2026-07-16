@@ -1382,13 +1382,18 @@
     const sessionId = coCurrentSession.sessionId || coCurrentSession.SessionId;
 
     coPayosPending = true;
+    const currentUrl = window.location.href.split('?')[0]; // bo param cu
     fetch(getBase() + '/api/CheckOut/create-payment', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer ' + (localStorage.getItem('sp_token') || ''),
       },
-      body: JSON.stringify({ sessionId }),
+      body: JSON.stringify({ 
+        sessionId,
+        returnUrl: currentUrl,
+        cancelUrl: currentUrl
+      }),
     }).then(res => res.json()).then(data => {
       const url = data.checkoutUrl || data.CheckoutUrl;
       if (url) {

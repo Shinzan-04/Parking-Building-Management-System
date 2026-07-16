@@ -170,7 +170,7 @@ public class PayOSPaymentService : IPaymentService
             payment.UpdatedAt = DateTime.UtcNow;
 
             var shouldNotifyPaymentSuccess = false;
-            var reservationIdToNotify = Guid.Empty;
+            var referenceIdToNotify = Guid.Empty;
 
             // Nếu thanh toán cho Reservation và thành công -> Cập nhật Reservation sang PendingReview
             if (payment.Status == PaymentStatus.Success && payment.ReservationId.HasValue)
@@ -214,7 +214,24 @@ public class PayOSPaymentService : IPaymentService
                 }
                 
                 shouldNotifyPaymentSuccess = true;
-                reservationIdToNotify = payment.ReservationId.Value;
+                referenceIdToNotify = payment.ReservationId.Value;
+            }
+
+            // Nếu thanh toán cho ParkingSession (CheckOut) thành công -> Cập nhật Session
+            if (payment.Status == PaymentStatus.Success && payment.ParkingSessionId.HasValue)
+            {
+                var session = await _context.ParkingSessions
+                    .FirstOrDefaultAsync(s => s.Id == payment.ParkingSessionId.Value);
+                    
+                if (session != null && session.Status == SessionStatus.Active)
+                {
+                    session.PrePaidAmount += payment.Amount;
+                    session.GracePeriodEndTime = DateTime.UtcNow.AddMinutes(15);
+                    session.UpdatedAt = DateTime.UtcNow;
+                }
+                
+                shouldNotifyPaymentSuccess = true;
+                referenceIdToNotify = payment.ParkingSessionId.Value;
             }
 
             // Xử lý nạp tiền vào ví (Top-up Wallet)
@@ -285,7 +302,7 @@ public class PayOSPaymentService : IPaymentService
             // Bắn thông báo Realtime SignalR cho App Driver SAU KHI đã lưu DB thành công
             if (shouldNotifyPaymentSuccess)
             {
-                await _realtimeService.SendPaymentSuccessAsync(reservationIdToNotify);
+                await _realtimeService.SendPaymentSuccessAsync(referenceIdToNotify);
             }
 
             _logger.LogInformation(

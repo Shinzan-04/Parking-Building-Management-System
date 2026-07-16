@@ -282,6 +282,8 @@ public class CreateCheckoutPaymentRequest
     /// Session ID cua phien gui xe.
     /// </summary>
     public Guid SessionId { get; set; }
+    public string? ReturnUrl { get; set; }
+    public string? CancelUrl { get; set; }
 }
 
 /// <summary>
