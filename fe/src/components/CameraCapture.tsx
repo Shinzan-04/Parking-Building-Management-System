@@ -106,15 +106,15 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
     return (
       <div className="relative w-full h-full bg-black">
         <video ref={videoRef} autoPlay playsInline className="h-full w-full object-cover" />
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none overflow-hidden z-20">
           <div 
-            className={`relative border-2 rounded-lg ${mode === 'lpr' ? 'h-32 w-64 border-cyan-400' : 'h-48 w-48 border-emerald-400'}`}
+            className={`relative border-2 border-transparent ${mode === 'lpr' ? 'h-32 w-64' : 'h-48 w-48'}`}
             style={{ boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.4)' }}
           >
-            <div className={`absolute top-0 left-0 h-4 w-4 border-t-2 border-l-2 ${mode === 'lpr' ? 'border-cyan-400' : 'border-emerald-400'}`} />
-            <div className={`absolute top-0 right-0 h-4 w-4 border-t-2 border-r-2 ${mode === 'lpr' ? 'border-cyan-400' : 'border-emerald-400'}`} />
-            <div className={`absolute bottom-0 left-0 h-4 w-4 border-b-2 border-l-2 ${mode === 'lpr' ? 'border-cyan-400' : 'border-emerald-400'}`} />
-            <div className={`absolute bottom-0 right-0 h-4 w-4 border-b-2 border-r-2 ${mode === 'lpr' ? 'border-cyan-400' : 'border-emerald-400'}`} />
+            <div className="absolute top-0 left-0 w-6 h-6 border-t-[3px] border-l-[3px] border-[#FF4C4C] rounded-tl-lg" />
+            <div className="absolute top-0 right-0 w-6 h-6 border-t-[3px] border-r-[3px] border-[#FF4C4C] rounded-tr-lg" />
+            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-[3px] border-l-[3px] border-[#FF4C4C] rounded-bl-lg" />
+            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-[3px] border-r-[3px] border-[#FF4C4C] rounded-br-lg" />
           </div>
         </div>
         <canvas ref={canvasRef} className="hidden" />
@@ -125,9 +125,7 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
             type="button"
             onClick={captureAndScan}
             disabled={loading}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
-              mode === 'lpr' ? 'bg-cyan-500 hover:bg-cyan-400' : 'bg-emerald-500 hover:bg-emerald-400'
-            }`}
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold text-white shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed bg-[#FF4C4C] hover:bg-[#E13B3B]"
           >
             {loading ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
             <span>Capture</span>
