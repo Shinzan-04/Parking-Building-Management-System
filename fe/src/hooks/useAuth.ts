@@ -1,13 +1,11 @@
 import { useState, useCallback } from 'react';
 import {
   loginApi,
-  registerApi,
   googleLoginApi,
+  logoutApi,
   type AuthResponse,
   type BaseAuthResponse,
   type LoginRequest,
-  type RegisterRequest,
-  type RegisterResponse,
 } from '../services/authService';
 
 const TOKEN_KEY = 'sp_token';
@@ -25,18 +23,25 @@ function readStorage(): AuthResponse | null {
 // ─── Hook ────────────────────────────────────────────────────────────────────
 
 export function useAuth() {
-  const [user, setUser] = useState<AuthResponse | null>(readStorage);
+  const [user, setUser]       = useState<AuthResponse | null>(readStorage);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError]     = useState<string | null>(null);
 
+  /**
+   * Lưu session vào localStorage và cập nhật React state.
+   * Dùng sau khi verify-register hoặc bất kỳ API nào trả về AuthResponse.
+   */
   const saveSession = useCallback((response: BaseAuthResponse) => {
-    localStorage.setItem(TOKEN_KEY, response.token);
+    localStorage.setItem(TOKEN_KEY, response.accessToken);
     localStorage.setItem(USER_KEY, JSON.stringify(response));
     setUser(response);
     setError(null);
   }, []);
 
-  /** Đăng nhập bằng username + password */
+  /**
+   * Đăng nhập bằng username + password.
+   * Gọi POST /api/auth/login
+   */
   const login = useCallback(async (payload: LoginRequest) => {
     setLoading(true);
     setError(null);
@@ -53,24 +58,10 @@ export function useAuth() {
     }
   }, [saveSession]);
 
-  /** Đăng ký bằng username + password + thông tin hồ sơ */
-  const register = useCallback(async (payload: RegisterRequest) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response: RegisterResponse = await registerApi(payload);
-      saveSession(response);
-      return response;
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Đăng ký thất bại.';
-      setError(msg);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [saveSession]);
-
-  /** Đăng nhập bằng Google ID Token */
+  /**
+   * Đăng nhập bằng Google ID Token.
+   * Gọi POST /api/auth/google-login
+   */
   const loginWithGoogle = useCallback(async (idToken: string) => {
     setLoading(true);
     setError(null);
@@ -87,23 +78,45 @@ export function useAuth() {
     }
   }, [saveSession]);
 
-  /** Đăng xuất */
+  /** Đăng xuất — xoá token khỏi localStorage, reset state và gọi API vô hiệu hoá refresh token trên Backend dưới nền */
   const logout = useCallback(() => {
+    const refreshToken = user?.refreshToken;
+
+    // Xóa session ở client ngay lập tức để tránh độ trễ giao diện
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     setUser(null);
     setError(null);
-  }, []);
+
+    // Gọi API logout lên backend chạy ngầm
+    if (refreshToken) {
+      logoutApi({ refreshToken }).catch((err) => {
+        console.error('Lỗi khi gọi API logout lên Backend:', err);
+      });
+    }
+  }, [user]);
+
+  const updateUser = useCallback((updatedFields: Partial<AuthResponse>) => {
+    if (user) {
+      const updated = { ...user, ...updatedFields };
+      localStorage.setItem(USER_KEY, JSON.stringify(updated));
+      setUser(updated);
+    }
+  }, [user]);
 
   return {
     user,
-    token: user?.token ?? null,
+    /** JWT access token hiện tại (null nếu chưa đăng nhập) */
+    token:           user?.accessToken ?? null,
     isAuthenticated: !!user,
     loading,
     error,
     login,
-    register,
     loginWithGoogle,
     logout,
+    /** Lưu session thủ công — dùng sau verify-register OTP */
+    saveSession,
+    /** Cập nhật thông tin user hiện tại */
+    updateUser,
   };
 }

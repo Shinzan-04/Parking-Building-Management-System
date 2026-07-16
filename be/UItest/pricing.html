@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giá Cước - Test UI</title>
+  <style>
+    :root {
+      --bg: #0a0f1e;
+      --card: #111827;
+      --border: rgba(255,255,255,0.1);
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --sky: #0ea5e9;
+      --sky-dim: rgba(14,165,233,0.15);
+      --emerald: #10b981;
+      --emerald-dim: rgba(16,185,129,0.15);
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,0.15);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245,158,11,0.15);
+      --violet: #8b5cf6;
+      --violet-dim: rgba(139,92,246,0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+
+    header { border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.4); backdrop-filter: blur(12px); padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    header h1 { font-size: 1.25rem; font-weight: 700; }
+    header p { font-size: 0.75rem; color: var(--muted); }
+    .header-back { text-decoration: none; color: var(--muted); font-size: 0.8rem; padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; transition: all 0.15s; margin-left: auto; flex-shrink: 0; }
+    .header-back:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+
+    .container { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
+
+    /* Alert */
+    .alert { padding: 12px 16px; border-radius: 12px; font-size: 0.875rem; margin-bottom: 16px; display: none; align-items: center; gap: 10px; }
+    .alert.show { display: flex; }
+    .alert-error { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.4); color: #fca5a5; }
+    .alert-success { background: var(--emerald-dim); border: 1px solid rgba(16,185,129,0.4); color: #6ee7b7; }
+
+    /* Config */
+    .config-bar { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 20px; }
+    .config-bar label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .config-bar input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; color: var(--text); font-size: 0.875rem; outline: none; }
+    .config-bar input:focus { border-color: var(--sky); }
+
+    /* Table */
+    .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 20px; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 800px; table-layout: auto; }
+    thead { background: rgba(255,255,255,0.03); }
+    th { padding: 10px 12px; text-align: left; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); border-bottom: 1px solid var(--border); white-space: nowrap; }
+    td { padding: 12px 12px; font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; white-space: nowrap; }
+    td input[type="number"] { width: 100%; min-width: 60px; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 6px; color: #fff; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .type-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; }
+    .type-car { background: var(--sky-dim); color: #7dd3fc; }
+    .type-moto { background: var(--amber-dim); color: #fcd34d; }
+    .type-ev { background: var(--emerald-dim); color: #6ee7b7; }
+    .type-default { background: var(--violet-dim); color: #c4b5fd; }
+    .price-cell { font-weight: 700; color: var(--emerald); font-size: 0.9rem; }
+    .price-cell.free { color: var(--muted); font-weight: 400; }
+    .action-cell { text-align: right; white-space: nowrap; }
+    .btn-sm { padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--muted); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+    .btn-sm:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: rgba(255,255,255,0.2); }
+    .btn-sm.save { background: var(--emerald-dim); border-color: rgba(16,185,129,0.4); color: #6ee7b7; }
+    .btn-sm.save:hover { background: var(--emerald); color: #fff; }
+    .btn-sm.cancel { background: var(--red-dim); border-color: rgba(239,68,68,0.4); color: #fca5a5; }
+    .btn-sm.cancel:hover { background: var(--red); color: #fff; }
+
+    /* Edit row */
+    .edit-row td { background: rgba(14,165,233,0.05); }
+
+    /* Empty */
+    .empty { padding: 40px; text-align: center; color: var(--muted); font-size: 0.875rem; }
+
+    /* Login */
+    .login-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; max-width: 400px; margin: 40px auto; text-align: center; }
+    .login-card h2 { color: var(--sky); margin-bottom: 20px; font-size: 1.25rem; }
+    .login-card input { width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; color: var(--text); font-size: 0.875rem; outline: none; margin-bottom: 16px; }
+    .login-card button { width: 100%; padding: 12px; border: none; border-radius: 10px; background: var(--sky); color: #fff; font-weight: 600; cursor: pointer; transition: 0.2s; }
+    .login-card button:hover { background: #0284c7; }
+    .login-error { color: #fca5a5; margin-top: 12px; font-size: 0.875rem; min-height: 20px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div style="flex-grow: 1;">
+      <h1>Quản lý Giá Cước</h1>
+      <p>Bảng giá tính theo Block Ngày / Đêm</p>
+    </div>
+    <button onclick="logout()" class="btn-sm cancel" id="logoutBtn" style="display: none; margin-right: 12px;">Đăng xuất</button>
+    <a href="/" class="header-back">&#8592; Check-Out Test</a>
+  </header>
+
+<div class="container">
+  <div class="config-bar">
+    <label>API Base URL</label>
+    <input type="text" id="apiBase" placeholder="http://localhost:5237" />
+  </div>
+
+  <div id="alertBox" class="alert"></div>
+
+  <div id="loginSection" class="login-card">
+    <h2>🔑 Đăng nhập Hệ thống</h2>
+    <input type="text" id="loginPhone" placeholder="Số điện thoại hoặc Email" value="admin@example.com" />
+    <input type="password" id="loginPassword" placeholder="Mật khẩu" value="Admin@123" />
+    <button onclick="login()">Đăng Nhập</button>
+    <div id="loginError" class="login-error"></div>
+  </div>
+
+  <div id="appSection" style="display: none;">
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Loại xe</th>
+          <th>Block (Giờ)</th>
+          <th>Block Ngày (VND)</th>
+          <th>Block Đêm (VND)</th>
+          <th>Giờ đêm</th>
+          <th>Max/Ngày (VND)</th>
+          <th>Hệ số phụ trội</th>
+          <th>Vé tháng (VND)</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let vehicleTypes = [];
+  let policies = [];
+  let monthlyPolicies = [];
+  let editingId = null;
+  let editCache = {};
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('pr_api_base');
+    if (saved) document.getElementById('apiBase').value = saved;
+    document.getElementById('apiBase').addEventListener('change', () => {
+      localStorage.setItem('pr_api_base', document.getElementById('apiBase').value);
+    });
+    
+    // Check if token exists
+    const token = localStorage.getItem('sp_token');
+    if (token) {
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('appSection').style.display = 'block';
+      document.getElementById('logoutBtn').style.display = 'block';
+      loadAll();
+    }
+  });
+
+  function logout() {
+    localStorage.removeItem('sp_token');
+    document.getElementById('loginSection').style.display = 'block';
+    document.getElementById('appSection').style.display = 'none';
+    document.getElementById('logoutBtn').style.display = 'none';
+  }
+
+  async function login() {
+    const phone = document.getElementById('loginPhone').value.trim();
+    const pass = document.getElementById('loginPassword').value.trim();
+    const errDiv = document.getElementById('loginError');
+    errDiv.textContent = 'Đang đăng nhập...';
+
+    try {
+      const res = await fetch(getBase() + '/api/Auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: phone, password: pass })
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
+      
+      localStorage.setItem('sp_token', data.accessToken);
+      errDiv.textContent = '';
+      
+      document.getElementById('loginSection').style.display = 'none';
+      document.getElementById('appSection').style.display = 'block';
+      document.getElementById('logoutBtn').style.display = 'block';
+      loadAll();
+    } catch (error) {
+      errDiv.textContent = error.message;
+    }
+  }
+
+  function getBase() {
+    return document.getElementById('apiBase').value.trim() || 'http://localhost:5237';
+  }
+
+  async function apiFetch(path, options = {}) {
+    const token = localStorage.getItem('sp_token');
+    if (!token) { showAlert('error', 'Chưa đăng nhập (cần token Admin/Manager trong localStorage sp_token).'); return null; }
+
+    const res = await fetch(getBase() + path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(options.headers || {}),
+      },
+    });
+
+    let data;
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch { data = { message: text }; }
+
+    if (!res.ok) {
+      const msg = Array.isArray(data) ? data.map(d => d.description || d).join('; ') : (data.message || `Lỗi ${res.status}`);
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  async function loadAll() {
+    try {
+      const [vt, pol, mpol] = await Promise.all([
+        apiFetch('/api/VehicleTypes'),
+        apiFetch('/api/PricingPolicies'),
+        apiFetch('/api/MonthlyPassPolicies')
+      ]);
+      if (!vt && !pol) return;
+      vehicleTypes = vt || [];
+      policies = pol || [];
+      monthlyPolicies = mpol || [];
+      renderTable();
+    } catch (err) {
+      showAlert('error', err.message);
+    }
+  }
+
+  function showAlert(type, msg) {
+    const box = document.getElementById('alertBox');
+    box.className = `alert alert-${type} show`;
+    box.innerHTML = `<span>${type === 'error' ? '&#9888;' : '&#10004;'} ${msg}</span>`;
+    if (type === 'success') setTimeout(() => box.classList.remove('show'), 4000);
+  }
+
+  function typeBadge(name) {
+    const icons = { Car: '&#128663;', Motorbike: '&#128267;', EV: '&#9889;', Default: '&#128663;' };
+    const icon = icons[name] || icons['Default'];
+    const colorClass = name === 'Car' ? 'type-car' : name === 'Motorbike' ? 'type-moto' : name === 'EV' ? 'type-ev' : 'type-default';
+    return `<span class="type-badge ${colorClass}">${icon} ${name}</span>`;
+  }
+
+  function fmtMoney(n) {
+    if (n === null || n === undefined || n === 0) return '<span class="price-cell free">Miễn phí</span>';
+    return `<span class="price-cell">${new Intl.NumberFormat('vi-VN').format(n)} đ</span>`;
+  }
+
+  function renderTable() {
+    const tbody = document.getElementById('tbody');
+
+    if (vehicleTypes.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" class="empty">Đang tải hoặc chưa có loại xe...</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = vehicleTypes.map(vt => {
+      const pol = policies.find(p => p.vehicleTypeId === vt.id);
+      const isEdit = editingId === vt.id;
+      const cache = editCache[vt.id] || {};
+
+      const blockDur = isEdit
+        ? `<input type="number" id="ev_bd_${vt.id}" value="${cache.blockDurationHours ?? pol?.blockDurationHours ?? 4}" min="1" max="24" />`
+        : `<span>${pol?.blockDurationHours || 4}h</span>`;
+
+      const dayBlock = isEdit
+        ? `<input type="number" id="ev_dbr_${vt.id}" value="${cache.dayBlockRate ?? pol?.dayBlockRate ?? 0}" step="1000" min="0" />`
+        : fmtMoney(pol?.dayBlockRate);
+
+      const nightBlock = isEdit
+        ? `<input type="number" id="ev_nbr_${vt.id}" value="${cache.nightBlockRate ?? pol?.nightBlockRate ?? 0}" step="1000" min="0" />`
+        : fmtMoney(pol?.nightBlockRate);
+
+      const nightTime = isEdit
+        ? `<input type="number" id="ev_ns_${vt.id}" value="${cache.nightStartHour ?? pol?.nightStartHour ?? 22}" min="0" max="23" style="width:40px" /> : 
+           <input type="number" id="ev_ne_${vt.id}" value="${cache.nightEndHour ?? pol?.nightEndHour ?? 6}" min="0" max="23" style="width:40px" />`
+        : `<span>${pol?.nightStartHour || 22}h - ${pol?.nightEndHour || 6}h</span>`;
+
+      const dailyMax = isEdit
+        ? `<input type="number" id="ev_dm_${vt.id}" value="${cache.dailyRate ?? pol?.dailyRate ?? 0}" step="1000" min="0" />`
+        : fmtMoney(pol?.dailyRate);
+        
+      const overtime = isEdit
+        ? `<input type="number" id="ev_ot_${vt.id}" value="${cache.overtimeMultiplier ?? pol?.overtimeMultiplier ?? 1.5}" step="0.1" min="1" />`
+        : `<span>x${pol?.overtimeMultiplier || 1.5}</span>`;
+
+      const mPol = monthlyPolicies.find(m => m.vehicleTypeId === vt.id);
+      const monthlyPass = isEdit
+        ? `<input type="number" id="ev_mp_${vt.id}" value="${cache.monthlyPrice ?? mPol?.monthlyPrice ?? 0}" step="1000" min="0" />`
+        : fmtMoney(mPol?.monthlyPrice);
+
+      const actions = isEdit
+        ? `
+          <button class="btn-sm save" onclick="savePolicy('${vt.id}')">Lưu</button>
+          <button class="btn-sm cancel" onclick="cancelEdit('${vt.id}')">Hủy</button>
+        `
+        : (pol
+          ? `<button class="btn-sm" onclick="editPolicy('${vt.id}')">Sửa</button>`
+          : `<button class="btn-sm" onclick="createPolicy('${vt.id}')">+ Tạo</button>`
+        );
+
+      return `
+        <tr class="${isEdit ? 'edit-row' : ''}">
+          <td>${typeBadge(vt.name)}</td>
+          <td>${blockDur}</td>
+          <td>${dayBlock}</td>
+          <td>${nightBlock}</td>
+          <td>${nightTime}</td>
+          <td>${dailyMax}</td>
+          <td>${overtime}</td>
+          <td>${monthlyPass}</td>
+          <td class="action-cell">${actions}</td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function editPolicy(vtId) {
+    const pol = policies.find(p => p.vehicleTypeId === vtId);
+    editCache[vtId] = {
+      blockDurationHours: pol?.blockDurationHours ?? 4,
+      dayBlockRate: pol?.dayBlockRate ?? 0,
+      nightBlockRate: pol?.nightBlockRate ?? 0,
+      nightStartHour: pol?.nightStartHour ?? 22,
+      nightEndHour: pol?.nightEndHour ?? 6,
+      nightEndHour: pol?.nightEndHour ?? 6,
+      dailyRate: pol?.dailyRate ?? 0,
+      overtimeMultiplier: pol?.overtimeMultiplier ?? 1.5,
+      monthlyPrice: monthlyPolicies.find(m => m.vehicleTypeId === vtId)?.monthlyPrice ?? 0
+    };
+    editingId = vtId;
+    renderTable();
+  }
+
+  function createPolicy(vtId) {
+    editCache[vtId] = { 
+      blockDurationHours: 4, dayBlockRate: 0, nightBlockRate: 0, 
+      nightStartHour: 22, nightEndHour: 6, dailyRate: 0, overtimeMultiplier: 1.5,
+      monthlyPrice: 0
+    };
+    editingId = vtId;
+    renderTable();
+  }
+
+  async function savePolicy(vtId) {
+    const bd = parseInt(document.getElementById('ev_bd_' + vtId)?.value) || 4;
+    const dbr = parseFloat(document.getElementById('ev_dbr_' + vtId)?.value) || 0;
+    const nbr = parseFloat(document.getElementById('ev_nbr_' + vtId)?.value) || 0;
+    const ns = parseInt(document.getElementById('ev_ns_' + vtId)?.value) || 22;
+    const ne = parseInt(document.getElementById('ev_ne_' + vtId)?.value) || 6;
+    const dm = parseFloat(document.getElementById('ev_dm_' + vtId)?.value) || 0;
+    const ot = parseFloat(document.getElementById('ev_ot_' + vtId)?.value) || 1.5;
+
+    const existing = policies.find(p => p.vehicleTypeId === vtId);
+
+    try {
+      let data;
+      const payload = { 
+        vehicleTypeId: vtId, blockDurationHours: bd, dayBlockRate: dbr, 
+        nightBlockRate: nbr, nightStartHour: ns, nightEndHour: ne, 
+        dailyRate: dm, overtimeMultiplier: ot 
+      };
+
+      if (existing) {
+        data = await apiFetch(`/api/PricingPolicies/${existing.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+        if (data) {
+          const idx = policies.findIndex(p => p.id === existing.id);
+          policies[idx] = { ...policies[idx], ...data };
+        }
+      } else {
+        data = await apiFetch('/api/PricingPolicies', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        if (data) policies.push(data);
+      }
+
+      // Handle Monthly Pass Policy
+      const mp = parseFloat(document.getElementById('ev_mp_' + vtId)?.value) || 0;
+      const mExisting = monthlyPolicies.find(m => m.vehicleTypeId === vtId);
+      if (mp > 0 || mExisting) {
+          const mPayload = { vehicleTypeId: vtId, monthlyPrice: mp, description: "Vé tháng", isActive: true };
+          if (mExisting) {
+             const mData = await apiFetch(`/api/MonthlyPassPolicies/${mExisting.id}`, {
+                 method: 'PUT',
+                 body: JSON.stringify(mPayload)
+             });
+             if (mData) {
+                 const mIdx = monthlyPolicies.findIndex(m => m.id === mExisting.id);
+                 monthlyPolicies[mIdx] = { ...monthlyPolicies[mIdx], ...mData };
+             }
+          } else if (mp > 0) {
+             const mData = await apiFetch('/api/MonthlyPassPolicies', {
+                 method: 'POST',
+                 body: JSON.stringify(mPayload)
+             });
+             if (mData) monthlyPolicies.push(mData);
+          }
+      }
+
+      if (!data) return;
+      showAlert('success', 'Lưu thành công!');
+      editingId = null;
+      editCache = {};
+      renderTable();
+    } catch (err) {
+      showAlert('error', err.message);
+    }
+  }
+
+  function cancelEdit(vtId) {
+    delete editCache[vtId];
+    editingId = null;
+    renderTable();
+  }
+</script>
+
+</body>
+</html>

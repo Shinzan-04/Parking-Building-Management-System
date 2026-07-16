@@ -1,6 +1,7 @@
 using ParkingSystem.Application.DTOs.Floor;
 using ParkingSystem.Application.Interfaces;
 using ParkingSystem.Domain.Entities;
+using ParkingSystem.Domain.Enums;
 using ParkingSystem.Domain.Interfaces;
 
 namespace ParkingSystem.Application.Services;
@@ -75,7 +76,7 @@ public class FloorService : IFloorService
         BuildingName = f.Building?.Name ?? string.Empty,
         Name = f.Name,
         FloorIndex = f.FloorIndex,
-        SlotCount = f.ParkingSlots?.Count ?? 0,
+        SlotCount = f.ParkingSlots?.Count(s => s.Status != SlotStatus.Maintenance) ?? 0,
         CreatedAt = f.CreatedAt
     };
 }

@@ -1,6 +1,6 @@
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-export type UserRole = 'Admin' | 'Manager' | 'Driver';
+export type UserRole = 'Admin' | 'Manager' | 'Staff' | 'Driver' | 0 | 1 | 2 | 3;
 
 export interface LoginRequest {
   username: string;
@@ -21,12 +21,20 @@ export interface GoogleLoginRequest {
 
 export interface BaseAuthResponse {
   userId: string;
-  token: string;
+  /** JWT Access Token — backend trả về field "accessToken" */
+  accessToken: string;
+  /** Refresh Token để gia hạn session */
+  refreshToken: string;
+  accessTokenExpiresAt: string;
   fullName: string;
   role: UserRole;
+  email?: string;
+  qrCode?: string;
+  qrCodeImageBase64?: string;
+  assignedBuildingId?: string;
 }
 
-export interface AuthResponse extends BaseAuthResponse {}
+export type AuthResponse = BaseAuthResponse;
 
 export interface RegisterResponse extends BaseAuthResponse {
   qrCode: string;
@@ -67,7 +75,10 @@ export async function loginApi(payload: LoginRequest): Promise<AuthResponse> {
   return post<LoginRequest, AuthResponse>('/api/auth/login', payload);
 }
 
-/** Đăng ký tài khoản mới */
+/**
+ * @deprecated Chỉ dùng cho dev/testing — bỏ qua xác thực OTP.
+ * Flow đăng ký thật: sendOtpApi() → verifyRegisterApi()
+ */
 export async function registerApi(payload: RegisterRequest): Promise<RegisterResponse> {
   return post<RegisterRequest, RegisterResponse>('/api/auth/register', payload);
 }
@@ -76,3 +87,116 @@ export async function registerApi(payload: RegisterRequest): Promise<RegisterRes
 export async function googleLoginApi(idToken: string): Promise<AuthResponse> {
   return post<GoogleLoginRequest, AuthResponse>('/api/auth/google-login', { idToken });
 }
+
+// ─── OTP API ─────────────────────────────────────────────────────────────────
+
+export interface SendOtpRequest {
+  email: string;
+  /** "Register" hoặc "ForgotPassword" */
+  purpose: string;
+}
+
+export interface VerifyRegisterRequest {
+  email: string;
+  otpCode: string;
+  username: string;
+  password: string;
+  fullName: string;
+  phoneNumber?: string | null;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  otpCode: string;
+  newPassword: string;
+}
+
+/**
+ * Gửi mã OTP về email.
+ * Purpose: "Register" | "ForgotPassword"
+ */
+export async function sendOtpApi(payload: SendOtpRequest): Promise<{ message: string }> {
+  return post<SendOtpRequest, { message: string }>('/api/auth/send-otp', payload);
+}
+
+/**
+ * Xác thực OTP và hoàn tất đăng ký tài khoản.
+ * Backend sẽ tạo user và trả về AuthResponse nếu thành công.
+ */
+export async function verifyRegisterApi(payload: VerifyRegisterRequest): Promise<RegisterResponse> {
+  return post<VerifyRegisterRequest, RegisterResponse>('/api/auth/verify-register', payload);
+}
+
+/**
+ * Đặt lại mật khẩu bằng OTP (quên mật khẩu).
+ */
+export async function resetPasswordApi(payload: ResetPasswordRequest): Promise<{ message: string }> {
+  return post<ResetPasswordRequest, { message: string }>('/api/auth/reset-password', payload);
+}
+
+export interface LogoutRequest {
+  refreshToken: string;
+}
+
+/**
+ * Đăng xuất khỏi hệ thống và vô hiệu hóa Refresh Token ở backend.
+ */
+export async function logoutApi(payload: LogoutRequest): Promise<{ message: string }> {
+  return post<LogoutRequest, { message: string }>('/api/auth/logout', payload);
+}
+
+export interface UpdateProfileRequest {
+  fullName?: string;
+  phoneNumber?: string | null;
+  email?: string | null;
+}
+
+export interface ProfileResponse {
+  userId: string;
+  username: string;
+  fullName: string;
+  role: UserRole;
+  email?: string;
+  phoneNumber?: string;
+  driverCode: string;
+  qrCodeImageBase64?: string;
+  createdAt: string;
+}
+
+/**
+ * Lấy thông tin profile từ JWT token hiện tại
+ */
+export async function getProfileApi(token: string): Promise<ProfileResponse> {
+  const res = await fetch(`${BASE_URL}/api/auth/me`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message ?? 'Không thể tải thông tin cá nhân.');
+  }
+  return data as ProfileResponse;
+}
+
+/**
+ * Cập nhật thông tin profile
+ */
+export async function updateProfileApi(payload: UpdateProfileRequest, token: string): Promise<ProfileResponse> {
+  const res = await fetch(`${BASE_URL}/api/auth/profile`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message ?? 'Cập nhật thông tin thất bại.');
+  }
+  return data as ProfileResponse;
+}
+
+

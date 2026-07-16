@@ -9,6 +9,7 @@ public class ParkingSession : BaseEntity
     public Guid ParkingSlotId { get; set; }
     public Guid VehicleTypeId { get; set; }
     public Guid? ReservationId { get; set; }
+    public Guid? PricingPolicyId { get; set; }
     
     public string LicensePlate { get; set; } = string.Empty;
     public string SessionCode { get; set; } = string.Empty;
@@ -16,7 +17,18 @@ public class ParkingSession : BaseEntity
     public DateTime EntryTime { get; set; }
     public DateTime? ExitTime { get; set; }
     public decimal EstimatedFee { get; set; }
+    public decimal PenaltyFee { get; set; }
     public decimal TotalFee { get; set; }
+    
+    public decimal PrePaidAmount { get; set; } = 0;
+    public DateTime? PrePaidTime { get; set; }
+    public DateTime? GracePeriodEndTime { get; set; }
+    public bool GraceWarningSent { get; set; } = false;
+
+    /// <summary>
+    /// Đường dẫn ảnh biển số chụp khi xe vào (bằng chứng tranh chấp)
+    /// </summary>
+    public string? EntryImageUrl { get; set; }
     
     public SessionStatus Status { get; set; } = SessionStatus.Active;
     public IssueType IssueType { get; set; } = IssueType.None;
@@ -26,5 +38,6 @@ public class ParkingSession : BaseEntity
     public ParkingSlot ParkingSlot { get; set; } = null!;
     public VehicleType VehicleType { get; set; } = null!;
     public Reservation? Reservation { get; set; }
+    public PricingPolicy? PricingPolicy { get; set; }
     public ICollection<Payment> Payments { get; set; } = new List<Payment>();
 }

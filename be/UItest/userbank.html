@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>User Bank Account CRUD Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 24px;
+    }
+    h1 { color: #4ade80; margin-bottom: 20px; text-align: center; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 900px; margin: 0 auto; }
+    @media(max-width:768px){ .grid{ grid-template-columns:1fr; } }
+    .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+    .card h2 { color: #7dd3fc; font-size: 1.1rem; margin-bottom: 15px; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+    label { display: block; font-size: 0.85rem; color: #94a3b8; margin-top: 10px; margin-bottom: 5px; }
+    input, select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: white; }
+    button { width: 100%; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+    .btn-primary { background: #0ea5e9; color: white; }
+    .btn-success { background: #22c55e; color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-warning { background: #f59e0b; color: white; }
+    .log { background: #000; padding: 10px; font-family: monospace; font-size: 0.85rem; border-radius: 6px; margin-top: 15px; max-height: 200px; overflow-y: auto; white-space: pre-wrap;}
+    .list-item { background: #334155; padding: 10px; margin-top: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;}
+    .badge { background: #4ade80; color: #000; font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; font-weight: bold;}
+    .actions button { width: auto; padding: 5px 10px; margin-top: 0; font-size: 0.8rem; margin-left: 5px; }
+  </style>
+</head>
+<body>
+
+<h1>💳 Quản lý tài khoản ngân hàng (UserBank Test)</h1>
+
+<div class="grid">
+  <!-- Auth Section -->
+  <div class="card">
+    <h2>1️⃣ Đăng nhập</h2>
+    <label>Username</label>
+    <input id="username" value="driver01" />
+    <label>Password</label>
+    <input id="password" type="password" value="123456" />
+    <button class="btn-primary" onclick="login()">🔑 Đăng nhập</button>
+    <div class="log" id="log-auth">Chưa đăng nhập...</div>
+  </div>
+
+  <!-- Form Add / Edit -->
+  <div class="card">
+    <h2 id="form-title">2️⃣ Thêm tài khoản ngân hàng</h2>
+    <input type="hidden" id="edit-id" />
+    <label>Ngân hàng (BankName)</label>
+    <input id="bankName" placeholder="VD: Vietcombank" />
+    <label>Mã BIN (BankBin - không bắt buộc)</label>
+    <input id="bankBin" placeholder="VD: 970436" />
+    <label>Số tài khoản</label>
+    <input id="accountNumber" placeholder="Nhập số tài khoản" />
+    <label>Tên chủ tài khoản</label>
+    <input id="accountName" placeholder="VIET THE IN HOA" />
+    <label id="lbl-isDefault" style="display:none;">
+      <input type="checkbox" id="isDefault" style="width:auto; display:inline-block; margin-right:5px;" /> Đặt làm mặc định
+    </label>
+    
+    <div style="display:flex; gap:10px;">
+      <button class="btn-success" id="btn-save" onclick="saveAccount()">💾 Lưu (Thêm mới)</button>
+      <button class="btn-warning" id="btn-cancel" style="display:none;" onclick="resetForm()">❌ Hủy Sửa</button>
+    </div>
+    <div class="log" id="log-form">Chờ thao tác...</div>
+  </div>
+
+  <!-- List Section -->
+  <div class="card" style="grid-column: 1 / -1;">
+    <h2>3️⃣ Danh sách tài khoản của tôi</h2>
+    <button class="btn-primary" style="width: auto; padding: 8px 15px; margin-top:0;" onclick="loadAccounts()">🔄 Tải lại danh sách</button>
+    <div id="accounts-container" style="margin-top: 15px;">
+      <p style="color:#94a3b8; font-size:0.9rem;">Chưa tải danh sách.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = window.location.origin;
+let token = localStorage.getItem('userbank_token') || '';
+
+function log(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+}
+
+async function apiFetch(path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(BASE + path, opts);
+  const text = await res.text();
+  try { return { ok: res.ok, status: res.status, data: JSON.parse(text) }; }
+  catch { return { ok: res.ok, status: res.status, data: text }; }
+}
+
+async function login() {
+  log('log-auth', 'Đang đăng nhập...');
+  const r = await apiFetch('/api/auth/login', 'POST', {
+    username: document.getElementById('username').value,
+    password: document.getElementById('password').value
+  });
+  if (r.ok && r.data.accessToken) {
+    token = r.data.accessToken;
+    localStorage.setItem('userbank_token', token);
+    log('log-auth', `✅ Đăng nhập thành công!`);
+    loadAccounts();
+  } else {
+    log('log-auth', `❌ Lỗi: ${JSON.stringify(r.data)}`);
+  }
+}
+
+async function loadAccounts() {
+  const container = document.getElementById('accounts-container');
+  container.innerHTML = '<p>Đang tải...</p>';
+  const r = await apiFetch('/api/wallets/bank-accounts');
+  
+  if (r.ok) {
+    if(r.data.length === 0) {
+      container.innerHTML = '<p>Bạn chưa có tài khoản ngân hàng nào.</p>';
+      return;
+    }
+    container.innerHTML = '';
+    r.data.forEach(acc => {
+      const isDef = acc.isDefault ? '<span class="badge">Mặc định</span>' : '';
+      const el = document.createElement('div');
+      el.className = 'list-item';
+      el.innerHTML = `
+        <div>
+          <strong style="color:#7dd3fc;">${acc.bankName}</strong> ${isDef} <br/>
+          <span style="font-size:0.9rem; color:#cbd5e1;">STK: ${acc.accountNumber} - ${acc.accountHolderName}</span>
+        </div>
+        <div class="actions">
+          <button class="btn-warning" onclick='editAccount(${JSON.stringify(acc)})'>✏️ Sửa</button>
+          <button class="btn-danger" onclick="deleteAccount('${acc.id}')">🗑️ Xóa</button>
+        </div>
+      `;
+      container.appendChild(el);
+    });
+  } else {
+    container.innerHTML = `<p style="color:red;">Lỗi tải dữ liệu: ${r.data.message || r.data}</p>`;
+  }
+}
+
+function resetForm() {
+  document.getElementById('form-title').textContent = '2️⃣ Thêm tài khoản ngân hàng';
+  document.getElementById('edit-id').value = '';
+  document.getElementById('bankName').value = '';
+  document.getElementById('bankBin').value = '';
+  document.getElementById('accountNumber').value = '';
+  document.getElementById('accountName').value = '';
+  document.getElementById('lbl-isDefault').style.display = 'none';
+  document.getElementById('btn-save').textContent = '💾 Lưu (Thêm mới)';
+  document.getElementById('btn-cancel').style.display = 'none';
+  log('log-form', 'Đã làm mới Form.');
+}
+
+function editAccount(acc) {
+  document.getElementById('form-title').textContent = '✏️ Sửa tài khoản ngân hàng';
+  document.getElementById('edit-id').value = acc.id;
+  document.getElementById('bankName').value = acc.bankName;
+  document.getElementById('bankBin').value = acc.bankBin || '';
+  document.getElementById('accountNumber').value = acc.accountNumber;
+  document.getElementById('accountName').value = acc.accountHolderName;
+  document.getElementById('isDefault').checked = acc.isDefault;
+  document.getElementById('lbl-isDefault').style.display = 'block';
+  document.getElementById('btn-save').textContent = '💾 Cập nhật';
+  document.getElementById('btn-cancel').style.display = 'inline-block';
+  log('log-form', 'Đang chế độ CHỈNH SỬA.');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function saveAccount() {
+  const id = document.getElementById('edit-id').value;
+  const payload = {
+    bankName: document.getElementById('bankName').value,
+    bankBin: document.getElementById('bankBin').value,
+    accountNumber: document.getElementById('accountNumber').value,
+    accountName: document.getElementById('accountName').value
+  };
+  
+  if (!payload.bankName || !payload.accountNumber || !payload.accountName) {
+    log('log-form', '❌ Vui lòng nhập đủ tên NH, STK và Tên chủ thẻ.');
+    return;
+  }
+
+  log('log-form', 'Đang lưu...');
+  let r;
+  if (id) {
+    // Chế độ Edit (PUT)
+    payload.isDefault = document.getElementById('isDefault').checked;
+    r = await apiFetch(`/api/wallets/bank-account/${id}`, 'PUT', payload);
+  } else {
+    // Chế độ Add (POST)
+    r = await apiFetch('/api/wallets/bank-account', 'POST', payload);
+  }
+
+  if (r.ok) {
+    log('log-form', `✅ ${r.data.message}`);
+    resetForm();
+    loadAccounts();
+  } else {
+    log('log-form', `❌ Lỗi: ${r.data.message || JSON.stringify(r.data)}`);
+  }
+}
+
+async function deleteAccount(id) {
+  if(!confirm('Bạn chắc chắn muốn xóa tài khoản này chứ?')) return;
+  const r = await apiFetch(`/api/wallets/bank-account/${id}`, 'DELETE');
+  if(r.ok) {
+    alert(r.data.message);
+    loadAccounts();
+  } else {
+    alert('Lỗi xóa: ' + (r.data.message || JSON.stringify(r.data)));
+  }
+}
+
+if(token) loadAccounts();
+</script>
+</body>
+</html>

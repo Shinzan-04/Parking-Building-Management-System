@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Đăng ký Vé tháng</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f4f6f9; padding-top: 50px; }
+        .card { border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
+        .login-section { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 50vh; }
+        .login-card { width: 100%; max-width: 400px; padding: 30px; border-radius: 15px; background: white; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 style="color: transparent">.</h2>
+        <button onclick="logout()" class="btn btn-outline-secondary btn-sm" id="logoutBtn" style="display: none;">Đăng xuất</button>
+    </div>
+
+    <!-- Login Section -->
+    <div id="loginSection" class="login-section">
+        <div class="login-card">
+            <h3 class="text-center mb-4 text-primary">Đăng Nhập Cư Dân</h3>
+            <div id="loginErr" class="alert alert-danger d-none"></div>
+            <div class="mb-3">
+                <label>Số điện thoại / Username</label>
+                <input type="text" id="loginUsername" class="form-control" placeholder="0987654321" value="0987654321">
+            </div>
+            <div class="mb-3">
+                <label>Mật khẩu</label>
+                <input type="password" id="loginPassword" class="form-control" placeholder="Mật khẩu" value="User@123">
+            </div>
+            <button onclick="login()" class="btn btn-primary w-100 mt-2">Đăng Nhập</button>
+        </div>
+    </div>
+
+    <!-- Main Section -->
+    <div class="row justify-content-center" id="mainSection" style="display: none;">
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h3 class="text-center mb-4">Đăng ký Vé tháng</h3>
+                <div id="errDiv" class="alert alert-danger d-none"></div>
+                <div id="successDiv" class="alert alert-success d-none"></div>
+
+                <div class="mb-3">
+                    <label class="form-label">Chọn Xe Đăng Ký (từ Profile)</label>
+                    <select id="vehicleSelect" class="form-select">
+                        <option value="">-- Đang tải danh sách xe --</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Thông tin gói cước</label>
+                    <div id="policyInfo" class="p-3 bg-light rounded text-center">
+                        <i>Vui lòng chọn xe để xem giá cước.</i>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Phương thức thanh toán</label>
+                    <select id="paymentMethod" class="form-select">
+                        <option value="Wallet">Ví điện tử (Trừ tiền từ số dư)</option>
+                        <option value="PayOS">Chuyển khoản QR (PayOS)</option>
+                    </select>
+                </div>
+
+                <button id="btnRegister" class="btn btn-primary w-100" disabled>Thanh toán & Đăng ký</button>
+            </div>
+
+            <!-- Danh sách gói cước của tôi -->
+            <div class="card p-4 mt-4">
+                <h4 class="text-center mb-3">Vé tháng của tôi</h4>
+                <div id="mySubs" class="d-flex flex-column gap-3">
+                    <p class="text-center text-muted">Đang tải...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Yêu cầu Hủy Vé -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Yêu cầu hủy vé tháng</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Vui lòng ghi rõ lý do bạn muốn hủy vé tháng. Yêu cầu sẽ được gửi tới Ban Quản Lý để xét duyệt và hoàn tiền (nếu có).</p>
+                <input type="hidden" id="cancelSubId">
+                <textarea id="cancelReason" class="form-control" rows="3" placeholder="Ví dụ: Đã bán xe, không còn nhu cầu..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                <button type="button" class="btn btn-danger" onclick="submitCancelRequest()">Gửi Yêu Cầu</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let cancelModalInstance = null;
+    
+    document.addEventListener("DOMContentLoaded", function() {
+        cancelModalInstance = new bootstrap.Modal(document.getElementById('cancelModal'));
+    });
+
+    function openCancelModal(subId) {
+        document.getElementById('cancelSubId').value = subId;
+        document.getElementById('cancelReason').value = '';
+        cancelModalInstance.show();
+    }
+
+    async function submitCancelRequest() {
+        const subId = document.getElementById('cancelSubId').value;
+        const reason = document.getElementById('cancelReason').value.trim();
+        
+        if (!reason) {
+            alert('Vui lòng nhập lý do hủy vé!');
+            return;
+        }
+
+        try {
+            await apiFetch(`/Subscriptions/${subId}/request-cancel`, 'POST', { reason: reason });
+            alert('Đã gửi yêu cầu hủy vé thành công! Vui lòng chờ BQL xét duyệt.');
+            cancelModalInstance.hide();
+            loadMySubscriptions();
+        } catch (error) {
+            alert('Lỗi: ' + error.message);
+        }
+    }
+
+    const API_BASE = 'http://localhost:5237/api';
+    
+    // Check login state on load
+    window.onload = () => {
+        let token = localStorage.getItem('monthlypass_token');
+        if (token) {
+            showMain();
+        }
+    };
+
+    function showMain() {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('mainSection').style.display = 'flex';
+        document.getElementById('logoutBtn').style.display = 'block';
+        loadVehicles();
+        loadMySubscriptions();
+    }
+
+    function logout() {
+        localStorage.removeItem('monthlypass_token');
+        document.getElementById('loginSection').style.display = 'flex';
+        document.getElementById('mainSection').style.display = 'none';
+        document.getElementById('logoutBtn').style.display = 'none';
+    }
+
+    async function login() {
+        const user = document.getElementById('loginUsername').value.trim();
+        const pass = document.getElementById('loginPassword').value;
+        const err = document.getElementById('loginErr');
+        err.classList.add('d-none');
+
+        try {
+            const res = await fetch(API_BASE + '/Auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.message || 'Đăng nhập thất bại');
+            
+            // Store token securely specifically for this page
+            localStorage.setItem('monthlypass_token', data.accessToken);
+            showMain();
+        } catch (error) {
+            err.textContent = error.message;
+            err.classList.remove('d-none');
+        }
+    }
+
+    async function apiFetch(endpoint, method = 'GET', body = null) {
+        let token = localStorage.getItem('monthlypass_token');
+        if (!token) throw new Error("Chưa đăng nhập");
+        
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+        const options = { method, headers };
+        if (body) options.body = JSON.stringify(body);
+        
+        const res = await fetch(API_BASE + endpoint, options);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || 'Lỗi hệ thống');
+        }
+        return res.json();
+    }
+
+    async function loadVehicles() {
+        const errDiv = document.getElementById('errDiv');
+        errDiv.classList.add('d-none');
+        try {
+            const vehicles = await apiFetch('/Vehicles/my-vehicles');
+            const select = document.getElementById('vehicleSelect');
+            select.innerHTML = '<option value="">-- Chọn xe --</option>';
+            vehicles.forEach(v => {
+                select.innerHTML += `<option value="${v.id}" data-type="${v.vehicleTypeId}">${v.plateNumber} (${v.vehicleTypeName})</option>`;
+            });
+        } catch (error) {
+            document.getElementById('errDiv').textContent = error.message;
+            document.getElementById('errDiv').classList.remove('d-none');
+        }
+    }
+
+    async function loadMySubscriptions() {
+        const container = document.getElementById('mySubs');
+        try {
+            const subs = await apiFetch('/Subscriptions/my-subscriptions');
+            if (subs.length === 0) {
+                container.innerHTML = '<p class="text-center text-muted mb-0">Chưa có vé tháng nào đang hoạt động.</p>';
+                return;
+            }
+            container.innerHTML = '';
+            subs.forEach(s => {
+                const startDate = new Date(s.startDate).toLocaleDateString('vi-VN');
+                const endDate = new Date(s.endDate).toLocaleDateString('vi-VN');
+                const cancelBadge = s.statusText === 'PendingCancel' ? '<span class="badge bg-warning text-dark">Chờ duyệt hủy</span>' : '';
+                const statusBadge = s.statusText === 'Active' 
+                    ? '<span class="badge bg-success">Đang hiệu lực</span>'
+                    : (s.statusText === 'PendingPayment' ? '<span class="badge bg-warning text-dark">Đang chờ thanh toán</span>' : `<span class="badge bg-secondary">${s.statusText}</span>`);
+                
+                const cancelBtn = (s.statusText === 'Active')
+                    ? (s.canCancel 
+                        ? `<button onclick="openCancelModal('${s.id}')" class="btn btn-sm btn-outline-danger mt-2">Yêu cầu hủy vé</button>`
+                        : `<button onclick="alert('${s.cancelValidationMessage}')" class="btn btn-sm btn-outline-danger mt-2">Yêu cầu hủy vé</button>`)
+                    : '';
+
+                const rejectAlert = s.cancelRejectReason && s.statusText === 'Active' 
+                    ? `<div class="alert alert-danger mt-2 py-1 px-2 small mb-0"><b>Bị từ chối hủy:</b> ${s.cancelRejectReason}</div>` 
+                    : '';
+
+                container.innerHTML += `
+                    <div class="border rounded p-3 bg-white">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="mb-0 text-primary">${s.licensePlate} <small class="text-muted">(${s.vehicleTypeName})</small></h5>
+                            <div>${statusBadge} ${cancelBadge}</div>
+                        </div>
+                        <p class="mb-1 text-muted small">Thời hạn: ${startDate} - ${endDate}</p>
+                        ${rejectAlert}
+                        ${cancelBtn}
+                    </div>
+                `;
+            });
+        } catch (error) {
+            container.innerHTML = `<p class="text-danger text-center">Lỗi tải danh sách vé tháng: ${error.message}</p>`;
+        }
+    }
+
+    document.getElementById('vehicleSelect').addEventListener('change', async function() {
+        const selected = this.options[this.selectedIndex];
+        const typeId = selected.getAttribute('data-type');
+        const btn = document.getElementById('btnRegister');
+        const policyInfo = document.getElementById('policyInfo');
+
+        if (!typeId) {
+            policyInfo.innerHTML = '<i>Vui lòng chọn xe để xem giá cước.</i>';
+            btn.disabled = true;
+            return;
+        }
+
+        try {
+            const policy = await apiFetch(`/MonthlyPassPolicies/vehicle-type/${typeId}`);
+            if (policy) {
+                policyInfo.innerHTML = `
+                    <h4 class="text-success">${policy.monthlyPrice.toLocaleString()} VND / 30 ngày</h4>
+                    <p class="mb-0 text-muted">${policy.description || 'Gói vé tháng'}</p>
+                `;
+                btn.disabled = false;
+            }
+        } catch (error) {
+            policyInfo.innerHTML = `<span class="text-danger">Không có gói vé tháng áp dụng cho loại xe này.</span>`;
+            btn.disabled = true;
+        }
+    });
+
+    document.getElementById('btnRegister').addEventListener('click', async function() {
+        const vehicleId = document.getElementById('vehicleSelect').value;
+        const method = document.getElementById('paymentMethod').value;
+        const btn = document.getElementById('btnRegister');
+
+        btn.disabled = true;
+        btn.textContent = 'Đang xử lý...';
+
+        try {
+            const res = await apiFetch('/Subscriptions/register', 'POST', {
+                vehicleId: vehicleId,
+                paymentMethod: method
+            });
+
+            if (res.checkoutUrl) {
+                // Redirect to PayOS
+                window.location.href = res.checkoutUrl;
+            } else {
+                // Success with Wallet
+                document.getElementById('successDiv').textContent = res.message;
+                document.getElementById('successDiv').classList.remove('d-none');
+                document.getElementById('errDiv').classList.add('d-none');
+                btn.textContent = 'Đã đăng ký';
+                loadMySubscriptions(); // Reload list
+            }
+        } catch (error) {
+            document.getElementById('errDiv').textContent = error.message;
+            document.getElementById('errDiv').classList.remove('d-none');
+            document.getElementById('successDiv').classList.add('d-none');
+            btn.disabled = false;
+            btn.textContent = 'Thanh toán & Đăng ký';
+        }
+    });
+</script>
+</body>
+</html>

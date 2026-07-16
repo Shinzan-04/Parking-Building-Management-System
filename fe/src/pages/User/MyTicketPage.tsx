@@ -1,0 +1,514 @@
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import * as signalR from '@microsoft/signalr';
+import { useAuth } from '../../hooks/useAuth';
+import {
+  getMyReservations,
+  cancelReservation,
+  normalizeReservationStatus,
+  RESERVATION_STATUS_LABELS,
+} from '../../services/reservationsService';
+import type { ReservationResponse } from '../../services/reservationsService';
+import { QRCodeSVG } from 'qrcode.react';
+import FloatingSessionBanner from '../../components/FloatingSessionBanner';
+import {
+  ArrowLeft,
+  Calendar,
+  Clock,
+  MapPin,
+  Car,
+  QrCode,
+  Trash2,
+  ChevronDown,
+  LogOut,
+  Loader2,
+  CheckCircle2,
+  X,
+  Ticket,
+  User,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
+
+export default function MyTicketPage() {
+  const navigate = useNavigate();
+  const { user, token, logout } = useAuth();
+  
+  const [reservations, setReservations] = useState<ReservationResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // State cho Modal hiển thị QR Code
+  const [selectedTicketForQr, setSelectedTicketForQr] = useState<ReservationResponse | null>(null);
+  
+  // State cho hủy đặt chỗ
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [submittingCancel, setSubmittingCancel] = useState(false);
+
+  // Load danh sách vé
+  const fetchTickets = async () => {
+    if (!token) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getMyReservations(token);
+      setReservations(data);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Cannot load tickets. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, [token]);
+
+  // Lắng nghe SignalR để tự động cập nhật danh sách vé (khi Staff duyệt/từ chối, check-in, etc)
+  useEffect(() => {
+    if (!token) return;
+
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`${import.meta.env.VITE_API_URL || 'http://localhost:5237'}/parking-hub`, {
+        accessTokenFactory: () => token
+      })
+      .withAutomaticReconnect()
+      .build();
+
+    connection.start().then(() => {
+      console.log("SignalR Connected for MyTicketPage");
+      connection.on("ReceiveNotification", () => {
+        // Cứ có thông báo mới đẩy về (ví dụ: Staff đã duyệt vé) -> Reload ngay lập tức!
+        fetchTickets();
+      });
+    }).catch(err => console.error("SignalR Connection Error: ", err));
+
+    return () => {
+      connection.stop();
+    };
+  }, [token]);
+
+  // Click outside cho dropdown avatar
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/auth');
+  };
+
+  const handleCancelBooking = async (id: string) => {
+    if (!token) return;
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+    
+    try {
+      setSubmittingCancel(true);
+      setCancellingId(id);
+      await cancelReservation(id, token);
+      alert('Booking cancelled successfully.');
+      await fetchTickets(); // reload list
+    } catch (err: any) {
+      alert(err.message || 'Failed to cancel booking.');
+    } finally {
+      setSubmittingCancel(false);
+      setCancellingId(null);
+    }
+  };
+
+  const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
+
+  // Active: PaymentPending, Paid, PendingReview, Confirmed, CheckedIn
+  // History: Cancelled, Completed, Rejected, NoShow, PaymentFailed
+  const filterTickets = () => {
+    return reservations.filter((ticket) => {
+      const status = normalizeReservationStatus(ticket.status);
+      const isActiveStatus = ['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(status);
+      
+      if (activeTab === 'active') {
+        return isActiveStatus;
+      } else {
+        return !isActiveStatus;
+      }
+    });
+  };
+
+  const filteredTickets = filterTickets();
+  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
+  const paginatedTickets = filteredTickets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  // Helper tính thời gian đỗ
+  const getDurationHours = (start: string, end: string) => {
+    const diff = new Date(end).getTime() - new Date(start).getTime();
+    return Math.ceil(diff / 3600000);
+  };
+
+  // Helper định dạng ngày
+  const formatDateDisplay = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
+
+  const formatTimeDisplay = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
+  // Trả về cấu trúc JSON String cho QR Code để GateControl quét được đầy đủ
+  const getQrCodeJson = (ticket: ReservationResponse) => {
+    return JSON.stringify({
+      ref: ticket.bookingCode,
+      lot: 'ParkSmart Building',
+      plate: ticket.licensePlate,
+      vehicle: 'car',
+      slot: ticket.slotNumber || 'Auto-assigned',
+      date: ticket.startTime.split('T')[0],
+      entry: ticket.startTime.split('T')[1]?.substring(0, 5) || '',
+      duration: getDurationHours(ticket.startTime, ticket.endTime),
+    });
+  };
+
+  // Helper cho style của Status Badge
+  const getStatusBadgeStyle = (status: any) => {
+    const normalized = normalizeReservationStatus(status);
+    switch (normalized) {
+      case 'PaymentPending':
+      case 'PendingReview':
+        return 'bg-amber-50 text-amber-600 border border-amber-200';
+      case 'Paid':
+      case 'Confirmed':
+        return 'bg-emerald-50 text-emerald-600 border border-emerald-200';
+      case 'CheckedIn':
+        return 'bg-blue-50 text-blue-600 border border-blue-200';
+      case 'Cancelled':
+      case 'NoShow':
+        return 'bg-stone-50 text-stone-500 border border-stone-200';
+      case 'Completed':
+        return 'bg-stone-100 text-stone-600 border border-stone-200';
+      case 'Rejected':
+      case 'PaymentFailed':
+        return 'bg-red-50 text-red-600 border border-red-200';
+      default:
+        return 'bg-gray-50 text-gray-500 border border-gray-200';
+    }
+  };
+
+  return (
+    <div className="bg-[#F3F3F5] dark:bg-[#0A0A0C] text-stone-900 dark:text-[#F5F5F5] pb-12 min-h-full transition-colors duration-300">
+      
+      {/* Main Container */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 w-full flex flex-col gap-8">
+        
+
+        {/* Header Back Button & Title */}
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white transition-colors text-xs font-bold uppercase tracking-wider self-start"
+          >
+            <ArrowLeft size={14} />
+            Back to home
+          </button>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-stone-950 dark:text-white transition-colors duration-300">
+            My Parking Tickets<span className="text-[#FF4C4C]">.</span>
+          </h1>
+          <p className="text-sm text-stone-500 dark:text-stone-400 font-medium transition-colors duration-300">Manage your parking schedule, get QR codes and check ticket status.</p>
+        </div>
+
+        {/* Tab selection */}
+        <div className="flex border-b border-gray-200 dark:border-white/10 gap-6 transition-colors duration-300">
+          <button
+            onClick={() => { setActiveTab('active'); setCurrentPage(1); }}
+            className={`pb-4 text-sm font-bold border-b-2 transition-all ${
+              activeTab === 'active'
+                ? 'border-[#FF4C4C] text-[#FF4C4C]'
+                : 'border-transparent text-stone-400 hover:text-stone-700'
+            }`}
+          >
+            Active tickets ({reservations.filter(r => {
+              const s = normalizeReservationStatus(r.status);
+              return ['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(s);
+            }).length})
+          </button>
+          <button
+            onClick={() => { setActiveTab('history'); setCurrentPage(1); }}
+            className={`pb-4 text-sm font-bold border-b-2 transition-all ${
+              activeTab === 'history'
+                ? 'border-[#FF4C4C] text-[#FF4C4C]'
+                : 'border-transparent text-stone-400 hover:text-stone-700'
+            }`}
+          >
+            Parking history ({reservations.filter(r => {
+              const s = normalizeReservationStatus(r.status);
+              return !['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(s);
+            }).length})
+          </button>
+        </div>
+
+        {/* Tickets Grid */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-3">
+            <Loader2 size={36} className="text-[#FF4C4C] animate-spin" />
+            <p className="text-sm text-stone-500 dark:text-stone-400 font-medium transition-colors duration-300">Loading your tickets...</p>
+          </div>
+        ) : error ? (
+          <div className="bg-red-50 border border-red-200 text-red-500 text-sm rounded-2xl p-6 text-center font-bold">
+            ⚠️ {error}
+          </div>
+        ) : filteredTickets.length === 0 ? (
+          <div className="bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-[2rem] p-12 text-center flex flex-col items-center max-w-lg mx-auto shadow-sm transition-colors duration-300">
+            <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-6 transition-colors duration-300">
+              <Ticket size={28} className="text-stone-400 dark:text-stone-500" />
+            </div>
+            <h3 className="text-lg font-bold text-stone-850 dark:text-white mb-2 transition-colors duration-300">No parking tickets found</h3>
+            <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed mb-6 font-medium transition-colors duration-300">
+              {activeTab === 'active' 
+                ? 'You currently have no active parking reservations.' 
+                : 'Your parking reservation history is empty.'}
+            </p>
+            {activeTab === 'active' && (
+              <button
+                onClick={() => navigate('/find-parking')}
+                className="bg-stone-900 hover:bg-[#FF4C4C] text-white font-bold px-6 py-3 rounded-full text-xs uppercase tracking-widest transition-all shadow-sm shadow-[#FF4C4C]/10"
+              >
+                Book parking now
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-6 w-full pb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedTickets.map((ticket) => {
+              const status = normalizeReservationStatus(ticket.status);
+              const isActive = ['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(status);
+              
+              return (
+                <div
+                  key={ticket.id}
+                  className="bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-[2rem] p-6 shadow-sm hover:border-[#FF4C4C]/25 hover:shadow-lg transition-all duration-300 flex flex-col justify-between min-h-[320px]"
+                >
+                  <div>
+                    {/* Header: Status & Code */}
+                    <div className="flex items-center justify-between mb-5">
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${getStatusBadgeStyle(ticket.status)}`}>
+                        {RESERVATION_STATUS_LABELS[status] || status}
+                      </span>
+                      <span className="text-xs font-bold text-stone-400 dark:text-stone-500 transition-colors duration-300">
+                        Code: <span className="text-[#FF4C4C] font-black">{ticket.bookingCode}</span>
+                      </span>
+                    </div>
+
+                    {/* Facility name */}
+                    <h3 className="text-base font-extrabold text-stone-900 dark:text-white mb-4 flex items-center gap-1.5 transition-colors duration-300">
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C]" />
+                      ParkSmart Building
+                    </h3>
+
+                    {/* Ticket Details */}
+                    <div className="space-y-2.5 border-t border-b border-gray-100 dark:border-white/10 py-4 mb-5 text-xs font-medium text-stone-500 dark:text-stone-400 transition-colors duration-300">
+                      <div className="flex justify-between">
+                        <span>License plate</span>
+                        <span className="font-bold text-stone-850 dark:text-white">{ticket.licensePlate}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Slot</span>
+                        <span className="font-bold text-[#FF4C4C] bg-[#FF4C4C]/5 px-2 py-0.5 rounded">
+                          {ticket.slotNumber || 'Auto-assigned'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Entry time</span>
+                        <span className="font-bold text-stone-850 dark:text-white">
+                          {formatTimeDisplay(ticket.startTime)} on {formatDateDisplay(ticket.startTime)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Duration</span>
+                        <span className="font-bold text-stone-850 dark:text-white">
+                          {getDurationHours(ticket.startTime, ticket.endTime)} hours
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions buttons */}
+                  <div className="flex items-center gap-2">
+                    {/* Nút xem QR Code */}
+                    {['Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(status) && (
+                      <button
+                        onClick={() => setSelectedTicketForQr(ticket)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold py-3 rounded-2xl text-xs uppercase tracking-wider shadow-sm transition-all"
+                      >
+                        <QrCode size={14} />
+                        QR Code Ticket
+                      </button>
+                    )}
+                    
+                    {/* Nút thông báo chưa thanh toán */}
+                    {status === 'PaymentPending' && (
+                      <div className="flex-1 text-center py-3 rounded-2xl text-xs uppercase tracking-wider font-bold bg-amber-50 text-amber-600 border border-amber-200">
+                        Payment Pending
+                      </div>
+                    )}
+
+                    {/* Nút Hủy (Chỉ hiện khi chưa CheckedIn và Chưa Hủy) */}
+                    {['PaymentPending', 'Paid', 'PendingReview', 'Confirmed'].includes(status) && (
+                      <button
+                        disabled={submittingCancel && cancellingId === ticket.id}
+                        onClick={() => handleCancelBooking(ticket.id)}
+                        className="px-4 py-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-500 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                        title="Cancel booking"
+                      >
+                        {submittingCancel && cancellingId === ticket.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
+                        <span className="hidden sm:inline">Cancel</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            </div>
+            {totalPages > 0 && (
+              <div className="flex justify-center items-center mt-8">
+                <div className="flex items-center bg-white dark:bg-[#18181B] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-full px-4 py-2 gap-2 border border-gray-100 dark:border-white/5">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={20} strokeWidth={2.5} />
+                  </button>
+                  
+                  <div className="flex items-center gap-1 px-4">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-9 h-9 rounded-full text-[13px] font-bold transition-all flex items-center justify-center ${
+                          currentPage === page
+                            ? 'bg-[#FF4C4C] text-white shadow-sm'
+                            : 'text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight size={20} strokeWidth={2.5} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </main>
+
+      {/* ── QR CODE DISPLAY MODAL ── */}
+      {selectedTicketForQr && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up transition-colors duration-300">
+            
+            {/* Header */}
+            <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between transition-colors duration-300">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[#FF4C4C]/10 border border-[#FF4C4C]/30 flex items-center justify-center text-[#FF4C4C]">
+                  <QrCode size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-stone-850 dark:text-white transition-colors duration-300">QR Code</h3>
+                  <p className="text-[10px] text-stone-400 dark:text-stone-500 font-medium transition-colors duration-300">Use to scan and confirm at the entrance gate</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedTicketForQr(null)}
+                className="p-1.5 rounded-xl text-stone-450 hover:text-stone-700 hover:bg-gray-100 dark:hover:text-white dark:hover:bg-white/10 transition-all"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* QR SVG */}
+            <div className="p-6 flex flex-col items-center gap-5">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-3xl bg-[#FF4C4C]/5 blur-lg" />
+                <div className="relative bg-white border border-gray-200 rounded-2xl p-4 shadow-xl flex items-center justify-center min-w-[212px] min-h-[212px]">
+                  <QRCodeSVG
+                    value={getQrCodeJson(selectedTicketForQr)}
+                    size={180}
+                    level="M"
+                    bgColor="#ffffff"
+                    fgColor="#1c1917"
+                    imageSettings={{
+                      src: '',
+                      height: 0,
+                      width: 0,
+                      excavate: false,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Booking Code Display */}
+              <div className="text-center">
+                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest block">Booking Code</span>
+                <span className="text-lg font-black text-[#FF4C4C] tracking-widest uppercase">{selectedTicketForQr.bookingCode}</span>
+              </div>
+
+              {/* Muted Specs summary */}
+              <div className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden text-xs font-semibold text-stone-500 dark:text-stone-400 transition-colors duration-300">
+                <div className="flex justify-between px-4 py-2.5 border-b border-gray-150 dark:border-white/10 transition-colors duration-300">
+                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">License plate</span>
+                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{selectedTicketForQr.licensePlate}</span>
+                </div>
+                <div className="flex justify-between px-4 py-2.5 border-b border-gray-150 dark:border-white/10 transition-colors duration-300">
+                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Slot</span>
+                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{selectedTicketForQr.slotNumber || 'Auto-assigned'}</span>
+                </div>
+                <div className="flex justify-between px-4 py-2.5">
+                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Entry time</span>
+                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{formatTimeDisplay(selectedTicketForQr.startTime)} • {formatDateDisplay(selectedTicketForQr.startTime)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal footer */}
+            <div className="px-6 py-4 border-t border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 transition-colors duration-300">
+              <button
+                onClick={() => setSelectedTicketForQr(null)}
+                className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-white dark:hover:bg-gray-200 dark:text-stone-900 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <FloatingSessionBanner />
+    </div>
+  );
+}

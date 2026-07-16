@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Tài xế - Kiểm thử Trả trước & AutoPay</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6; color: #1f2937; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    h1, h2 { color: #111827; }
+    .section { margin-bottom: 20px; padding: 15px; border: 1px solid #e5e7eb; border-radius: 6px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; }
+    input[type="text"], input[type="password"] { width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #d1d5db; border-radius: 4px; }
+    button { background-color: #3b82f6; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+    button:hover { background-color: #2563eb; }
+    button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+    .toggle { display: flex; align-items: center; gap: 10px; }
+    .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+    input:checked + .slider { background-color: #10b981; }
+    input:checked + .slider:before { transform: translateX(26px); }
+    .alert { padding: 10px; border-radius: 4px; margin-bottom: 15px; display: none; }
+    .alert.success { background-color: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; display: block; }
+    .alert.error { background-color: #fee2e2; color: #991b1b; border: 1px solid #fecaca; display: block; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+    .info-label { color: #6b7280; font-size: 0.875rem; }
+    .info-value { font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>App Tài Xế (Mockup Test)</h1>
+  
+  <div id="alertBox" class="alert"></div>
+
+  <!-- AUTH SECTION -->
+  <div class="section" id="authSection">
+    <h2>1. Đăng nhập</h2>
+    <div class="form-group">
+      <label>Tên đăng nhập</label>
+      <input type="text" id="username" value="driver1">
+    </div>
+    <div class="form-group">
+      <label>Mật khẩu</label>
+      <input type="password" id="password" value="123456aA@">
+    </div>
+    <button onclick="login()">Đăng nhập</button>
+  </div>
+
+  <!-- PROFILE SECTION -->
+  <div class="section" id="profileSection" style="display: none;">
+    <h2>2. Thông tin cá nhân & Ví</h2>
+    <div class="info-grid">
+      <div>
+        <div class="info-label">Tên tài xế</div>
+        <div class="info-value" id="profileName">-</div>
+      </div>
+      <div>
+        <div class="info-label">Số dư ví</div>
+        <div class="info-value" id="walletBalance" style="color: #10b981;">0 đ</div>
+      </div>
+      <div style="grid-column: span 2;">
+        <div class="info-label">Các xe đã đăng ký</div>
+        <div id="registeredVehicles" style="margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap;">
+          <span style="color: #6b7280; font-style: italic;">Chưa có xe nào</span>
+        </div>
+      </div>
+      <div style="grid-column: span 2; margin-top: 10px;">
+        <div class="info-label">Lịch sử giao dịch ví (Gần nhất)</div>
+        <div id="walletHistory" style="margin-top: 5px; max-height: 150px; overflow-y: auto; background: #fff; padding: 10px; border-radius: 4px; border: 1px solid #e5e7eb; font-size: 0.85rem;">
+          <span style="color: #6b7280; font-style: italic;">Chưa có giao dịch nào</span>
+        </div>
+      </div>
+    </div>
+    <div class="toggle form-group">
+      <label class="switch">
+        <input type="checkbox" id="autoPayToggle" onchange="toggleAutoPay()">
+        <span class="slider"></span>
+      </label>
+      <span style="font-weight: bold;">Tự động thanh toán (Auto-Pay) khi ra cổng</span>
+    </div>
+  </div>
+
+  <!-- SESSION SECTION -->
+  <div class="section" id="sessionSection" style="display: none;">
+    <h2>3. Phiên đỗ xe hiện tại</h2>
+    <div id="noSessionMsg">Không có xe nào đang gửi trong bãi.</div>
+    <div id="sessionDetails" style="display: none;">
+      <div style="display: flex; gap: 15px; margin-bottom: 15px;">
+        <!-- Phần hiển thị mã QR (Vé điện tử) -->
+        <div style="flex-shrink: 0; text-align: center;">
+          <img id="sessQrImg" src="" style="width: 100px; height: 100px; border: 1px solid #d1d5db; border-radius: 4px; padding: 2px;" alt="QR Vé">
+          <div style="font-size: 0.75rem; color: #6b7280; margin-top: 5px;">Vé điện tử</div>
+        </div>
+        
+        <!-- Phần thông tin -->
+        <div class="info-grid" style="flex-grow: 1; grid-template-columns: 1fr 1fr;">
+          <div>
+            <div class="info-label">Biển số xe</div>
+            <div class="info-value" id="sessPlate">-</div>
+          </div>
+          <div>
+            <div class="info-label">Vị trí đỗ</div>
+            <div class="info-value" id="sessSlot">-</div>
+          </div>
+          <div>
+            <div class="info-label">Thời gian vào</div>
+            <div class="info-value" id="sessEntry" style="font-size: 0.9rem;">-</div>
+          </div>
+          <div>
+            <div class="info-label">Trạng thái</div>
+            <div class="info-value" style="color: #3b82f6;">Đang gửi</div>
+          </div>
+        </div>
+      </div>
+      <div style="background: #f9fafb; padding: 15px; border-radius: 4px; border: 1px dashed #d1d5db; margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+          <span style="color: #4b5563;">Phí tạm tính (ước lượng):</span>
+          <strong id="sessEstFee" style="font-size: 1.1rem;">0 đ</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between;">
+          <span style="color: #4b5563;">Đã trả trước:</span>
+          <strong id="sessPrepaid" style="color: #10b981;">0 đ</strong>
+        </div>
+      </div>
+      <button id="btnPrePay" style="width: 100%; padding: 12px; background: #10b981;" onclick="doPrePay()">Thanh toán trước ngay (15 phút ân hạn)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:5237'; // Update if port is different
+  let token = '';
+  let currentSessionId = null;
+
+  function showAlert(msg, isSuccess = false) {
+    const b = document.getElementById('alertBox');
+    b.className = 'alert ' + (isSuccess ? 'success' : 'error');
+    b.innerText = msg;
+    setTimeout(() => { b.className = 'alert'; b.innerText = ''; }, 5000);
+  }
+
+  async function login() {
+    const u = document.getElementById('username').value;
+    const p = document.getElementById('password').value;
+    try {
+      const res = await fetch(API_BASE + '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: u, password: p })
+      });
+      const data = await res.json();
+      if(res.ok) {
+        token = data.accessToken;
+        document.getElementById('authSection').style.display = 'none';
+        document.getElementById('profileSection').style.display = 'block';
+        document.getElementById('sessionSection').style.display = 'block';
+        showAlert('Đăng nhập thành công', true);
+        loadProfile();
+        loadWallet();
+        loadVehicles();
+        loadSession();
+      } else {
+        showAlert(data.message || 'Đăng nhập thất bại');
+      }
+    } catch (e) {
+      showAlert('Lỗi kết nối server');
+    }
+  }
+
+  async function loadProfile() {
+    try {
+      const res = await fetch(API_BASE + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+      if(res.ok) {
+        const data = await res.json();
+        document.getElementById('profileName').innerText = data.fullName;
+        document.getElementById('autoPayToggle').checked = data.autoPayEnabled;
+      }
+    } catch(e) {}
+  }
+
+  async function loadWallet() {
+    try {
+      const res = await fetch(API_BASE + '/api/wallets/me', { headers: { 'Authorization': 'Bearer ' + token } });
+      if(res.ok) {
+        const data = await res.json();
+        document.getElementById('walletBalance').innerText = data.balance.toLocaleString() + ' đ';
+        
+        const historyContainer = document.getElementById('walletHistory');
+        if (data.transactions && data.transactions.length > 0) {
+          historyContainer.innerHTML = data.transactions.slice(0, 10).map(t => {
+            const isMinus = t.amount < 0;
+            const color = isMinus ? '#ef4444' : '#10b981';
+            const sign = isMinus ? '' : '+';
+            return `<div style="display: flex; justify-content: space-between; border-bottom: 1px solid #f3f4f6; padding: 5px 0;">
+                      <div style="color: #374151;">
+                        <div style="font-weight: bold;">${t.description || t.type}</div>
+                        <div style="font-size: 0.75rem; color: #9ca3af;">${new Date(t.createdAt).toLocaleString('vi-VN')}</div>
+                      </div>
+                      <div style="color: ${color}; font-weight: bold;">
+                        ${sign}${t.amount.toLocaleString()} đ
+                      </div>
+                    </div>`;
+          }).join('');
+        } else {
+          historyContainer.innerHTML = '<span style="color: #6b7280; font-style: italic;">Chưa có giao dịch nào</span>';
+        }
+      }
+    } catch(e) {}
+  }
+
+  async function loadVehicles() {
+    try {
+      const res = await fetch(API_BASE + '/api/vehicles/my-vehicles', { headers: { 'Authorization': 'Bearer ' + token } });
+      if(res.ok) {
+        const data = await res.json();
+        const vContainer = document.getElementById('registeredVehicles');
+        if (data && data.length > 0) {
+          vContainer.innerHTML = data.map(v => 
+            `<span style="background: #e5e7eb; padding: 4px 10px; border-radius: 15px; font-size: 0.85rem; font-weight: bold;">${v.plateNumber}</span>`
+          ).join('');
+        } else {
+          vContainer.innerHTML = '<span style="color: #6b7280; font-style: italic;">Chưa đăng ký xe nào</span>';
+        }
+      }
+    } catch(e) {}
+  }
+
+  async function toggleAutoPay() {
+    const isEnabled = document.getElementById('autoPayToggle').checked;
+    try {
+      const res = await fetch(API_BASE + '/api/auth/profile/autopay', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ autoPayEnabled: isEnabled })
+      });
+      if(res.ok) {
+        showAlert(isEnabled ? 'Đã bật Auto-Pay' : 'Đã tắt Auto-Pay', true);
+      } else {
+        const data = await res.json();
+        showAlert(data.message || 'Lỗi lưu cài đặt');
+        document.getElementById('autoPayToggle').checked = !isEnabled;
+      }
+    } catch(e) {
+      document.getElementById('autoPayToggle').checked = !isEnabled;
+    }
+  }
+
+  async function loadSession() {
+    try {
+      const res = await fetch(API_BASE + '/api/sessions/my-active', { headers: { 'Authorization': 'Bearer ' + token } });
+      if(res.ok && res.status === 200) {
+        const data = await res.json();
+        if(data && data.id) {
+          currentSessionId = data.id;
+          document.getElementById('noSessionMsg').style.display = 'none';
+          document.getElementById('sessionDetails').style.display = 'block';
+          
+          document.getElementById('sessPlate').innerText = data.licensePlate;
+          document.getElementById('sessSlot').innerText = data.parkingSlot ? data.parkingSlot.slotNumber : '-';
+          document.getElementById('sessEntry').innerText = new Date(data.entryTime).toLocaleString('vi-VN');
+          
+          if (data.sessionQrCodeBase64) {
+             document.getElementById('sessQrImg').src = 'data:image/png;base64,' + data.sessionQrCodeBase64;
+          }
+
+          let estFee = data.currentFee || 0;
+          let prepaid = data.prePaidAmount || 0;
+          document.getElementById('sessEstFee').innerText = estFee.toLocaleString() + ' đ';
+          document.getElementById('sessPrepaid').innerText = prepaid.toLocaleString() + ' đ';
+          
+          let btn = document.getElementById('btnPrePay');
+          let amountDue = estFee - prepaid;
+          if (amountDue <= 0) {
+              let paidUntilText = 'Đã thanh toán đủ';
+              if (data.prepaidEndTime) {
+                 let pt = new Date(data.prepaidEndTime);
+                 paidUntilText = `Đã thanh toán đủ đến ${pt.toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}`;
+              }
+              btn.innerText = paidUntilText;
+              btn.disabled = true;
+              btn.style.background = '#9ca3af';
+          } else {
+              btn.innerText = `Thanh toán ${amountDue.toLocaleString()} đ ngay`;
+              btn.disabled = false;
+              btn.style.background = '#10b981';
+          }
+        } else {
+          document.getElementById('noSessionMsg').style.display = 'block';
+          document.getElementById('sessionDetails').style.display = 'none';
+        }
+      } else {
+        document.getElementById('noSessionMsg').style.display = 'block';
+        document.getElementById('sessionDetails').style.display = 'none';
+      }
+    } catch(e) {}
+  }
+
+  async function doPrePay() {
+    if(!currentSessionId) return;
+    try {
+      document.getElementById('btnPrePay').disabled = true;
+      document.getElementById('btnPrePay').innerText = 'Đang xử lý...';
+      
+      const res = await fetch(API_BASE + `/api/sessions/${currentSessionId}/prepay`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      
+      const data = await res.json();
+      if(res.ok) {
+        showAlert('Thanh toán thành công! Bạn có 15 phút ân hạn để đưa xe ra khỏi bãi.', true);
+        loadWallet(); // Cập nhật lại số dư
+        loadSession(); // Cập nhật lại tiền đã trả
+      } else {
+        showAlert(data.message || 'Lỗi thanh toán');
+      }
+    } catch(e) {
+      showAlert('Lỗi kết nối server');
+    } finally {
+      // Reload lại thông tin session để update nút
+      loadSession();
+    }
+  }
+</script>
+</body>
+</html>

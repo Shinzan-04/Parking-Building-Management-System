@@ -10,16 +10,20 @@ using ParkingSystem.Infrastructure.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
 builder.Services.AddOpenApi();
 
 // Add CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", builder =>
-        builder.AllowAnyOrigin()
-               .AllowAnyMethod()
-               .AllowAnyHeader());
+    options.AddPolicy("AllowAll", policy =>
+        policy.SetIsOriginAllowed(origin => true).AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials());
 });
 
 // Setup Entity Framework Core (PostgreSQL)
@@ -32,13 +36,15 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ParkingSystem API", Version = "v1" });
 
+    // Dùng Type = Http + Scheme = Bearer → Swagger tự thêm "Bearer " prefix
+    // User chỉ cần paste token, không cần gõ "Bearer " thủ công
     var securityScheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
-        Description = "Enter 'Bearer {token}'",
+        Description = "Chỉ cần paste JWT token (không cần thêm 'Bearer ')",
         In = ParameterLocation.Header,
-        Type = SecuritySchemeType.ApiKey,
-        Scheme = "Bearer",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
         BearerFormat = "JWT",
         Reference = new OpenApiReference
         {
@@ -50,7 +56,7 @@ builder.Services.AddSwaggerGen(c =>
     c.AddSecurityDefinition("Bearer", securityScheme);
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
-        { securityScheme, new[] { "Bearer" } }
+        { securityScheme, Array.Empty<string>() }
     });
 });
 
@@ -68,22 +74,61 @@ builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 builder.Services.AddScoped<IParkingSlotService, ParkingSlotService>();
 builder.Services.AddScoped<IPricingPolicyService, PricingPolicyService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IVehicleService, ParkingSystem.Infrastructure.Services.VehicleService>();
 builder.Services.AddScoped<ICheckInService, ParkingSystem.Infrastructure.Services.CheckInService>();
+builder.Services.AddScoped<ISlotAssignmentService, ParkingSystem.Infrastructure.Services.SlotAssignmentService>();
+builder.Services.AddScoped<IReservationService, ParkingSystem.Infrastructure.Services.ReservationService>();
+builder.Services.AddScoped<ISessionService, ParkingSystem.Infrastructure.Services.SessionService>();
+builder.Services.AddScoped<IDashboardService, ParkingSystem.Infrastructure.Services.DashboardService>();
+builder.Services.AddScoped<ICheckOutService, ParkingSystem.Infrastructure.Services.CheckOutService>();
+builder.Services.AddScoped<IPaymentService, ParkingSystem.Infrastructure.Services.PayOSPaymentService>();
+builder.Services.AddScoped<IVehicleService, ParkingSystem.Infrastructure.Services.VehicleService>();
+builder.Services.AddScoped<ISubscriptionService, ParkingSystem.Infrastructure.Services.SubscriptionService>();
+builder.Services.AddScoped<IWalletService, ParkingSystem.Infrastructure.Services.WalletService>();
+builder.Services.AddHttpClient<IAiChatService, ParkingSystem.Infrastructure.Services.GeminiChatService>();
 
-// Register License Plate OCR Service (Singleton vì model ONNX chỉ cần load 1 lần)
-// Sử dụng model license_plate_detector.onnx đã train riêng cho biển số xe Việt Nam
+// Register PayOS options from appsettings.json section "PayOS"
+builder.Services.Configure<ParkingSystem.Infrastructure.Services.PayOSOptions>(
+    builder.Configuration.GetSection("PayOS"));
+builder.Services.AddSignalR();
+builder.Services.AddScoped<IRealtimeService, ParkingSystem.API.Services.RealtimeService>();
+
+// Register Cloudinary Image Upload Service (lưu ảnh biển số lên cloud)
+builder.Services.AddScoped<IImageUploadService, ParkingSystem.Infrastructure.Services.CloudinaryImageService>();
+
+// Register Email + OTP Service (xác thực đăng ký / quên mật khẩu qua email)
+builder.Services.AddScoped<IEmailService, ParkingSystem.Infrastructure.Services.GmailEmailService>();
+builder.Services.AddScoped<IOtpService, ParkingSystem.Infrastructure.Services.OtpService>();
+builder.Services.AddScoped<INotificationService, ParkingSystem.Infrastructure.Services.NotificationService>();
+builder.Services.AddScoped<IAuditLogService, ParkingSystem.Infrastructure.Services.AuditLogService>();
+
+// Background Service: Tự động hủy reservation hết hạn (quét mỗi 5 phút)
+builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.ReservationCleanupService>();
+builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.GracePeriodNotifierService>();
+builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.SubscriptionCleanupService>();
+
+// Register LPR Services (Clean Architecture)
 var modelPath = Path.Combine(builder.Environment.ContentRootPath, "Models", "license_plate_detector.onnx");
+
 if (File.Exists(modelPath))
 {
-    builder.Services.AddSingleton<ILicensePlateOcrService>(
-        new ParkingSystem.Infrastructure.Services.LicensePlateOcrService(modelPath));
+    builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IYoloDetector>(
+        new ParkingSystem.Infrastructure.Services.Lpr.YoloDetector(modelPath));
 }
 else
 {
-    // Nếu chưa có model, dùng service giả trả về thông báo
-    builder.Services.AddSingleton<ILicensePlateOcrService>(
-        new ParkingSystem.Infrastructure.Services.FallbackOcrService());
+    // Tạm thời nếu ko có file, khởi tạo dummy hoặc ném lỗi tuỳ policy.
+    // Trong thực tế, AI phải có file model.
 }
+
+builder.Services.AddMemoryCache(); // Register IMemoryCache for PlateCacheService
+
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IOpenCvPreprocessor, ParkingSystem.Infrastructure.Services.Lpr.OpenCvPreprocessor>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPaddleOcrReader, ParkingSystem.Infrastructure.Services.Lpr.PaddleOcrReader>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPlatePostProcessor, ParkingSystem.Infrastructure.Services.Lpr.PlatePostProcessor>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IPlateCacheService, ParkingSystem.Infrastructure.Services.Lpr.PlateCacheService>();
+builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IMultiFrameVotingService, ParkingSystem.Infrastructure.Services.Lpr.MultiFrameVotingService>();
+builder.Services.AddScoped<ParkingSystem.Application.Interfaces.Lpr.ILicensePlateRecognizer, ParkingSystem.Infrastructure.Services.Lpr.LicensePlateRecognizer>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key is missing in configuration.");
@@ -103,7 +148,33 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        RoleClaimType = System.Security.Claims.ClaimTypes.Role,
+        NameClaimType = System.Security.Claims.ClaimTypes.Name,
+    };
+
+    // Tự động nhận diện token dù có hay không có prefix "Bearer "
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // 1. Cho các API gọi bằng cách gửi thẳng token vào Header "Authorization" không có "Bearer "
+            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(authHeader) && !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Token = authHeader;
+            }
+
+            // 2. Cho SignalR gọi bằng query string ?access_token=...
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/parking-hub") || path.StartsWithSegments("/chatHub")))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -111,7 +182,20 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+// ===== Khởi tạo Database: Tự động chạy Migration (Silent) =====
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    try
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+    catch { /* Ignore */ }
+}
+
 // Configure the HTTP request pipeline.
+app.UseCors("AllowAll");
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -124,11 +208,25 @@ if (app.Environment.IsDevelopment())
 
 // app.UseHttpsRedirection();
 
-app.UseCors("AllowAll");
+app.UseDefaultFiles(new Microsoft.AspNetCore.Builder.DefaultFilesOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"))),
+    RequestPath = new Microsoft.AspNetCore.Http.PathString("/uitest"),
+});
+app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+    Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"))),
+    RequestPath = new Microsoft.AspNetCore.Http.PathString("/uitest"),
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+
 app.MapControllers();
+app.MapHub<ParkingSystem.API.Hubs.ParkingHub>("/parking-hub");
+app.MapHub<ParkingSystem.API.Hubs.ChatHub>("/chatHub");
 
 app.Run();
