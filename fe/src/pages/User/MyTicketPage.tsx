@@ -26,6 +26,8 @@ import {
   X,
   Ticket,
   User,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 export default function MyTicketPage() {
@@ -37,6 +39,8 @@ export default function MyTicketPage() {
   const [error, setError] = useState<string | null>(null);
   
   const [activeTab, setActiveTab] = useState<'active' | 'history'>('active');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
@@ -145,6 +149,8 @@ export default function MyTicketPage() {
   };
 
   const filteredTickets = filterTickets();
+  const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
+  const paginatedTickets = filteredTickets.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   // Helper tính thời gian đỗ
   const getDurationHours = (start: string, end: string) => {
@@ -206,8 +212,9 @@ export default function MyTicketPage() {
     <div className="bg-[#F3F3F5] dark:bg-[#0A0A0C] text-stone-900 dark:text-[#F5F5F5] pb-12 min-h-full transition-colors duration-300">
       
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 w-full flex flex-col gap-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 w-full flex flex-col gap-8">
         
+
         {/* Header Back Button & Title */}
         <div className="flex flex-col gap-3">
           <button
@@ -226,7 +233,7 @@ export default function MyTicketPage() {
         {/* Tab selection */}
         <div className="flex border-b border-gray-200 dark:border-white/10 gap-6 transition-colors duration-300">
           <button
-            onClick={() => setActiveTab('active')}
+            onClick={() => { setActiveTab('active'); setCurrentPage(1); }}
             className={`pb-4 text-sm font-bold border-b-2 transition-all ${
               activeTab === 'active'
                 ? 'border-[#FF4C4C] text-[#FF4C4C]'
@@ -239,7 +246,7 @@ export default function MyTicketPage() {
             }).length})
           </button>
           <button
-            onClick={() => setActiveTab('history')}
+            onClick={() => { setActiveTab('history'); setCurrentPage(1); }}
             className={`pb-4 text-sm font-bold border-b-2 transition-all ${
               activeTab === 'history'
                 ? 'border-[#FF4C4C] text-[#FF4C4C]'
@@ -284,8 +291,9 @@ export default function MyTicketPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTickets.map((ticket) => {
+          <div className="flex flex-col gap-6 w-full pb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {paginatedTickets.map((ticket) => {
               const status = normalizeReservationStatus(ticket.status);
               const isActive = ['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(status);
               
@@ -378,6 +386,44 @@ export default function MyTicketPage() {
                 </div>
               );
             })}
+            </div>
+            {totalPages > 0 && (
+              <div className="flex justify-center items-center mt-8">
+                <div className="flex items-center bg-white dark:bg-[#18181B] shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-full px-4 py-2 gap-2 border border-gray-100 dark:border-white/5">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    className="p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft size={20} strokeWidth={2.5} />
+                  </button>
+                  
+                  <div className="flex items-center gap-1 px-4">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-9 h-9 rounded-full text-[13px] font-bold transition-all flex items-center justify-center ${
+                          currentPage === page
+                            ? 'bg-[#FF4C4C] text-white shadow-sm'
+                            : 'text-stone-500 hover:bg-stone-100 dark:text-stone-400 dark:hover:bg-white/5'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    className="p-2 text-stone-400 hover:text-stone-600 dark:hover:text-stone-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight size={20} strokeWidth={2.5} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
