@@ -23,7 +23,7 @@ function getLast7Days(): { label: string; date: string }[] {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     return {
-      label: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][d.getDay()],
+      label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
       date: toDateStr(d),
     };
   });
@@ -130,7 +130,7 @@ export default function ManagerDashboard() {
       // Recent sessions table — 6 most recent completed
       setRecentSessions(allCompleted.slice(0, 6));
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -139,10 +139,10 @@ export default function ManagerDashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Lắng nghe sự kiện Realtime (SignalR) được phát từ useNotification
+  // Listen for realtime events (SignalR) dispatched from useNotification
   useEffect(() => {
     const handleUpdate = () => {
-      // Gọi refresh (cập nhật background, không hiện loader tròn giữa màn hình)
+      // Trigger a background refresh (no full-screen loader)
       loadData(true);
     };
 
@@ -160,17 +160,17 @@ export default function ManagerDashboard() {
   const maxRevenue   = Math.max(...revenueData.map(d => d.revenue), 1);
 
   const stats = [
-    { label: 'Xe đang đỗ',        value: activeCount.toLocaleString('vi-VN'),  unit: 'xe',  icon: Car,        color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5'  },
-    { label: 'Chỗ còn trống',     value: available.toLocaleString('vi-VN'),    unit: 'chỗ', icon: MapPin,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5'  },
-    { label: 'Doanh thu hôm nay', value: vnd(todayRevenue),                    unit: 'đ',   icon: Banknote,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5'  },
-    { label: 'Tỷ lệ lấp đầy',    value: `${occupancyPct}%`,                   unit: '',    icon: TrendingUp, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+    { label: 'Vehicles Parked',   value: activeCount.toLocaleString('vi-VN'),  unit: 'vehicles', icon: Car,        color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5'  },
+    { label: 'Available Slots',  value: available.toLocaleString('vi-VN'),    unit: 'slots',    icon: MapPin,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5'  },
+    { label: "Today's Revenue",  value: vnd(todayRevenue),                    unit: 'VND',      icon: Banknote,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5'  },
+    { label: 'Occupancy Rate',   value: `${occupancyPct}%`,                   unit: '',         icon: TrendingUp, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
   ];
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-white/40">Đang tải dữ liệu...</p>
+        <p className="text-sm text-white/40">Loading data...</p>
       </div>
     );
   }
@@ -181,7 +181,7 @@ export default function ManagerDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">Tổng quan hoạt động</h2>
+          <h2 className="text-2xl font-bold text-white">Activity Overview</h2>
           <p className="text-sm text-white/40 capitalize mt-0.5">{today}</p>
         </div>
         <button
@@ -204,7 +204,7 @@ export default function ManagerDashboard() {
         <div className="flex items-center gap-3 px-5 py-3.5 bg-red-400/10 border border-red-400/20 rounded-xl">
           <AlertTriangle size={16} className="text-red-400 shrink-0 animate-pulse" />
           <p className="text-sm text-red-400 font-medium">
-            <span className="font-bold">{overdueCount}</span> xe đang quá giờ đỗ — cần xử lý ngay
+            <span className="font-bold">{overdueCount}</span> vehicles overdue — needs immediate attention
           </p>
         </div>
       )}
@@ -237,12 +237,12 @@ export default function ManagerDashboard() {
         <div className="glass-card p-6 rounded-2xl">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-base font-semibold text-white">Doanh thu 7 ngày qua</h3>
+              <h3 className="text-base font-semibold text-white">Revenue — Last 7 Days</h3>
               <p className="text-xs text-white/40 mt-0.5">
-                Tổng: {vnd(revenueData.reduce((s, d) => s + d.revenue, 0))}đ
+                Total: {vnd(revenueData.reduce((s, d) => s + d.revenue, 0))} VND
               </p>
             </div>
-            <span className="text-xs text-white/40 bg-white/5 px-3 py-1 rounded-full">7 ngày gần nhất</span>
+            <span className="text-xs text-white/40 bg-white/5 px-3 py-1 rounded-full">Last 7 days</span>
           </div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={revenueData} barSize={28}>
@@ -256,7 +256,7 @@ export default function ManagerDashboard() {
                   : String(v)
                 }
               />
-              <Tooltip content={<ChartTooltip color="#FF4C4C" formatter={v => `${vnd(v)}đ`} />} cursor={{ fill: '#ffffff05' }} />
+              <Tooltip content={<ChartTooltip color="#FF4C4C" formatter={v => `${vnd(v)} VND`} />} cursor={{ fill: '#ffffff05' }} />
               <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
                 {revenueData.map((entry, i) => (
                   <Cell key={i} fill={entry.revenue === maxRevenue && entry.revenue > 0 ? '#FF4C4C' : '#FF4C4C55'} />
@@ -269,13 +269,13 @@ export default function ManagerDashboard() {
         {/* Occupancy panel */}
         <div className="glass-card p-6 rounded-2xl flex flex-col justify-between gap-5">
           <div>
-            <h3 className="text-base font-semibold text-white mb-1">Tình trạng bãi đỗ</h3>
-            <p className="text-xs text-white/40">Dữ liệu real-time</p>
+            <h3 className="text-base font-semibold text-white mb-1">Parking Lot Status</h3>
+            <p className="text-xs text-white/40">Real-time data</p>
           </div>
 
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-white/60">Tỷ lệ lấp đầy</span>
+              <span className="text-white/60">Occupancy Rate</span>
               <span className="font-semibold text-[#FF4C4C]">{occupancyPct}%</span>
             </div>
             <div className="h-3 bg-white/10 rounded-full overflow-hidden">
@@ -291,9 +291,9 @@ export default function ManagerDashboard() {
 
           <div className="grid grid-cols-3 gap-3">
             {[
-              { label: 'Tổng chỗ',  value: totalCapacity, color: 'text-white' },
-              { label: 'Đang dùng', value: activeCount,   color: 'text-[#FF4C4C]' },
-              { label: 'Còn trống', value: available,     color: 'text-[#FF4C4C]' },
+              { label: 'Total Slots',     value: totalCapacity, color: 'text-white' },
+              { label: 'In Use',          value: activeCount,   color: 'text-[#FF4C4C]' },
+              { label: 'Available',       value: available,     color: 'text-[#FF4C4C]' },
             ].map(item => (
               <div key={item.label} className="bg-white/5 rounded-xl px-3 py-3 text-center">
                 <p className={`text-xl font-bold ${item.color}`}>{item.value.toLocaleString('vi-VN')}</p>
@@ -304,8 +304,8 @@ export default function ManagerDashboard() {
 
           <div className="grid grid-cols-2 gap-3">
             {[
-              { label: 'Lượt hoàn thành hôm nay', value: todayCompleted, color: 'text-white/80' },
-              { label: 'Xe quá giờ',               value: overdueCount,  color: overdueCount > 0 ? 'text-red-400' : 'text-white/80' },
+              { label: 'Completed Today',   value: todayCompleted, color: 'text-white/80' },
+              { label: 'Overdue Vehicles',  value: overdueCount,  color: overdueCount > 0 ? 'text-red-400' : 'text-white/80' },
             ].map(item => (
               <div key={item.label} className="bg-white/5 rounded-xl px-3 py-3">
                 <p className={`text-xl font-bold ${item.color}`}>{item.value}</p>
@@ -319,20 +319,20 @@ export default function ManagerDashboard() {
       {/* Recent sessions table */}
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">Phiên đỗ xe gần đây</h3>
-          <span className="text-xs text-white/30">{recentSessions.length} phiên gần nhất (7 ngày)</span>
+          <h3 className="text-base font-semibold text-white">Recent Parking Sessions</h3>
+          <span className="text-xs text-white/30">{recentSessions.length} most recent (7 days)</span>
         </div>
 
         {recentSessions.length === 0 ? (
           <div className="flex items-center justify-center py-12 text-white/30 text-sm">
-            Không có dữ liệu trong 7 ngày qua
+            No data in the last 7 days
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5">
-                  {['Biển số', 'Tòa nhà / Chỗ', 'Giờ vào', 'Giờ ra', 'Thời gian', 'Phí', 'Trạng thái'].map(h => (
+                  {['License Plate', 'Building / Slot', 'Entry Time', 'Exit Time', 'Duration', 'Fee', 'Status'].map(h => (
                     <th key={h} className="text-left text-xs font-medium text-white/40 px-4 py-3 first:pl-6">{h}</th>
                   ))}
                 </tr>
@@ -365,24 +365,24 @@ export default function ManagerDashboard() {
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="text-sm font-medium text-white">
-                        {s.totalFee > 0 ? `${vnd(s.totalFee)}đ` : '—'}
+                        {s.totalFee > 0 ? `${vnd(s.totalFee)} VND` : '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
                       {s.status === 'Completed' ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-white/50">
                           <CheckCircle2 size={11} />
-                          Đã ra
+                          Checked Out
                         </span>
                       ) : s.status === 'Overdue' ? (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-400/10 text-red-400">
                           <AlertTriangle size={11} />
-                          Quá giờ
+                          Overdue
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-[#FF4C4C]/10 text-[#FF4C4C]">
                           <span className="w-1.5 h-1.5 bg-[#FF4C4C] rounded-full animate-pulse" />
-                          Đang đỗ
+                          Parked
                         </span>
                       )}
                     </td>

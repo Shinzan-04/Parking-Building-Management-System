@@ -1,14 +1,14 @@
 /**
  * Admin/Reports.tsx
- * Nhánh: Feature/AdminReports-Settings
- * Báo cáo tổng hợp Admin — tổng quan toàn hệ thống
+ * Branch: Feature/AdminReports-Settings
+ * Admin overall report — system-wide overview
  *
- * Tính năng:
- *  - KPI: tổng users, tổng buildings, xe đang đỗ, doanh thu hôm nay
- *  - Biểu đồ doanh thu 7 ngày (BarChart)
- *  - Biểu đồ phân bổ loại xe (ngang)
- *  - Bảng 10 phiên gần nhất
- *  - Bộ lọc ngày
+ * Features:
+ *  - KPI: total users, total buildings, vehicles currently parked, today's revenue
+ *  - 7-day revenue chart (BarChart)
+ *  - Vehicle type distribution chart (horizontal)
+ *  - Table of 10 most recent sessions
+ *  - Date filter
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -40,7 +40,7 @@ function getLast7Days() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    return { label: ['CN','T2','T3','T4','T5','T6','T7'][d.getDay()], date: toLocalDateStr(d) };
+    return { label: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()], date: toLocalDateStr(d) };
   });
 }
 
@@ -104,14 +104,14 @@ export default function AdminReports() {
         pageSize: PAGE_SIZE,
       };
 
-      // Chạy song song: page 1 sessions + buildings + users
+      // Run in parallel: page 1 sessions + buildings + users
       const [firstPage, buildings, users] = await Promise.all([
         searchSessions({ ...sessionParams, page: 1 }, token),
         getBuildings(),
         getUsers(token),
       ]);
 
-      // Nếu có nhiều trang, fetch song song các trang còn lại
+      // If there are multiple pages, fetch the remaining pages in parallel
       const allItems = [...firstPage.items];
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
@@ -123,7 +123,7 @@ export default function AdminReports() {
       }
       const completedRes = { ...firstPage, items: allItems };
 
-      // summary là global real-time stats, trả về trong mọi searchSessions response
+      // summary is global real-time stats, returned in every searchSessions response
       const { summary } = firstPage;
 
       setTotalUsers(users.length);
@@ -159,7 +159,7 @@ export default function AdminReports() {
 
       setRecentSessions(completedRes.items.slice(0, 10));
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải báo cáo.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load report.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -177,7 +177,7 @@ export default function AdminReports() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-white/40">Đang tải báo cáo...</p>
+        <p className="text-sm text-white/40">Loading report...</p>
       </div>
     );
   }
@@ -188,8 +188,8 @@ export default function AdminReports() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">Báo cáo tổng hợp</h2>
-          <p className="text-sm text-white/40 mt-0.5">Tổng quan toàn hệ thống — Admin View</p>
+          <h2 className="text-2xl font-bold text-white">Overall Report</h2>
+          <p className="text-sm text-white/40 mt-0.5">System-wide overview — Admin View</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
@@ -221,10 +221,10 @@ export default function AdminReports() {
       {/* System KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Tài khoản hệ thống', value: totalUsers.toLocaleString('vi-VN'), unit: 'người dùng', icon: Users,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-          { label: 'Tòa nhà quản lý',    value: totalBuildings.toLocaleString('vi-VN'), unit: `${totalCapacity} chỗ tổng`, icon: Building2, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-          { label: 'Xe đang đỗ (real-time)', value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% lấp đầy`, icon: Car, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-          { label: 'Doanh thu hôm nay',  value: vnd(todayRevenue),                      unit: todayCompleted + ' lượt · hôm nay', icon: Banknote, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'System Accounts', value: totalUsers.toLocaleString('vi-VN'), unit: 'users', icon: Users,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'Managed Buildings',    value: totalBuildings.toLocaleString('vi-VN'), unit: `${totalCapacity} total slots`, icon: Building2, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+          { label: 'Vehicles Parked (real-time)', value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% occupied`, icon: Car, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: "Today's Revenue",  value: vnd(todayRevenue),                      unit: todayCompleted + ' sessions · today', icon: Banknote, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
         ].map(card => {
           const Icon = card.icon;
           return (
@@ -245,7 +245,7 @@ export default function AdminReports() {
         <div className="flex items-center gap-3 px-5 py-3.5 bg-red-400/10 border border-red-400/20 rounded-xl">
           <AlertTriangle size={16} className="text-red-400 shrink-0 animate-pulse" />
           <p className="text-sm text-red-400 font-medium">
-            <span className="font-bold">{overdueCount}</span> xe đang quá giờ đỗ — cần xử lý ngay
+            <span className="font-bold">{overdueCount}</span> vehicle(s) overdue for parking — needs immediate action
           </p>
         </div>
       )}
@@ -257,8 +257,8 @@ export default function AdminReports() {
         <div className="glass-card p-6 rounded-2xl">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-base font-semibold text-white">Doanh thu 7 ngày</h3>
-              <p className="text-xs text-white/40 mt-0.5">Tổng: {vnd(totalRevInRange)}đ</p>
+              <h3 className="text-base font-semibold text-white">7-Day Revenue</h3>
+              <p className="text-xs text-white/40 mt-0.5">Total: {vnd(totalRevInRange)}đ</p>
             </div>
             <BarChart3 size={16} className="text-white/20" />
           </div>
@@ -284,14 +284,14 @@ export default function AdminReports() {
         <div className="glass-card p-6 rounded-2xl">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-base font-semibold text-white">Lượt xe theo loại</h3>
-              <p className="text-xs text-white/40 mt-0.5">Trong kỳ báo cáo đã chọn</p>
+              <h3 className="text-base font-semibold text-white">Vehicle Count by Type</h3>
+              <p className="text-xs text-white/40 mt-0.5">Within the selected report period</p>
             </div>
             <TrendingUp size={16} className="text-white/20" />
           </div>
           {vehicleData.length === 0 ? (
             <div className="flex items-center justify-center h-[200px] text-white/30 text-sm">
-              Không có dữ liệu
+              No data available
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
@@ -300,7 +300,7 @@ export default function AdminReports() {
                 <XAxis type="number" tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fill: '#ffffff88', fontSize: 12 }}
                   axisLine={false} tickLine={false} width={80} />
-                <Tooltip content={<ChartTooltip color="#FF4C4C" formatter={v => `${v} lượt`} />}
+                <Tooltip content={<ChartTooltip color="#FF4C4C" formatter={v => `${v} sessions`} />}
                   cursor={{ fill: '#ffffff05' }} />
                 <Bar dataKey="count" fill="#FF4C4C" radius={[0,6,6,0]} />
               </BarChart>
@@ -312,19 +312,19 @@ export default function AdminReports() {
       {/* Recent sessions */}
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">Phiên đỗ gần nhất (đã hoàn thành)</h3>
-          <span className="text-xs text-white/30">{recentSessions.length} phiên</span>
+          <h3 className="text-base font-semibold text-white">Recent Parking Sessions (Completed)</h3>
+          <span className="text-xs text-white/30">{recentSessions.length} sessions</span>
         </div>
         {recentSessions.length === 0 ? (
           <div className="flex items-center justify-center py-12 text-white/30 text-sm">
-            Không có dữ liệu trong kỳ đã chọn
+            No data available in the selected period
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5">
-                  {['Biển số', 'Loại xe', 'Tòa nhà', 'Giờ vào', 'Giờ ra', 'Thời gian', 'Phí thu'].map(h => (
+                  {['License Plate', 'Vehicle Type', 'Building', 'Entry Time', 'Exit Time', 'Duration', 'Fee Collected'].map(h => (
                     <th key={h} className="text-left text-xs font-medium text-white/40 px-4 py-3 first:pl-6">{h}</th>
                   ))}
                 </tr>

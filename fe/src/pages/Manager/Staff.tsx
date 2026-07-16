@@ -82,7 +82,7 @@ export default function ManagerStaff() {
       setStaff(staffOnly);
       setApiError('');
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải danh sách nhân viên.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load staff list.');
     } finally {
       setLoading(false);
       if (isRefresh) setRefreshing(false);
@@ -102,11 +102,11 @@ export default function ManagerStaff() {
   const closeModal = () => { setModalType(null); setSelected(null); setFormError(''); setSubmitting(false); };
 
   const validate = () => {
-    if (!form.fullName.trim())  return 'Vui lòng nhập họ tên.';
-    if (!form.username.trim())  return 'Vui lòng nhập tên đăng nhập.';
-    if (!form.email.trim() || !form.email.includes('@')) return 'Email không hợp lệ.';
-    if (!form.phone.trim())     return 'Vui lòng nhập số điện thoại.';
-    if (modalType === 'add' && !form.password.trim()) return 'Vui lòng nhập mật khẩu.';
+    if (!form.fullName.trim())  return 'Please enter full name.';
+    if (!form.username.trim())  return 'Please enter username.';
+    if (!form.email.trim() || !form.email.includes('@')) return 'Invalid email address.';
+    if (!form.phone.trim())     return 'Please enter phone number.';
+    if (modalType === 'add' && !form.password.trim()) return 'Please enter password.';
     return '';
   };
 
@@ -114,7 +114,7 @@ export default function ManagerStaff() {
     const err = validate();
     if (err) { setFormError(err); return; }
     const activeToken = token ?? getActiveToken();
-    if (!activeToken) { setFormError('Phiên đăng nhập hết hạn.'); return; }
+    if (!activeToken) { setFormError('Session expired.'); return; }
     setSubmitting(true);
     try {
       const created = await createUser({
@@ -127,9 +127,9 @@ export default function ManagerStaff() {
       }, activeToken);
       setStaff(prev => [...prev, mapApiUser(created)]);
       closeModal();
-      showToast('success', `Đã thêm nhân viên "${created.fullName}".`);
+      showToast('success', `Added staff "${created.fullName}".`);
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
     }
   };
@@ -139,7 +139,7 @@ export default function ManagerStaff() {
     if (err) { setFormError(err); return; }
     if (!selected) return;
     const activeToken = token ?? getActiveToken();
-    if (!activeToken) { setFormError('Phiên đăng nhập hết hạn.'); return; }
+    if (!activeToken) { setFormError('Session expired.'); return; }
     setSubmitting(true);
     try {
       const updated = await updateUser(selected.id, {
@@ -150,9 +150,9 @@ export default function ManagerStaff() {
       }, activeToken);
       setStaff(prev => prev.map(s => s.id !== selected.id ? s : mapApiUser(updated)));
       closeModal();
-      showToast('success', 'Đã cập nhật thông tin nhân viên.');
+      showToast('success', 'Staff information updated.');
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
     }
   };
@@ -160,15 +160,15 @@ export default function ManagerStaff() {
   const handleDelete = async () => {
     if (!selected) return;
     const activeToken = token ?? getActiveToken();
-    if (!activeToken) { setFormError('Phiên đăng nhập hết hạn.'); return; }
+    if (!activeToken) { setFormError('Session expired.'); return; }
     setSubmitting(true);
     try {
       await deleteUser(selected.id, activeToken);
       setStaff(prev => prev.filter(s => s.id !== selected.id));
       closeModal();
-      showToast('success', `Đã xoá nhân viên "${selected.fullName}".`);
+      showToast('success', `Deleted staff "${selected.fullName}".`);
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Đã xảy ra lỗi.');
+      setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
     }
   };
@@ -193,15 +193,15 @@ export default function ManagerStaff() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Quản lý nhân viên</h2>
-          <p className="text-sm text-white/40 mt-0.5">{staff.length} nhân viên đang hoạt động</p>
+          <h2 className="text-2xl font-bold text-white">Staff Management</h2>
+          <p className="text-sm text-white/40 mt-0.5">{staff.length} active staff members</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => loadStaff(true)}
             disabled={refreshing}
             className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
-            title="Làm mới"
+            title="Refresh"
           >
             <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
           </button>
@@ -210,7 +210,7 @@ export default function ManagerStaff() {
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FF4C4C] hover:bg-[#ff3333] text-white font-semibold text-sm transition-opacity hover:opacity-90"
           >
             <Plus size={16} />
-            Thêm nhân viên
+            Add Staff
           </button>
         </div>
       </div>
@@ -225,9 +225,9 @@ export default function ManagerStaff() {
       {/* Stats */}
       <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
         {[
-          { label: 'Tổng nhân viên', value: staff.length,    unit: 'người', color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-          { label: 'Đang hoạt động', value: staff.length,    unit: 'người', color: '#34D399', bg: 'from-emerald-400/20 to-emerald-400/5' },
-          { label: 'Tháng này',      value: staff.filter(s => s.createdAt.startsWith(new Date().toISOString().slice(0,7))).length, unit: 'mới', color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+          { label: 'Total Staff', value: staff.length,    unit: 'people', color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: 'Active', value: staff.length,    unit: 'people', color: '#34D399', bg: 'from-emerald-400/20 to-emerald-400/5' },
+          { label: 'This Month',      value: staff.filter(s => s.createdAt.startsWith(new Date().toISOString().slice(0,7))).length, unit: 'new', color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
         ].map(stat => (
           <div key={stat.label} className="glass-card p-5 rounded-2xl">
             <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.bg} flex items-center justify-center mb-3`}>
@@ -247,7 +247,7 @@ export default function ManagerStaff() {
         <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
         <input
           type="text"
-          placeholder="Tìm tên, email, số điện thoại..."
+          placeholder="Search by name, email, phone number..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
@@ -260,17 +260,17 @@ export default function ManagerStaff() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-white/5">
-                <th className="text-left text-xs font-medium text-white/40 px-6 py-3.5">Nhân viên</th>
-                <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Liên hệ</th>
-                <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Ngày tạo</th>
-                <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Hành động</th>
+                <th className="text-left text-xs font-medium text-white/40 px-6 py-3.5">Staff</th>
+                <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Contact</th>
+                <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Created Date</th>
+                <th className="text-left text-xs font-medium text-white/40 px-4 py-3.5">Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="text-center py-12 text-white/30 text-sm">
-                    {search ? 'Không tìm thấy nhân viên phù hợp.' : 'Chưa có nhân viên nào.'}
+                    {search ? 'No matching staff found.' : 'No staff members yet.'}
                   </td>
                 </tr>
               ) : filtered.map(s => (
@@ -311,14 +311,14 @@ export default function ManagerStaff() {
                       <button
                         onClick={() => openEdit(s)}
                         className="p-2 rounded-lg text-white/40 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all"
-                        title="Chỉnh sửa"
+                        title="Edit"
                       >
                         <Pencil size={14} />
                       </button>
                       <button
                         onClick={() => openDelete(s)}
                         className="p-2 rounded-lg text-white/40 hover:text-red-400 hover:bg-red-400/10 transition-all"
-                        title="Xoá"
+                        title="Delete"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -331,7 +331,7 @@ export default function ManagerStaff() {
         </div>
         {filtered.length > 0 && (
           <div className="px-6 py-3 border-t border-white/5">
-            <p className="text-xs text-white/30">Hiển thị {filtered.length} / {staff.length} nhân viên</p>
+            <p className="text-xs text-white/30">Showing {filtered.length} / {staff.length} staff</p>
           </div>
         )}
       </div>
@@ -346,7 +346,7 @@ export default function ManagerStaff() {
                   <UserCheck size={17} className="text-[#FF4C4C]" />
                 </div>
                 <h3 className="text-base font-semibold text-gray-800 dark:text-white">
-                  {modalType === 'add' ? 'Thêm nhân viên mới' : `Chỉnh sửa · ${selected?.fullName}`}
+                  {modalType === 'add' ? 'Add New Staff' : `Edit · ${selected?.fullName}`}
                 </h3>
               </div>
               <button onClick={closeModal} className="p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
@@ -356,10 +356,10 @@ export default function ManagerStaff() {
 
             <div className="overflow-y-auto px-6 py-5 space-y-4">
               {[
-                { key: 'fullName' as const, label: 'Họ và tên',      placeholder: 'Nguyễn Văn A',     type: 'text'     },
-                { key: 'username' as const, label: 'Tên đăng nhập',  placeholder: 'nguyen_van_a',      type: 'text',    disabled: modalType === 'edit' },
+                { key: 'fullName' as const, label: 'Full Name',      placeholder: 'John Smith',     type: 'text'     },
+                { key: 'username' as const, label: 'Username',  placeholder: 'john_smith',      type: 'text',    disabled: modalType === 'edit' },
                 { key: 'email'    as const, label: 'Email',           placeholder: 'email@parking.vn', type: 'email'    },
-                { key: 'phone'    as const, label: 'Số điện thoại',   placeholder: '0901 234 567',     type: 'text'     },
+                { key: 'phone'    as const, label: 'Phone Number',   placeholder: '0901 234 567',     type: 'text'     },
               ].map(f => (
                 <div key={f.key}>
                   <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">{f.label}</label>
@@ -376,10 +376,10 @@ export default function ManagerStaff() {
 
               {modalType === 'add' && (
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Mật khẩu</label>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">Password</label>
                   <input
                     type="password"
-                    placeholder="Nhập mật khẩu..."
+                    placeholder="Enter password..."
                     value={form.password}
                     onChange={e => setForm(prev => ({ ...prev, password: e.target.value }))}
                     className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
@@ -397,7 +397,7 @@ export default function ManagerStaff() {
 
             <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-white/10">
               <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50">
-                Huỷ
+                Cancel
               </button>
               <button
                 onClick={modalType === 'add' ? handleAdd : handleEdit}
@@ -405,7 +405,7 @@ export default function ManagerStaff() {
                 className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#FF4C4C] hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                {modalType === 'add' ? 'Thêm mới' : 'Lưu thay đổi'}
+                {modalType === 'add' ? 'Add' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -420,13 +420,13 @@ export default function ManagerStaff() {
               <div className="flex justify-center mb-4">
                 <Avatar name={selected.fullName} />
               </div>
-              <h3 className="text-base font-semibold text-gray-800 dark:text-white">Xoá nhân viên?</h3>
+              <h3 className="text-base font-semibold text-gray-800 dark:text-white">Delete staff member?</h3>
               <p className="text-sm text-gray-500 dark:text-white/50 mt-2 leading-relaxed">
-                Bạn sắp xoá tài khoản <span className="text-gray-800 dark:text-white font-medium">{selected.fullName}</span>
+                You are about to delete the account <span className="text-gray-800 dark:text-white font-medium">{selected.fullName}</span>
                 <br />
                 <span className="text-xs text-gray-400 dark:text-white/30">@{selected.username} · {selected.email}</span>
               </p>
-              <p className="text-xs text-gray-400 dark:text-white/30 mt-2">Hành động này không thể hoàn tác.</p>
+              <p className="text-xs text-gray-400 dark:text-white/30 mt-2">This action cannot be undone.</p>
               {formError && (
                 <p className="text-xs text-red-400 flex items-center justify-center gap-1.5 mt-2">
                   <AlertTriangle size={12} /> {formError}
@@ -435,11 +435,11 @@ export default function ManagerStaff() {
             </div>
             <div className="flex gap-3 px-6 pb-6">
               <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors disabled:opacity-50">
-                Huỷ
+                Cancel
               </button>
               <button onClick={handleDelete} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                Xác nhận xoá
+                Confirm Delete
               </button>
             </div>
           </div>

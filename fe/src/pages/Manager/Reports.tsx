@@ -1,15 +1,15 @@
 /**
  * Manager/Reports.tsx
- * Nhánh: Feature/Reports-Manager
- * Báo cáo thống kê doanh thu, lưu lượng xe, tỷ lệ lấp đầy
+ * Branch: Feature/Reports-Manager
+ * Statistics report for revenue, vehicle traffic, occupancy rate
  *
- * Tính năng:
- *  - KPI cards: lượt xe hôm nay, doanh thu, số xe đang đỗ, tỷ lệ lấp đầy
- *  - Biểu đồ doanh thu 7 ngày (BarChart từ recharts)
- *  - Biểu đồ lưu lượng theo giờ (LineChart)
- *  - Biểu đồ phân bổ theo loại xe (BarChart ngang)
- *  - Bảng lịch sử phiên gần đây (Completed sessions)
- *  - Bộ lọc ngày tháng
+ * Features:
+ *  - KPI cards: today's vehicle count, revenue, vehicles currently parked, occupancy rate
+ *  - 7-day revenue chart (BarChart from recharts)
+ *  - Hourly traffic chart (LineChart)
+ *  - Vehicle type distribution chart (horizontal BarChart)
+ *  - Recent sessions history table (Completed sessions)
+ *  - Date range filter
  */
 
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -62,7 +62,7 @@ function getLast7Days(): { label: string; date: string }[] {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
     return {
-      label: ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'][d.getDay()],
+      label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
       date:  toLocalDateStr(d),
     };
   });
@@ -158,7 +158,7 @@ export default function ManagerReports() {
       setRecentSessions(sessions.slice(0, 10));
 
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu báo cáo.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load report data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -178,7 +178,7 @@ export default function ManagerReports() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-white/40">Đang tải báo cáo...</p>
+        <p className="text-sm text-white/40">Loading report...</p>
       </div>
     );
   }
@@ -189,9 +189,9 @@ export default function ManagerReports() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Báo cáo & Thống kê</h2>
+          <h2 className="text-2xl font-bold text-white">Reports & Statistics</h2>
           <p className="text-sm text-white/40 mt-0.5">
-            Dữ liệu thực từ hệ thống · cập nhật theo thời gian thực
+            Live data from the system · updated in real time
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -236,40 +236,40 @@ export default function ManagerReports() {
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {[
           {
-            label: 'Xe đang đỗ',
+            label: 'Vehicles Parked',
             value: activeCount.toLocaleString('vi-VN'),
-            unit: 'xe',
-            sub: `${overdueCount} quá giờ`,
+            unit: 'vehicles',
+            sub: `${overdueCount} overdue`,
             icon: Car,
             color: '#FF4C4C',
             bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5',
             alert: overdueCount > 0,
           },
           {
-            label: 'Tỷ lệ lấp đầy',
+            label: 'Occupancy Rate',
             value: `${occupancyPct}%`,
             unit: '',
-            sub: `${activeCount}/${totalCapacity} chỗ`,
+            sub: `${activeCount}/${totalCapacity} slots`,
             icon: TrendingUp,
             color: occupancyPct >= 90 ? '#F87171' : occupancyPct >= 70 ? '#F59E0B' : '#A78BFA',
             bg: 'from-violet-400/20 to-violet-400/5',
             alert: false,
           },
           {
-            label: 'Lượt ra hôm nay',
+            label: "Today's Exits",
             value: todayCompleted.toLocaleString('vi-VN'),
-            unit: 'lượt',
-            sub: 'sessions hoàn thành',
+            unit: '',
+            sub: 'completed sessions',
             icon: CheckCircle2,
             color: '#F59E0B',
             bg: 'from-amber-500/20 to-amber-500/5',
             alert: false,
           },
           {
-            label: 'Doanh thu hôm nay',
+            label: "Today's Revenue",
             value: vnd(todayRevenue),
-            unit: 'đ',
-            sub: `${vnd(totalRevInRange)}đ trong kỳ`,
+            unit: 'VND',
+            sub: `${vnd(totalRevInRange)} VND in period`,
             icon: Banknote,
             color: '#F59E0B',
             bg: 'from-amber-400/20 to-amber-400/5',
@@ -285,7 +285,7 @@ export default function ManagerReports() {
                 </div>
                 {card.alert && (
                   <span className="text-xs text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full animate-pulse">
-                    Cảnh báo
+                    Alert
                   </span>
                 )}
               </div>
@@ -307,8 +307,8 @@ export default function ManagerReports() {
         <div className="glass-card p-6 rounded-2xl">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-base font-semibold text-white">Doanh thu 7 ngày</h3>
-              <p className="text-xs text-white/40 mt-0.5">Tổng: {vnd(totalRevInRange)}đ</p>
+              <h3 className="text-base font-semibold text-white">7-Day Revenue</h3>
+              <p className="text-xs text-white/40 mt-0.5">Total: {vnd(totalRevInRange)} VND</p>
             </div>
             <BarChart3 size={16} className="text-white/20" />
           </div>
@@ -319,7 +319,7 @@ export default function ManagerReports() {
               <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false}
                 tickFormatter={v => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${(v / 1000).toFixed(0)}k` : String(v)} />
               <Tooltip
-                content={<ChartTooltip color="#FF4C4C" formatter={v => `${vnd(v)}đ`} />}
+                content={<ChartTooltip color="#FF4C4C" formatter={v => `${vnd(v)} VND`} />}
                 cursor={{ fill: '#ffffff05' }}
               />
               <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
@@ -335,14 +335,14 @@ export default function ManagerReports() {
         <div className="glass-card p-6 rounded-2xl">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="text-base font-semibold text-white">Lượt xe theo loại</h3>
-              <p className="text-xs text-white/40 mt-0.5">Trong khoảng thời gian đã chọn</p>
+              <h3 className="text-base font-semibold text-white">Vehicles by Type</h3>
+              <p className="text-xs text-white/40 mt-0.5">Within the selected date range</p>
             </div>
             <Car size={16} className="text-white/20" />
           </div>
           {vehicleData.length === 0 ? (
             <div className="flex items-center justify-center h-[200px] text-white/30 text-sm">
-              Không có dữ liệu
+              No data available
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
@@ -351,7 +351,7 @@ export default function ManagerReports() {
                 <XAxis type="number" tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis type="category" dataKey="name" tick={{ fill: '#ffffff88', fontSize: 12 }} axisLine={false} tickLine={false} width={80} />
                 <Tooltip
-                  content={<ChartTooltip color="#F59E0B" formatter={v => `${v} lượt`} />}
+                  content={<ChartTooltip color="#F59E0B" formatter={v => `${v} entries`} />}
                   cursor={{ fill: '#ffffff05' }}
                 />
                 <Bar dataKey="count" fill="#F59E0B" radius={[0, 6, 6, 0]} />
@@ -364,20 +364,20 @@ export default function ManagerReports() {
       {/* Recent sessions table */}
       <div className="glass-card rounded-2xl overflow-hidden">
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">Phiên đỗ xe gần đây (đã hoàn thành)</h3>
-          <span className="text-xs text-white/30">{recentSessions.length} phiên gần nhất</span>
+          <h3 className="text-base font-semibold text-white">Recent Parking Sessions (Completed)</h3>
+          <span className="text-xs text-white/30">{recentSessions.length} most recent sessions</span>
         </div>
 
         {recentSessions.length === 0 ? (
           <div className="flex items-center justify-center py-12 text-white/30 text-sm">
-            Không có dữ liệu trong khoảng thời gian đã chọn
+            No data available for the selected date range
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-white/5">
-                  {['Biển số', 'Loại xe', 'Vị trí', 'Giờ vào', 'Giờ ra', 'Thời gian', 'Phí thu'].map(h => (
+                  {['License Plate', 'Vehicle Type', 'Location', 'Entry Time', 'Exit Time', 'Duration', 'Fee'].map(h => (
                     <th key={h} className="text-left text-xs font-medium text-white/40 px-4 py-3 first:pl-6">{h}</th>
                   ))}
                 </tr>
@@ -416,7 +416,7 @@ export default function ManagerReports() {
                     <td className="px-4 py-3.5">
                       <div className="flex items-center gap-1 text-sm font-semibold text-[#FF4C4C]">
                         <ArrowUpRight size={13} />
-                        {vnd(s.totalFee)}đ
+                        {vnd(s.totalFee)} VND
                       </div>
                     </td>
                   </tr>

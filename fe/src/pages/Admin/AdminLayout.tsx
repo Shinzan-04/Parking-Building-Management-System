@@ -11,18 +11,18 @@ import NotificationBell from '../../components/NotificationBell';
 
 const navItems = [
   { to: '/admin',              label: 'Dashboard',    icon: LayoutDashboard, end: true  },
-  { to: '/admin/parking-lots', label: 'Bãi đỗ xe',    icon: MapPin,          end: false },
-  { to: '/admin/vehicles',     label: 'Phương tiện',  icon: Car,             end: false },
-  { to: '/admin/users',        label: 'Người dùng',   icon: Users,           end: false },
-  { to: '/admin/pricing',       label: 'Bảng giá',     icon: DollarSign,      end: false },
-  { to: '/admin/sessions',      label: 'Phiên đỗ xe',  icon: ClipboardList,   end: false },
-  { to: '/admin/reservations',  label: 'Đặt chỗ',      icon: CalendarCheck,   end: false },
-  { to: '/admin/vehicle-types', label: 'Loại xe',       icon: Car,             end: false },
-  { to: '/admin/reports',       label: 'Báo cáo',      icon: BarChart3,       end: false },
-  { to: '/admin/refunds',       label: 'Hoàn tiền',    icon: Banknote,        end: false },
-  { to: '/admin/monthly-pass',  label: 'Vé tháng',     icon: Ticket,          end: false },
-  { to: '/admin/audit-logs',    label: 'Nhật ký (Audit)', icon: History,      end: false },
-  { to: '/admin/settings',      label: 'Cài đặt',      icon: Settings,        end: false },
+  { to: '/admin/parking-lots', label: 'Parking Lots', icon: MapPin,          end: false },
+  { to: '/admin/vehicles',     label: 'Vehicles',     icon: Car,             end: false },
+  { to: '/admin/users',        label: 'Users',        icon: Users,           end: false },
+  { to: '/admin/pricing',       label: 'Pricing',      icon: DollarSign,      end: false },
+  { to: '/admin/sessions',      label: 'Parking Sessions', icon: ClipboardList, end: false },
+  { to: '/admin/reservations',  label: 'Reservations', icon: CalendarCheck,   end: false },
+  { to: '/admin/vehicle-types', label: 'Vehicle Types', icon: Car,             end: false },
+  { to: '/admin/reports',       label: 'Reports',      icon: BarChart3,       end: false },
+  { to: '/admin/refunds',       label: 'Refunds',      icon: Banknote,        end: false },
+  { to: '/admin/monthly-pass',  label: 'Monthly Pass', icon: Ticket,          end: false },
+  { to: '/admin/audit-logs',    label: 'Audit Logs',   icon: History,        end: false },
+  { to: '/admin/settings',      label: 'Settings',     icon: Settings,        end: false },
 ];
 
 export default function AdminLayout() {
@@ -58,7 +58,7 @@ export default function AdminLayout() {
           className="px-3 py-4 border-b flex items-center cursor-pointer select-none"
           style={{ borderColor: 'var(--admin-border)', minHeight: 64 }}
           onClick={handleLogoClick}
-          title={collapsed ? 'Mở rộng sidebar' : 'Thu gọn sidebar'}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30 shrink-0 overflow-hidden hover:scale-105 transition-transform duration-200">
             <Car size={18} className={`text-white ${driving ? 'animate-car-drive' : ''}`} />
@@ -127,26 +127,26 @@ export default function AdminLayout() {
             </div>
           )}
 
-          {/* Trang chủ */}
+          {/* Home */}
           <button
             onClick={() => navigate('/', { state: { fromDashboard: true } })}
-            title={collapsed ? 'Trang chủ' : undefined}
+            title={collapsed ? 'Home' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-[var(--admin-bg-card)] transition-all ${collapsed ? 'justify-center' : ''}`}
             style={{ color: 'var(--admin-text-muted)' }}
           >
             <Home size={17} className="shrink-0" />
-            {!collapsed && 'Trang chủ'}
+            {!collapsed && 'Home'}
           </button>
 
-          {/* Đăng xuất */}
+          {/* Logout */}
           <button
             onClick={handleLogout}
-            title={collapsed ? 'Đăng xuất' : undefined}
+            title={collapsed ? 'Logout' : undefined}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium hover:text-red-500 hover:bg-red-400/10 transition-all ${collapsed ? 'justify-center' : ''}`}
             style={{ color: 'var(--admin-text-muted)' }}
           >
             <LogOut size={17} className="shrink-0" />
-            {!collapsed && 'Đăng xuất'}
+            {!collapsed && 'Logout'}
           </button>
         </div>
       </aside>
@@ -163,10 +163,10 @@ export default function AdminLayout() {
         >
           <div>
             <h1 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
-              Bảng điều khiển Admin
+              Admin Dashboard
             </h1>
             <p className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>
-              Hệ thống quản lý bãi đỗ xe thông minh
+              Smart Parking Management System
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -174,7 +174,7 @@ export default function AdminLayout() {
               onClick={toggleTheme}
               className="p-2 rounded-xl transition-colors"
               style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
-              title={theme === 'dark' ? 'Chuyển Light mode' : 'Chuyển Dark mode'}
+              title={theme === 'dark' ? 'Switch to Light mode' : 'Switch to Dark mode'}
             >
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
             </button>

@@ -1,14 +1,14 @@
 /**
  * Manager/Sessions.tsx
- * Nhánh: Feature/ManageSessions-Manager
- * Quản lý phiên đỗ xe (Parking Sessions)
+ * Branch: Feature/ManageSessions-Manager
+ * Parking Session Management
  *
- * Tính năng:
- *  - Danh sách session có phân trang, bộ lọc theo biển số / trạng thái / ngày
- *  - KPI banner: đang đỗ, quá giờ, hoàn thành hôm nay, doanh thu hôm nay
- *  - Modal xem chi tiết session
- *  - Badge trạng thái màu sắc (Active / Overdue / Completed)
- *  - Badge IssueType cảnh báo ngoại lệ (Mất vé / Sai biển số…)
+ * Features:
+ *  - Paginated session list, filters by license plate / status / date
+ *  - KPI banner: active, overdue, completed today, revenue today
+ *  - Session detail modal
+ *  - Colored status badge (Active / Overdue / Completed)
+ *  - IssueType badge for exception warnings (Lost Ticket / Wrong Plate...)
  */
 
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -98,7 +98,7 @@ function SessionDetailModal({
         const s = await getSessionById(sessionId, token);
         setSession(s);
       } catch (e) {
-        setError(e instanceof Error ? e.message : 'Không tải được chi tiết.');
+        setError(e instanceof Error ? e.message : 'Failed to load details.');
       } finally {
         setLoading(false);
       }
@@ -113,7 +113,7 @@ function SessionDetailModal({
           <div className="flex items-center gap-2.5">
             <ClipboardList size={16} className="text-[#FF4C4C]" />
             <h3 className="text-base font-semibold text-gray-800 dark:text-white">
-              Chi tiết phiên đỗ xe
+              Parking Session Details
             </h3>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-xl text-gray-400 dark:text-white/40 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-all">
@@ -126,7 +126,7 @@ function SessionDetailModal({
           {loading && (
             <div className="flex items-center justify-center py-12 gap-2 text-gray-400 dark:text-white/40">
               <Loader2 size={18} className="animate-spin" />
-              <span className="text-sm">Đang tải...</span>
+              <span className="text-sm">Loading...</span>
             </div>
           )}
           {error && <p className="text-sm text-red-400 text-center py-8">{error}</p>}
@@ -149,12 +149,12 @@ function SessionDetailModal({
               {/* Info grid */}
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Loại xe',    value: session.vehicleTypeName },
-                  { label: 'Vị trí',     value: `${session.buildingName} · ${session.floorName} · ${session.slotNumber}` },
-                  { label: 'Giờ vào',    value: fmtTime(session.entryTime) },
-                  { label: 'Giờ ra',     value: session.exitTime ? fmtTime(session.exitTime) : '—' },
-                  { label: 'Thời gian',  value: session.duration || '—' },
-                  { label: 'Nhân viên',  value: session.staffName ?? '—' },
+                  { label: 'Vehicle Type',    value: session.vehicleTypeName },
+                  { label: 'Location',     value: `${session.buildingName} · ${session.floorName} · ${session.slotNumber}` },
+                  { label: 'Entry Time',    value: fmtTime(session.entryTime) },
+                  { label: 'Exit Time',     value: session.exitTime ? fmtTime(session.exitTime) : '—' },
+                  { label: 'Duration',  value: session.duration || '—' },
+                  { label: 'Staff',  value: session.staffName ?? '—' },
                 ].map(row => (
                   <div key={row.label} className="bg-gray-50 dark:bg-white/[0.04] rounded-xl px-3.5 py-3">
                     <p className="text-[10px] text-gray-400 dark:text-white/40 uppercase tracking-wider mb-0.5">{row.label}</p>
@@ -167,7 +167,7 @@ function SessionDetailModal({
               <div className="flex items-center justify-between px-4 py-3.5 bg-[#FF4C4C]/5 border border-[#FF4C4C]/20 rounded-xl">
                 <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/60">
                   <Banknote size={15} className="text-[#FF4C4C]" />
-                  Phí gửi xe
+                  Parking Fee
                 </div>
                 <p className="text-lg font-bold text-[#FF4C4C]">{vnd(session.totalFee)}đ</p>
               </div>
@@ -175,7 +175,7 @@ function SessionDetailModal({
               {/* Entry image */}
               {session.entryImageUrl && (
                 <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-white/10">
-                  <p className="text-[10px] text-gray-400 dark:text-white/40 px-3 py-2 bg-gray-50 dark:bg-white/5 uppercase tracking-wider">Ảnh xe vào</p>
+                  <p className="text-[10px] text-gray-400 dark:text-white/40 px-3 py-2 bg-gray-50 dark:bg-white/5 uppercase tracking-wider">Entry Image</p>
                   <img src={session.entryImageUrl} alt="entry" className="w-full object-cover max-h-48" />
                 </div>
               )}
@@ -185,7 +185,7 @@ function SessionDetailModal({
 
         <div className="px-6 py-4 border-t border-gray-200 dark:border-white/10">
           <button onClick={onClose} className="w-full py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
-            Đóng
+            Close
           </button>
         </div>
       </div>
@@ -260,7 +260,7 @@ export default function ManagerSessions() {
       setTotalCount(listRes.totalCount);
       setTotalPages(listRes.totalPages || 1);
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải danh sách phiên.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load session list.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -280,9 +280,9 @@ export default function ManagerSessions() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Phiên đỗ xe</h2>
+          <h2 className="text-2xl font-bold text-white">Parking Sessions</h2>
           <p className="text-sm text-white/40 mt-0.5">
-            {totalCount.toLocaleString('vi-VN')} phiên · lọc theo bộ lọc hiện tại
+            {totalCount.toLocaleString('vi-VN')} sessions · filtered by current filters
           </p>
         </div>
         <button
@@ -304,10 +304,10 @@ export default function ManagerSessions() {
       {/* KPI mini-banner */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {[
-          { icon: Car,          label: 'Đang đỗ',       value: summary.totalActive,            color: '#FF4C4C', alert: false },
-          { icon: AlertTriangle, label: 'Quá giờ',      value: summary.totalOverdue,            color: '#F87171', alert: summary.totalOverdue > 0 },
-          { icon: CheckCircle2, label: 'Ra hôm nay',    value: summary.totalCompletedToday,    color: '#F59E0B', alert: false },
-          { icon: Banknote,     label: 'Doanh thu hôm nay', value: null,                       color: '#F59E0B', alert: false },
+          { icon: Car,          label: 'Currently Parked',       value: summary.totalActive,            color: '#FF4C4C', alert: false },
+          { icon: AlertTriangle, label: 'Overdue',      value: summary.totalOverdue,            color: '#F87171', alert: summary.totalOverdue > 0 },
+          { icon: CheckCircle2, label: 'Checked Out Today',    value: summary.totalCompletedToday,    color: '#F59E0B', alert: false },
+          { icon: Banknote,     label: 'Revenue Today', value: null,                       color: '#F59E0B', alert: false },
         ].map((kpi, i) => {
           const Icon = kpi.icon;
           return (
@@ -337,7 +337,7 @@ export default function ManagerSessions() {
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30" />
           <input
             type="text"
-            placeholder="Tìm biển số xe..."
+            placeholder="Search license plate..."
             value={search}
             onChange={e => handleSearchChange(e.target.value)}
             className="w-full bg-white/5 border border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-white/30 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
@@ -347,10 +347,10 @@ export default function ManagerSessions() {
         {/* Status filter */}
         <div className="flex items-center gap-1 p-1 bg-white/5 rounded-xl">
           {([
-            { value: '',           label: 'Tất cả' },
-            { value: 'Active',     label: 'Đang đỗ' },
-            { value: 'Overdue',    label: 'Quá giờ' },
-            { value: 'Completed',  label: 'Đã ra' },
+            { value: '',           label: 'All' },
+            { value: 'Active',     label: 'Active' },
+            { value: 'Overdue',    label: 'Overdue' },
+            { value: 'Completed',  label: 'Checked Out' },
           ] as { value: SessionStatus | ''; label: string }[]).map(opt => (
             <button
               key={opt.value}
@@ -386,12 +386,12 @@ export default function ManagerSessions() {
         {loading ? (
           <div className="flex items-center justify-center py-16 gap-2 text-white/40">
             <Loader2 size={22} className="animate-spin text-[#FF4C4C]" />
-            <span className="text-sm">Đang tải...</span>
+            <span className="text-sm">Loading...</span>
           </div>
         ) : sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2 text-white/30">
             <ClipboardList size={28} />
-            <p className="text-sm">Không tìm thấy phiên nào.</p>
+            <p className="text-sm">No sessions found.</p>
           </div>
         ) : (
           <>
@@ -399,7 +399,7 @@ export default function ManagerSessions() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/5">
-                    {['Biển số', 'Loại xe', 'Vị trí', 'Trạng thái', 'Giờ vào', 'Thời gian', 'Phí', 'Ngoại lệ', ''].map(h => (
+                    {['License Plate', 'Vehicle Type', 'Location', 'Status', 'Entry Time', 'Duration', 'Fee', 'Exception', ''].map(h => (
                       <th key={h} className="text-left text-xs font-medium text-white/40 px-4 py-3 first:pl-6 last:pr-6">
                         {h}
                       </th>
@@ -448,7 +448,7 @@ export default function ManagerSessions() {
                         <button
                           onClick={() => setDetailId(s.id)}
                           className="p-2 rounded-xl text-white/30 hover:text-[#FF4C4C] hover:bg-[#FF4C4C]/10 transition-all"
-                          title="Xem chi tiết"
+                          title="View details"
                         >
                           <Eye size={15} />
                         </button>
@@ -462,7 +462,7 @@ export default function ManagerSessions() {
             {/* Pagination */}
             <div className="flex items-center justify-between px-6 py-4 border-t border-white/10">
               <p className="text-xs text-white/40">
-                Hiển thị {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalCount)} / {totalCount.toLocaleString('vi-VN')} phiên
+                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalCount)} / {totalCount.toLocaleString('vi-VN')} sessions
               </p>
               <div className="flex items-center gap-1">
                 <button

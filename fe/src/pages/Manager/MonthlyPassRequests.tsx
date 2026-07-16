@@ -13,21 +13,21 @@ import {
 const PAGE_SIZE = 15;
 
 const STATUS_OPTIONS: { value: SubscriptionStatus | ''; label: string }[] = [
-  { value: '',              label: 'Tất cả'        },
-  { value: 'PendingCancel', label: 'Chờ duyệt hủy' },
-  { value: 'Active',        label: 'Đang hiệu lực' },
-  { value: 'PendingPayment',label: 'Chờ thanh toán'},
-  { value: 'Expired',       label: 'Đã hết hạn'    },
-  { value: 'Canceled',      label: 'Đã hủy'        },
+  { value: '',              label: 'All'                    },
+  { value: 'PendingCancel', label: 'Pending Cancellation'   },
+  { value: 'Active',        label: 'Active'                 },
+  { value: 'PendingPayment',label: 'Pending Payment'        },
+  { value: 'Expired',       label: 'Expired'                },
+  { value: 'Canceled',      label: 'Canceled'                },
 ];
 
 function statusBadge(status: SubscriptionStatus) {
   const map: Record<SubscriptionStatus, { cls: string; label: string; icon: React.ReactNode }> = {
-    Active:         { cls: 'bg-green-500/15  text-green-400  border-green-500/30',  label: 'Đang hiệu lực', icon: <CheckCircle2 size={11} /> },
-    PendingPayment: { cls: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30', label: 'Chờ thanh toán',icon: <Clock size={11} />        },
-    PendingCancel:  { cls: 'bg-blue-500/15   text-blue-400   border-blue-500/30',   label: 'Chờ duyệt hủy', icon: <Clock size={11} />        },
-    Expired:        { cls: 'bg-gray-500/15   text-gray-400   border-gray-500/30',   label: 'Đã hết hạn',    icon: <XCircle size={11} />      },
-    Canceled:       { cls: 'bg-red-500/15    text-red-400    border-red-500/30',    label: 'Đã hủy',        icon: <XCircle size={11} />      },
+    Active:         { cls: 'bg-green-500/15  text-green-400  border-green-500/30',  label: 'Active',               icon: <CheckCircle2 size={11} /> },
+    PendingPayment: { cls: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30', label: 'Pending Payment',      icon: <Clock size={11} />        },
+    PendingCancel:  { cls: 'bg-blue-500/15   text-blue-400   border-blue-500/30',   label: 'Pending Cancellation', icon: <Clock size={11} />        },
+    Expired:        { cls: 'bg-gray-500/15   text-gray-400   border-gray-500/30',   label: 'Expired',              icon: <XCircle size={11} />      },
+    Canceled:       { cls: 'bg-red-500/15    text-red-400    border-red-500/30',    label: 'Canceled',             icon: <XCircle size={11} />      },
   };
   const cfg = map[status] ?? { cls: 'bg-gray-500/15 text-gray-400 border-gray-500/30', label: status, icon: null };
   return (
@@ -50,7 +50,7 @@ function DetailModal({ item, onClose }: { item: SubscriptionResponse; onClose: (
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-          <h3 className="text-base font-semibold text-white">Chi tiết vé tháng</h3>
+          <h3 className="text-base font-semibold text-white">Monthly Pass Details</h3>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 text-white/50 transition-colors">
             <X size={18} />
           </button>
@@ -60,13 +60,13 @@ function DetailModal({ item, onClose }: { item: SubscriptionResponse; onClose: (
           <div className="grid grid-cols-2 gap-4">
             {([
               ['Subscription ID', item.id],
-              ['Biển số',         item.licensePlate],
-              ['Loại xe',         item.vehicleTypeName],
-              ['Trạng thái',      null as null],
-              ['Tài xế',          item.driverName],
-              ['Ngày bắt đầu',    fmtDate(item.startDate)],
-              ['Ngày kết thúc',   fmtDate(item.endDate)],
-              ['Ngày tạo',        fmtDt(item.createdAt)],
+              ['License Plate',   item.licensePlate],
+              ['Vehicle Type',    item.vehicleTypeName],
+              ['Status',          null as null],
+              ['Driver',          item.driverName],
+              ['Start Date',      fmtDate(item.startDate)],
+              ['End Date',        fmtDate(item.endDate)],
+              ['Created At',      fmtDt(item.createdAt)],
             ] as [string, string | null][]).map(([k, v]) => (
               <div key={k} className="space-y-1">
                 <p className="text-xs text-white/40">{k}</p>
@@ -79,16 +79,16 @@ function DetailModal({ item, onClose }: { item: SubscriptionResponse; onClose: (
 
           {(item.cancelReason || item.cancelRejectReason) && (
             <div className="rounded-xl p-4 space-y-2.5 bg-white/5 border border-white/10">
-              <p className="text-xs font-semibold uppercase tracking-wider text-white/40">Thông tin hủy vé</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/40">Cancellation Info</p>
               {item.cancelReason && (
                 <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-white/40 shrink-0">Lý do hủy</span>
+                  <span className="text-white/40 shrink-0">Cancellation Reason</span>
                   <span className="font-medium text-right break-all text-white">{item.cancelReason}</span>
                 </div>
               )}
               {item.cancelRejectReason && (
                 <div className="flex justify-between gap-3 text-sm">
-                  <span className="text-white/40 shrink-0">Lý do từ chối</span>
+                  <span className="text-white/40 shrink-0">Rejection Reason</span>
                   <span className="font-medium text-right break-all text-orange-400">{item.cancelRejectReason}</span>
                 </div>
               )}
@@ -120,7 +120,7 @@ export default function ManagerMonthlyPassRequests() {
       const res = await getAllSubscriptions(token);
       setItems(res);
     } catch (e: unknown) {
-      setError((e as Error).message ?? 'Lỗi tải dữ liệu');
+      setError((e as Error).message ?? 'Error loading data');
     } finally { setLoading(false); }
   }, [token]);
 
@@ -143,10 +143,10 @@ export default function ManagerMonthlyPassRequests() {
         <div>
           <h2 className="text-xl font-bold flex items-center gap-2 text-white">
             <Ticket size={22} className="text-[#FF4C4C]" />
-            Vé tháng
+            Monthly Pass
           </h2>
           <p className="text-sm mt-0.5 text-white/40">
-            Theo dõi các yêu cầu hủy vé tháng từ tài xế (chỉ xem — Admin xử lý duyệt)
+            Track monthly pass cancellation requests from drivers (view only — Admin handles approval)
           </p>
         </div>
         <button
@@ -154,7 +154,7 @@ export default function ManagerMonthlyPassRequests() {
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 transition-all"
         >
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-          Làm mới
+          Refresh
         </button>
       </div>
 
@@ -182,7 +182,7 @@ export default function ManagerMonthlyPassRequests() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/30" />
           <input
             type="text"
-            placeholder="Tìm theo tên tài xế, biển số..."
+            placeholder="Search by driver name, license plate..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPage(1); }}
             className="w-full pl-9 pr-4 py-2 rounded-xl border border-white/10 bg-white/5 text-sm text-white placeholder-white/25 outline-none focus:border-[#FF4C4C]/50 focus:ring-1 focus:ring-[#FF4C4C]/30 transition-colors"
@@ -191,7 +191,7 @@ export default function ManagerMonthlyPassRequests() {
       </div>
 
       <p className="text-xs text-white/30">
-        {loading ? 'Đang tải...' : `Hiển thị ${paged.length} / ${filtered.length} vé tháng`}
+        {loading ? 'Loading...' : `Showing ${paged.length} / ${filtered.length} monthly passes`}
       </p>
 
       {error && (
@@ -206,7 +206,7 @@ export default function ManagerMonthlyPassRequests() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-white/10 bg-white/[0.03]">
-                {['Tài xế', 'Biển số', 'Hiệu lực', 'Trạng thái', 'Ngày tạo', 'Chi tiết'].map(h => (
+                {['Driver', 'License Plate', 'Valid Period', 'Status', 'Created At', 'Details'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-white/30">{h}</th>
                 ))}
               </tr>
@@ -214,11 +214,11 @@ export default function ManagerMonthlyPassRequests() {
             <tbody>
               {loading && paged.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-14 text-center text-white/30">
-                  <RefreshCw size={20} className="animate-spin mx-auto mb-2" />Đang tải...
+                  <RefreshCw size={20} className="animate-spin mx-auto mb-2" />Loading...
                 </td></tr>
               ) : paged.length === 0 ? (
                 <tr><td colSpan={6} className="px-4 py-14 text-center text-sm text-white/30">
-                  Không tìm thấy vé tháng nào
+                  No monthly passes found
                 </td></tr>
               ) : paged.map(item => (
                 <tr key={item.id} className="border-t border-white/[0.06] hover:bg-white/[0.03] transition-colors">
@@ -234,7 +234,7 @@ export default function ManagerMonthlyPassRequests() {
                     {statusBadge(item.status)}
                     {item.cancelReason && (
                       <p className="text-xs text-white/40 max-w-[200px] line-clamp-1" title={item.cancelReason}>
-                        Lý do: {item.cancelReason}
+                        Reason: {item.cancelReason}
                       </p>
                     )}
                   </td>
@@ -243,7 +243,7 @@ export default function ManagerMonthlyPassRequests() {
                     <button
                       onClick={() => setDetailItem(item)}
                       className="p-1.5 rounded-lg hover:bg-white/10 text-white/30 hover:text-white/70 transition-colors"
-                      title="Xem chi tiết"
+                      title="View details"
                     ><Info size={15} /></button>
                   </td>
                 </tr>
@@ -260,7 +260,7 @@ export default function ManagerMonthlyPassRequests() {
             onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
             className="p-2 rounded-xl border border-white/10 bg-white/5 disabled:opacity-30 hover:bg-white/10 text-white/50 transition-colors"
           ><ChevronLeft size={16} /></button>
-          <span className="text-sm text-white/40 px-2">Trang {page} / {totalPages}</span>
+          <span className="text-sm text-white/40 px-2">Page {page} / {totalPages}</span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
             className="p-2 rounded-xl border border-white/10 bg-white/5 disabled:opacity-30 hover:bg-white/10 text-white/50 transition-colors"
