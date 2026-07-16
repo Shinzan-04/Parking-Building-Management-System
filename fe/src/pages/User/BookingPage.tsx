@@ -1624,7 +1624,7 @@ function ConfirmationPopup({
       iconBg: 'bg-[#FF4C4C]/10 border border-[#FF4C4C]/30',
       headerBg: '',
       title: 'Secure Checkout',
-      subtitle: 'Quét mã VietQR trên PayOS',
+      subtitle: 'Scan VietQR code on PayOS',
     },
     qr: {
       icon: <CheckCircle2 size={18} className="text-blue-500" />,
@@ -1715,7 +1715,7 @@ function ConfirmationPopup({
               </div>
 
               <div>
-                <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Thanh Toán</p>
+                <p className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-3">Payment Method</p>
                 <div className="flex flex-col gap-3">
                   <button
                     onClick={() => setPaymentMethod('Wallet')}
@@ -1729,27 +1729,27 @@ function ConfirmationPopup({
                         }`}>
                         {paymentMethod === 'Wallet' && <div className="w-2 h-2 rounded-full bg-[#FF4C4C]" />}
                       </div>
-                      <p className="text-sm font-bold text-stone-800 dark:text-white transition-colors">Thanh toán qua Ví Hệ Thống</p>
+                      <p className="text-sm font-bold text-stone-800 dark:text-white transition-colors">Pay via System Wallet</p>
                     </div>
                     <p className="text-xs text-stone-500 pl-7">
-                      Trừ tiền trực tiếp vào số dư ví của bạn. Giao dịch hoàn tất ngay lập tức.
+                      Deduct directly from your wallet balance. Transaction completes instantly.
                     </p>
                     {walletBalance !== null && (
                       <div className="pl-7 mt-2">
                         <span className="text-xs font-semibold text-stone-600 dark:text-stone-400 bg-stone-100 dark:bg-white/10 px-2.5 py-1 rounded-md">
-                          Số dư hiện tại: <span className="font-bold text-[#FF4C4C]">{walletBalance.toLocaleString('vi-VN')}đ</span>
+                          Current balance: <span className="font-bold text-[#FF4C4C]">{walletBalance.toLocaleString('vi-VN')}đ</span>
                         </span>
                         {total > walletBalance && paymentMethod === 'Wallet' && (
                           <div className="mt-3 flex items-center justify-between p-2.5 bg-red-50 border border-red-100 rounded-xl cursor-default" onClick={e => e.stopPropagation()}>
                             <div>
-                              <p className="text-[11px] font-bold text-red-600">Số dư không đủ thanh toán</p>
+                              <p className="text-[11px] font-bold text-red-600">Insufficient balance</p>
                             </div>
                             <button
                               onClick={handleQuickDeposit}
                               disabled={submitting}
                               className="bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold py-1.5 px-3 rounded-xl transition-all"
                             >
-                              Nạp {Math.max(10000, total - walletBalance).toLocaleString('vi-VN')}đ
+                              Deposit {Math.max(10000, total - walletBalance).toLocaleString('vi-VN')}đ
                             </button>
                           </div>
                         )}
@@ -1769,10 +1769,10 @@ function ConfirmationPopup({
                         }`}>
                         {paymentMethod === 'PayOS' && <div className="w-2 h-2 rounded-full bg-[#FF4C4C]" />}
                       </div>
-                      <p className="text-sm font-bold text-stone-800 dark:text-white transition-colors">Thanh toán qua Ngân hàng (VietQR)</p>
+                      <p className="text-sm font-bold text-stone-800 dark:text-white transition-colors">Pay via Bank (VietQR)</p>
                     </div>
                     <p className="text-xs text-stone-500 pl-7">
-                      Chuyển hướng tới cổng thanh toán PayOS để quét mã QR chuyển khoản.
+                      Redirect to PayOS payment gateway to scan QR code for bank transfer.
                     </p>
                   </button>
                 </div>
@@ -1784,9 +1784,9 @@ function ConfirmationPopup({
                 </div>
               )}
 
-              <p className="text-xs text-stone-400 font-medium text-center">
-                Bằng việc xác nhận, bạn đồng ý với Điều khoản và Dịch vụ.
-              </p>
+              {/* <p className="text-xs text-stone-400 font-medium text-center">
+                By confirming, you agree to our Terms of Service.
+              </p> */}
             </div>
           )}
 
@@ -1800,17 +1800,17 @@ function ConfirmationPopup({
                 <div className="absolute inset-0 rounded-full bg-emerald-400/10 animate-ping" />
               </div>
               <div className="text-center">
-                <p className="text-base font-black text-stone-800 dark:text-white transition-colors mb-1">Đang chờ thanh toán</p>
+                <p className="text-base font-black text-stone-800 dark:text-white transition-colors mb-1">Waiting for payment</p>
                 <p className="text-xs text-stone-500 leading-relaxed">
-                  Cửa sổ PayOS đã mở.<br />
-                  Hoàn tất thanh toán trên cửa sổ đó,<br />
-                  trang này sẽ tự động cập nhật.
+                  PayOS window is open.<br />
+                  Complete the payment there,<br />
+                  this page will update automatically.
                 </p>
               </div>
               <div className="flex items-center gap-2 bg-stone-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full px-5 py-2.5 transition-colors">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-xs text-stone-500 dark:text-stone-400 font-medium">
-                  Đang kiểm tra... <span className="font-bold text-stone-700 dark:text-stone-300">{pollSeconds}s</span>
+                  Checking... <span className="font-bold text-stone-700 dark:text-stone-300">{pollSeconds}s</span>
                 </span>
               </div>
               <button
@@ -1821,7 +1821,7 @@ function ConfirmationPopup({
                 }}
                 className="text-xs text-[#FF4C4C] font-semibold hover:underline"
               >
-                Nhấn để mở lại cửa sổ thanh toán →
+                Click to reopen payment window →
               </button>
               {error && (
                 <div className="bg-red-50 border border-red-100 text-red-500 text-xs px-4 py-3 rounded-2xl text-center font-bold w-full">
@@ -1953,7 +1953,7 @@ function ConfirmationPopup({
               }}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 dark:border-white/10 hover:text-stone-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-all"
             >
-              Hủy Thanh Toán
+              Cancel Payment
             </button>
           )}
 
