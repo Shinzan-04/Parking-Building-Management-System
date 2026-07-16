@@ -101,9 +101,9 @@ export default function UserLayout() {
                 onClick={() => navigate('/monthly-pass')}
                 className="relative flex items-center gap-1.5 text-sm font-semibold hover:text-[#FF4C4C] transition-colors cursor-pointer"
                 style={{ color: 'var(--lp-text-muted)' }}
-                title={activePassDaysLeft !== null ? `Vé tháng còn ${activePassDaysLeft} ngày hiệu lực` : undefined}
+                title={activePassDaysLeft !== null ? `Monthly pass has ${activePassDaysLeft} days left` : undefined}
               >
-                Vé Tháng
+                Monthly Pass
                 {activePassDaysLeft !== null && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 )}
@@ -117,7 +117,7 @@ export default function UserLayout() {
                 onClick={toggleTheme}
                 className="p-2 rounded-xl transition-colors"
                 style={{ backgroundColor: 'var(--lp-input-bg)', color: 'var(--lp-text-muted)' }}
-                title={isDark ? 'Chuyển Light mode' : 'Chuyển Dark mode'}
+                title={isDark ? 'Switch to Light mode' : 'Switch to Dark mode'}
               >
                 {isDark ? <Sun size={17} /> : <Moon size={17} />}
               </button>
@@ -167,7 +167,7 @@ export default function UserLayout() {
                             style={{ color: 'var(--lp-text-muted)' }}
                           >
                             <LayoutDashboard size={16} />
-                            <span>Trang quản lý</span>
+                            <span>Management Page</span>
                           </button>
                           <div className="my-1" style={{ borderTop: '1px solid var(--lp-border)' }} />
                         </>
@@ -200,10 +200,10 @@ export default function UserLayout() {
                       >
                         <Ticket size={16} />
                         <div className="flex flex-col items-start">
-                          <span>Vé Tháng</span>
+                          <span>Monthly Pass</span>
                           {activePassDaysLeft !== null && (
                             <span className="text-xs text-emerald-500 font-normal">
-                              Còn {activePassDaysLeft} ngày hiệu lực
+                              {activePassDaysLeft} days left
                             </span>
                           )}
                         </div>
@@ -216,7 +216,7 @@ export default function UserLayout() {
                         style={{ color: 'var(--lp-text-muted)' }}
                       >
                         <Wallet size={16} />
-                        <span>Ví của tôi</span>
+                        <span>My Wallet</span>
                       </button>
                       <div className="my-1" style={{ borderTop: '1px solid var(--lp-border)' }} />
                       <button

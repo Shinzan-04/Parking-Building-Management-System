@@ -57,7 +57,7 @@ export default function MyTicketPage() {
       setReservations(data);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Không thể tải danh sách vé. Vui lòng thử lại sau.');
+      setError(err.message || 'Cannot load tickets. Please try again later.');
     } finally {
       setLoading(false);
     }
@@ -111,16 +111,16 @@ export default function MyTicketPage() {
 
   const handleCancelBooking = async (id: string) => {
     if (!token) return;
-    if (!window.confirm('Bạn có chắc chắn muốn hủy yêu cầu đặt chỗ này không?')) return;
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
     
     try {
       setSubmittingCancel(true);
       setCancellingId(id);
       await cancelReservation(id, token);
-      alert('Đã hủy đặt chỗ thành công.');
+      alert('Booking cancelled successfully.');
       await fetchTickets(); // reload list
     } catch (err: any) {
-      alert(err.message || 'Hủy đặt chỗ thất bại.');
+      alert(err.message || 'Failed to cancel booking.');
     } finally {
       setSubmittingCancel(false);
       setCancellingId(null);
@@ -170,7 +170,7 @@ export default function MyTicketPage() {
       lot: 'ParkSmart Building',
       plate: ticket.licensePlate,
       vehicle: 'car',
-      slot: ticket.slotNumber || 'Tự động gán',
+      slot: ticket.slotNumber || 'Auto-assigned',
       date: ticket.startTime.split('T')[0],
       entry: ticket.startTime.split('T')[1]?.substring(0, 5) || '',
       duration: getDurationHours(ticket.startTime, ticket.endTime),
@@ -215,12 +215,12 @@ export default function MyTicketPage() {
             className="flex items-center gap-2 text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-white transition-colors text-xs font-bold uppercase tracking-wider self-start"
           >
             <ArrowLeft size={14} />
-            Quay lại trang chủ
+            Back to home
           </button>
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-stone-950 dark:text-white transition-colors duration-300">
-            Vé đỗ xe của tôi<span className="text-[#FF4C4C]">.</span>
+            My Parking Tickets<span className="text-[#FF4C4C]">.</span>
           </h1>
-          <p className="text-sm text-stone-500 dark:text-stone-400 font-medium transition-colors duration-300">Quản lý lịch trình đỗ xe, lấy mã QR và kiểm tra trạng thái vé.</p>
+          <p className="text-sm text-stone-500 dark:text-stone-400 font-medium transition-colors duration-300">Manage your parking schedule, get QR codes and check ticket status.</p>
         </div>
 
         {/* Tab selection */}
@@ -233,7 +233,7 @@ export default function MyTicketPage() {
                 : 'border-transparent text-stone-400 hover:text-stone-700'
             }`}
           >
-            Vé đang hoạt động ({reservations.filter(r => {
+            Active tickets ({reservations.filter(r => {
               const s = normalizeReservationStatus(r.status);
               return ['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(s);
             }).length})
@@ -246,7 +246,7 @@ export default function MyTicketPage() {
                 : 'border-transparent text-stone-400 hover:text-stone-700'
             }`}
           >
-            Lịch sử đỗ xe ({reservations.filter(r => {
+            Parking history ({reservations.filter(r => {
               const s = normalizeReservationStatus(r.status);
               return !['PaymentPending', 'Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(s);
             }).length})
@@ -257,7 +257,7 @@ export default function MyTicketPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 size={36} className="text-[#FF4C4C] animate-spin" />
-            <p className="text-sm text-stone-500 dark:text-stone-400 font-medium transition-colors duration-300">Đang tải danh sách vé của bạn...</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400 font-medium transition-colors duration-300">Loading your tickets...</p>
           </div>
         ) : error ? (
           <div className="bg-red-50 border border-red-200 text-red-500 text-sm rounded-2xl p-6 text-center font-bold">
@@ -268,18 +268,18 @@ export default function MyTicketPage() {
             <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-white/5 flex items-center justify-center mb-6 transition-colors duration-300">
               <Ticket size={28} className="text-stone-400 dark:text-stone-500" />
             </div>
-            <h3 className="text-lg font-bold text-stone-850 dark:text-white mb-2 transition-colors duration-300">Không tìm thấy vé đỗ xe nào</h3>
+            <h3 className="text-lg font-bold text-stone-850 dark:text-white mb-2 transition-colors duration-300">No parking tickets found</h3>
             <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed mb-6 font-medium transition-colors duration-300">
               {activeTab === 'active' 
-                ? 'Bạn hiện không có lượt đặt chỗ đỗ xe nào đang hoạt động.' 
-                : 'Lịch sử lượt đặt chỗ đỗ xe của bạn đang trống.'}
+                ? 'You currently have no active parking reservations.' 
+                : 'Your parking reservation history is empty.'}
             </p>
             {activeTab === 'active' && (
               <button
                 onClick={() => navigate('/find-parking')}
                 className="bg-stone-900 hover:bg-[#FF4C4C] text-white font-bold px-6 py-3 rounded-full text-xs uppercase tracking-widest transition-all shadow-sm shadow-[#FF4C4C]/10"
               >
-                Đặt chỗ đỗ xe ngay
+                Book parking now
               </button>
             )}
           </div>
@@ -301,7 +301,7 @@ export default function MyTicketPage() {
                         {RESERVATION_STATUS_LABELS[status] || status}
                       </span>
                       <span className="text-xs font-bold text-stone-400 dark:text-stone-500 transition-colors duration-300">
-                        Mã: <span className="text-[#FF4C4C] font-black">{ticket.bookingCode}</span>
+                        Code: <span className="text-[#FF4C4C] font-black">{ticket.bookingCode}</span>
                       </span>
                     </div>
 
@@ -314,25 +314,25 @@ export default function MyTicketPage() {
                     {/* Ticket Details */}
                     <div className="space-y-2.5 border-t border-b border-gray-100 dark:border-white/10 py-4 mb-5 text-xs font-medium text-stone-500 dark:text-stone-400 transition-colors duration-300">
                       <div className="flex justify-between">
-                        <span>Biển số xe</span>
+                        <span>License plate</span>
                         <span className="font-bold text-stone-850 dark:text-white">{ticket.licensePlate}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Vị trí ô đỗ</span>
+                        <span>Slot</span>
                         <span className="font-bold text-[#FF4C4C] bg-[#FF4C4C]/5 px-2 py-0.5 rounded">
-                          {ticket.slotNumber || 'Tự động gán'}
+                          {ticket.slotNumber || 'Auto-assigned'}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Thời gian vào</span>
+                        <span>Entry time</span>
                         <span className="font-bold text-stone-850 dark:text-white">
-                          {formatTimeDisplay(ticket.startTime)} ngày {formatDateDisplay(ticket.startTime)}
+                          {formatTimeDisplay(ticket.startTime)} on {formatDateDisplay(ticket.startTime)}
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Thời gian đỗ</span>
+                        <span>Duration</span>
                         <span className="font-bold text-stone-850 dark:text-white">
-                          {getDurationHours(ticket.startTime, ticket.endTime)} tiếng
+                          {getDurationHours(ticket.startTime, ticket.endTime)} hours
                         </span>
                       </div>
                     </div>
@@ -347,14 +347,14 @@ export default function MyTicketPage() {
                         className="flex-1 flex items-center justify-center gap-2 bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold py-3 rounded-2xl text-xs uppercase tracking-wider shadow-sm transition-all"
                       >
                         <QrCode size={14} />
-                        Vé QR Code
+                        QR Code Ticket
                       </button>
                     )}
                     
                     {/* Nút thông báo chưa thanh toán */}
                     {status === 'PaymentPending' && (
                       <div className="flex-1 text-center py-3 rounded-2xl text-xs uppercase tracking-wider font-bold bg-amber-50 text-amber-600 border border-amber-200">
-                        Chưa thanh toán
+                        Payment Pending
                       </div>
                     )}
 
@@ -364,14 +364,14 @@ export default function MyTicketPage() {
                         disabled={submittingCancel && cancellingId === ticket.id}
                         onClick={() => handleCancelBooking(ticket.id)}
                         className="px-4 py-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-500 rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
-                        title="Hủy đặt chỗ"
+                        title="Cancel booking"
                       >
                         {submittingCancel && cancellingId === ticket.id ? (
                           <Loader2 size={14} className="animate-spin" />
                         ) : (
                           <Trash2 size={14} />
                         )}
-                        <span className="hidden sm:inline">Hủy</span>
+                        <span className="hidden sm:inline">Cancel</span>
                       </button>
                     )}
                   </div>
@@ -394,8 +394,8 @@ export default function MyTicketPage() {
                   <QrCode size={16} />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-stone-850 dark:text-white transition-colors duration-300">Mã vé QR Code</h3>
-                  <p className="text-[10px] text-stone-400 dark:text-stone-500 font-medium transition-colors duration-300">Dùng để quét xác nhận tại cổng vào</p>
+                  <h3 className="text-sm font-bold text-stone-850 dark:text-white transition-colors duration-300">QR Code</h3>
+                  <p className="text-[10px] text-stone-400 dark:text-stone-500 font-medium transition-colors duration-300">Use to scan and confirm at the entrance gate</p>
                 </div>
               </div>
               <button
@@ -429,22 +429,22 @@ export default function MyTicketPage() {
 
               {/* Booking Code Display */}
               <div className="text-center">
-                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest block">Mã Booking</span>
+                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest block">Booking Code</span>
                 <span className="text-lg font-black text-[#FF4C4C] tracking-widest uppercase">{selectedTicketForQr.bookingCode}</span>
               </div>
 
               {/* Muted Specs summary */}
               <div className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden text-xs font-semibold text-stone-500 dark:text-stone-400 transition-colors duration-300">
                 <div className="flex justify-between px-4 py-2.5 border-b border-gray-150 dark:border-white/10 transition-colors duration-300">
-                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Biển số</span>
+                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">License plate</span>
                   <span className="text-stone-800 dark:text-white transition-colors duration-300">{selectedTicketForQr.licensePlate}</span>
                 </div>
                 <div className="flex justify-between px-4 py-2.5 border-b border-gray-150 dark:border-white/10 transition-colors duration-300">
-                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Vị trí đỗ</span>
-                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{selectedTicketForQr.slotNumber || 'Tự động gán'}</span>
+                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Slot</span>
+                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{selectedTicketForQr.slotNumber || 'Auto-assigned'}</span>
                 </div>
                 <div className="flex justify-between px-4 py-2.5">
-                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Giờ vào</span>
+                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Entry time</span>
                   <span className="text-stone-800 dark:text-white transition-colors duration-300">{formatTimeDisplay(selectedTicketForQr.startTime)} • {formatDateDisplay(selectedTicketForQr.startTime)}</span>
                 </div>
               </div>
@@ -456,7 +456,7 @@ export default function MyTicketPage() {
                 onClick={() => setSelectedTicketForQr(null)}
                 className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-white dark:hover:bg-gray-200 dark:text-stone-900 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
               >
-                Đóng
+                Close
               </button>
             </div>
           </div>
