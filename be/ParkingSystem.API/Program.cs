@@ -208,18 +208,20 @@ if (app.Environment.IsDevelopment())
 
 // app.UseHttpsRedirection();
 
-app.UseDefaultFiles(new Microsoft.AspNetCore.Builder.DefaultFilesOptions
+var uiTestPath = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"));
+if (Directory.Exists(uiTestPath))
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"))),
-    RequestPath = new Microsoft.AspNetCore.Http.PathString("/uitest"),
-});
-app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-    Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "UItest"))),
-    RequestPath = new Microsoft.AspNetCore.Http.PathString("/uitest"),
-});
+    app.UseDefaultFiles(new Microsoft.AspNetCore.Builder.DefaultFilesOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uiTestPath),
+        RequestPath = new Microsoft.AspNetCore.Http.PathString("/uitest"),
+    });
+    app.UseStaticFiles(new Microsoft.AspNetCore.Builder.StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uiTestPath),
+        RequestPath = new Microsoft.AspNetCore.Http.PathString("/uitest"),
+    });
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

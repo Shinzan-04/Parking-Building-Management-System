@@ -44,21 +44,28 @@ public class GracePeriodNotifierService : BackgroundService
 
                 foreach (var session in sessionsToWarn)
                 {
-                    // Tính thử xem nếu quá hạn 1 phút thì phí có tăng không (có vượt qua Block hiện tại không)
-                    var futureTime = session.GracePeriodEndTime.Value.AddMinutes(1);
-                    var futureFeeResult = await checkOutService.CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, futureTime);
-
-                    if (futureFeeResult.TotalFee > session.PrePaidAmount && session.DriverId.HasValue)
+                    try 
                     {
-                        await notificationService.SendAsync(
-                            session.DriverId.Value,
-                            "⏳ Sắp hết thời gian ân hạn",
-                            $"Thời gian ân hạn 15 phút sau khi thanh toán sắp hết (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}). Nếu bạn vẫn tiếp tục gửi, hệ thống sẽ trở lại tính phí theo Block bình thường.",
-                            "GracePeriodWarning",
-                            session.Id);
-                    }
+                        // Tính thử xem nếu quá hạn 1 phút thì phí có tăng không (có vượt qua Block hiện tại không)
+                        var futureTime = session.GracePeriodEndTime.Value.AddMinutes(1);
+                        var futureFeeResult = await checkOutService.CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, futureTime, pricingPolicyId: session.PricingPolicyId);
 
-                    session.GraceWarningSent = true;
+                        if (futureFeeResult.TotalFee > session.PrePaidAmount && session.DriverId.HasValue)
+                        {
+                            await notificationService.SendAsync(
+                                session.DriverId.Value,
+                                "⏳ Sắp hết thời gian ân hạn",
+                                $"Thời gian ân hạn 15 phút sau khi thanh toán sắp hết (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}). Nếu bạn vẫn tiếp tục gửi, hệ thống sẽ trở lại tính phí theo Block bình thường.",
+                                "GracePeriodWarning",
+                                session.Id);
+                        }
+
+                        session.GraceWarningSent = true;
+                    } 
+                    catch (Exception sessionEx)
+                    {
+                        _logger.LogWarning(sessionEx, $"Failed to process grace period warning for session {session.Id}");
+                    }
                 }
 
                 if (sessionsToWarn.Any())
