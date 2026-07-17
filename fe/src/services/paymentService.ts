@@ -45,6 +45,8 @@ export interface CreatePayOSPaymentRequest {
 
 export interface PayOSCheckoutResponse {
   checkoutUrl: string;
+  /** Chuỗi QR EMVCo/VietQR thật từ PayOS — dùng để render QR quét được bằng app ngân hàng */
+  qrCode?: string;
   orderCode: number;
   amount: number;
   description: string;
