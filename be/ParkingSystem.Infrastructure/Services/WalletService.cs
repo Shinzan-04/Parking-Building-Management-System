@@ -47,7 +47,7 @@ public class WalletService : IWalletService
         };
     }
 
-    public async Task<bool> WithdrawAsync(Guid userId, WithdrawRequestDto request)
+    public async Task<(bool Success, string Message)> WithdrawAsync(Guid userId, WithdrawRequestDto request)
     {
         if (request.Amount < 10000)
             throw new Exception("Số tiền rút tối thiểu là 10,000 VNĐ.");
@@ -102,7 +102,7 @@ public class WalletService : IWalletService
                 walletTx.Status = "Success";
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return true;
+                return (true, "Rút tiền thành công. Tiền đang được chuyển về ngân hàng của bạn.");
             }
             else
             {
@@ -112,12 +112,12 @@ public class WalletService : IWalletService
                 walletTx.Description += $" (Lỗi: {payoutResult.ErrorMessage})";
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-                throw new Exception($"Rút tiền qua cổng PayOS thất bại: {payoutResult.ErrorMessage}");
+                return (false, $"Rút tiền qua cổng PayOS thất bại: {payoutResult.ErrorMessage}");
             }
         }
         catch (Exception)
         {
-            await transaction.RollbackAsync();
+            try { await transaction.RollbackAsync(); } catch { }
             throw;
         }
     }

@@ -188,12 +188,25 @@ public class SubscriptionService : ISubscriptionService
         // 2. Kiểm tra xem xe này đã có vé tháng Active chưa
         var now = DateTime.UtcNow;
         var existingSub = await _context.Subscriptions
-            .FirstOrDefaultAsync(s => s.LicensePlate == vehicle.PlateNumber
-                                   && s.Status == SubscriptionStatus.Active
-                                   && s.EndDate >= now);
+            .Where(s => s.LicensePlate == vehicle.PlateNumber && s.Status == SubscriptionStatus.Active)
+            .OrderByDescending(s => s.EndDate)
+            .FirstOrDefaultAsync();
         
-        if (existingSub != null)
-            throw new InvalidOperationException($"Biển số {vehicle.PlateNumber} đã có vé tháng có hiệu lực đến {existingSub.EndDate:dd/MM/yyyy}.");
+        DateTime newStartDate;
+        DateTime newEndDate;
+
+        if (existingSub != null && existingSub.EndDate > now)
+        {
+            // Nối tiếp thời gian nếu vé cũ vẫn còn hạn
+            newStartDate = existingSub.EndDate;
+            newEndDate = existingSub.EndDate.AddDays(30);
+        }
+        else
+        {
+            // Nếu không có vé cũ hoặc vé cũ đã hết hạn
+            newStartDate = now;
+            newEndDate = now.AddDays(30);
+        }
 
         // 3. Lấy giá tiền từ MonthlyPassPolicy
         var policy = await _context.MonthlyPassPolicies
@@ -211,8 +224,8 @@ public class SubscriptionService : ISubscriptionService
             DriverId = driverId,
             VehicleTypeId = vehicle.VehicleTypeId,
             LicensePlate = vehicle.PlateNumber,
-            StartDate = now,
-            EndDate = now.AddDays(30), // Vé 30 ngày
+            StartDate = newStartDate,
+            EndDate = newEndDate, // Vé 30 ngày
             Status = SubscriptionStatus.PendingPayment,
             MonthlyPassPolicyId = policy.Id,
             CreatedAt = now,

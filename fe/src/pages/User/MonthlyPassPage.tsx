@@ -129,10 +129,10 @@ function PolicyCard({
         {/* CTA */}
         <button
           onClick={() => onRegister(policy)}
-          disabled={!policy.isActive || hasActiveForType}
-          className="mt-auto w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+          disabled={!policy.isActive}
+          className="mt-auto w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
           style={
-            policy.isActive && !hasActiveForType
+            policy.isActive
               ? { backgroundColor: '#FF4C4C', color: '#fff' }
               : { backgroundColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }
           }
@@ -140,7 +140,7 @@ function PolicyCard({
           {hasActiveForType ? (
             <>
               <CheckCircle2 size={15} />
-              In Use
+              Register / Renew
             </>
           ) : (
             <>

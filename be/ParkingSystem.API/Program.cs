@@ -105,6 +105,7 @@ builder.Services.AddScoped<IAuditLogService, ParkingSystem.Infrastructure.Servic
 // Background Service: Tự động hủy reservation hết hạn (quét mỗi 5 phút)
 builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.ReservationCleanupService>();
 builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.GracePeriodNotifierService>();
+builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.SubscriptionExpiryNotifierService>();
 builder.Services.AddHostedService<ParkingSystem.Infrastructure.Services.SubscriptionCleanupService>();
 
 // Register LPR Services (Clean Architecture)

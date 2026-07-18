@@ -48,8 +48,12 @@ public class WalletsController : ControllerBase
     {
         try
         {
-            var result = await _walletService.WithdrawAsync(GetUserId(), request);
-            return Ok(new { Message = "Rút tiền thành công. Tiền đang được chuyển về ngân hàng của bạn." });
+            var (success, message) = await _walletService.WithdrawAsync(GetUserId(), request);
+            if (!success)
+            {
+                return BadRequest(new { Message = message });
+            }
+            return Ok(new { Message = message });
         }
         catch (Exception ex)
         {

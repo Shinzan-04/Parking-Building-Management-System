@@ -7,5 +7,5 @@ namespace ParkingSystem.Application.Interfaces;
 public interface IWalletService
 {
     Task<WalletBalanceDto> GetMyBalanceAsync(Guid userId);
-    Task<bool> WithdrawAsync(Guid userId, WithdrawRequestDto request);
+    Task<(bool Success, string Message)> WithdrawAsync(Guid userId, WithdrawRequestDto request);
 }

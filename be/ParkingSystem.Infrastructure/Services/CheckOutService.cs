@@ -108,7 +108,7 @@ public class CheckOutService : ICheckOutService
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
         // Áp dụng Miễn phí nếu có Vé tháng
-        await ApplySubscriptionDiscountAsync(session.LicensePlate, session.VehicleTypeId, priceResult);
+        await ApplySubscriptionDiscountAsync(session, exitTime, priceResult);
 
         if (session.ReservationId != null && session.Reservation != null)
         {
@@ -209,6 +209,9 @@ public class CheckOutService : ICheckOutService
 
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
+
+        // Áp dụng Miễn phí nếu có Vé tháng
+        await ApplySubscriptionDiscountAsync(session, exitTime, priceResult);
 
         if (session.ReservationId != null && session.Reservation != null)
         {
@@ -586,7 +589,7 @@ public class CheckOutService : ICheckOutService
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
         // Áp dụng Miễn phí nếu có Vé tháng
-        await ApplySubscriptionDiscountAsync(session.LicensePlate, session.VehicleTypeId, priceResult);
+        await ApplySubscriptionDiscountAsync(session, exitTime, priceResult);
 
         if (session.ReservationId != null && session.Reservation != null)
         {
@@ -653,7 +656,7 @@ public class CheckOutService : ICheckOutService
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
         // Áp dụng Miễn phí nếu có Vé tháng
-        await ApplySubscriptionDiscountAsync(session.LicensePlate, session.VehicleTypeId, priceResult);
+        await ApplySubscriptionDiscountAsync(session, exitTime, priceResult);
 
         if (session.ReservationId != null && session.Reservation != null)
         {
@@ -691,20 +694,68 @@ public class CheckOutService : ICheckOutService
         };
     }
 
-    private async Task ApplySubscriptionDiscountAsync(string licensePlate, Guid vehicleTypeId, PriceCalculationResult priceResult)
+    private async Task ApplySubscriptionDiscountAsync(ParkingSession session, DateTime exitTime, PriceCalculationResult priceResult)
     {
-        var now = DateTime.UtcNow;
-        var hasActiveSub = await _context.Subscriptions
-            .AnyAsync(s => s.LicensePlate == licensePlate 
-                        && s.VehicleTypeId == vehicleTypeId 
-                        && s.Status == SubscriptionStatus.Active 
-                        && s.StartDate <= now 
-                        && s.EndDate >= now);
+        // Lấy tất cả các vé tháng Active của xe này
+        var subs = await _context.Subscriptions
+            .Where(s => s.LicensePlate == session.LicensePlate 
+                     && s.VehicleTypeId == session.VehicleTypeId 
+                     && s.Status == SubscriptionStatus.Active)
+            .OrderBy(s => s.StartDate)
+            .ToListAsync();
 
-        if (hasActiveSub)
+        if (!subs.Any()) return;
+
+        // Tìm các khoảng trống (gaps) không được vé tháng bao phủ
+        var gaps = new List<(DateTime Start, DateTime End)>();
+        var current = session.EntryTime;
+
+        foreach (var sub in subs)
+        {
+            if (current >= exitTime) break;
+            if (sub.EndDate <= current) continue;
+
+            if (sub.StartDate > current)
+            {
+                var gapEnd = sub.StartDate < exitTime ? sub.StartDate : exitTime;
+                gaps.Add((current, gapEnd));
+                current = sub.EndDate;
+            }
+            else
+            {
+                if (sub.EndDate > current)
+                {
+                    current = sub.EndDate;
+                }
+            }
+        }
+
+        if (current < exitTime)
+        {
+            gaps.Add((current, exitTime));
+        }
+
+        // Tính tổng phí dựa trên các khoảng trống
+        if (!gaps.Any())
         {
             priceResult.TotalFee = 0;
             priceResult.FeeBreakdown = null;
+        }
+        else
+        {
+            decimal totalFee = 0;
+            double totalHours = 0;
+
+            foreach (var gap in gaps)
+            {
+                // Gọi hàm tính phí bình thường (không dùng isOverdue = true để không bị phạt nhân hệ số)
+                var gapResult = await CalculateFeeAsync(session.VehicleTypeId, gap.Start, gap.End, isOverdue: false, pricingPolicyId: session.PricingPolicyId);
+                totalFee += gapResult.TotalFee;
+                totalHours += gapResult.TotalHours;
+            }
+
+            priceResult.TotalFee = totalFee;
+            priceResult.TotalHours = totalHours;
         }
     }
 
