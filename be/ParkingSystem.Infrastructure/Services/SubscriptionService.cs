@@ -117,10 +117,15 @@ public class SubscriptionService : ISubscriptionService
     // ===== SUBSCRIPTIONS =====
     public async Task<List<SubscriptionResponse>> GetMySubscriptionsAsync(Guid driverId)
     {
+        var myLicensePlates = await _context.Vehicles
+            .Where(v => v.DriverId == driverId)
+            .Select(v => v.PlateNumber)
+            .ToListAsync();
+
         var subs = await _context.Subscriptions
             .Include(s => s.VehicleType)
             .Include(s => s.Driver)
-            .Where(s => s.DriverId == driverId)
+            .Where(s => s.DriverId == driverId || myLicensePlates.Contains(s.LicensePlate))
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
 
