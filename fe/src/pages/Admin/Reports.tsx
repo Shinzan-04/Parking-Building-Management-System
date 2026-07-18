@@ -11,7 +11,7 @@
  *  - Date filter
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Cell,
@@ -26,6 +26,8 @@ import { getBuildings } from '../../services/buildingsService';
 import { searchSessions } from '../../services/sessionsService';
 import type { SessionDto } from '../../services/sessionsService';
 import { getUsers } from '../../services/usersService';
+import { getTransactions } from '../../services/paymentService';
+import type { TransactionHistoryResult, PaymentListItem } from '../../services/paymentService';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,6 +79,10 @@ export default function AdminReports() {
   const [revenueData,    setRevenueData]    = useState<{ label: string; revenue: number }[]>([]);
   const [vehicleData,    setVehicleData]    = useState<{ name: string; count: number }[]>([]);
   const [recentSessions, setRecentSessions] = useState<SessionDto[]>([]);
+  const [txResult,       setTxResult]       = useState<TransactionHistoryResult | null>(null);
+  const [activeTab,      setActiveTab]      = useState<'Parking' | 'Booking' | 'Subscription' | 'TopUp'>('Parking');
+  const [txPage,         setTxPage]         = useState(1);
+  const TX_PAGE_SIZE = 10;
 
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,7 +90,7 @@ export default function AdminReports() {
 
   const today   = toLocalDateStr(new Date());
   const weekAgo = toLocalDateStr(new Date(Date.now() - 6 * 86400_000));
-  const [fromDate, setFromDate] = useState(weekAgo);
+  const [fromDate, setFromDate] = useState(today);
   const [toDate,   setToDate]   = useState(today);
 
   // ─── Load ────────────────────────────────────────────────────────────────────
@@ -104,11 +110,16 @@ export default function AdminReports() {
         pageSize: PAGE_SIZE,
       };
 
-      // Run in parallel: page 1 sessions + buildings + users
-      const [firstPage, buildings, users] = await Promise.all([
+      // Run in parallel: page 1 sessions + buildings + users + transactions
+      const [firstPage, buildings, users, txRes] = await Promise.all([
         searchSessions({ ...sessionParams, page: 1 }, token),
         getBuildings(),
         getUsers(token),
+        getTransactions(token, {
+          fromDate: `${fromDate}T00:00:00Z`,
+          toDate:   `${toDate}T23:59:59Z`,
+          pageSize: 1000
+        })
       ]);
 
       // If there are multiple pages, fetch the remaining pages in parallel
@@ -131,8 +142,9 @@ export default function AdminReports() {
       setTotalCapacity(buildings.reduce((s, b) => s + b.totalCapacity, 0));
       setActiveCount(summary.totalActive);
       setOverdueCount(summary.totalOverdue);
-      setTodayRevenue(summary.totalRevenueToday);
+      setTodayRevenue(txRes.totalAmount); // Use totalAmount from Transactions instead
       setTodayCompleted(summary.totalCompletedToday);
+      setTxResult(txRes);
 
       // Revenue chart
       const last7 = getLast7Days();
@@ -166,7 +178,11 @@ export default function AdminReports() {
     }
   }, [token, fromDate, toDate]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const isFirstLoad = useRef(true);
+  useEffect(() => { 
+    loadData(!isFirstLoad.current);
+    isFirstLoad.current = false;
+  }, [loadData]);
 
   const occupancyPct = totalCapacity > 0 ? Math.round((activeCount / totalCapacity) * 100) : 0;
   const totalRevInRange = revenueData.reduce((s, d) => s + d.revenue, 0);
@@ -193,15 +209,14 @@ export default function AdminReports() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
-            <Calendar size={13} className="text-white/40" />
             <input type="date" value={fromDate} max={toDate}
               onChange={e => setFromDate(e.target.value)}
-              className="bg-transparent text-xs text-white/70 focus:outline-none"
+              className="bg-transparent text-xs text-white/70 focus:outline-none [color-scheme:dark]"
             />
             <span className="text-white/30 text-xs">—</span>
             <input type="date" value={toDate} min={fromDate} max={today}
               onChange={e => setToDate(e.target.value)}
-              className="bg-transparent text-xs text-white/70 focus:outline-none"
+              className="bg-transparent text-xs text-white/70 focus:outline-none [color-scheme:dark]"
             />
           </div>
           <button onClick={() => loadData(true)} disabled={refreshing}
@@ -224,7 +239,7 @@ export default function AdminReports() {
           { label: 'System Accounts', value: totalUsers.toLocaleString('vi-VN'), unit: 'users', icon: Users,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
           { label: 'Managed Buildings',    value: totalBuildings.toLocaleString('vi-VN'), unit: `${totalCapacity} total slots`, icon: Building2, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
           { label: 'Vehicles Parked (real-time)', value: activeCount.toLocaleString('vi-VN'), unit: `${occupancyPct}% occupied`, icon: Car, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-          { label: "Today's Revenue",  value: vnd(todayRevenue),                      unit: todayCompleted + ' sessions · today', icon: Banknote, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+          { label: "Total Revenue (In Period)",  value: vnd(todayRevenue),                      unit: txResult ? `${txResult.totalCount} transactions` : '', icon: Banknote, color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
         ].map(card => {
           const Icon = card.icon;
           return (
@@ -239,6 +254,23 @@ export default function AdminReports() {
           );
         })}
       </div>
+
+      {/* Revenue Breakdown */}
+      {txResult && (
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+          {[
+            { label: 'Walk-in Revenue', value: vnd(txResult.parkingRevenue), color: '#34d399' },
+            { label: 'Booking Revenue', value: vnd(txResult.bookingRevenue), color: '#fbbf24' },
+            { label: 'Subscription Rev',value: vnd(txResult.subscriptionRevenue), color: '#f472b6' },
+            { label: 'Top-Up Revenue',  value: vnd(txResult.topUpRevenue),   color: '#60a5fa' },
+          ].map(stat => (
+            <div key={stat.label} className="glass-card p-4 rounded-xl border-l-4" style={{ borderLeftColor: stat.color }}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-white/50 mb-1">{stat.label}</p>
+              <p className="text-lg font-bold" style={{ color: stat.color }}>{stat.value} đ</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Alert row */}
       {overdueCount > 0 && (
@@ -309,64 +341,135 @@ export default function AdminReports() {
         </div>
       </div>
 
-      {/* Recent sessions */}
-      <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">Recent Parking Sessions (Completed)</h3>
-          <span className="text-xs text-white/30">{recentSessions.length} sessions</span>
-        </div>
-        {recentSessions.length === 0 ? (
-          <div className="flex items-center justify-center py-12 text-white/30 text-sm">
-            No data available in the selected period
+
+
+      {/* Transactions History */}
+      {txResult && (
+        <div className="glass-card rounded-2xl overflow-hidden mt-6">
+          <div className="flex items-center overflow-x-auto border-b border-white/10">
+            <button 
+              onClick={() => { setActiveTab('Parking'); setTxPage(1); }}
+              className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors flex items-center gap-2 border-b-2 ${activeTab === 'Parking' ? 'border-emerald-500 text-emerald-400' : 'border-transparent text-white/50 hover:text-white hover:bg-white/5'}`}
+            >
+              Walk-in (Checkout)
+            </button>
+            <button 
+              onClick={() => { setActiveTab('Booking'); setTxPage(1); }}
+              className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors flex items-center gap-2 border-b-2 ${activeTab === 'Booking' ? 'border-amber-500 text-amber-400' : 'border-transparent text-white/50 hover:text-white hover:bg-white/5'}`}
+            >
+              Booking
+            </button>
+            <button 
+              onClick={() => { setActiveTab('Subscription'); setTxPage(1); }}
+              className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors flex items-center gap-2 border-b-2 ${activeTab === 'Subscription' ? 'border-pink-500 text-pink-400' : 'border-transparent text-white/50 hover:text-white hover:bg-white/5'}`}
+            >
+              Monthly Pass
+            </button>
+            <button 
+              onClick={() => { setActiveTab('TopUp'); setTxPage(1); }}
+              className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors flex items-center gap-2 border-b-2 ${activeTab === 'TopUp' ? 'border-blue-500 text-blue-400' : 'border-transparent text-white/50 hover:text-white hover:bg-white/5'}`}
+            >
+              Wallet Top-Up
+            </button>
           </div>
-        ) : (
+
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/5">
-                  {['License Plate', 'Vehicle Type', 'Building', 'Entry Time', 'Exit Time', 'Duration', 'Fee Collected'].map(h => (
-                    <th key={h} className="text-left text-xs font-medium text-white/40 px-4 py-3 first:pl-6">{h}</th>
-                  ))}
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-white/10 text-white/50">
+                <tr>
+                  <th className="py-3 px-4 font-semibold whitespace-nowrap">ID</th>
+                  <th className="py-3 px-4 font-semibold">User</th>
+                  <th className="py-3 px-4 font-semibold">Method</th>
+                  <th className="py-3 px-4 font-semibold text-right">Amount</th>
+                  <th className="py-3 px-4 font-semibold w-1/3">Description</th>
+                  <th className="py-3 px-4 font-semibold">Date</th>
+                  <th className="py-3 px-4 font-semibold text-center">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {recentSessions.map(s => (
-                  <tr key={s.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors">
-                    <td className="px-6 py-3"><span className="font-mono font-semibold text-sm text-white">{s.licensePlate}</span></td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs bg-[#FF4C4C]/10 text-[#FF4C4C] px-2 py-0.5 rounded-full">{s.vehicleTypeName}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-xs text-white/60">{s.buildingName}</p>
-                      <p className="text-[10px] text-white/30">{s.floorName} · {s.slotNumber}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5 text-xs text-white/60">
-                        <Clock size={11} className="text-white/30" />
-                        {new Date(s.entryTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {s.exitTime ? (
-                        <div className="flex items-center gap-1.5 text-xs text-white/60">
-                          <CheckCircle2 size={11} className="text-[#FF4C4C]" />
-                          {new Date(s.exitTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
-                        </div>
-                      ) : <span className="text-white/30 text-sm">—</span>}
-                    </td>
-                    <td className="px-4 py-3"><span className="text-xs text-white/60">{s.duration || '—'}</span></td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1 text-sm font-semibold text-[#FF4C4C]">
-                        <ArrowUpRight size={13} />{vnd(s.totalFee)}đ
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {(() => {
+                  const filteredItems = txResult.items.filter(x => x.transactionType === activeTab);
+                  const totalTxPages = Math.ceil(filteredItems.length / TX_PAGE_SIZE);
+                  const paginatedItems = filteredItems.slice((txPage - 1) * TX_PAGE_SIZE, txPage * TX_PAGE_SIZE);
+                  
+                  if (filteredItems.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={7} className="py-8 text-center text-white/50">
+                          No transactions found for this type.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {paginatedItems.map(tx => (
+                        <tr key={tx.paymentId} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                          <td className="py-3 px-4 font-mono text-xs text-white/60">{tx.paymentId.substring(0,8)}...</td>
+                          <td className="py-3 px-4">
+                            <div className="font-medium text-white">{tx.userFullName || 'Guest'}</div>
+                            <div className="text-xs text-white/40">{tx.userEmail || ''}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className="bg-blue-500/10 text-blue-500 px-2 py-1 rounded-md text-xs font-mono font-bold border border-blue-500/20">{tx.paymentMethod}</span>
+                          </td>
+                          <td className="py-3 px-4 text-right font-bold text-white/90">{vnd(tx.amount)} đ</td>
+                          <td className="py-3 px-4 text-white/70 text-xs leading-relaxed">{tx.description}</td>
+                          <td className="py-3 px-4 text-white/60 text-xs">{new Date(tx.paymentDate).toLocaleString('en-GB')}</td>
+                          <td className="py-3 px-4 flex justify-center">
+                            {tx.status === 'Success' && <span className="bg-emerald-500/10 text-emerald-500 px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1 w-max"><CheckCircle2 size={12}/> Success</span>}
+                            {tx.status === 'Pending' && <span className="bg-amber-500/10 text-amber-500 px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1 w-max"><Clock size={12}/> Pending</span>}
+                            {tx.status !== 'Success' && tx.status !== 'Pending' && <span className="bg-red-500/10 text-red-500 px-2 py-1 rounded-md text-xs font-semibold flex items-center gap-1 w-max"><AlertTriangle size={12}/> {tx.status}</span>}
+                          </td>
+                        </tr>
+                      ))}
+                      {totalTxPages > 1 && (
+                        <tr>
+                          <td colSpan={7} className="py-4 px-6 border-t border-white/10">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-white/40">
+                                Showing {((txPage - 1) * TX_PAGE_SIZE) + 1} to {Math.min(txPage * TX_PAGE_SIZE, filteredItems.length)} of {filteredItems.length} entries
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button 
+                                  onClick={() => setTxPage(p => Math.max(1, p - 1))}
+                                  disabled={txPage === 1}
+                                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white/70 transition-colors"
+                                >
+                                  Previous
+                                </button>
+                                <div className="flex items-center gap-1">
+                                  {Array.from({ length: totalTxPages }, (_, i) => i + 1).map(page => (
+                                    <button
+                                      key={page}
+                                      onClick={() => setTxPage(page)}
+                                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-medium transition-colors ${txPage === page ? 'bg-[#FF4C4C] text-white' : 'bg-transparent text-white/50 hover:bg-white/5 hover:text-white'}`}
+                                    >
+                                      {page}
+                                    </button>
+                                  ))}
+                                </div>
+                                <button 
+                                  onClick={() => setTxPage(p => Math.min(totalTxPages, p + 1))}
+                                  disabled={txPage === totalTxPages}
+                                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed text-sm text-white/70 transition-colors"
+                                >
+                                  Next
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })()}
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

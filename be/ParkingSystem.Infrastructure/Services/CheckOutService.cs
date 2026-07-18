@@ -210,15 +210,20 @@ public class CheckOutService : ICheckOutService
         var exitTime = DateTime.UtcNow;
         var priceResult = await CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, exitTime, pricingPolicyId: session.PricingPolicyId);
 
+        var originalFee = priceResult.TotalFee;
+
         // Áp dụng Miễn phí nếu có Vé tháng
         await ApplySubscriptionDiscountAsync(session, exitTime, priceResult);
+        bool hasSubscriptionDiscount = priceResult.TotalFee < originalFee;
 
+        bool hasReservationDiscount = false;
         if (session.ReservationId != null && session.Reservation != null)
         {
             if (exitTime <= session.Reservation.EndTime)
             {
                 priceResult.TotalFee = 0;
                 priceResult.FeeBreakdown = null;
+                hasReservationDiscount = true;
             }
             else
             {
@@ -426,13 +431,21 @@ public class CheckOutService : ICheckOutService
         Payment? payment = null;
         if (!isAutoPaid)
         {
+            string desc = $"Thanh toan phi gui xe cho bien so {session.LicensePlate}";
+            if (amountDue == 0)
+            {
+                if (hasSubscriptionDiscount) desc = $"Thanh toán phí gửi xe (Sử dụng Vé tháng) cho biển số {session.LicensePlate}";
+                else if (hasReservationDiscount) desc = $"Thanh toán phí gửi xe (Đã đặt chỗ trước) cho biển số {session.LicensePlate}";
+                else if (session.GracePeriodEndTime.HasValue && exitTime <= session.GracePeriodEndTime.Value) desc = $"Thanh toán phí gửi xe (Miễn phí Grace Period) cho biển số {session.LicensePlate}";
+            }
+
             payment = new Payment
             {
                 Id = Guid.NewGuid(),
                 PayOSOrderCode = GeneratePayOSOrderCode(),
                 ParkingSessionId = session.Id,
                 Amount = amountDue, // Save the actual amount due, not TotalFee (since some might be prepaid)
-                Description = $"Thanh toan phi gui xe cho bien so {session.LicensePlate}",
+                Description = desc,
                 PaymentDate = exitTime,
                 PaymentMethod = request.PaymentMethod,
                 Status = PaymentStatus.Success,
