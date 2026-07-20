@@ -127,8 +127,8 @@ function getBuildingCoordinates(buildingId: string, address: string): { lat: num
 // ---------- Ánh xạ dữ liệu BuildingResponse sang ParkingLot ----------
 function mapBuildingToParkingLot(b: BuildingResponse): ParkingLot {
   const coords = getBuildingCoordinates(b.id, b.address);
-  // Giả định 70% số chỗ là còn trống
-  const available = Math.max(1, Math.floor(b.totalCapacity * 0.7));
+  // Sử dụng số lượng slot trống thật từ backend, nếu không có fallback về 0
+  const available = b.availableSpots || 0;
   return {
     id: b.id,
     name: b.name,
@@ -322,7 +322,7 @@ export default function FindParkingPage() {
         .then(async (floors) => {
           const sorted = floors.sort((a, b) => a.floorIndex - b.floorIndex);
           setBuildingFloors(sorted);
-          
+
           // Fetch slots for all floors to count them
           const slotsArrays = await Promise.all(
             sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
@@ -445,60 +445,7 @@ export default function FindParkingPage() {
 
   return (
     <div className="flex flex-col h-[calc(100vh-5rem)] bg-[#F3F3F5] dark:bg-[#0A0A0C] text-stone-900 dark:text-[#F5F5F5] overflow-hidden font-sans antialiased selection:bg-[#FF4C4C]/25 selection:text-[#FF4C4C] transition-colors duration-300">
-      {/* ===== Filter Bar ===== */}
-      <div className="relative flex-shrink-0 z-[9998] bg-white/80 dark:bg-[#0A0A0C]/80 border-b border-gray-200/50 dark:border-white/10 px-4 sm:px-6 lg:px-8 py-3 backdrop-blur-md transition-colors duration-300">
-        <div className="flex items-center gap-3 flex-wrap">
 
-          {/* Vehicle type filters */}
-          {(
-            [
-              { key: 'all', label: 'All Vehicles', icon: Car },
-              { key: 'motorbike', label: 'Motorbike', icon: Bike },
-              { key: 'car', label: 'Car', icon: Car },
-              { key: 'ev', label: 'EV Charger', icon: Zap },
-            ] as { key: VehicleFilter; label: string; icon: any }[]
-          ).map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setVehicleFilter(key)}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold border transition-all duration-300 ${vehicleFilter === key
-                ? 'bg-[#FF4C4C] text-white border-[#FF4C4C] shadow-sm shadow-[#FF4C4C]/15'
-                : 'bg-gray-100 dark:bg-white/5 text-stone-600 dark:text-stone-400 border-gray-200 dark:border-white/10 hover:bg-gray-200/60 dark:hover:bg-white/10 hover:text-stone-900 dark:hover:text-white'
-                }`}
-            >
-              <Icon size={13} />
-              {label}
-            </button>
-          ))}
-
-          {/* Sort dropdown */}
-          <div className="relative ml-auto" ref={sortRef}>
-            <button
-              onClick={() => setIsSortOpen(!isSortOpen)}
-              className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-stone-700 dark:text-stone-300 hover:bg-gray-200/60 dark:hover:bg-white/10 transition-all duration-300"
-            >
-              Sort by: <span className="text-[#FF4C4C]">{SORT_LABELS[sortBy]}</span>
-              <ChevronDown size={13} className={`transition-transform ${isSortOpen ? 'rotate-180' : ''}`} />
-            </button>
-            {isSortOpen && (
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-2xl shadow-xl py-2 z-50 transition-colors duration-300">
-                {(Object.keys(SORT_LABELS) as SortOption[]).map((opt) => (
-                  <button
-                    key={opt}
-                    onClick={() => { setSortBy(opt); setIsSortOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-xs font-semibold transition-colors duration-300 ${sortBy === opt
-                      ? 'text-[#FF4C4C] bg-[#FF4C4C]/5'
-                      : 'text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5'
-                      }`}
-                  >
-                    {SORT_LABELS[opt]}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
 
       {/* ===== Main Content: Sidebar + Map ===== */}
       <div className="flex flex-1 overflow-hidden">
@@ -507,50 +454,39 @@ export default function FindParkingPage() {
         <aside className="w-80 flex-shrink-0 bg-[#F8F8FA] dark:bg-[#0E0E10] border-r border-gray-200/60 dark:border-white/10 flex flex-col overflow-hidden transition-colors duration-300">
 
           {/* Search + count */}
-          <div className="px-4 pt-4 pb-3 space-y-3">
-            <div className="relative">
+          {/* Search + count */}
+          <div className="px-4 pt-4 pb-3">
+            <div className="relative flex items-center">
               <Search
                 size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"
+                className="absolute left-3 text-stone-400 pointer-events-none"
               />
               <input
                 type="text"
                 placeholder="Search parking lots..."
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl text-sm text-stone-800 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 outline-none focus:border-[#FF4C4C]/60 dark:focus:border-[#FF4C4C]/60 transition-colors duration-300"
+                className="w-full pl-9 pr-24 py-2.5 bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-xl text-sm text-stone-800 dark:text-white placeholder-stone-400 dark:placeholder-stone-500 outline-none focus:border-[#FF4C4C]/60 dark:focus:border-[#FF4C4C]/60 transition-colors duration-300 shadow-sm"
               />
-            </div>
 
-            {/* Banner trạng thái */}
-            <div className="flex items-center gap-2 bg-[#FF4C4C]/5 border border-[#FF4C4C]/10 rounded-xl px-3 py-2">
-              <div className={`w-2 h-2 rounded-full shrink-0 ${isLoadingBuildings ? 'bg-amber-400' : 'bg-emerald-500 animate-pulse'}`} />
-              <div className="flex-1 min-w-0">
+              <div className="absolute right-2.5 flex items-center gap-1.5">
                 {isLoadingBuildings ? (
-                  <p className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
-                    <Loader2 size={10} className="animate-spin" />
-                    Loading buildings from database...
-                  </p>
-                ) : buildingsError ? (
-                  <p className="text-xs font-bold text-red-500">{buildingsError}</p>
+                  <Loader2 size={14} className="text-amber-500 animate-spin" />
                 ) : (
-                  <>
-                    <p className="text-xs font-bold text-emerald-600">
-                      {filtered.length} building(s) managed
-                    </p>
-                    <p className="text-[10px] text-[#FF4C4C] font-semibold truncate">Active Building Network</p>
-                  </>
+                  <span className="text-[10px] font-bold text-stone-500 bg-stone-100 dark:bg-white/10 dark:text-stone-400 px-2 py-0.5 rounded-md border border-gray-200/50 dark:border-white/5" title="Buildings found">
+                    {filtered.length}
+                  </span>
+                )}
+                {userLocation && (
+                  <button
+                    onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); handleCancelRoute(); }}
+                    className="text-[#FF4C4C] hover:text-red-700 transition-colors p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md"
+                    title="Clear location mode"
+                  >
+                    ✕
+                  </button>
                 )}
               </div>
-              {userLocation && (
-                <button
-                  onClick={() => { setUserLocation(null); setFlyToUser(false); setSortBy('relevance'); handleCancelRoute(); }}
-                  className="shrink-0 text-blue-500 hover:text-blue-800 transition-colors text-xs font-bold leading-none"
-                  title="Turn off near me mode"
-                >
-                  ✕
-                </button>
-              )}
             </div>
           </div>
 
@@ -579,12 +515,12 @@ export default function FindParkingPage() {
                   mapInstance?.flyTo([lot.lat, lot.lng], 16, { duration: 1.2 });
                 }}
                 className={`w-full text-left rounded-2xl border p-4 transition-all duration-300 group ${selectedLot?.id === lot.id
-                  ? 'bg-red-50/80 dark:bg-red-900/20 border-[#FF4C4C]/40 shadow-sm'
-                  : 'bg-white dark:bg-[#18181B] border-gray-205/80 dark:border-white/10 hover:border-[#FF4C4C]/30 dark:hover:border-[#FF4C4C]/50 hover:shadow-md'
+                  ? 'bg-white dark:bg-[#1C1C1E] border-[#FF4C4C] shadow-xl shadow-[#FF4C4C]/20 scale-[1.02] z-10 relative'
+                  : 'bg-white dark:bg-[#18181B] border-gray-205/80 dark:border-white/10 hover:border-[#FF4C4C]/30 dark:hover:border-[#FF4C4C]/50 hover:shadow-md hover:scale-[1.01]'
                   }`}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <span className={`text-sm font-extrabold leading-tight transition-colors duration-300 ${selectedLot?.id === lot.id ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-stone-300 group-hover:text-stone-950 dark:group-hover:text-white'
+                  <span className={`text-sm font-extrabold leading-tight transition-colors duration-300 ${selectedLot?.id === lot.id ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-stone-300 group-hover:text-[#FF4C4C]'
                     }`}>
                     {lot.name}
                   </span>
@@ -595,7 +531,7 @@ export default function FindParkingPage() {
 
                 <div className="flex items-center gap-1.5 mb-3">
                   <MapPin size={11} className="text-stone-400 shrink-0" />
-                  <span className="text-xs text-stone-400 truncate flex-1">{lot.address}</span>
+                  <span className="text-xs text-stone-500 truncate flex-1">{lot.address}</span>
                   {userLocation && (
                     <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-[#FF4C4C] bg-red-50 border border-red-100 px-2 py-0.5 rounded-full">
                       <Navigation2 size={9} />
@@ -607,25 +543,13 @@ export default function FindParkingPage() {
                 <div className="flex items-center gap-3 text-xs">
                   <div className="flex items-center gap-1.5 text-stone-500">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C]" />
-                    <span>Spots: <span className="font-bold text-stone-700">{lot.availableSpots} / {lot.totalSpots}</span></span>
+                    <span>Spots: <span className="font-bold text-stone-800 dark:text-stone-200">{lot.availableSpots} / {lot.totalSpots}</span></span>
                   </div>
-                  {/* Google Maps link */}
-                  <a
-                    href={`https://www.google.com/maps/dir/?api=1&destination=${lot.lat},${lot.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="ml-auto text-[10px] font-bold text-blue-500 hover:text-blue-700 underline transition-colors"
-                  >
-                    Directions
-                  </a>
                 </div>
 
-                <div className={`mt-3 text-center text-xs font-bold py-1.5 rounded-lg border transition-all duration-300 ${selectedLot?.id === lot.id
-                  ? 'border-[#FF4C4C]/40 text-[#FF4C4C] bg-red-50 dark:bg-red-900/20'
-                  : 'border-gray-200 dark:border-white/10 text-stone-500 dark:text-stone-400 bg-gray-50 dark:bg-white/5 group-hover:text-[#FF4C4C] group-hover:border-[#FF4C4C]/20 group-hover:bg-red-50/30 dark:group-hover:bg-red-900/20'
-                  }`}>
-                  📍 View Details
+                <div className="mt-2.5 flex justify-end items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <p className="text-[10px] text-stone-400 dark:text-stone-500 italic">Click card to view details</p>
+                  <span className="text-[#FF4C4C] text-[10px] ml-1">➔</span>
                 </div>
               </button>
             ))}
@@ -904,9 +828,9 @@ export default function FindParkingPage() {
                 </div>
 
                 {/* Highlight Stats */}
-                <div className="bg-[#FF4C4C]/5 dark:bg-[#FF4C4C]/10 border border-[#FF4C4C]/20 rounded-xl p-4 transition-colors duration-300">
+                <div className="bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 shadow-sm rounded-xl p-4 transition-colors duration-300">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[11px] text-[#FF4C4C] font-bold uppercase tracking-wider">Available Spots</p>
+                    <p className="text-[11px] text-stone-500 font-bold uppercase tracking-wider">Available Spots</p>
                     <div className="flex items-baseline gap-1">
                       <span
                         className="text-2xl font-black"
@@ -968,7 +892,7 @@ export default function FindParkingPage() {
                   <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-3">
                     Floors & Parking Slots
                   </p>
-                  
+
                   {isLoadingFloors ? (
                     <div className="flex items-center justify-center py-4">
                       <Loader2 size={18} className="text-[#FF4C4C] animate-spin" />
@@ -982,7 +906,7 @@ export default function FindParkingPage() {
                           const isSelected = selectedFloorId === floor.id;
                           const floorIconComponents = [ParkingSquare, Car, Layers, Building2];
                           const FloorIcon = floorIconComponents[idx % floorIconComponents.length];
-                          
+
                           return (
                             <button
                               key={floor.id}
@@ -1046,7 +970,7 @@ export default function FindParkingPage() {
                     className="w-full bg-stone-900 hover:bg-stone-800 text-white font-bold py-3 rounded-2xl text-xs uppercase tracking-widest transition-all"
                     onClick={() => handleGetDirections(selectedLot.lat, selectedLot.lng)}
                   >
-                    🗺️ Directions
+                    Directions
                   </button>
                 </div>
               </div>
@@ -1058,16 +982,15 @@ export default function FindParkingPage() {
 
       {/* Bottom Sheet for Floor Slots */}
       <div
-        className={`fixed inset-x-0 bottom-0 z-[2000] bg-white dark:bg-[#18181B] border-t border-gray-200 dark:border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] rounded-t-[2.5rem] transition-transform duration-500 ease-out transform ${
-          selectedFloorId ? 'translate-y-0' : 'translate-y-full'
-        } max-h-[60vh] flex flex-col pointer-events-auto`}
+        className={`fixed inset-x-0 bottom-0 z-[2000] bg-white dark:bg-[#18181B] border-t border-gray-200 dark:border-white/10 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] rounded-t-[2.5rem] transition-transform duration-500 ease-out transform ${selectedFloorId ? 'translate-y-0' : 'translate-y-full'
+          } max-h-[60vh] flex flex-col pointer-events-auto`}
       >
         <div className="flex-none px-8 pt-6 pb-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
           <div>
             <h3 className="text-xl font-extrabold text-stone-900 dark:text-white">
               {buildingFloors.find(f => f.id === selectedFloorId)?.name || 'Floor Details'}
             </h3>
-            <p className="text-sm text-stone-500 mt-1">Sơ đồ vị trí các ô đỗ xe</p>
+            <p className="text-sm text-stone-500 mt-1">Parking Slot Map</p>
           </div>
           <button
             onClick={() => setSelectedFloorId(null)}
@@ -1088,6 +1011,43 @@ export default function FindParkingPage() {
           ) : (
             <div className="overflow-x-auto pb-4">
               <div className="min-w-max mx-auto bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-2xl p-6 shadow-sm">
+                
+                {/* Status Counts Legend */}
+                {(() => {
+                  const total = floorSlots.length;
+                  let available = 0, occupied = 0, reserved = 0;
+                  floorSlots.forEach(slot => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    const statusStr: any = typeof slot.status === 'number'
+                      ? SLOT_STATUS_FROM_ENUM[slot.status as number] || 'Available'
+                      : slot.status || 'Available';
+                      
+                    if (statusStr === 'Available') available++;
+                    else if (statusStr === 'Occupied') occupied++;
+                    else if (statusStr === 'Reserved' || statusStr === 'TemporaryHeld') reserved++;
+                  });
+                  return (
+                    <div className="flex items-center gap-6 text-[11px] font-medium text-stone-500 dark:text-stone-400 mb-6 border-b border-gray-100 dark:border-white/5 pb-4 px-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></span> 
+                        Available <strong className="text-stone-800 dark:text-stone-200 text-xs ml-0.5">{available}</strong>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-[#FF4C4C] shadow-[0_0_8px_rgba(255,76,76,0.5)]"></span> 
+                        Occupied <strong className="text-stone-800 dark:text-stone-200 text-xs ml-0.5">{occupied}</strong>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"></span> 
+                        Reserved <strong className="text-stone-800 dark:text-stone-200 text-xs ml-0.5">{reserved}</strong>
+                      </div>
+                      <div className="flex items-center gap-1.5 ml-auto">
+                        <span className="w-1.5 h-1.5 rounded-full bg-stone-300 dark:bg-stone-600"></span>
+                        Total <strong className="text-stone-700 dark:text-stone-300 text-xs ml-0.5">{total}</strong>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Column headers */}
                 <div
                   className="grid gap-1.5 mb-1"
@@ -1119,10 +1079,10 @@ export default function FindParkingPage() {
                         </div>
 
                         {rowSlots.map(slot => {
-                          const statusStr: SlotStatus = typeof slot.status === 'number' 
+                          const statusStr: SlotStatus = typeof slot.status === 'number'
                             ? SLOT_STATUS_FROM_ENUM[slot.status as number] || 'Available'
                             : slot.status || 'Available';
-                          
+
                           const slotVehicleType = vehicles.find((v) => v.id === slot.vehicleTypeId);
                           const isMotorbike = slotVehicleType?.name.toLowerCase().includes('moto') ||
                             slotVehicleType?.name.toLowerCase().includes('xe máy') ||
@@ -1161,7 +1121,7 @@ export default function FindParkingPage() {
                             </div>
                           );
                         })}
-                        
+
                         {rowSlots.length < 8 && Array.from({ length: 8 - rowSlots.length }).map((_, k) => (
                           <div key={`pad-${k}`} className="h-11" />
                         ))}

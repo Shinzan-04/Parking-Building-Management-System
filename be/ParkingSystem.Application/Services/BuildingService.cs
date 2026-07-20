@@ -16,13 +16,15 @@ public class BuildingService : IBuildingService
 
     public async Task<IEnumerable<BuildingResponse>> GetAllAsync()
     {
-        var buildings = await _repository.GetAllAsync();
+        var buildings = await _repository.GetAllAsync("Floors.ParkingSlots");
         return buildings.Select(b => MapToResponse(b));
     }
 
     public async Task<BuildingResponse?> GetByIdAsync(Guid id)
     {
-        var building = await _repository.GetByIdAsync(id);
+        // For individual get, it's safer to also include
+        var buildings = await _repository.FindAsync(b => b.Id == id, "Floors.ParkingSlots");
+        var building = buildings.FirstOrDefault();
         return building == null ? null : MapToResponse(building);
     }
 
@@ -74,6 +76,7 @@ public class BuildingService : IBuildingService
         Address = b.Address,
         TotalCapacity = b.TotalCapacity,
         FloorCount = b.Floors?.Count ?? 0,
+        AvailableSpots = b.Floors?.SelectMany(f => f.ParkingSlots).Count(s => s.Status == ParkingSystem.Domain.Enums.SlotStatus.Available) ?? 0,
         ApprovalMode = b.ApprovalMode,
         CreatedAt = b.CreatedAt
     };

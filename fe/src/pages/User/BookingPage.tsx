@@ -1055,10 +1055,10 @@ function StepSelectSlot({
       {/* ── Stats Thống kê nhanh ── */}
       <div className="flex items-center gap-4 flex-wrap">
         {[
-          { label: 'Còn trống', count: availableCount, dot: 'bg-emerald-400' },
-          { label: 'Đang dùng', count: occupiedCount, dot: 'bg-red-400' },
-          { label: 'Đặt trước', count: reservedCount, dot: 'bg-amber-400' },
-          { label: 'Tổng', count: filteredSlots.length, dot: 'bg-stone-400' },
+          { label: 'Available', count: availableCount, dot: 'bg-emerald-400' },
+          { label: 'Occupied', count: occupiedCount, dot: 'bg-red-400' },
+          { label: 'Reserved', count: reservedCount, dot: 'bg-amber-400' },
+          { label: 'Total', count: filteredSlots.length, dot: 'bg-stone-400' },
         ].map(({ label, count, dot }) => (
           <div key={label} className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${dot}`} />
@@ -1071,9 +1071,9 @@ function StepSelectSlot({
       {filteredSlots.length === 0 ? (
         <div className="py-14 text-center bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10">
           <ParkingSquare size={36} className="text-stone-300 mx-auto mb-3" />
-          <p className="text-sm text-stone-500 font-bold">Không có chỗ đỗ</p>
+          <p className="text-sm text-stone-500 font-bold">No slots available</p>
           <p className="text-xs text-stone-400 mt-1">
-            Tầng này chưa có ô đỗ phù hợp với loại xe của bạn.
+            This floor has no available slots suitable for your vehicle.
           </p>
         </div>
       ) : (
@@ -1125,7 +1125,7 @@ function StepSelectSlot({
                       <button
                         key={slot.id}
                         disabled={!isAvailable || isWrongType}
-                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}${isWrongType ? ' (Khác loại xe)' : ''}`}
+                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}${isWrongType ? ' (Wrong vehicle type)' : ''}`}
                         onClick={() => {
                           if (!isAvailable || isWrongType) return;
                           setState((s) => ({
@@ -1165,23 +1165,23 @@ function StepSelectSlot({
       <div className="flex items-center flex-wrap gap-4 pt-3 border-t border-gray-100 dark:border-white/10 text-[11px] text-stone-500">
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-emerald-50 border-2 border-emerald-300 flex-shrink-0" />
-          Còn trống
+          Available
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-[#FF4C4C] border-2 border-[#FF4C4C] flex-shrink-0" />
-          Đã chọn
+          Selected
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-red-50 border-2 border-red-200 flex-shrink-0" />
-          Đang dùng
+          Occupied
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
-          Đặt trước
+          Reserved
         </div>
         {state.slot && (
           <span className="ml-auto text-[#FF4C4C] font-bold">
-            Đã chọn: {state.slot}
+            Selected: {state.slot}
           </span>
         )}
       </div>
