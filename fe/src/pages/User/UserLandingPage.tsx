@@ -92,14 +92,14 @@ const PRICING_RULES = [
   {
     icon: Sun,
     color: '#F59E0B',
-    title: 'Day Hours (06:00 – 18:00)',
+    title: 'Day Hours (06:00 – 22:00)',
     desc: 'Applies day block rate. Blocks starting within these hours are charged day rates.',
   },
   {
     icon: Moon,
     color: '#8B5CF6',
-    title: 'Night Hours (18:00 – 06:00)',
-    desc: 'Applies higher night block rate. Blocks starting after 18:00 or before 06:00 are charged night rates.',
+    title: 'Night Hours (22:00 – 06:00)',
+    desc: 'Applies higher night block rate. Blocks starting after 22:00 or before 06:00 are charged night rates.',
   },
   {
     icon: AlertTriangle,
