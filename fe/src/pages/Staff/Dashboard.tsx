@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Car, MapPin, TrendingUp, Clock, CheckCircle2, AlertTriangle, Loader2, RefreshCw, Building2 } from 'lucide-react';
+import { Car, MapPin, TrendingUp, Clock, CheckCircle2, AlertTriangle, Loader2, RefreshCw, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getBuildings } from '../../services/buildingsService';
 import { searchSessions } from '../../services/sessionsService';
@@ -26,6 +26,8 @@ export default function StaffDashboard() {
   const [stats, setStats]               = useState<DashboardStats | null>(null);
   const [buildingName, setBuildingName] = useState<string>('');
   const [recentSessions, setRecentSessions] = useState<SessionDto[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
   const [todayRevenue, setTodayRevenue] = useState(0);
   const [todayCompleted, setTodayCompleted] = useState(0);
   const [overdueCount, setOverdueCount] = useState(0);
@@ -91,7 +93,8 @@ export default function StaffDashboard() {
       setTodayRevenue(summary.totalRevenueToday);
       setTodayCompleted(summary.totalCompletedToday);
       setOverdueCount(summary.totalOverdue);
-      setRecentSessions(sessionsRes.items.slice(0, 6));
+      setRecentSessions(sessionsRes.items);
+      setCurrentPage(1);
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Unable to load data.');
     } finally {
@@ -132,6 +135,9 @@ export default function StaffDashboard() {
   const occupancyPct = stats && stats.totalSlots > 0
     ? Math.round((stats.occupiedSlots / stats.totalSlots) * 1000) / 10
     : 0;
+
+  const totalPages = Math.ceil(recentSessions.length / itemsPerPage) || 1;
+  const displayedSessions = recentSessions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const kpiCards = [
     { label: 'Parked vehicles', value: stats?.occupiedSlots ?? 0, unit: 'vehicles', icon: Car, color: '#FF4C4C' },
@@ -278,7 +284,7 @@ export default function StaffDashboard() {
             Recent Parking Sessions
           </h3>
           <span className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>
-            Last {recentSessions.length} sessions
+            Total {recentSessions.length} sessions
           </span>
         </div>
 
@@ -297,7 +303,7 @@ export default function StaffDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {recentSessions.map(s => (
+                {displayedSessions.map(s => (
                   <tr key={s.id} className="border-b last:border-0 transition-colors" style={{ borderColor: 'var(--admin-border)' }}>
                     <td className="px-6 py-3.5">
                       <span className="text-sm font-mono font-semibold" style={{ color: 'var(--admin-text-primary)' }}>{s.licensePlate}</span>
@@ -326,7 +332,7 @@ export default function StaffDashboard() {
                     </td>
                     <td className="px-4 py-3.5">
                       {s.status === 'Completed' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}>
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-500">
                           <CheckCircle2 size={11} />
                           Completed
                         </span>
@@ -346,6 +352,35 @@ export default function StaffDashboard() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {recentSessions.length > itemsPerPage && (
+          <div className="px-6 py-4 border-t flex items-center justify-between" style={{ borderColor: 'var(--admin-border)' }}>
+            <span className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>
+              Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, recentSessions.length)} of {recentSessions.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                style={{ color: 'var(--admin-text-primary)' }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-sm font-medium min-w-[3rem] text-center" style={{ color: 'var(--admin-text-primary)' }}>
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                style={{ color: 'var(--admin-text-primary)' }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
         )}
       </div>
