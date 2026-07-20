@@ -122,7 +122,7 @@ function DotNav({ active, total, onDot }: { active: number; total: number; onDot
           className="w-2 h-2 rounded-full transition-all duration-300 border"
           style={{
             backgroundColor: active === i ? '#FF4C4C' : 'transparent',
-            borderColor: active === i ? '#FF4C4C' : 'rgba(255,255,255,0.3)',
+            borderColor: active === i ? '#FF4C4C' : 'var(--lp-text-muted)',
             transform: active === i ? 'scale(1.4)' : 'scale(1)',
           }}
           title={`Section ${i + 1}`}
