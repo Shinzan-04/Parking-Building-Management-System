@@ -288,10 +288,12 @@ public class SessionService : ISessionService
 
         // Tái sử dụng logic tính phí chính xác (Block Day/Night) từ CheckOutService
         decimal currentFee = 0;
+        List<ParkingSystem.Application.DTOs.CheckOut.SurchargeLogItemDto>? surchargeLogs = null;
         try
         {
             var feeResult = await _checkOutService.CalculateFeeBySessionIdAsync(session.Id);
             currentFee = feeResult.EstimatedFee;
+            surchargeLogs = feeResult.FeeBreakdown?.SurchargeLogs;
         }
         catch
         {
@@ -318,7 +320,8 @@ public class SessionService : ISessionService
             PrePaidAmount = session.PrePaidAmount,
             IsPrepaid = isPrepaid,
             PrepaidStartTime = prepaidStartTime,
-            PrepaidEndTime = prepaidEndTime
+            PrepaidEndTime = prepaidEndTime,
+            SurchargeLogs = surchargeLogs
         };
     }
 

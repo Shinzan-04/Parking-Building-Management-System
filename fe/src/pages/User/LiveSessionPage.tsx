@@ -326,11 +326,18 @@ export default function LiveSessionPage() {
               <div className="space-y-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
                 {session.surchargeLogs && session.surchargeLogs.length > 0 ? (
                   session.surchargeLogs.map((log, index) => {
-                    const isEarly = log.name.toLowerCase().includes('early') || log.name.toLowerCase().includes('đến sớm');
+                    const lowerName = log.name.toLowerCase();
+                    const isEarly = lowerName.includes('early') || lowerName.includes('đến sớm');
+                    const isOverdue = lowerName.includes('late') || lowerName.includes('overdue');
+                    
+                    let textColorClass = 'text-slate-700 dark:text-slate-300'; // Default for normal blocks
+                    if (isEarly) textColorClass = 'text-[#b45309] dark:text-orange-500';
+                    else if (isOverdue) textColorClass = 'text-[#ef4444]';
+
                     return (
                       <div key={index} className="flex justify-between items-start pb-3 border-b border-dashed border-[#e2e8f0] dark:border-white/10 last:border-0">
                         <div>
-                          <div className={`text-xs font-bold mb-1 ${isEarly ? 'text-[#b45309] dark:text-orange-500' : 'text-[#ef4444]'}`}>{log.name}</div>
+                          <div className={`text-xs font-bold mb-1 ${textColorClass}`}>{log.name}</div>
                           <div className="text-[9px] text-slate-400 font-medium">
                             {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                           </div>

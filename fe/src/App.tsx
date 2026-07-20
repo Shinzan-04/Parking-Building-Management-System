@@ -1,8 +1,9 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import './index.css';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Toaster } from 'react-hot-toast';
+import { FloatingChat } from './components/FloatingChat';
 
 const AuthPage            = lazy(() => import('./pages/AuthPage'));
 const VerifyEmailPage     = lazy(() => import('./pages/VerifyEmailPage'));
@@ -137,9 +138,6 @@ export default function App() {
     </BrowserRouter>
   );
 }
-
-import { useLocation } from 'react-router-dom';
-import { FloatingChat } from './components/FloatingChat';
 
 function GlobalChat() {
   const location = useLocation();
