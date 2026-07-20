@@ -5,6 +5,7 @@ export interface BuildingResponse {
   name: string;
   address: string;
   totalCapacity: number;
+  availableSpots?: number;
   floorCount: number;
   approvalMode: number;
   createdAt: string;

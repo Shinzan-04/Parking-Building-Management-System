@@ -306,7 +306,7 @@ public class SessionService : ISessionService
         {
             Id = session.Id,
             SessionCode = session.SessionCode,
-            SessionQrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(session.Id.ToString()),
+            SessionQrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(session.SessionCode),
             LicensePlate = session.LicensePlate,
             VehicleTypeName = session.VehicleType?.Name ?? "",
             EntryTime = session.EntryTime,

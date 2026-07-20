@@ -19,6 +19,6 @@ public enum ReservationStatus
 }
 public enum PaymentStatus { Pending, Success, Failed, Refunding, Refunded, RefundFailed }
 public enum PaymentMethod { Cash, Momo, VNPay, CreditCard, PayOS, Wallet }
-public enum CheckInMethod { WalkIn, Booking }
+public enum CheckInMethod { WalkIn, Booking, MonthlyPass }
 public enum BookingMethod { Manual, AIRecommended }
 public enum SubscriptionStatus { PendingPayment, Active, Expired, Canceled, PendingCancel }

@@ -33,6 +33,9 @@ public class Subscription
 
     public SubscriptionStatus Status { get; set; } = SubscriptionStatus.PendingPayment;
 
+    // Đánh dấu đã gửi thông báo sắp hết hạn chưa
+    public bool ExpiryWarningSent { get; set; } = false;
+
     // Liên kết với thanh toán (PaymentId)
     public Guid? PaymentId { get; set; }
     

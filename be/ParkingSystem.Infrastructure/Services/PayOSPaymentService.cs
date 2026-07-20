@@ -85,7 +85,8 @@ public class PayOSPaymentService : IPaymentService
 
         try
         {
-            var expiredAt = DateTimeOffset.UtcNow.AddHours(24).ToUnixTimeSeconds();
+            // Giới hạn thời gian thanh toán: 15 phút
+            var expiredAt = DateTimeOffset.UtcNow.AddMinutes(15).ToUnixTimeSeconds();
 
             var safeDescription = request.Description ?? "THANH TOAN";
             // Bỏ ký tự đặc biệt, chỉ lấy chữ và số, tối đa 25 ký tự (Theo tài liệu PayOS)
@@ -674,6 +675,114 @@ public class PayOSPaymentService : IPaymentService
             TotalCount = totalCount,
             Page = query.Page,
             PageSize = query.PageSize,
+        };
+    }
+
+    public async Task<TransactionHistoryResult> GetTransactionHistoryAsync(TransactionHistoryQuery query)
+    {
+        var q = _context.Payments
+            .IgnoreQueryFilters()
+            .Include(p => p.Reservation).ThenInclude(r => r != null ? r.Driver : null!)
+            .Include(p => p.ParkingSession).ThenInclude(s => s != null ? s.Driver : null!)
+            .Include(p => p.User)
+            .AsQueryable();
+
+        // Lọc theo ngày
+        if (query.FromDate.HasValue)
+        {
+            var fromDateUtc = DateTime.SpecifyKind(query.FromDate.Value, DateTimeKind.Utc);
+            q = q.Where(p => p.PaymentDate >= fromDateUtc);
+        }
+        
+        if (query.ToDate.HasValue)
+        {
+            var toDateUtc = DateTime.SpecifyKind(query.ToDate.Value, DateTimeKind.Utc);
+            // End of day logic if it's just a date
+            if (toDateUtc.TimeOfDay == TimeSpan.Zero) 
+            {
+                toDateUtc = toDateUtc.AddDays(1).AddTicks(-1);
+            }
+            q = q.Where(p => p.PaymentDate <= toDateUtc);
+        }
+
+        // Lọc theo phương thức thanh toán
+        if (!string.IsNullOrEmpty(query.PaymentMethod) && 
+            Enum.TryParse<PaymentMethod>(query.PaymentMethod, ignoreCase: true, out var methodEnum))
+        {
+            q = q.Where(p => p.PaymentMethod == methodEnum);
+        }
+
+        // Chúng ta chỉ tính tổng doanh thu cho các giao dịch thành công
+        var successQuery = q.Where(p => p.Status == PaymentStatus.Success);
+        
+        var totalAmount = await successQuery.SumAsync(p => p.Amount);
+        
+        // Doanh thu vé lượt vãng lai
+        var parkingRevenue = await successQuery
+            .Where(p => p.ParkingSessionId != null)
+            .SumAsync(p => p.Amount);
+            
+        // Doanh thu đặt chỗ
+        var bookingRevenue = await successQuery
+            .Where(p => p.ReservationId != null)
+            .SumAsync(p => p.Amount);
+            
+        // Doanh thu vé tháng
+        var subscriptionRevenue = await successQuery
+            .Where(p => _context.Subscriptions.Any(s => s.PaymentId == p.Id))
+            .SumAsync(p => p.Amount);
+            
+        // Doanh thu nạp ví: không gắn với xe, không có User (hoặc description chứa "Nạp tiền") và không thuộc về Subscription
+        var topUpRevenue = await successQuery
+            .Where(p => p.ParkingSessionId == null && p.ReservationId == null && !_context.Subscriptions.Any(s => s.PaymentId == p.Id))
+            .SumAsync(p => p.Amount);
+
+        var totalCount = await q.CountAsync();
+
+        var items = await q
+            .OrderByDescending(p => p.PaymentDate)
+            .Skip((query.Page - 1) * query.PageSize)
+            .Take(query.PageSize)
+            .Select(p => new PaymentListItemDto
+            {
+                PaymentId = p.Id,
+                PayOSOrderCode = p.PayOSOrderCode,
+                Amount = p.Amount,
+                Description = p.Description,
+                Status = p.Status.ToString(),
+                PaymentMethod = p.PaymentMethod.ToString(),
+                PaymentDate = p.PaymentDate,
+                ReservationId = p.ReservationId,
+                ParkingSessionId = p.ParkingSessionId,
+                UserId = p.UserId
+                    ?? (p.Reservation != null ? p.Reservation.DriverId : (Guid?)null)
+                    ?? (p.ParkingSession != null ? p.ParkingSession.DriverId : (Guid?)null),
+                UserFullName = p.User != null ? p.User.FullName
+                    : p.Reservation != null && p.Reservation.Driver != null ? p.Reservation.Driver.FullName
+                    : p.ParkingSession != null && p.ParkingSession.Driver != null ? p.ParkingSession.Driver.FullName
+                    : null,
+                UserEmail = p.User != null ? p.User.Email
+                    : p.Reservation != null && p.Reservation.Driver != null ? p.Reservation.Driver.Email
+                    : p.ParkingSession != null && p.ParkingSession.Driver != null ? p.ParkingSession.Driver.Email
+                    : null,
+                TransactionType = p.ParkingSessionId != null ? "Parking"
+                                : p.ReservationId != null ? "Booking"
+                                : _context.Subscriptions.Any(s => s.PaymentId == p.Id) ? "Subscription"
+                                : "TopUp"
+            })
+            .ToListAsync();
+
+        return new TransactionHistoryResult
+        {
+            Items = items,
+            TotalAmount = totalAmount,
+            ParkingRevenue = parkingRevenue,
+            BookingRevenue = bookingRevenue,
+            SubscriptionRevenue = subscriptionRevenue,
+            TopUpRevenue = topUpRevenue,
+            TotalCount = totalCount,
+            Page = query.Page,
+            PageSize = query.PageSize
         };
     }
 

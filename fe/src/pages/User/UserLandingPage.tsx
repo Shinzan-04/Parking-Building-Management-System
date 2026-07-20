@@ -1,16 +1,24 @@
-import { useState, useRef, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { useTheme } from '../../hooks/useTheme';
-import NotificationBell from '../../components/NotificationBell';
 import FloatingSessionBanner from '../../components/FloatingSessionBanner';
+import { getAllPolicies as getPricingPolicies } from '../../services/pricingService';
+import { getAllPolicies as getMonthlyPolicies } from '../../services/subscriptionService';
 import {
-  Search, ShieldCheck, ArrowRight, BookOpen,
-  LogOut, Activity, ChevronDown, Ticket,
-  LayoutDashboard, Sun, Moon, User,
-  Car, Wallet
+  ChevronDown,
+  Radio,
+  Zap,
+  BadgeDollarSign,
+  Ticket,
+  Sun,
+  Moon,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowRight,
 } from 'lucide-react';
 
+/* ─── helper ──────────────────────────────────────────────── */
 function getDashboardPath(role: string | number): string | null {
   if (role === 'Admin' || role === 0) return '/admin';
   if (role === 'Manager' || role === 1) return '/manager';
@@ -18,16 +26,177 @@ function getDashboardPath(role: string | number): string | null {
   return null;
 }
 
+/* ─── Data ─────────────────────────────────────────────────── */
+const FEATURES = [
+  {
+    icon: Radio,
+    title: 'Real-time Tracking',
+    desc: 'System continuously updates the status of each parking slot (Available / Occupied). Know the availability before you arrive.',
+    gradient: 'from-emerald-500/20 to-teal-500/10',
+    accent: '#10B981',
+  },
+  {
+    icon: Zap,
+    title: 'Lightning-fast Check-in/out',
+    desc: 'Smart license plate recognition automatically opens gates, creates parking sessions, and checks out without stopping.',
+    gradient: 'from-amber-500/20 to-orange-500/10',
+    accent: '#F59E0B',
+  },
+  {
+    icon: BadgeDollarSign,
+    title: 'Automated & Transparent Billing',
+    desc: 'Costs are accurately calculated based on actual block usage. Track estimated costs via Live Session.',
+    gradient: 'from-blue-500/20 to-indigo-500/10',
+    accent: '#3B82F6',
+  },
+  {
+    icon: Ticket,
+    title: 'Convenient Monthly Pass',
+    desc: 'Register and renew monthly passes directly on the app. Automatic VIP recognition, open gates without stopping.',
+    gradient: 'from-purple-500/20 to-pink-500/10',
+    accent: '#A855F7',
+  },
+];
+
+const HOURLY_PLANS = [
+  {
+    label: 'Motorbike',
+    emoji: '🛵',
+    dayRate: '2,000',
+    nightRate: '3,000',
+    unit: 'block',
+    popular: false,
+  },
+  {
+    label: 'Car',
+    emoji: '🚗',
+    dayRate: '10,000',
+    nightRate: '15,000',
+    unit: 'block',
+    popular: true,
+  },
+];
+
+const MONTHLY_PLANS = [
+  { label: 'Motorbike', emoji: '🛵', price: '150,000', unit: 'month' },
+  { label: 'Car', emoji: '🚗', price: '1,500,000', unit: 'month' },
+];
+
+const PRICING_RULES = [
+  {
+    icon: Clock,
+    color: '#3B82F6',
+    title: '1 Block = 4 hours',
+    desc: 'Park for 3 hrs → charged 1 block. Park for 5 hrs → charged 2 blocks. Time is rounded up per block.',
+  },
+  {
+    icon: Sun,
+    color: '#F59E0B',
+    title: 'Day Hours (06:00 – 22:00)',
+    desc: 'Applies day block rate. Blocks starting within these hours are charged day rates.',
+  },
+  {
+    icon: Moon,
+    color: '#8B5CF6',
+    title: 'Night Hours (22:00 – 06:00)',
+    desc: 'Applies higher night block rate. Blocks starting after 22:00 or before 06:00 are charged night rates.',
+  },
+  {
+    icon: AlertTriangle,
+    color: '#EF4444',
+    title: 'Overdue Fee',
+    desc: 'Parking beyond the reserved time incurs a 1.5x penalty multiplier on the standard block rate.',
+  },
+];
+
+/* ─── Sub-components ────────────────────────────────────────── */
+
+/** Dot navigation on the right */
+function DotNav({ active, total, onDot }: { active: number; total: number; onDot: (i: number) => void }) {
+  return (
+    <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 hidden md:flex">
+      {Array.from({ length: total }).map((_, i) => (
+        <button
+          key={i}
+          onClick={() => onDot(i)}
+          className="w-2 h-2 rounded-full transition-all duration-300 border"
+          style={{
+            backgroundColor: active === i ? '#FF4C4C' : 'transparent',
+            borderColor: active === i ? '#FF4C4C' : 'var(--lp-text-muted)',
+            transform: active === i ? 'scale(1.4)' : 'scale(1)',
+          }}
+          title={`Section ${i + 1}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ─── Easing function ──────────────────────────────────────── */
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+/* ─── Main Component ─────────────────────────────────────────── */
 export default function UserLandingPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, token, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { user, token } = useAuth();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [activeSection, setActiveSection] = useState(0);
+  const sectionRefs = useRef<HTMLElement[]>([]);
+  const TOTAL = 4;
 
-  const isDark = theme === 'dark';
+  const [hourlyPlans, setHourlyPlans] = useState<{ label: string; dayRate: string; nightRate: string; unit: string; popular: boolean }[]>(HOURLY_PLANS);
+  const [monthlyPlans, setMonthlyPlans] = useState<{ label: string; price: string; unit: string }[]>(MONTHLY_PLANS);
 
+  // Refs for animation state — không cần re-render
+  const currentSectionRef = useRef(0);
+  const isAnimatingRef = useRef(false);
+  const touchStartYRef = useRef(0);
+
+  /* Fetch dynamic pricing from API */
+  useEffect(() => {
+    async function fetchPricing() {
+      try {
+        const [pricingPolicies, monthlyPolicies] = await Promise.all([
+          getPricingPolicies(),
+          getMonthlyPolicies()
+        ]);
+
+        if (pricingPolicies && pricingPolicies.length > 0) {
+          const activePricing = pricingPolicies.filter(p => p.isActive !== false);
+          const formattedHourly = activePricing.map(p => ({
+            label: p.vehicleTypeName,
+            dayRate: p.dayBlockRate.toLocaleString(),
+            nightRate: p.nightBlockRate.toLocaleString(),
+            unit: 'block',
+            popular: p.vehicleTypeName.toLowerCase().includes('car')
+          }));
+          if (formattedHourly.length > 0) {
+            setHourlyPlans(formattedHourly);
+          }
+        }
+
+        if (monthlyPolicies && monthlyPolicies.length > 0) {
+          const activeMonthly = monthlyPolicies.filter(p => p.isActive !== false);
+          const formattedMonthly = activeMonthly.map(p => ({
+            label: p.vehicleTypeName,
+            price: p.monthlyPrice.toLocaleString(),
+            unit: 'month'
+          }));
+          if (formattedMonthly.length > 0) {
+            setMonthlyPlans(formattedMonthly);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch pricing:', error);
+      }
+    }
+    fetchPricing();
+  }, []);
+
+  /* Redirect admin/manager/staff to dashboard */
   useEffect(() => {
     if (user && !(location.state as { fromDashboard?: boolean })?.fromDashboard) {
       const path = getDashboardPath(user.role);
@@ -35,257 +204,689 @@ export default function UserLandingPage() {
     }
   }, [user, navigate, location.state]);
 
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+  /**
+   * Animate scroll từ vị trí hiện tại đến target section
+   * bằng requestAnimationFrame + easeInOutCubic (~700ms)
+   */
+  const animateTo = useRef((targetIndex: number) => {
+    const container = containerRef.current;
+    if (!container || isAnimatingRef.current) return;
+    if (targetIndex < 0 || targetIndex >= TOTAL) return;
+    if (targetIndex === currentSectionRef.current) return;
+
+    isAnimatingRef.current = true;
+    const startTop = container.scrollTop;
+    const endTop = targetIndex * container.clientHeight;
+    const duration = 700; // ms
+    let startTime: number | null = null;
+
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = easeInOutCubic(progress);
+
+      container.scrollTop = startTop + (endTop - startTop) * eased;
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        container.scrollTop = endTop;
+        currentSectionRef.current = targetIndex;
+        setActiveSection(targetIndex);
+        // Cooldown ngắn sau animation để tránh over-scroll
+        setTimeout(() => { isAnimatingRef.current = false; }, 100);
       }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    };
+
+    requestAnimationFrame(step);
+  });
+
+  /** Hàm public để DotNav và scroll buttons gọi */
+  const scrollTo = (index: number) => animateTo.current(index);
+
+  const setRef = (i: number) => (el: HTMLElement | null) => {
+    if (el) sectionRefs.current[i] = el;
+  };
+
+  /* Wheel event — chặn native scroll, tự điều khiển */
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    let wheelDelta = 0;
+    let wheelTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (isAnimatingRef.current) return;
+
+      wheelDelta += e.deltaY;
+
+      // Reset accumulator sau 80ms không có wheel event
+      if (wheelTimer) clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(() => { wheelDelta = 0; }, 80);
+
+      // Chỉ trigger khi đủ ngưỡng (tránh trackpad nhạy)
+      if (Math.abs(wheelDelta) < 50) return;
+
+      const direction = wheelDelta > 0 ? 1 : -1;
+      wheelDelta = 0;
+      animateTo.current(currentSectionRef.current + direction);
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
   }, []);
 
-  const handleLogout = () => { logout(); navigate('/auth'); };
-  const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
+  /* Touch swipe — hỗ trợ mobile */
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartYRef.current = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (isAnimatingRef.current) return;
+      const delta = touchStartYRef.current - e.changedTouches[0].clientY;
+      if (Math.abs(delta) < 40) return; // quá nhỏ, bỏ qua
+      const direction = delta > 0 ? 1 : -1;
+      animateTo.current(currentSectionRef.current + direction);
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, []);
+
+  /* Keyboard navigation (Arrow keys / PageUp / PageDown) */
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (['ArrowDown', 'PageDown'].includes(e.key)) {
+        e.preventDefault();
+        animateTo.current(currentSectionRef.current + 1);
+      } else if (['ArrowUp', 'PageUp'].includes(e.key)) {
+        e.preventDefault();
+        animateTo.current(currentSectionRef.current - 1);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   return (
     <>
-      {/* Hero */}
-      <section
-        className="relative pt-20 pb-28 min-h-[90vh] flex flex-col justify-end overflow-hidden transition-colors duration-300"
-        style={{ backgroundColor: 'var(--lp-bg)' }}
+      {/* Custom Smooth Scroll Container — overflow hidden, scroll controlled by JS */}
+      <div
+        ref={containerRef}
+        className="h-[calc(100vh-80px)] overflow-hidden"
+        style={{ position: 'relative' }}
       >
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1542282088-fe8426682b8f?auto=format&fit=crop&w=1600&q=80"
-            alt="Parking Building overhead"
-            className={`w-full h-full object-cover contrast-[1.02] transition-all duration-300 ${isDark ? 'brightness-[0.45]' : 'brightness-[0.7]'}`}
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1573348722427-f1d6819fdf98?auto=format&fit=crop&w=1600&q=80";
-            }}
-          />
-          <div
-            className="absolute inset-0 transition-all duration-300"
-            style={{
-              background: `linear-gradient(to top, var(--lp-bg) 0%, color-mix(in srgb, var(--lp-bg) 40%, transparent) 50%, rgba(0,0,0,0.4) 100%)`
-            }}
-          />
-        </div>
-
-        {/* Floating slot labels */}
-        <div className="absolute inset-0 z-10 pointer-events-none hidden md:block">
-          <div className="absolute top-1/4 left-1/4 animate-pulse">
-            <span className="backdrop-blur-md border text-emerald-600 font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5"
-              style={{ backgroundColor: 'var(--lp-surface)', borderColor: 'rgba(16,185,129,0.2)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-              ID-402 Available
-            </span>
+        {/* ─── SECTION 1: HERO ──────────────────────────────────── */}
+        <section
+          ref={setRef(0)}
+          className="relative flex flex-col justify-center items-start overflow-hidden"
+          style={{
+            height: '100%',
+            backgroundColor: 'var(--lp-bg)',
+          }}
+        >
+          {/* Background image */}
+          <div className="absolute inset-0 z-0">
+            <img
+              src="https://images.unsplash.com/photo-1574620608490-716e8f7a4b5c?auto=format&fit=crop&w=1800&q=80"
+              alt="Smart parking from above"
+              className="w-full h-full object-cover"
+              style={{ filter: 'brightness(0.35) contrast(1.05)' }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  'https://images.unsplash.com/photo-1542282088-fe8426682b8f?auto=format&fit=crop&w=1800&q=80';
+              }}
+            />
+            {/* gradient overlay */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background:
+                  'linear-gradient(135deg, rgba(10,10,12,0.95) 0%, rgba(10,10,12,0.5) 50%, rgba(255,76,76,0.08) 100%)',
+              }}
+            />
           </div>
-          <div className="absolute top-[35%] right-1/3 opacity-75">
-            <span className="backdrop-blur-md border font-mono text-[10px] font-bold px-2.5 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5"
-              style={{ backgroundColor: 'var(--lp-surface)', borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-stone-400" />
-              ID-602 Reserved
-            </span>
-          </div>
-        </div>
 
-        <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-end">
-            <div>
-              <h1 className="text-6xl md:text-8xl font-black leading-[0.95] tracking-tighter" style={{ color: 'var(--lp-text)' }}>
-                Parking <br />
-                <span className="text-[#FF4C4C] italic font-black">Smart</span>
-              </h1>
+          {/* Floating slot badges */}
+          <div className="absolute inset-0 z-10 pointer-events-none hidden md:block">
+            <div className="absolute top-1/3 right-[12%] animate-bounce" style={{ animationDuration: '3s' }}>
+              <span
+                className="backdrop-blur-md border font-mono text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-2"
+                style={{ backgroundColor: 'rgba(16,185,129,0.15)', borderColor: 'rgba(16,185,129,0.3)', color: '#10B981' }}
+              >
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                B2-14 · Available
+              </span>
             </div>
-            <div className="lg:max-w-md space-y-6 lg:justify-self-end text-left lg:text-right">
-              <p className="text-sm md:text-base font-medium leading-relaxed" style={{ color: 'var(--lp-text-muted)' }}>
-                We provide an unrivaled standard of parking convenience, securing and protecting your automotive investment with absolute precision.
-              </p>
-              <div>
-                <button
-                  onClick={() => navigate('/find-parking')}
-                  className="border-2 hover:text-white hover:bg-[#FF4C4C] hover:border-[#FF4C4C] font-bold px-7 py-3 rounded-full text-xs tracking-wider uppercase transition-all duration-200 shadow-sm"
-                  style={{ borderColor: 'var(--lp-text)', color: 'var(--lp-text)' }}
+            <div className="absolute top-[55%] right-[18%] opacity-70">
+              <span
+                className="backdrop-blur-md border font-mono text-[11px] font-bold px-3 py-1.5 rounded-xl shadow-lg flex items-center gap-2"
+                style={{ backgroundColor: 'rgba(255,76,76,0.12)', borderColor: 'rgba(255,76,76,0.25)', color: '#FF4C4C' }}
+              >
+                <span className="w-2 h-2 rounded-full bg-red-400" />
+                A1-07 · Occupied
+              </span>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div className="relative z-20 max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 w-full">
+            {/* Badge */}
+            <div
+              className="inline-flex items-center gap-2 text-[11px] font-bold tracking-widest uppercase mb-6 px-4 py-2 rounded-full border"
+              style={{ borderColor: 'rgba(255,76,76,0.3)', color: '#FF4C4C', backgroundColor: 'rgba(255,76,76,0.08)' }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C] animate-pulse" />
+              System Operational
+            </div>
+
+            <h1 className="text-[clamp(3rem,9vw,8rem)] font-black leading-[0.9] tracking-tighter text-white mb-6">
+              Parking
+              <br />
+              <span style={{ color: '#FF4C4C', fontStyle: 'italic' }}>Smart.</span>
+            </h1>
+
+            <p className="text-base md:text-lg font-medium max-w-md mb-10" style={{ color: 'rgba(255,255,255,0.55)' }}>
+              Touchless parking experience — find a spot, book, and pay in seconds.
+            </p>
+
+            <div className="flex flex-wrap gap-4">
+              <button
+                onClick={() => navigate('/find-parking')}
+                className="flex items-center gap-2 font-bold px-8 py-4 rounded-full text-sm uppercase tracking-widest transition-all duration-300 shadow-lg hover:shadow-[#FF4C4C]/30 hover:scale-105"
+                style={{ backgroundColor: '#FF4C4C', color: '#fff' }}
+              >
+                Find a Spot Now
+                <ArrowRight size={16} />
+              </button>
+              <button
+                onClick={() => navigate('/monthly-pass')}
+                className="font-bold px-8 py-4 rounded-full text-sm uppercase tracking-widest border-2 transition-all duration-300 hover:bg-white/10"
+                style={{ borderColor: 'rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.75)' }}
+              >
+                Register Monthly Pass
+              </button>
+            </div>
+          </div>
+
+          {/* Scroll hint */}
+          <button
+            onClick={() => scrollTo(1)}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5 opacity-50 hover:opacity-90 transition-opacity"
+          >
+            <span className="text-xs font-bold tracking-widest uppercase text-white">Scroll Down</span>
+            <ChevronDown size={20} color="white" className="animate-bounce" />
+          </button>
+        </section>
+
+        {/* ─── SECTION 2: FEATURES ──────────────────────────────── */}
+        <section
+          ref={setRef(1)}
+          className="relative flex flex-col justify-center overflow-hidden"
+          style={{
+            height: '100%',
+            scrollSnapAlign: 'start',
+            scrollSnapStop: 'always',
+            backgroundColor: 'var(--lp-surface)',
+          }}
+        >
+          <div className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 w-full py-12">
+            {/* Header */}
+            <div className="mb-10">
+              <span
+                className="text-xs font-black tracking-[0.2em] uppercase font-mono"
+                style={{ color: '#FF4C4C' }}
+              >
+                Core Features
+              </span>
+              <h2
+                className="text-3xl md:text-5xl font-black tracking-tight mt-2"
+                style={{ color: 'var(--lp-text)' }}
+              >
+                Everything you need,{' '}
+                <span style={{ color: '#FF4C4C' }}>all in one place.</span>
+              </h2>
+            </div>
+
+            {/* Grid 2×2 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-6">
+              {FEATURES.map(({ icon: Icon, title, desc, gradient, accent }) => (
+                <div
+                  key={title}
+                  className={`group relative rounded-2xl p-6 lg:p-8 border transition-all duration-300 cursor-default overflow-hidden hover:-translate-y-1 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/5`}
+                  style={{
+                    backgroundColor: 'var(--lp-card-bg)',
+                    borderColor: 'var(--lp-card-border)',
+                  }}
                 >
-                  Get a Spot
+                  <div className="relative z-10">
+                    <div
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5 shadow-sm"
+                      style={{ backgroundColor: `${accent}18`, color: accent }}
+                    >
+                      <Icon size={22} />
+                    </div>
+                    <h3
+                      className="text-base lg:text-lg font-bold mb-2"
+                      style={{ color: 'var(--lp-text)' }}
+                    >
+                      {title}
+                    </h3>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: 'var(--lp-text-muted)' }}
+                    >
+                      {desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Scroll hint */}
+          <button
+            onClick={() => scrollTo(2)}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 opacity-30 hover:opacity-70 transition-opacity"
+          >
+            <ChevronDown size={20} style={{ color: 'var(--lp-text)' }} className="animate-bounce" />
+          </button>
+        </section>
+
+        {/* ─── SECTION 3: PRICING ───────────────────────────────── */}
+        <section
+          ref={setRef(2)}
+          className="relative flex flex-col justify-center overflow-hidden"
+          style={{
+            height: '100%',
+            scrollSnapAlign: 'start',
+            scrollSnapStop: 'always',
+            backgroundColor: 'var(--lp-bg)',
+          }}
+        >
+          {/* Subtle background glow */}
+          <div
+            className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full blur-[120px] pointer-events-none opacity-10"
+            style={{ backgroundColor: '#FF4C4C' }}
+          />
+
+          <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 w-full py-10">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <span
+                className="text-xs font-black tracking-[0.2em] uppercase font-mono"
+                style={{ color: '#FF4C4C' }}
+              >
+                Service Pricing
+              </span>
+              <h2
+                className="text-3xl md:text-4xl font-black tracking-tight mt-2"
+                style={{ color: 'var(--lp-text)' }}
+              >
+                Clear{' '}
+                <span style={{ color: '#FF4C4C' }}>Transparent.</span>
+              </h2>
+            </div>
+
+            {/* 2 plan sections */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+              {/* Standard */}
+              <div
+                className="rounded-2xl border p-6 transition-all duration-300 hover:border-[#FF4C4C]/30"
+                style={{
+                  backgroundColor: 'var(--lp-surface)',
+                  borderColor: 'var(--lp-card-border)',
+                }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p
+                      className="text-xs font-black tracking-widest uppercase font-mono mb-1"
+                      style={{ color: '#FF4C4C' }}
+                    >
+                      Standard Guest
+                    </p>
+                    <h3
+                      className="text-lg font-extrabold"
+                      style={{ color: 'var(--lp-text)' }}
+                    >
+                      Pay by Time Block
+                    </h3>
+                  </div>
+                  {/* <span className="text-2xl">🅿️</span> */}
+                </div>
+
+                <div className="space-y-3">
+                  {hourlyPlans.map((p) => (
+                    <div
+                      key={p.label}
+                      className="rounded-xl p-3 border"
+                      style={{
+                        backgroundColor: 'var(--lp-bg)',
+                        borderColor: 'var(--lp-border)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-sm font-bold flex items-center gap-2"
+                          style={{ color: 'var(--lp-text)' }}
+                        >
+                          {p.label}
+                        </span>
+                        <div className="text-right">
+                          <div className="flex items-center gap-2 justify-end">
+                            <span
+                              className="text-xs font-bold"
+                              style={{ color: 'var(--lp-text)' }}
+                            >
+                              Day
+                            </span>
+                            <span
+                              className="text-base font-black"
+                              style={{ color: 'var(--lp-text)' }}
+                            >
+                              {p.dayRate}
+                              <span
+                                className="text-xs font-bold ml-1"
+                                style={{ color: 'var(--lp-text-muted)' }}
+                              >
+                                VND/block
+                              </span>
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 justify-end mt-1">
+                            <span
+                              className="text-xs font-bold"
+                              style={{ color: 'var(--lp-text)' }}
+                            >
+                              Night
+                            </span>
+                            <span
+                              className="text-base font-black"
+                              style={{ color: 'var(--lp-text)' }}
+                            >
+                              {p.nightRate}
+                              <span
+                                className="text-xs font-bold ml-1"
+                                style={{ color: 'var(--lp-text-muted)' }}
+                              >
+                                VND/block
+                              </span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Monthly */}
+              <div
+                className="rounded-2xl border p-6 flex flex-col justify-between"
+                style={{
+                  backgroundColor: 'var(--lp-surface)',
+                  borderColor: 'var(--lp-border)',
+                }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p
+                      className="text-xs font-black tracking-widest uppercase font-mono mb-1"
+                      style={{ color: '#FF4C4C' }}
+                    >
+                      Monthly Pass Guest
+                    </p>
+                    <h3
+                      className="text-lg font-extrabold"
+                      style={{ color: 'var(--lp-text)' }}
+                    >
+                      All-inclusive Subscription
+                    </h3>
+                  </div>
+                  {/* <span className="text-2xl">🎫</span> */}
+                </div>
+
+                <div className="space-y-3 mb-4">
+                  {monthlyPlans.map((p) => (
+                    <div
+                      key={p.label}
+                      className="rounded-xl p-3 border"
+                      style={{
+                        backgroundColor: 'var(--lp-bg)',
+                        borderColor: 'var(--lp-border)',
+                      }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span
+                          className="text-sm font-bold"
+                          style={{ color: 'var(--lp-text)' }}
+                        >
+                          {p.label}
+                        </span>
+                        <span
+                          className="text-base font-black"
+                          style={{ color: 'var(--lp-text)' }}
+                        >
+                          {p.price}
+                          <span
+                            className="text-xs font-bold ml-1"
+                            style={{ color: 'var(--lp-text-muted)' }}
+                          >
+                            VND/{p.unit}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Monthly benefits */}
+                <ul className="space-y-1.5">
+                  {[
+                    'Unlimited entry and exit',
+                    'Auto license plate recognition & gate opening',
+                    'Pay once, use all month',
+                  ].map((b) => (
+                    <li key={b} className="flex items-center gap-2 text-xs" style={{ color: 'var(--lp-text-muted)' }}>
+                      <CheckCircle2 size={13} style={{ color: '#FF4C4C', flexShrink: 0 }} />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+
+                <button
+                  onClick={() => navigate('/monthly-pass')}
+                  className="mt-4 w-full py-2.5 rounded-xl text-sm font-bold tracking-wide transition-all hover:opacity-90 hover:scale-[1.02]"
+                  style={{ backgroundColor: '#FF4C4C', color: '#fff' }}
+                >
+                  Register Now
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Seamless Experience */}
-      <section className="py-24 transition-colors duration-300" style={{ backgroundColor: 'var(--lp-surface)' }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-            <div>
-              <h2 className="text-4xl font-extrabold tracking-tight" style={{ color: 'var(--lp-text)' }}>
-                Seamless <span className="text-[#FF4C4C] font-extrabold">Experience.</span>
-              </h2>
-              <p className="text-sm mt-2" style={{ color: 'var(--lp-text-muted)' }}>
-                Optimized for rapid acquisition and secure tenure of premium facility slots.
-              </p>
-            </div>
-            <button
-              onClick={() => navigate('/find-parking')}
-              className="text-xs font-bold text-[#FF4C4C] hover:text-[#E13B3B] uppercase tracking-widest flex items-center gap-2 group self-start md:self-auto transition-colors"
+            {/* Pricing Rules */}
+            <div
+              className="rounded-2xl border p-4"
+              style={{
+                backgroundColor: 'var(--lp-surface)',
+                borderColor: 'var(--lp-card-border)',
+              }}
             >
-              Explore All Features
-              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { icon: Search, title: 'Smart Search', desc: 'Find and secure the perfect parking slot in seconds with our real-time availability maps.' },
-              { icon: BookOpen, title: 'Instant Booking', desc: 'Reserve your slot instantly with contactless payment and encrypted transaction protocols.' },
-              { icon: ShieldCheck, title: 'Secure Facilities', desc: '24/7 camera surveillance and automated entry systems ensure maximum protection.' },
-            ].map(({ icon: Icon, title, desc }) => (
-              <div
-                key={title}
-                className="rounded-[2rem] p-8 hover:border-[#FF4C4C]/30 transition-all duration-300 border"
-                style={{ backgroundColor: 'var(--lp-card-bg)', borderColor: 'var(--lp-card-border)' }}
+              <p
+                className="text-xs font-black tracking-widest uppercase font-mono mb-3 text-center"
+                style={{ color: 'var(--lp-text-muted)' }}
               >
-                <div className="p-3 bg-[#FF4C4C]/10 text-[#FF4C4C] rounded-2xl w-fit mb-6 shadow-sm">
-                  <Icon size={20} />
-                </div>
-                <h4 className="text-lg font-bold mb-3" style={{ color: 'var(--lp-text)' }}>{title}</h4>
-                <p className="text-sm leading-relaxed font-medium" style={{ color: 'var(--lp-text-muted)' }}>{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Upgrade Section */}
-      <section
-        className="py-24 border-t transition-colors duration-300"
-        style={{ backgroundColor: 'var(--lp-bg-alt)', borderColor: 'var(--lp-border)' }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            <div className="lg:col-span-6 space-y-10">
-              <h2 className="text-5xl font-black leading-tight" style={{ color: 'var(--lp-text)' }}>
-                Upgrade parking <br />
-                <span className="text-[#FF4C4C] font-bold text-5xl">services.</span>
-              </h2>
-              <div className="space-y-6">
-                {[
-                  { title: 'Advance Slot Reservation', desc: 'Secure prime locations up to 30 days prior to arrival.' },
-                  { title: 'AI-Powered Slot Allocation', desc: 'Dynamic routing to the most efficient parking bay based on vehicle dimensions.' },
-                  { title: 'Exception & Support Center', desc: 'Rapid resolution for unexpected access or billing discrepancies.' },
-                ].map(({ title, desc }) => (
-                  <div key={title} className="border-l-[3px] border-[#FF4C4C] pl-6 space-y-1">
-                    <h4 className="text-base font-bold" style={{ color: 'var(--lp-text)' }}>{title}</h4>
-                    <p className="text-xs" style={{ color: 'var(--lp-text-muted)' }}>{desc}</p>
+                Pricing Rules
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {PRICING_RULES.map(({ icon: Icon, color, title, desc }) => (
+                  <div
+                    key={title}
+                    className="rounded-xl p-3 border"
+                    style={{
+                      backgroundColor: 'var(--lp-bg)',
+                      borderColor: 'var(--lp-border)',
+                    }}
+                  >
+                    <div
+                      className="w-7 h-7 rounded-lg flex items-center justify-center mb-2"
+                      style={{ backgroundColor: `${color}18`, color }}
+                    >
+                      <Icon size={14} />
+                    </div>
+                    <p
+                      className="text-xs font-bold mb-1 leading-tight"
+                      style={{ color: 'var(--lp-text)' }}
+                    >
+                      {title}
+                    </p>
+                    <p
+                      className="text-[11px] leading-relaxed"
+                      style={{ color: 'var(--lp-text-muted)' }}
+                    >
+                      {desc}
+                    </p>
                   </div>
                 ))}
               </div>
             </div>
+          </div>
 
-            <div className="lg:col-span-6">
-              <div
-                className="rounded-[2.5rem] overflow-hidden shadow-sm border transition-all duration-300 p-4 hover:border-[#FF4C4C]/25"
-                style={{ backgroundColor: 'var(--lp-surface)', borderColor: 'var(--lp-card-border)' }}
+          {/* Scroll hint */}
+          <button
+            onClick={() => scrollTo(3)}
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 opacity-30 hover:opacity-70 transition-opacity"
+          >
+            <ChevronDown size={20} style={{ color: 'var(--lp-text)' }} className="animate-bounce" />
+          </button>
+        </section>
+
+        {/* ─── SECTION 4: CTA + FOOTER ─────────────────────────── */}
+        <section
+          ref={setRef(3)}
+          className="relative flex flex-col"
+          style={{
+            height: '100%',
+            scrollSnapAlign: 'start',
+            scrollSnapStop: 'always',
+            backgroundColor: 'var(--lp-footer-bg)',
+          }}
+        >
+          {/* CTA */}
+          <div className="flex-1 flex flex-col items-center justify-center text-center px-6 relative overflow-hidden">
+            {/* Background glow */}
+            <div
+              className="absolute w-[500px] h-[500px] rounded-full blur-[150px] opacity-[0.06] pointer-events-none"
+              style={{ backgroundColor: '#FF4C4C' }}
+            />
+
+            <div className="relative z-10 max-w-2xl">
+              <span
+                className="text-xs font-black tracking-[0.2em] uppercase font-mono"
+                style={{ color: '#FF4C4C' }}
               >
-                <div className="h-64 overflow-hidden relative rounded-[2rem] border" style={{ borderColor: 'var(--lp-border)' }}>
-                  <img
-                    src="https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=800&q=80"
-                    alt="Tesla black car"
-                    className="w-full h-full object-cover brightness-[0.9] contrast-[1.02]"
-                  />
-                  <span className="absolute top-4 right-4 bg-[#FF4C4C] text-white font-bold text-[10px] tracking-widest px-3.5 py-1.5 rounded-full uppercase shadow-sm">
-                    Smart Parking
-                  </span>
-                </div>
-                <div className="p-4 pt-5 space-y-4">
-                  <h4 className="text-lg font-bold" style={{ color: 'var(--lp-text)' }}>ParkSmart Building</h4>
-                  <div className="flex justify-between items-center text-xs pt-4 border-t" style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}>
-                    <span className="flex items-center gap-1.5 font-bold">
-                      <Activity size={14} className="text-[#FF4C4C]" /> B1 LV Ready
-                    </span>
-                    <span className="flex items-center gap-1.5 font-bold">
-                      <ShieldCheck size={14} className="text-[#FF4C4C]" /> Monitored
-                    </span>
-                  </div>
-                </div>
+                Get Started Today
+              </span>
+              <h2
+                className="text-4xl md:text-6xl font-black tracking-tight mt-3 mb-4 leading-tight"
+                style={{ color: 'var(--lp-text)' }}
+              >
+                Ready for a touchless{' '}
+                <span style={{ color: '#FF4C4C' }}>parking experience?</span>
+              </h2>
+              <p
+                className="text-sm md:text-base leading-relaxed mb-8 max-w-md mx-auto"
+                style={{ color: 'var(--lp-text-muted)' }}
+              >
+                Join thousands of users enjoying a smart, fast, and transparent parking experience.
+              </p>
+
+              <div className="flex flex-wrap justify-center gap-4">
+                <button
+                  onClick={() => navigate('/find-parking')}
+                  className="flex items-center gap-2 font-bold px-8 py-4 rounded-full text-sm uppercase tracking-widest transition-all duration-300 shadow-lg hover:shadow-[#FF4C4C]/30 hover:scale-105"
+                  style={{ backgroundColor: '#FF4C4C', color: '#fff' }}
+                >
+                  Find Parking Spot
+                  <ArrowRight size={16} />
+                </button>
+                <button
+                  onClick={() => navigate('/monthly-pass')}
+                  className="font-bold px-8 py-4 rounded-full text-sm uppercase tracking-widest border-2 transition-all duration-300"
+                  style={{
+                    borderColor: 'var(--lp-border)',
+                    color: 'var(--lp-text-muted)',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = '#FF4C4C';
+                    (e.currentTarget as HTMLButtonElement).style.color = '#FF4C4C';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--lp-border)';
+                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--lp-text-muted)';
+                  }}
+                >
+                  Register Monthly Pass
+                </button>
               </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* CTA */}
-      <section
-        className="py-28 border-t border-b flex flex-col items-center justify-center text-center transition-colors duration-300"
-        style={{ backgroundColor: 'var(--lp-surface)', borderColor: 'var(--lp-border)' }}
-      >
-        <div className="max-w-2xl px-4 space-y-6">
-          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight" style={{ color: 'var(--lp-text)' }}>
-            Ready to park with confidence?
-          </h2>
-          <p className="text-sm md:text-base leading-relaxed max-w-lg mx-auto" style={{ color: 'var(--lp-text-muted)' }}>
-            Initiate your seamless parking experience today. Secure, rapid, and precise.
-          </p>
-          <div className="pt-4">
-            <button
-              onClick={() => navigate('/find-parking')}
-              className="hover:bg-[#FF4C4C] text-white font-bold px-8 py-4 rounded-full text-xs uppercase tracking-widest shadow-md hover:shadow-[#FF4C4C]/25 transition-all duration-300"
-              style={{ backgroundColor: 'var(--lp-btn-primary)', color: 'var(--lp-btn-primary-text)' }}
-            >
-              Find Your Spot Now
-            </button>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer
-        className="py-16 border-t transition-colors duration-300"
-        style={{ backgroundColor: 'var(--lp-footer-bg)', borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-sm shadow-sm shadow-[#FF4C4C]/20">
-                  P
-                </div>
-                <span className="text-base font-extrabold tracking-tight" style={{ color: 'var(--lp-text)' }}>
-                  Parking<span className="text-[#FF4C4C]">.</span>
+          {/* Footer */}
+          <footer
+            className="border-t py-8 px-6"
+            style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
+          >
+            <div className="max-w-7xl mx-auto flex flex-col items-center justify-center gap-6">
+              {/* Links */}
+              <div className="flex flex-wrap justify-center gap-6 text-xs font-bold">
+                <span
+                  onClick={() => navigate('/find-parking')}
+                  className="hover:text-[#FF4C4C] transition-colors cursor-pointer"
+                >
+                  Find Parking
                 </span>
+                <span
+                  onClick={() => navigate('/monthly-pass')}
+                  className="hover:text-[#FF4C4C] transition-colors cursor-pointer"
+                >
+                  Monthly Pass
+                </span>
+                <span
+                  onClick={() => navigate('/my-tickets')}
+                  className="hover:text-[#FF4C4C] transition-colors cursor-pointer"
+                >
+                  My Tickets
+                </span>
+                <span className="opacity-50 cursor-not-allowed">Privacy Policy</span>
+                <span className="opacity-50 cursor-not-allowed">Terms of Service</span>
               </div>
-              <p className="text-xs leading-relaxed max-w-xs font-medium" style={{ color: 'var(--lp-text-faint)' }}>
-                Modern parking management system for smart cities
+
+              {/* Copyright */}
+              <p className="text-[11px] font-semibold opacity-50 text-center">
+                © 2026 Parking Building. All rights reserved.
               </p>
             </div>
-            <div>
-              <h3 className="font-extrabold text-[10px] mb-4 uppercase tracking-widest font-mono" style={{ color: 'var(--lp-text)' }}>Services</h3>
-              <ul className="space-y-2.5 text-xs">
-                <li><span onClick={() => navigate('/find-parking')} className="hover:text-[#FF4C4C] transition-colors cursor-pointer font-bold">Find Parking</span></li>
-                <li><span onClick={() => navigate('/find-parking')} className="hover:text-[#FF4C4C] transition-colors cursor-pointer font-bold">Reserve a Slot</span></li>
-                <li><span className="hover:text-[#FF4C4C] transition-colors cursor-pointer font-bold">Support & Feedback</span></li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-extrabold text-[10px] mb-4 uppercase tracking-widest font-mono" style={{ color: 'var(--lp-text)' }}>Legal</h3>
-              <ul className="space-y-2.5 text-xs">
-                <li><span className="cursor-not-allowed">Privacy Policy</span></li>
-                <li><span className="cursor-not-allowed">Terms of Service</span></li>
-              </ul>
-            </div>
-          </div>
-          <div
-            className="mt-12 pt-8 border-t flex flex-col sm:flex-row justify-between items-center gap-4 text-[11px] font-bold"
-            style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-faint)' }}
-          >
-            <span>© 2026 PARKING BUILDING. Precise Facility Management.</span>
-            <span>All rights reserved.</span>
-          </div>
-        </div>
-      </footer>
+          </footer>
+        </section>
+      </div>
+
+      {/* Dot Navigation */}
+      <DotNav active={activeSection} total={TOTAL} onDot={scrollTo} />
+
+      {/* Floating session banner for logged-in users */}
       {token && user && <FloatingSessionBanner />}
     </>
   );

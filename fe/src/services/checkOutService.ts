@@ -57,6 +57,7 @@ export interface CheckOutSearchResult {
   dailyMaxPrice?: number;
   feeBreakdown?: FeeBreakdownDto;
   message: string;
+  isPlateMismatch?: boolean;
 }
 
 export interface CheckOutConfirmRequest {
@@ -131,8 +132,8 @@ export const searchCheckOut = (licensePlate: string, token: string, buildingId?:
 };
 
 /** Tìm kiếm xe đang gửi trong bãi theo mã QR */
-export const searchCheckOutByQr = (qrCode: string, token: string, buildingId?: string): Promise<CheckOutSearchResult> => {
-  let url = `/api/CheckOut/search?qrCode=${encodeURIComponent(qrCode)}`;
+export const searchCheckOutByQr = (qrCode: string, licensePlate: string, token: string, buildingId?: string): Promise<CheckOutSearchResult> => {
+  let url = `/api/CheckOut/search?qrCode=${encodeURIComponent(qrCode)}&licensePlate=${encodeURIComponent(licensePlate)}`;
   if (buildingId) {
     url += `&buildingId=${encodeURIComponent(buildingId)}`;
   }

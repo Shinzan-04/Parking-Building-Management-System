@@ -22,6 +22,7 @@ import {
   Moon,
   User,
   LogOut,
+  AlertTriangle,
 } from 'lucide-react';
 import { getVehicleTypes } from '../../services/vehicleTypesService';
 import { getAllPolicies, getPolicyByVehicleType } from '../../services/pricingService';
@@ -881,10 +882,10 @@ function StepSelectFloor({
                 }));
                 onNext();
               } else {
-                alert('Không có chỗ đỗ nào khả dụng theo gợi ý của AI.');
+                alert('No parking spots available according to Smart Suggest.');
               }
             } catch (err: any) {
-              alert('AI Suggest error: ' + err.message);
+              alert('Smart Suggest error: ' + err.message);
             } finally {
               setLoadingAi(false);
             }
@@ -893,7 +894,7 @@ function StepSelectFloor({
           className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
         >
           {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          {loadingAi ? 'AI Thinking...' : 'AI Suggest'}
+          {loadingAi ? 'Smart Thinking...' : 'Smart Suggest'}
         </button>
       </div>
 
@@ -1054,10 +1055,10 @@ function StepSelectSlot({
       {/* ── Stats Thống kê nhanh ── */}
       <div className="flex items-center gap-4 flex-wrap">
         {[
-          { label: 'Còn trống', count: availableCount, dot: 'bg-emerald-400' },
-          { label: 'Đang dùng', count: occupiedCount, dot: 'bg-red-400' },
-          { label: 'Đặt trước', count: reservedCount, dot: 'bg-amber-400' },
-          { label: 'Tổng', count: filteredSlots.length, dot: 'bg-stone-400' },
+          { label: 'Available', count: availableCount, dot: 'bg-emerald-400' },
+          { label: 'Occupied', count: occupiedCount, dot: 'bg-red-400' },
+          { label: 'Reserved', count: reservedCount, dot: 'bg-amber-400' },
+          { label: 'Total', count: filteredSlots.length, dot: 'bg-stone-400' },
         ].map(({ label, count, dot }) => (
           <div key={label} className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${dot}`} />
@@ -1070,9 +1071,9 @@ function StepSelectSlot({
       {filteredSlots.length === 0 ? (
         <div className="py-14 text-center bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10">
           <ParkingSquare size={36} className="text-stone-300 mx-auto mb-3" />
-          <p className="text-sm text-stone-500 font-bold">Không có chỗ đỗ</p>
+          <p className="text-sm text-stone-500 font-bold">No slots available</p>
           <p className="text-xs text-stone-400 mt-1">
-            Tầng này chưa có ô đỗ phù hợp với loại xe của bạn.
+            This floor has no available slots suitable for your vehicle.
           </p>
         </div>
       ) : (
@@ -1124,7 +1125,7 @@ function StepSelectSlot({
                       <button
                         key={slot.id}
                         disabled={!isAvailable || isWrongType}
-                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}${isWrongType ? ' (Khác loại xe)' : ''}`}
+                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}${isWrongType ? ' (Wrong vehicle type)' : ''}`}
                         onClick={() => {
                           if (!isAvailable || isWrongType) return;
                           setState((s) => ({
@@ -1164,23 +1165,23 @@ function StepSelectSlot({
       <div className="flex items-center flex-wrap gap-4 pt-3 border-t border-gray-100 dark:border-white/10 text-[11px] text-stone-500">
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-emerald-50 border-2 border-emerald-300 flex-shrink-0" />
-          Còn trống
+          Available
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-[#FF4C4C] border-2 border-[#FF4C4C] flex-shrink-0" />
-          Đã chọn
+          Selected
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-red-50 border-2 border-red-200 flex-shrink-0" />
-          Đang dùng
+          Occupied
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
-          Đặt trước
+          Reserved
         </div>
         {state.slot && (
           <span className="ml-auto text-[#FF4C4C] font-bold">
-            Đã chọn: {state.slot}
+            Selected: {state.slot}
           </span>
         )}
       </div>
@@ -1323,7 +1324,7 @@ function ConfirmationPopup({
   const [error, setError] = useState<string | null>(null);
   // orderCode từ PayOS để poll trạng thái
   const [pendingOrderCode, setPendingOrderCode] = useState<number | null>(null);
-  // Ref tới tab PayOS đã mở
+  // Ref tới tab PayOS đã mở (fallback khi user muốn mở tab)
   const payosTabRef = useRef<Window | null>(null);
   // Bộ đếm giây polling
   const [pollSeconds, setPollSeconds] = useState(0);
@@ -1331,6 +1332,9 @@ function ConfirmationPopup({
   const [paymentMethod, setPaymentMethod] = useState<'PayOS' | 'Wallet'>('Wallet');
   // Số dư ví
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  // PayOS QR data cho luồng booking
+  const [rawQrCode, setRawQrCode] = useState('');
+  const [bookingCheckoutUrl, setBookingCheckoutUrl] = useState('');
 
   useEffect(() => {
     async function loadWallet() {
@@ -1480,9 +1484,9 @@ function ConfirmationPopup({
         localStorage.setItem('latest_booking_qr', realQrData);
         localStorage.setItem('latest_reservation_id', res.id);
 
-        // Mở tab mới thay vì iframe (tránh lỗi Private Network Access)
-        const newTab = window.open(payOSRes.checkoutUrl, '_blank', 'noopener');
-        payosTabRef.current = newTab;
+        // Lưu QR code và checkout URL để hiển thị trong popup (không mở tab mới tự động)
+        setRawQrCode(payOSRes.qrCode ?? '');
+        setBookingCheckoutUrl(payOSRes.checkoutUrl);
         setPendingOrderCode(payOSRes.orderCode);
         setSubmitting(false);
         setPhase('checkout');
@@ -1621,11 +1625,11 @@ function ConfirmationPopup({
       subtitle: 'Select payment method',
     },
     checkout: {
-      icon: <CheckCircle2 size={18} className="text-[#FF4C4C]" />,
-      iconBg: 'bg-[#FF4C4C]/10 border border-[#FF4C4C]/30',
+      icon: <CheckCircle2 size={18} className="text-emerald-500" />,
+      iconBg: 'bg-emerald-50 border border-emerald-200',
       headerBg: '',
-      title: 'Secure Checkout',
-      subtitle: 'Scan VietQR code on PayOS',
+      title: 'Pay via PayOS',
+      subtitle: 'Scan QR code to complete payment',
     },
     qr: {
       icon: <CheckCircle2 size={18} className="text-blue-500" />,
@@ -1791,39 +1795,75 @@ function ConfirmationPopup({
             </div>
           )}
 
-          {/* ── Phase: Checkout (Tab mới + Polling) ── */}
+          {/* ── Phase: Checkout (QR Popup — giống Monthly Pass) ── */}
           {phase === 'checkout' && (
-            <div className="flex flex-col items-center gap-6 py-4">
-              <div className="relative">
-                <div className="w-20 h-20 rounded-full border-4 border-emerald-100 flex items-center justify-center">
-                  <Loader2 size={36} className="animate-spin text-emerald-500" />
-                </div>
-                <div className="absolute inset-0 rounded-full bg-emerald-400/10 animate-ping" />
-              </div>
+            <div className="space-y-4">
+              {/* Title */}
               <div className="text-center">
-                <p className="text-base font-black text-stone-800 dark:text-white transition-colors mb-1">Waiting for payment</p>
-                <p className="text-xs text-stone-500 leading-relaxed">
-                  PayOS window is open.<br />
-                  Complete the payment there,<br />
-                  this page will update automatically.
+                <p className="font-bold text-base text-stone-800 dark:text-white transition-colors">
+                  Scan the QR code to pay
+                </p>
+                <p className="text-xs mt-1 text-stone-500">
+                  Use your banking app or e-wallet to scan the code below
                 </p>
               </div>
-              <div className="flex items-center gap-2 bg-stone-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-full px-5 py-2.5 transition-colors">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs text-stone-500 dark:text-stone-400 font-medium">
-                  Checking... <span className="font-bold text-stone-700 dark:text-stone-300">{pollSeconds}s</span>
+
+              {/* QR Code */}
+              {rawQrCode ? (
+                <div className="flex justify-center">
+                  <div className="p-3 rounded-2xl border bg-white border-gray-200 dark:border-white/10">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=4&data=${encodeURIComponent(rawQrCode)}`}
+                      alt="PayOS payment QR"
+                      width={220}
+                      height={220}
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <div className="w-[220px] h-[220px] bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 border border-dashed">
+                    <span className="text-xs">Không thể tải mã QR</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Thông tin giao dịch */}
+              <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                <div>
+                  <p className="text-xs text-stone-400 font-semibold">Amount</p>
+                  <p className="font-extrabold text-[#FF4C4C] text-lg">{formatCurrency(total)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-stone-400 font-semibold">Location</p>
+                  <p className="font-semibold text-sm text-stone-700 dark:text-stone-300">
+                    {floorLabel} › Slot {state.slot}
+                  </p>
+                </div>
+              </div>
+
+              {/* Fallback link */}
+              <a
+                href={bookingCheckoutUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border transition-colors border-gray-200 dark:border-white/10 text-stone-500 dark:text-stone-400 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10"
+              >
+                <ChevronRight size={13} />
+                Or open the PayOS link in a new tab
+              </a>
+
+              {/* Trạng thái polling */}
+              <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl text-xs border bg-amber-50/80 border-amber-200/60 text-amber-600 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400">
+                {pendingOrderCode !== null
+                  ? <Loader2 size={13} className="shrink-0 mt-0.5 animate-spin" />
+                  : <AlertTriangle size={13} className="shrink-0 mt-0.5" />}
+                <span>
+                  Automatically checking payment status... Reservation will be confirmed and this window will close automatically once payment succeeds.
                 </span>
               </div>
-              <button
-                onClick={() => {
-                  if (payosTabRef.current && !payosTabRef.current.closed) {
-                    payosTabRef.current.focus();
-                  }
-                }}
-                className="text-xs text-[#FF4C4C] font-semibold hover:underline"
-              >
-                Click to reopen payment window →
-              </button>
+
               {error && (
                 <div className="bg-red-50 border border-red-100 text-red-500 text-xs px-4 py-3 rounded-2xl text-center font-bold w-full">
                   ⚠️ {error}
@@ -1950,11 +1990,13 @@ function ConfirmationPopup({
                 try { payosTabRef.current?.close(); } catch { }
                 payosTabRef.current = null;
                 setPendingOrderCode(null);
+                setRawQrCode('');
+                setBookingCheckoutUrl('');
                 setPhase('payment');
               }}
               className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-stone-500 border border-gray-200 dark:border-white/10 hover:text-stone-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/10 transition-all"
             >
-              Cancel Payment
+              Close and Check Later
             </button>
           )}
 

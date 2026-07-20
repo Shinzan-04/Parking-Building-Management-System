@@ -11,11 +11,13 @@ public class ChatHub : Hub
 {
     private readonly ApplicationDbContext _context;
     private readonly IAiChatService _aiChatService;
+    private readonly INotificationService _notificationService;
 
-    public ChatHub(ApplicationDbContext context, IAiChatService aiChatService)
+    public ChatHub(ApplicationDbContext context, IAiChatService aiChatService, INotificationService notificationService)
     {
         _context = context;
         _aiChatService = aiChatService;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -92,6 +94,24 @@ public class ChatHub : Hub
                 if (session.BuildingId.HasValue)
                 {
                     await Clients.Group($"Building_{session.BuildingId.Value}").SendAsync("NewEscalatedSession", session.Id);
+
+                    // Tạo Notification record cho từng Staff của tòa nhà đó để chuông (NotificationBell)
+                    // và badge cũng nhận biết, kể cả khi họ không đang mở trang Live Chat
+                    var staffIds = await _context.Users
+                        .Where(u => u.AssignedBuildingId == session.BuildingId.Value && u.Role == Role.Staff)
+                        .Select(u => u.Id)
+                        .ToListAsync();
+
+                    foreach (var staffId in staffIds)
+                    {
+                        await _notificationService.SendAsync(
+                            staffId,
+                            "New chat support request",
+                            $"Guest {session.GuestName ?? "Anonymous"} needs live chat support.",
+                            "ChatEscalated",
+                            session.Id
+                        );
+                    }
                 }
             }
 

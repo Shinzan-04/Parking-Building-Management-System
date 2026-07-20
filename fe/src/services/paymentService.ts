@@ -45,6 +45,8 @@ export interface CreatePayOSPaymentRequest {
 
 export interface PayOSCheckoutResponse {
   checkoutUrl: string;
+  /** Chuỗi QR EMVCo/VietQR thật từ PayOS — dùng để render QR quét được bằng app ngân hàng */
+  qrCode?: string;
   orderCode: number;
   amount: number;
   description: string;
@@ -107,6 +109,7 @@ export interface PaymentListItem {
   refundProvider: string | null;
   refundTransactionId: string | null;
   refundFailureReason: string | null;
+  transactionType: string | null;
 }
 
 export interface PaymentListResult {
@@ -155,4 +158,40 @@ export const rejectRefund = (
     method: 'POST',
     body: JSON.stringify({ reason }),
   });
+
+// ─── Transaction History & Revenue ───────────────────────────────────────────
+
+export interface TransactionHistoryResult {
+  items: PaymentListItem[];
+  totalAmount: number;
+  parkingRevenue: number;
+  bookingRevenue: number;
+  subscriptionRevenue: number;
+  topUpRevenue: number;
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const getTransactions = (
+  token: string,
+  params: {
+    fromDate?: string;
+    toDate?: string;
+    paymentMethod?: string;
+    page?: number;
+    pageSize?: number;
+  } = {}
+): Promise<TransactionHistoryResult> => {
+  const qs = new URLSearchParams();
+  if (params.fromDate) qs.set('fromDate', params.fromDate);
+  if (params.toDate) qs.set('toDate', params.toDate);
+  if (params.paymentMethod) qs.set('paymentMethod', params.paymentMethod);
+  if (params.page) qs.set('page', String(params.page));
+  if (params.pageSize) qs.set('pageSize', String(params.pageSize));
+  
+  const query = qs.toString() ? `?${qs}` : '';
+  return authFetch(`/api/Transactions${query}`, token);
+};
 

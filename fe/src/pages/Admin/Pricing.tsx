@@ -10,7 +10,7 @@ import {
   Plus, Pencil, Trash2, X,
   AlertTriangle, Loader2, RefreshCw,
   Sun, Moon, TrendingUp, Tag, Zap,
-  CheckCircle2, Clock, GitBranch, History,
+  CheckCircle2, Clock, GitBranch, History, Calendar,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getVehicleTypes } from '../../services/buildingsService';
@@ -23,19 +23,26 @@ import type {
   CreatePricingPolicyRequest,
   UpdatePricingPolicyRequest,
 } from '../../services/pricingService';
+import {
+  getAllPolicies as getAllMonthlyPolicies,
+  createMonthlyPassPolicy,
+  updateMonthlyPassPolicy,
+} from '../../services/subscriptionService';
+import type { MonthlyPassPolicyResponse } from '../../services/subscriptionService';
 
 const vnd = (n: number) =>
   new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND', maximumFractionDigits: 0 }).format(n);
 
 const emptyForm = {
   vehicleTypeId: '',
-  blockDurationHours: '4',
+  blockDurationHours: '',
   dayBlockRate: '',
   nightBlockRate: '',
-  nightStartHour: '22',
-  nightEndHour: '6',
+  nightStartHour: '',
+  nightEndHour: '',
   dailyRate: '',
-  overtimeMultiplier: '1.5',
+  overtimeMultiplier: '',
+  monthlyPrice: '',
 };
 
 type PolicyForm = typeof emptyForm;
@@ -47,26 +54,31 @@ interface PolicyGroup {
   vehicleTypeName: string;
   active: PricingPolicyResponse | null;
   history: PricingPolicyResponse[];
+  monthly: MonthlyPassPolicyResponse | null;
 }
 
-function groupPolicies(policies: PricingPolicyResponse[]): PolicyGroup[] {
-  const map = new Map<string, PolicyGroup>();
-  // Sort by version descending so the active one is always first
-  const sorted = [...policies].sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
-
-  for (const p of sorted) {
-    const key = p.vehicleTypeId;
-    if (!map.has(key)) {
-      map.set(key, { vehicleTypeId: key, vehicleTypeName: p.vehicleTypeName || '', active: null, history: [] });
-    }
-    const group = map.get(key)!;
-    if (p.isActive && !group.active) {
-      group.active = p;
-    } else {
-      group.history.push(p);
-    }
-  }
-  return Array.from(map.values());
+function groupPolicies(
+  vehicleTypes: VehicleTypeResponse[],
+  policies: PricingPolicyResponse[],
+  monthlyPolicies: MonthlyPassPolicyResponse[]
+): PolicyGroup[] {
+  return vehicleTypes.map(vt => {
+    const vtPolicies = policies
+      .filter(p => p.vehicleTypeId === vt.id)
+      .sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
+    
+    const active = vtPolicies.find(p => p.isActive) || null;
+    const history = vtPolicies.filter(p => p !== active);
+    const monthly = monthlyPolicies.find(m => m.vehicleTypeId === vt.id && m.isActive) || null;
+    
+    return {
+      vehicleTypeId: vt.id,
+      vehicleTypeName: vt.name,
+      active,
+      history,
+      monthly
+    };
+  });
 }
 
 export default function AdminPricing() {
@@ -74,12 +86,14 @@ export default function AdminPricing() {
 
   const [vehicleTypes, setVehicleTypes] = useState<VehicleTypeResponse[]>([]);
   const [policies, setPolicies]         = useState<PricingPolicyResponse[]>([]);
+  const [monthlyPolicies, setMonthlyPolicies] = useState<MonthlyPassPolicyResponse[]>([]);
   const [loading, setLoading]           = useState(true);
   const [refreshing, setRefreshing]     = useState(false);
   const [apiError, setApiError]         = useState('');
 
   const [modal, setModal]         = useState<ModalMode>(null);
   const [selected, setSelected]   = useState<PricingPolicyResponse | null>(null);
+  const [selectedMonthly, setSelectedMonthly] = useState<MonthlyPassPolicyResponse | null>(null);
   const [historyGroup, setHistoryGroup] = useState<PolicyGroup | null>(null);
   const [form, setForm]           = useState<PolicyForm>(emptyForm);
   const [formError, setFormError] = useState('');
@@ -91,12 +105,14 @@ export default function AdminPricing() {
     else setRefreshing(true);
     setApiError('');
     const errors: string[] = [];
-    const [vts, allPolicies] = await Promise.all([
+    const [vts, allPolicies, allMonthly] = await Promise.all([
       getVehicleTypes().catch(() => { errors.push('vehicle types'); return [] as VehicleTypeResponse[]; }),
       getAllPolicies(token).catch(() => { errors.push('pricing policies'); return [] as PricingPolicyResponse[]; }),
+      getAllMonthlyPolicies().catch(() => { errors.push('monthly pass'); return [] as MonthlyPassPolicyResponse[]; })
     ]);
     setVehicleTypes(vts);
     setPolicies(allPolicies);
+    setMonthlyPolicies(allMonthly);
     if (errors.length) setApiError(`Failed to load: ${errors.join(', ')}.`);
     setLoading(false);
     setRefreshing(false);
@@ -104,20 +120,27 @@ export default function AdminPricing() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  const groups = useMemo(() => groupPolicies(policies), [policies]);
+  const groups = useMemo(() => groupPolicies(vehicleTypes, policies, monthlyPolicies), [vehicleTypes, policies, monthlyPolicies]);
 
   const closeModal = () => {
-    setModal(null); setSelected(null); setHistoryGroup(null); setFormError(''); setSubmitting(false);
+    setModal(null); setSelected(null); setSelectedMonthly(null); setHistoryGroup(null); setFormError(''); setSubmitting(false);
   };
 
-  const openAdd = () => {
-    setForm({ ...emptyForm, vehicleTypeId: vehicleTypes[0]?.id ?? '' });
+  const openAdd = (group?: PolicyGroup) => {
+    setForm({ 
+      ...emptyForm, 
+      vehicleTypeId: group ? group.vehicleTypeId : (vehicleTypes.length > 0 ? vehicleTypes[0].id : ''), 
+      monthlyPrice: (group && group.monthly) ? String(group.monthly.monthlyPrice) : '' 
+    });
+    setSelectedMonthly(group ? group.monthly : null);
     setFormError('');
     setModal('add');
   };
 
-  const openEdit = (p: PricingPolicyResponse) => {
+  const openEdit = (group: PolicyGroup) => {
+    const p = group.active!;
     setSelected(p);
+    setSelectedMonthly(group.monthly);
     setForm({
       vehicleTypeId:      p.vehicleTypeId,
       blockDurationHours: String(p.blockDurationHours),
@@ -127,20 +150,30 @@ export default function AdminPricing() {
       nightEndHour:       String(p.nightEndHour),
       dailyRate:          String(p.dailyRate),
       overtimeMultiplier: String(p.overtimeMultiplier),
+      monthlyPrice:       group.monthly ? String(group.monthly.monthlyPrice) : '',
     });
     setFormError('');
     setModal('edit');
   };
 
+  const parseNum = (val: string) => Number(val.replace(/,/g, '.'));
+
   const validate = (): string => {
+    if (form.monthlyPrice !== '') {
+      if (parseNum(form.monthlyPrice) < 0) return 'Monthly price must be >= 0.';
+    }
+    
     if (modal === 'add' && !form.vehicleTypeId) return 'Please select a vehicle type.';
-    if (Number(form.blockDurationHours) <= 0) return 'Block duration must be > 0 hours.';
-    if (Number(form.dayBlockRate) < 0) return 'Day block rate must be >= 0.';
-    if (Number(form.nightBlockRate) < 0) return 'Night block rate must be >= 0.';
-    if (Number(form.dailyRate) < 0) return 'Full-day rate must be >= 0.';
-    if (Number(form.overtimeMultiplier) <= 0) return 'Overtime multiplier must be > 0.';
-    const ns = Number(form.nightStartHour);
-    const ne = Number(form.nightEndHour);
+    if (parseNum(form.blockDurationHours) <= 0) return 'Block duration must be > 0 hours.';
+    if (parseNum(form.dayBlockRate) < 0) return 'Day block rate must be >= 0.';
+    if (parseNum(form.nightBlockRate) < 0) return 'Night block rate must be >= 0.';
+    if (parseNum(form.dailyRate) < 0) return 'Full-day rate must be >= 0.';
+    
+    const ot = parseNum(form.overtimeMultiplier);
+    if (isNaN(ot) || ot <= 0) return 'Overtime multiplier must be > 0 (e.g. 1.5).';
+    
+    const ns = parseNum(form.nightStartHour);
+    const ne = parseNum(form.nightEndHour);
     if (isNaN(ns) || ns < 0 || ns > 23) return 'Night start hour must be from 0-23.';
     if (isNaN(ne) || ne < 0 || ne > 23) return 'Night end hour must be from 0-23.';
     return '';
@@ -150,13 +183,13 @@ export default function AdminPricing() {
     blockPrice: 0,
     hourlyRate: 0,
     dailyMaxRate: 0,
-    blockDurationHours: Number(form.blockDurationHours),
-    dayBlockRate:       Number(form.dayBlockRate),
-    nightBlockRate:     Number(form.nightBlockRate),
-    nightStartHour:     Number(form.nightStartHour),
-    nightEndHour:       Number(form.nightEndHour),
-    dailyRate:          Number(form.dailyRate),
-    overtimeMultiplier: Number(form.overtimeMultiplier),
+    blockDurationHours: parseNum(form.blockDurationHours),
+    dayBlockRate:       parseNum(form.dayBlockRate),
+    nightBlockRate:     parseNum(form.nightBlockRate),
+    nightStartHour:     parseNum(form.nightStartHour),
+    nightEndHour:       parseNum(form.nightEndHour),
+    dailyRate:          parseNum(form.dailyRate),
+    overtimeMultiplier: parseNum(form.overtimeMultiplier),
   });
 
   const handleAdd = async () => {
@@ -168,6 +201,17 @@ export default function AdminPricing() {
       const payload: CreatePricingPolicyRequest = { vehicleTypeId: form.vehicleTypeId, ...buildPayload() };
       const created = await createPolicy(payload, token);
       setPolicies(prev => [...prev, created]);
+      
+      if (form.monthlyPrice !== '') {
+        const mp = parseNum(form.monthlyPrice);
+        if (selectedMonthly) {
+          const m = await updateMonthlyPassPolicy(selectedMonthly.id, { monthlyPrice: mp, isActive: true }, token);
+          setMonthlyPolicies(prev => prev.map(x => x.id === m.id ? m : x));
+        } else {
+          const m = await createMonthlyPassPolicy({ vehicleTypeId: form.vehicleTypeId, monthlyPrice: mp }, token);
+          setMonthlyPolicies(prev => [...prev, m]);
+        }
+      }
       closeModal();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'An error occurred.');
@@ -184,6 +228,17 @@ export default function AdminPricing() {
       const payload: UpdatePricingPolicyRequest = buildPayload();
       const updated = await updatePolicy(selected.id, payload, token);
       setPolicies(prev => prev.map(p => p.id === selected.id ? updated : p));
+      
+      if (form.monthlyPrice !== '') {
+        const mp = parseNum(form.monthlyPrice);
+        if (selectedMonthly) {
+          const m = await updateMonthlyPassPolicy(selectedMonthly.id, { monthlyPrice: mp, isActive: true }, token);
+          setMonthlyPolicies(prev => prev.map(x => x.id === m.id ? m : x));
+        } else {
+          const m = await createMonthlyPassPolicy({ vehicleTypeId: selected.vehicleTypeId, monthlyPrice: mp }, token);
+          setMonthlyPolicies(prev => [...prev, m]);
+        }
+      }
       closeModal();
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'An error occurred.');
@@ -199,7 +254,7 @@ export default function AdminPricing() {
       setPolicies(prev => prev.filter(p => p.id !== selected.id));
       closeModal();
     } catch (e) {
-      setFormError(e instanceof Error ? e.message : 'Failed to delete.');
+      setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
     }
   };
@@ -247,7 +302,7 @@ export default function AdminPricing() {
           <p className="text-xs text-white/40 mt-0.5">Each update creates a new version, keeping history for accurate reporting</p>
         </div>
         <button
-          onClick={openAdd}
+          onClick={() => openAdd()}
           disabled={vehicleTypes.length === 0}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#FF4C4C] hover:bg-[#ff3333] text-black font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-40"
         >
@@ -299,77 +354,78 @@ export default function AdminPricing() {
                 </div>
               </div>
 
-              {p ? (
-                <>
-                  {/* Effective date */}
-                  {p.effectiveDate && (
-                    <div className="flex items-center gap-1.5 text-xs text-white/30">
-                      <Clock size={11} />
-                      Effective from: {new Date(p.effectiveDate).toLocaleDateString('vi-VN')}
-                      {p.previousVersionId && (
-                        <span className="ml-1 text-white/20">(has history)</span>
-                      )}
-                    </div>
+              {/* Effective date */}
+              {p?.effectiveDate && (
+                <div className="flex items-center gap-1.5 text-xs text-white/30">
+                  <Clock size={11} />
+                  Effective from: {new Date(p.effectiveDate).toLocaleDateString('vi-VN')}
+                  {p.previousVersionId && (
+                    <span className="ml-1 text-white/20">(has history)</span>
                   )}
-
-                  {/* Block info */}
-                  <p className="text-xs text-white/30">Block {p.blockDurationHours}h · Night {p.nightStartHour}h-{p.nightEndHour}h</p>
-
-                  {/* Rate rows */}
-                  <div className="space-y-2.5">
-                    {[
-                      { icon: Sun,        label: 'Day / block',       value: vnd(p.dayBlockRate),        color: '#F59E0B' },
-                      { icon: Moon,       label: 'Night / block',     value: vnd(p.nightBlockRate),      color: '#A78BFA' },
-                      { icon: TrendingUp, label: 'Full-day rate',     value: vnd(p.dailyRate),           color: '#F87171' },
-                      { icon: Zap,        label: 'Overtime multiplier', value: `×${p.overtimeMultiplier}`, color: '#34D399' },
-                    ].map(row => {
-                      const Icon = row.icon;
-                      return (
-                        <div key={row.label} className="flex items-center justify-between px-3 py-2 bg-white/[0.04] rounded-xl">
-                          <div className="flex items-center gap-2 text-xs text-white/50">
-                            <Icon size={12} style={{ color: row.color }} />
-                            {row.label}
-                          </div>
-                          <span className="text-sm font-semibold text-white">{row.value}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Footer meta */}
-                  <div className="text-xs text-white/30 pt-1 border-t border-white/5">
-                    Created: {new Date(p.createdAt).toLocaleDateString('vi-VN')}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openEdit(p)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium text-amber-500/70 hover:text-amber-500 hover:bg-amber-500/10 transition-all"
-                    >
-                      <Pencil size={13} /> Update Price
-                    </button>
-                    {group.history.length > 0 && (
-                      <button
-                        onClick={() => { setHistoryGroup(group); setModal('history'); }}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-white/30 hover:text-white/60 hover:bg-white/5 transition-all"
-                        title={`${group.history.length} previous versions`}
-                      >
-                        <History size={13} />
-                        {group.history.length}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => { setSelected(p); setModal('delete'); }}
-                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium text-red-400/60 hover:text-red-400 hover:bg-red-400/10 transition-all"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs text-white/30 py-4 text-center">No active policy</p>
+                </div>
               )}
+
+              {/* Block info */}
+              {p && <p className="text-xs text-white/30">Block {p.blockDurationHours}h · Night {p.nightStartHour}h-{p.nightEndHour}h</p>}
+
+              {/* Rate rows */}
+              <div className="space-y-2.5">
+                {[
+                  ...(p ? [
+                    { icon: Sun,        label: 'Day / block',       value: vnd(p.dayBlockRate),        color: '#F59E0B' },
+                    { icon: Moon,       label: 'Night / block',     value: vnd(p.nightBlockRate),      color: '#A78BFA' },
+                    { icon: TrendingUp, label: 'Full-day rate',     value: vnd(p.dailyRate),           color: '#F87171' },
+                    { icon: Zap,        label: 'Overtime multiplier', value: `×${p.overtimeMultiplier}`, color: '#34D399' }
+                  ] : []),
+                  { icon: Calendar,   label: 'Monthly Pass',      value: group.monthly ? vnd(group.monthly.monthlyPrice) : 'Not set', color: '#EC4899' },
+                ].map(row => {
+                  const Icon = row.icon;
+                  return (
+                    <div key={row.label} className="flex items-center justify-between px-3 py-2 bg-white/[0.04] rounded-xl">
+                      <div className="flex items-center gap-2 text-xs text-white/50">
+                        <Icon size={12} style={{ color: row.color }} />
+                        {row.label}
+                      </div>
+                      <span className="text-sm font-semibold text-white">{row.value}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Footer meta */}
+              {p && (
+                <div className="text-xs text-white/30 pt-1 border-t border-white/5">
+                  Created: {new Date(p.createdAt).toLocaleDateString('vi-VN')}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-2 border-t border-white/5">
+                <button
+                  onClick={() => p ? openEdit(group) : openAdd(group)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-medium bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 transition-all"
+                >
+                  <Pencil size={13} /> {p ? 'Update Policy' : 'Configure Policy'}
+                </button>
+                {group.history.length > 0 && (
+                  <button
+                    onClick={() => { setHistoryGroup(group); setModal('history'); }}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-white/5 text-white/50 hover:text-white/80 hover:bg-white/10 transition-all"
+                    title={`${group.history.length} previous versions`}
+                  >
+                    <History size={13} />
+                    {group.history.length}
+                  </button>
+                )}
+                {p && (
+                  <button
+                    onClick={() => { setSelected(p); setModal('delete'); }}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-red-400/10 text-red-400 hover:bg-red-400/20 transition-all"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
             </div>
           );
         })}
@@ -382,7 +438,7 @@ export default function AdminPricing() {
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10 shrink-0">
               <div>
                 <h3 className="text-base font-semibold text-gray-800 dark:text-white">
-                  {modal === 'add' ? 'Add Pricing Policy' : `Update Price · ${selected?.vehicleTypeName}`}
+                  {modal === 'add' ? 'Configure Policy' : `Update Price · ${selected?.vehicleTypeName}`}
                 </h3>
                 {modal === 'edit' && (
                   <p className="text-xs text-white/40 mt-0.5 flex items-center gap-1">
@@ -495,6 +551,19 @@ export default function AdminPricing() {
                     className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                   />
                 </div>
+              </div>
+
+              <div className="pt-2 mt-4 border-t border-gray-200 dark:border-white/10">
+                <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5 flex items-center gap-1.5">
+                  <Calendar size={13} className="text-[#EC4899]" />
+                  Monthly Pass Price (VND) <span className="text-gray-400 dark:text-white/30 font-normal ml-auto">(Leave empty to skip)</span>
+                </label>
+                <input
+                  type="number" min={0} placeholder="e.g. 150000"
+                  value={form.monthlyPrice}
+                  onChange={e => setForm(f => ({ ...f, monthlyPrice: e.target.value }))}
+                  className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
+                />
               </div>
 
               {formError && (

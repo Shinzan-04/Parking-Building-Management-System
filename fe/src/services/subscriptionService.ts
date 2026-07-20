@@ -29,6 +29,17 @@ export interface MonthlyPassPolicyResponse {
   createdAt: string;
 }
 
+export interface CreateMonthlyPassPolicyRequest {
+  vehicleTypeId: string;
+  monthlyPrice: number;
+}
+
+export interface UpdateMonthlyPassPolicyRequest {
+  monthlyPrice: number;
+  description?: string | null;
+  isActive?: boolean;
+}
+
 export interface SubscriptionResponse {
   id: string;
   driverId: string;
@@ -92,6 +103,15 @@ export const getAllPolicies = (): Promise<MonthlyPassPolicyResponse[]> =>
 
 export const getPolicyByVehicleType = (vehicleTypeId: string): Promise<MonthlyPassPolicyResponse> =>
   apiFetch(`/api/MonthlyPassPolicies/vehicle-type/${vehicleTypeId}`);
+
+export const createMonthlyPassPolicy = (payload: CreateMonthlyPassPolicyRequest, token: string): Promise<MonthlyPassPolicyResponse> =>
+  apiFetch('/api/MonthlyPassPolicies', token, { method: 'POST', body: JSON.stringify(payload) });
+
+export const updateMonthlyPassPolicy = (id: string, payload: UpdateMonthlyPassPolicyRequest, token: string): Promise<MonthlyPassPolicyResponse> =>
+  apiFetch(`/api/MonthlyPassPolicies/${id}`, token, { method: 'PUT', body: JSON.stringify(payload) });
+
+export const deleteMonthlyPassPolicy = (id: string, token: string): Promise<void> =>
+  apiFetch(`/api/MonthlyPassPolicies/${id}`, token, { method: 'DELETE' });
 
 // ── Subscriptions API ─────────────────────────────────────────────────────────
 export const getMySubscriptions = (token: string): Promise<SubscriptionResponse[]> =>

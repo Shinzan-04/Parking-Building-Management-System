@@ -23,6 +23,8 @@ public class PaymentListItemDto
     public string? RefundProvider { get; set; }
     public string? RefundTransactionId { get; set; }
     public string? RefundFailureReason { get; set; }
+
+    public string TransactionType { get; set; } = string.Empty;
 }
 
 public class PaymentListQuery
@@ -55,6 +57,33 @@ public class CreatePayOSPaymentRequest
     public bool IsWalletDeposit { get; set; }
     public string? ReturnUrl { get; set; }
     public string? CancelUrl { get; set; }
+}
+
+public class TransactionHistoryQuery
+{
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
+    public string? PaymentMethod { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
+
+public class TransactionHistoryResult
+{
+    public List<PaymentListItemDto> Items { get; set; } = new();
+    
+    // Tổng doanh thu tất cả các loại
+    public decimal TotalAmount { get; set; }
+    
+    // Phân loại doanh thu
+    public decimal ParkingRevenue { get; set; }
+    public decimal BookingRevenue { get; set; }
+    public decimal SubscriptionRevenue { get; set; }
+    public decimal TopUpRevenue { get; set; }
+
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
 }
 
 public class PaymentStatusResult

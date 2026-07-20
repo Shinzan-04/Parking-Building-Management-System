@@ -57,7 +57,16 @@ public class ReservationService : IReservationService
         var licensePlate = vehicle.PlateNumber;
         var vehicleTypeId = vehicle.VehicleTypeId;
 
-        // 3. Kiểm tra xe đã có booking nào trùng giờ chưa
+        // 3. Kiểm tra xe đã có vé tháng đang hoạt động chưa
+        var hasActiveSubscription = await _context.Subscriptions
+            .AnyAsync(s => s.LicensePlate == licensePlate
+                        && s.Status == SubscriptionStatus.Active
+                        && s.EndDate > DateTime.UtcNow);
+
+        if (hasActiveSubscription)
+            throw new InvalidOperationException($"License plate {licensePlate} already has an active monthly pass. You do not need to book a reservation.");
+
+        // 4. Kiểm tra xe đã có booking nào trùng giờ chưa
         var activeStatuses = new List<ReservationStatus>
         {
             ReservationStatus.PaymentPending,

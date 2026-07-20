@@ -546,7 +546,17 @@ public class CheckInService : ICheckInService
         
         Guid? matchedDriverId = registeredVehicle?.DriverId;
 
-        // Tạo Parking Session mới (khách vãng lai hoặc khách có tài khoản nhưng check-in bằng camera)
+        // ── KIỂM TRA VÉ THÁNG ──
+        var hasActiveSubscription = await _context.Subscriptions
+            .AnyAsync(s => s.LicensePlate == searchPlate
+                        && s.VehicleTypeId == request.VehicleTypeId
+                        && s.Status == SubscriptionStatus.Active
+                        && s.StartDate <= now
+                        && s.EndDate >= now);
+
+        var finalCheckInMethod = hasActiveSubscription ? CheckInMethod.MonthlyPass : CheckInMethod.WalkIn;
+
+        // Tạo Parking Session mới (khách vãng lai, khách có tài khoản, hoặc khách vé tháng)
         var session = new ParkingSession
         {
             Id = Guid.NewGuid(),
@@ -556,8 +566,8 @@ public class CheckInService : ICheckInService
             VehicleTypeId = request.VehicleTypeId,
             LicensePlate = searchPlate,
             SessionCode = sessionCode,
-            CheckInMethod = CheckInMethod.WalkIn,
-            EntryTime = DateTime.UtcNow,
+            CheckInMethod = finalCheckInMethod,
+            EntryTime = now,
             EntryImageUrl = entryImageUrl,
             Status = SessionStatus.Active
         };
@@ -579,14 +589,17 @@ public class CheckInService : ICheckInService
         var buildingName = assignedSlot.Floor?.Building?.Name ?? "";
         var floorName = assignedSlot.Floor?.Name ?? "";
 
+        var customerType = hasActiveSubscription ? "Khách vé tháng" : "Khách vãng lai";
+        var assignmentType = request.SlotId.HasValue ? "Staff chọn" : "AI gợi ý";
+
         return new CheckInResponse
         {
             SessionId = session.Id,
             SessionCode = sessionCode,
             SessionQrCodeBase64 = qrImageBase64,
             LicensePlate = searchPlate,
-            CheckInMethod = CheckInMethod.WalkIn,
-            BookingCode = null, // Khách vãng lai — không có booking
+            CheckInMethod = finalCheckInMethod,
+            BookingCode = null, // Không có booking
             SlotNumber = assignedSlot.SlotNumber,
             FloorName = floorName,
             BuildingName = buildingName,
@@ -596,7 +609,7 @@ public class CheckInService : ICheckInService
             SlotReason = slotReason,
             EntryImageUrl = entryImageUrl,
             EntryTime = session.EntryTime,
-            Message = $"Check-in thành công (Khách vãng lai — AI gợi ý). Vui lòng đỗ xe tại ô {assignedSlot.SlotNumber}, tầng {floorName}, tòa {buildingName}."
+            Message = $"Check-in thành công ({customerType} — {assignmentType}). Vui lòng đỗ xe tại ô {assignedSlot.SlotNumber}, tầng {floorName}, tòa {buildingName}."
         };
     }
 
