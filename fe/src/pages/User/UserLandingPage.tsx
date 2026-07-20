@@ -534,7 +534,7 @@ export default function UserLandingPage() {
                 className="text-3xl md:text-4xl font-black tracking-tight mt-2"
                 style={{ color: 'var(--lp-text)' }}
               >
-                Clear.{' '}
+                Clear{' '}
                 <span style={{ color: '#FF4C4C' }}>Transparent.</span>
               </h2>
             </div>
@@ -849,50 +849,35 @@ export default function UserLandingPage() {
             className="border-t py-8 px-6"
             style={{ borderColor: 'var(--lp-border)', color: 'var(--lp-text-muted)' }}
           >
-            <div className="max-w-7xl mx-auto">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                {/* Brand */}
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-white font-bold text-sm shadow-sm"
-                    style={{ backgroundColor: '#FF4C4C' }}
-                  >
-                    P
-                  </div>
-                  <span className="font-extrabold tracking-tight" style={{ color: 'var(--lp-text)' }}>
-                    Parking<span style={{ color: '#FF4C4C' }}>.</span>
-                  </span>
-                </div>
-
-                {/* Links */}
-                <div className="flex flex-wrap justify-center gap-6 text-xs font-bold">
-                  <span
-                    onClick={() => navigate('/find-parking')}
-                    className="hover:text-[#FF4C4C] transition-colors cursor-pointer"
-                  >
-                    Find Parking
-                  </span>
-                  <span
-                    onClick={() => navigate('/monthly-pass')}
-                    className="hover:text-[#FF4C4C] transition-colors cursor-pointer"
-                  >
-                    Monthly Pass
-                  </span>
-                  <span
-                    onClick={() => navigate('/my-tickets')}
-                    className="hover:text-[#FF4C4C] transition-colors cursor-pointer"
-                  >
-                    My Tickets
-                  </span>
-                  <span className="opacity-50 cursor-not-allowed">Privacy Policy</span>
-                  <span className="opacity-50 cursor-not-allowed">Terms of Service</span>
-                </div>
-
-                {/* Copyright */}
-                <p className="text-[11px] font-semibold opacity-50 text-center md:text-right">
-                  © 2026 Parking Building. All rights reserved.
-                </p>
+            <div className="max-w-7xl mx-auto flex flex-col items-center justify-center gap-6">
+              {/* Links */}
+              <div className="flex flex-wrap justify-center gap-6 text-xs font-bold">
+                <span
+                  onClick={() => navigate('/find-parking')}
+                  className="hover:text-[#FF4C4C] transition-colors cursor-pointer"
+                >
+                  Find Parking
+                </span>
+                <span
+                  onClick={() => navigate('/monthly-pass')}
+                  className="hover:text-[#FF4C4C] transition-colors cursor-pointer"
+                >
+                  Monthly Pass
+                </span>
+                <span
+                  onClick={() => navigate('/my-tickets')}
+                  className="hover:text-[#FF4C4C] transition-colors cursor-pointer"
+                >
+                  My Tickets
+                </span>
+                <span className="opacity-50 cursor-not-allowed">Privacy Policy</span>
+                <span className="opacity-50 cursor-not-allowed">Terms of Service</span>
               </div>
+
+              {/* Copyright */}
+              <p className="text-[11px] font-semibold opacity-50 text-center">
+                © 2026 Parking Building. All rights reserved.
+              </p>
             </div>
           </footer>
         </section>
