@@ -316,44 +316,54 @@ export default function LiveSessionPage() {
           </div>
 
           {/* Surcharge Logs */}
-          {session.isPrepaid && dynamicFee > 0 && (
-            <div className="bg-white dark:bg-[#18181B] rounded-3xl p-5 shadow-sm border border-slate-100 dark:border-white/10 flex flex-col mb-4 transition-all hover:shadow-md">
-              <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <Clock size={16} className="text-[#2B52FF]" />
-                Surcharge Logs
-              </h3>
+          <div className="bg-white dark:bg-[#18181B] rounded-3xl p-5 shadow-sm border border-slate-100 dark:border-white/10 flex flex-col mb-4 transition-all hover:shadow-md">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+              <Clock size={16} className="text-[#2B52FF]" />
+              Surcharge Logs
+            </h3>
 
-              <div className="space-y-4 max-h-[120px] overflow-y-auto pr-2 scrollbar-thin">
+            {dynamicFee > 0 ? (
+              <div className="space-y-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
                 {session.surchargeLogs && session.surchargeLogs.length > 0 ? (
-                  session.surchargeLogs.map((log, index) => (
-                    <div key={index} className="flex justify-between items-start pb-3 border-b border-slate-50 dark:border-white/5 border-dashed">
-                      <div>
-                        <div className="text-xs font-bold text-red-500 mb-1">{log.name}</div>
-                        <div className="text-[9px] text-slate-400 font-medium">
-                          {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  session.surchargeLogs.map((log, index) => {
+                    const isEarly = log.name.toLowerCase().includes('early') || log.name.toLowerCase().includes('đến sớm');
+                    return (
+                      <div key={index} className="flex justify-between items-start pb-3 border-b border-dashed border-[#e2e8f0] dark:border-white/10 last:border-0">
+                        <div>
+                          <div className={`text-xs font-bold mb-1 ${isEarly ? 'text-[#b45309] dark:text-orange-500' : 'text-[#ef4444]'}`}>{log.name}</div>
+                          <div className="text-[9px] text-slate-400 font-medium">
+                            {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                        <div className="text-sm font-black text-slate-900 dark:text-white">
+                          + {log.amount.toLocaleString('vi-VN')} ₫
                         </div>
                       </div>
-                      <div className="text-xs font-black text-slate-800 dark:text-white">
-                        + {log.amount.toLocaleString('vi-VN')} đ
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
-                  <div className="flex justify-between items-start pb-3 border-b border-slate-50 dark:border-white/5 border-dashed">
+                  <div className="flex justify-between items-start pb-3 border-b border-dashed border-[#e2e8f0] dark:border-white/10 last:border-0">
                     <div>
-                      <div className="text-xs font-bold text-red-500 mb-1">Late Departure Surcharge</div>
+                      <div className="text-xs font-bold text-[#ef4444] mb-1">Fee Accumulation</div>
                       <div className="text-[9px] text-slate-400 font-medium">
                         {new Date().toLocaleDateString('vi-VN')} {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
-                    <div className="text-xs font-black text-slate-800 dark:text-white">
-                      + {dynamicFee.toLocaleString('vi-VN')} đ
+                    <div className="text-sm font-black text-slate-900 dark:text-white">
+                      + {dynamicFee.toLocaleString('vi-VN')} ₫
                     </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-col items-center justify-center py-4">
+                <span className="text-sm font-bold text-emerald-500 mb-1">No Surcharges Incurred</span>
+                <span className="text-[10px] text-slate-400 font-medium text-center">
+                  {session.isPrepaid ? 'You are parking within the valid schedule.' : 'You have not incurred any fees yet.'}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Fee Policy & Notice */}
           <div className="bg-white dark:bg-[#18181B] rounded-3xl p-5 shadow-sm border border-slate-100 dark:border-white/10 flex flex-col mb-4 transition-all hover:shadow-md">
