@@ -814,7 +814,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     <div className="flex justify-between items-center text-sm">
                       <span className="font-bold admin-text-muted">Base Fee</span>
                       <span className="font-bold admin-text-muted">
-                        {exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
+                        {exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.penaltyFee || 0) - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
@@ -823,6 +823,14 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         {exitSessionData ? ((exitSessionData.feeBreakdown?.dayPassTotal || 0) + (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
                       </span>
                     </div>
+                    {exitSessionData?.penaltyFee && exitSessionData.penaltyFee > 0 && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="font-bold text-[#FF4C4C]">Penalty Fee (Exception)</span>
+                        <span className="font-bold text-[#FF4C4C]">
+                          {exitSessionData.penaltyFee.toLocaleString('en-US')} VND
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between items-center pt-5 border-t admin-border">
                       <span className="font-black admin-text uppercase tracking-widest text-[11px]">BALANCE DUE</span>
                       <span className="font-black admin-text text-lg">

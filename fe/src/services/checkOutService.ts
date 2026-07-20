@@ -58,6 +58,7 @@ export interface CheckOutSearchResult {
   feeBreakdown?: FeeBreakdownDto;
   message: string;
   isPlateMismatch?: boolean;
+  penaltyFee?: number;
 }
 
 export interface CheckOutConfirmRequest {

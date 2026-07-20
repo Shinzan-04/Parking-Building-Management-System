@@ -40,6 +40,7 @@ const StaffLayout      = lazy(() => import('./pages/Staff/StaffLayout'));
 const StaffDashboard   = lazy(() => import('./pages/Staff/Dashboard'));
 const StaffSlotList    = lazy(() => import('./pages/Staff/SlotList'));
 const StaffReservations = lazy(() => import('./pages/Staff/Reservations'));
+const StaffExceptions   = lazy(() => import('./pages/Staff/Exceptions'));
 const StaffChatDashboard = lazy(() => import('./pages/Staff/ChatDashboard'));
 const UserLandingPage  = lazy(() => import('./pages/User/UserLandingPage'));
 const FindParkingPage  = lazy(() => import('./pages/User/FindParkingPage'));
@@ -123,6 +124,7 @@ export default function App() {
             <Route path="dashboard" element={<StaffDashboard />} />
             <Route path="slots" element={<StaffSlotList />} />
             <Route path="reservations" element={<StaffReservations />} />
+            <Route path="exceptions" element={<StaffExceptions />} />
             <Route path="chat" element={<StaffChatDashboard />} />
             <Route path="gate-control/entry" element={<GateControlPage defaultTab="entry" />} />
             <Route path="gate-control/exit" element={<GateControlPage defaultTab="exit" />} />
