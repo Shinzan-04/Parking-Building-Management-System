@@ -464,16 +464,12 @@ export default function UserLandingPage() {
               {FEATURES.map(({ icon: Icon, title, desc, gradient, accent }) => (
                 <div
                   key={title}
-                  className={`group relative rounded-2xl p-6 lg:p-8 border transition-all duration-300 cursor-default overflow-hidden hover:scale-[1.015]`}
+                  className={`group relative rounded-2xl p-6 lg:p-8 border transition-all duration-300 cursor-default overflow-hidden hover:-translate-y-1 hover:shadow-xl hover:shadow-black/5 dark:hover:shadow-white/5`}
                   style={{
                     backgroundColor: 'var(--lp-card-bg)',
                     borderColor: 'var(--lp-card-border)',
                   }}
                 >
-                  {/* gradient bg */}
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}
-                  />
                   <div className="relative z-10">
                     <div
                       className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5 shadow-sm"
