@@ -86,8 +86,8 @@ const PRICING_RULES = [
   {
     icon: Clock,
     color: '#3B82F6',
-    title: '1 Block = 2 hours',
-    desc: 'Park for 1 hr → charged 1 block. Park for 3 hrs → charged 2 blocks. Time is rounded up per block.',
+    title: '1 Block = 4 hours',
+    desc: 'Park for 3 hrs → charged 1 block. Park for 5 hrs → charged 2 blocks. Time is rounded up per block.',
   },
   {
     icon: Sun,
@@ -105,7 +105,7 @@ const PRICING_RULES = [
     icon: AlertTriangle,
     color: '#EF4444',
     title: 'Overdue Fee',
-    desc: 'Parking beyond the allowed time incurs an additional +5,000 VND / overdue block.',
+    desc: 'Parking beyond the reserved time incurs a 1.5x penalty multiplier on the standard block rate.',
   },
 ];
 
