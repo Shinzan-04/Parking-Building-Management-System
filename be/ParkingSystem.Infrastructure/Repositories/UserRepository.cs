@@ -23,7 +23,7 @@ public class UserRepository : IUserRepository
     {
         if (string.IsNullOrEmpty(email)) return null;
         var lowerEmail = email.ToLower();
-        return await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == lowerEmail);
+        return await _context.Users.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == lowerEmail);
     }
 
     public async Task<User?> GetByUsernameAsync(string username)

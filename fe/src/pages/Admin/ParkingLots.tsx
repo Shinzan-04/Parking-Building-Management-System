@@ -722,7 +722,7 @@ export default function ParkingLots() {
 
       setAllStaffList(
         (allUsers as UserResponse[])
-          .filter(u => normalizeRole(u.role as any) === 'Staff')
+          .filter(u => normalizeRole(u.role as any) === 'Staff' || normalizeRole(u.role as any) === 'Manager')
           .map(u => ({
             id: u.id,
             username: u.username,

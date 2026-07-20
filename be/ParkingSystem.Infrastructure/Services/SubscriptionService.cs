@@ -144,12 +144,12 @@ public class SubscriptionService : ISubscriptionService
                 if (isUsed)
                 {
                     res.CanCancel = false;
-                    res.CancelValidationMessage = "Vé đã được sử dụng (có lượt vào ra), không thể hủy.";
+                    res.CancelValidationMessage = "Pass has been used (has entry/exit records) and cannot be cancelled.";
                 }
                 else if (isExpired)
                 {
                     res.CanCancel = false;
-                    res.CancelValidationMessage = "Vé đã đăng ký quá 3 ngày, không thể hủy.";
+                    res.CancelValidationMessage = "Pass registered for more than 3 days cannot be cancelled.";
                 }
                 else
                 {
@@ -160,7 +160,7 @@ public class SubscriptionService : ISubscriptionService
             else
             {
                 res.CanCancel = false;
-                res.CancelValidationMessage = "Vé không ở trạng thái Active.";
+                res.CancelValidationMessage = "Pass is not Active.";
             }
 
             responses.Add(res);
@@ -188,7 +188,7 @@ public class SubscriptionService : ISubscriptionService
             .FirstOrDefaultAsync(v => v.Id == request.VehicleId && v.DriverId == driverId);
 
         if (vehicle == null)
-            throw new InvalidOperationException("Xe không tồn tại trong danh sách của bạn.");
+            throw new InvalidOperationException("Vehicle does not exist in your list.");
 
         // 2. Kiểm tra xem xe này đã có vé tháng Active chưa
         var now = DateTime.UtcNow;
@@ -244,7 +244,7 @@ public class SubscriptionService : ISubscriptionService
         {
             subscription.Status = SubscriptionStatus.Active;
             await _context.SaveChangesAsync();
-            return new { Message = "Đăng ký vé tháng thành công (Miễn phí).", SubscriptionId = subscription.Id };
+            return new { Message = "Monthly pass registered successfully (Free).", SubscriptionId = subscription.Id };
         }
 
         // 6. Xử lý thanh toán
@@ -254,7 +254,7 @@ public class SubscriptionService : ISubscriptionService
             if (request.PaymentMethod == PaymentMethod.Wallet)
             {
                 var driver = await _context.Users.FindAsync(driverId);
-                if (driver == null) throw new InvalidOperationException("Không tìm thấy người dùng.");
+                if (driver == null) throw new InvalidOperationException("User not found.");
 
                 if (driver.Balance < fee)
                     throw new InvalidOperationException($"Số dư trong ví không đủ! Phí vé tháng là {fee:N0} VND, nhưng số dư của bạn chỉ còn {driver.Balance:N0} VND. Vui lòng chọn PayOS hoặc nạp thêm tiền vào ví.");
@@ -292,7 +292,7 @@ public class SubscriptionService : ISubscriptionService
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return new { Message = "Thanh toán bằng Ví thành công. Đã kích hoạt vé tháng.", SubscriptionId = subscription.Id };
+                return new { Message = "Wallet payment successful. Monthly pass activated.", SubscriptionId = subscription.Id };
             }
             else if (request.PaymentMethod == PaymentMethod.PayOS)
             {
@@ -315,7 +315,7 @@ public class SubscriptionService : ISubscriptionService
 
                 return new
                 {
-                    Message = "Vui lòng thanh toán qua PayOS.",
+                    Message = "Please pay via PayOS.",
                     SubscriptionId = subscription.Id,
                     CheckoutUrl = payOSResponse.CheckoutUrl,
                     // Chuỗi QR VietQR thật — frontend render thành ảnh QR để user quét
@@ -327,7 +327,7 @@ public class SubscriptionService : ISubscriptionService
             }
             else
             {
-                throw new InvalidOperationException("Phương thức thanh toán không được hỗ trợ cho vé tháng.");
+                throw new InvalidOperationException("Payment method not supported for monthly pass.");
             }
         }
         catch
@@ -374,8 +374,8 @@ public class SubscriptionService : ISubscriptionService
 
         await _notificationService.SendAsync(
             sub.DriverId,
-            "Vé tháng đã kích hoạt",
-            $"Vé tháng cho xe {sub.LicensePlate} đã thanh toán thành công và có hiệu lực đến {sub.EndDate:dd/MM/yyyy}.",
+            "Monthly Pass Activated",
+            $"The monthly pass for vehicle {sub.LicensePlate} has been successfully paid and is valid until {sub.EndDate:dd/MM/yyyy}.",
             "SubscriptionActivated",
             sub.Id
         );
@@ -393,11 +393,11 @@ public class SubscriptionService : ISubscriptionService
 
         // Check if used (has any ParkingSession)
         var isUsed = await _context.ParkingSessions.AnyAsync(p => p.LicensePlate == sub.LicensePlate && p.EntryTime >= sub.StartDate && p.EntryTime <= DateTime.UtcNow);
-        if (isUsed) throw new InvalidOperationException("Vé đã được sử dụng (có lượt vào ra), không thể yêu cầu hủy.");
+        if (isUsed) throw new InvalidOperationException("Pass has been used and cannot be requested for cancellation.");
 
         // Check if > 3 days
         if ((DateTime.UtcNow - sub.StartDate).TotalDays > 3)
-            throw new InvalidOperationException("Vé đã đăng ký quá 3 ngày, không thể yêu cầu hủy.");
+            throw new InvalidOperationException("Pass registered for more than 3 days cannot be requested for cancellation.");
 
         sub.Status = SubscriptionStatus.PendingCancel;
         sub.CancelReason = reason;
@@ -411,8 +411,8 @@ public class SubscriptionService : ISubscriptionService
         {
             await _notificationService.SendAsync(
                 admin.Id,
-                "Yêu cầu hủy vé tháng",
-                $"Tài xế yêu cầu hủy vé tháng xe {sub.LicensePlate}. Lý do: {reason}",
+                "Monthly Pass Cancellation Request",
+                $"Driver requested to cancel the monthly pass for vehicle {sub.LicensePlate}. Reason: {reason}",
                 "CancelRequest",
                 sub.Id
             );
@@ -464,8 +464,8 @@ public class SubscriptionService : ISubscriptionService
 
             await _notificationService.SendAsync(
                 sub.DriverId,
-                "Đã duyệt hủy vé tháng",
-                $"Yêu cầu hủy vé tháng xe {sub.LicensePlate} đã được duyệt. Bạn được hoàn lại {refundAmount:N0} VND vào ví.",
+                "Cancellation Approved",
+                $"The cancellation request for vehicle {sub.LicensePlate} has been approved. {refundAmount:N0} VND has been refunded to your wallet.",
                 "CancelApproved",
                 sub.Id
             );
@@ -477,8 +477,8 @@ public class SubscriptionService : ISubscriptionService
             
             await _notificationService.SendAsync(
                 sub.DriverId,
-                "Từ chối hủy vé tháng",
-                $"Yêu cầu hủy vé tháng xe {sub.LicensePlate} bị từ chối. Lý do: {rejectReason}",
+                "Cancellation Rejected",
+                $"The cancellation request for vehicle {sub.LicensePlate} has been rejected. Reason: {rejectReason}",
                 "CancelRejected",
                 sub.Id
             );
@@ -505,7 +505,7 @@ public class SubscriptionService : ISubscriptionService
 
         var oldStatus = sub.Status.ToString();
         sub.Status = SubscriptionStatus.Canceled;
-        sub.CancelReason = "Admin tự hủy: " + reason;
+        sub.CancelReason = "Cancelled by Admin: " + reason;
         sub.UpdatedAt = DateTime.UtcNow;
         
         // Hoàn tiền nếu có (chỉ cho Active hoặc PendingCancel)
@@ -527,8 +527,8 @@ public class SubscriptionService : ISubscriptionService
 
         await _notificationService.SendAsync(
             sub.DriverId,
-            "Vé tháng bị hủy",
-            $"Vé tháng xe {sub.LicensePlate} của bạn đã bị quản trị viên hủy. Lý do: {reason}. Bạn được hoàn lại {refundAmount:N0} VND vào ví.",
+            "Monthly Pass Cancelled",
+            $"Your monthly pass for vehicle {sub.LicensePlate} has been cancelled by an administrator. Reason: {reason}. {refundAmount:N0} VND has been refunded to your wallet.",
             "AdminForceCancel",
             sub.Id
         );

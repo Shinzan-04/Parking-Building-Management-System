@@ -16,10 +16,10 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
   });
   if (res.status === 204) return undefined as T;
   const text = await res.text();
-  if (!text.trim()) { if (res.ok) return undefined as T; throw new Error(`Lỗi ${res.status}.`); }
+  if (!text.trim()) { if (res.ok) return undefined as T; throw new Error(`Error ${res.status}.`); }
   let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Phản hồi không hợp lệ.'); }
-  if (!res.ok) throw new Error((data as { message?: string }).message ?? `Lỗi ${res.status}.`);
+  try { data = JSON.parse(text); } catch { throw new Error('Invalid response.'); }
+  if (!res.ok) throw new Error((data as { message?: string }).message ?? `Error ${res.status}.`);
   return data as T;
 }
 
@@ -30,17 +30,17 @@ export type CheckInMethod = 'WalkIn' | 'Booking';
 export type IssueType = 'None' | 'LostTicket' | 'WrongPlate' | 'WrongSlot' | 'Unpaid';
 
 export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
-  Active: 'Đang đỗ',
-  Completed: 'Đã ra',
-  Overdue: 'Quá giờ',
+  Active: 'Active',
+  Completed: 'Completed',
+  Overdue: 'Overdue',
 };
 
 export const ISSUE_TYPE_LABELS: Record<IssueType, string> = {
-  None: 'Bình thường',
-  LostTicket: 'Mất vé',
-  WrongPlate: 'Sai biển số',
-  WrongSlot: 'Sai khu vực',
-  Unpaid: 'Chưa thanh toán',
+  None: 'Normal',
+  LostTicket: 'Lost Ticket',
+  WrongPlate: 'Wrong Plate',
+  WrongSlot: 'Wrong Slot',
+  Unpaid: 'Unpaid',
 };
 
 export interface SessionDto {

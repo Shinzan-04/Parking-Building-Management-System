@@ -84,7 +84,7 @@ async function apiFetch<T>(path: string, token?: string, options?: RequestInit):
   }
 
   let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Phản hồi không hợp lệ.'); }
+  try { data = JSON.parse(text); } catch { throw new Error('Invalid response.'); }
 
   if (!res.ok) {
     if (res.status === 401) {
@@ -92,7 +92,7 @@ async function apiFetch<T>(path: string, token?: string, options?: RequestInit):
       localStorage.removeItem('sp_user');
       window.location.replace('/auth');
     }
-    throw new Error((data as { message?: string }).message ?? `Lỗi ${res.status}.`);
+    throw new Error((data as { message?: string }).message ?? `Error ${res.status}.`);
   }
   return data as T;
 }

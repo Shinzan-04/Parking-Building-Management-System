@@ -18,15 +18,15 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
   const text = await res.text();
   if (!text.trim()) {
     if (res.ok) return undefined as T;
-    throw new Error(`Lỗi ${res.status}.`);
+    throw new Error(`Error ${res.status}.`);
   }
   let data: any;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('Phản hồi không hợp lệ.');
+    throw new Error('Invalid response.');
   }
-  if (!res.ok) throw new Error(data.message ?? `Lỗi ${res.status}.`);
+  if (!res.ok) throw new Error(data.message ?? `Error ${res.status}.`);
   return data as T;
 }
 

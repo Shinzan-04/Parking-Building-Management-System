@@ -145,7 +145,7 @@ public class AuthService : IAuthService
     {
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null)
-            throw new InvalidOperationException("Không tìm thấy người dùng.");
+            throw new InvalidOperationException("User not found.");
 
         return BuildProfileResponse(user);
     }
@@ -155,7 +155,7 @@ public class AuthService : IAuthService
     {
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null)
-            throw new InvalidOperationException("Không tìm thấy người dùng.");
+            throw new InvalidOperationException("User not found.");
 
         if (string.IsNullOrEmpty(user.Email))
             throw new InvalidOperationException("Tài khoản chưa có email để xác thực OTP.");
@@ -221,7 +221,7 @@ public class AuthService : IAuthService
     {
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null)
-            throw new InvalidOperationException("Không tìm thấy người dùng.");
+            throw new InvalidOperationException("User not found.");
 
         // Chỉ cập nhật field được gửi (không null)
         if (request.FullName != null)
@@ -248,7 +248,7 @@ public class AuthService : IAuthService
     {
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null)
-            throw new InvalidOperationException("Không tìm thấy người dùng.");
+            throw new InvalidOperationException("User not found.");
 
         user.AutoPayEnabled = request.AutoPayEnabled;
         user.UpdatedAt = DateTime.UtcNow;

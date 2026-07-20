@@ -102,7 +102,7 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
   }
 
   let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Phản hồi không hợp lệ.'); }
+  try { data = JSON.parse(text); } catch { throw new Error('Invalid response.'); }
 
   if (!res.ok) {
     throw new Error((data as { message?: string }).message ?? `Yêu cầu thất bại (${res.status}).`);

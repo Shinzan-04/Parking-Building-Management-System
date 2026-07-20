@@ -54,7 +54,7 @@ public class GracePeriodNotifierService : BackgroundService
                         {
                             await notificationService.SendAsync(
                                 session.DriverId.Value,
-                                "⏳ Sắp hết thời gian ân hạn",
+                                "⏳ Grace Period Expiring Soon",
                                 $"Thời gian ân hạn 15 phút sau khi thanh toán sắp hết (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}). Nếu bạn vẫn tiếp tục gửi, hệ thống sẽ trở lại tính phí theo Block bình thường.",
                                 "GracePeriodWarning",
                                 session.Id);

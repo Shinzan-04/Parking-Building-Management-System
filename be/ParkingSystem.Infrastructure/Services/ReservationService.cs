@@ -320,8 +320,8 @@ public class ReservationService : IReservationService
             {
                     await _notificationService.SendAsync(
                         reservation.DriverId,
-                        "✅ Đặt chỗ được chấp nhận",
-                        $"Yêu cầu đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
+                        "✅ Reservation Accepted",
+                        $"Reservation request {reservation.BookingCode} has been automatically accepted by the system.",
                         "ReservationAccepted",
                         reservation.Id);
 
@@ -342,7 +342,7 @@ public class ReservationService : IReservationService
                     {
                         await _notificationService.SendAsync(
                             staff.Id,
-                            "🔔 Đặt chỗ mới (tự động duyệt)",
+                            "🔔 New Reservation (Auto-approved)",
                             $"Đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
                             "NewReservation",
                             reservation.Id);
@@ -352,8 +352,8 @@ public class ReservationService : IReservationService
                 {
                     await _notificationService.SendAsync(
                         reservation.DriverId,
-                        "💳 Đặt chỗ thành công",
-                        $"Đặt chỗ {reservation.BookingCode} đã thành công. Đang chờ Staff duyệt.",
+                        "💳 Reservation Successful",
+                        $"Reservation {reservation.BookingCode} is successful. Waiting for Staff approval.",
                         "PendingReview",
                         reservation.Id);
 
@@ -373,8 +373,8 @@ public class ReservationService : IReservationService
                     {
                         await _notificationService.SendAsync(
                             staff.Id,
-                            "🔔 Đặt chỗ mới",
-                            $"Có yêu cầu đặt chỗ mới ({reservation.BookingCode}) đang chờ duyệt.",
+                            "🔔 New Reservation",
+                            $"A new reservation request ({reservation.BookingCode}) is pending approval.",
                             "NewReservation",
                             reservation.Id);
                     }
@@ -470,8 +470,8 @@ public class ReservationService : IReservationService
             // Báo cho Driver
             await _notificationService.SendAsync(
                 reservation.DriverId,
-                "✅ Đặt chỗ được chấp nhận",
-                $"Yêu cầu đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
+                "✅ Reservation Accepted",
+                $"Reservation request {reservation.BookingCode} has been automatically accepted by the system.",
                 "ReservationAccepted",
                 reservation.Id);
 
@@ -485,7 +485,7 @@ public class ReservationService : IReservationService
             {
                 await _notificationService.SendAsync(
                     staff.Id,
-                    "🔔 Đặt chỗ mới (tự động duyệt)",
+                    "🔔 New Reservation (Auto-approved)",
                     $"Đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
                     "NewReservation",
                     reservation.Id);
@@ -507,8 +507,8 @@ public class ReservationService : IReservationService
             // Báo cho Driver
             await _notificationService.SendAsync(
                 reservation.DriverId,
-                "💳 Thanh toán thành công",
-                $"Đặt chỗ {reservation.BookingCode} đã thanh toán. Đang chờ Staff duyệt.",
+                "💳 Payment Successful",
+                $"Reservation {reservation.BookingCode} has been paid. Waiting for Staff approval.",
                 "PaymentSuccess",
                 reservation.Id);
 
@@ -522,8 +522,8 @@ public class ReservationService : IReservationService
             {
                 await _notificationService.SendAsync(
                     staff.Id,
-                    "🔔 Đặt chỗ mới",
-                    $"Có yêu cầu đặt chỗ mới ({reservation.BookingCode}) đang chờ duyệt.",
+                    "🔔 New Reservation",
+                    $"A new reservation request ({reservation.BookingCode}) is pending approval.",
                     "NewReservation",
                     reservation.Id);
             }
@@ -564,8 +564,8 @@ public class ReservationService : IReservationService
 
         await _notificationService.SendAsync(
             reservation.DriverId,
-            "❌ Thanh toán thất bại",
-            $"Thanh toán cho đặt chỗ {reservation.BookingCode} không thành công. Vui lòng thử lại.",
+            "❌ Payment Failed",
+            $"Payment for reservation {reservation.BookingCode} failed. Please try again.",
             "PaymentFailed",
             reservation.Id);
 
@@ -632,9 +632,9 @@ public class ReservationService : IReservationService
 
         await _notificationService.SendAsync(
             reservation.DriverId,
-            "🚫 Đặt chỗ đã bị hủy",
-            $"Đặt chỗ {reservation.BookingCode} đã được hủy." +
-            (needsRefund ? " Tiền sẽ được hoàn lại theo chính sách." : ""),
+            "🚫 Reservation Cancelled",
+            $"Reservation {reservation.BookingCode} has been cancelled." +
+            (needsRefund ? " The money will be refunded according to the policy." : ""),
             "ReservationCancelled",
             reservation.Id);
 
@@ -715,7 +715,7 @@ public class ReservationService : IReservationService
 
             await _notificationService.SendAsync(
                 reservation.DriverId,
-                "✅ Đặt chỗ được chấp nhận",
+                "✅ Reservation Accepted",
                 $"Yêu cầu đặt chỗ {slot?.SlotNumber ?? ""} ({reservation.BookingCode}) đã được chấp nhận. " +
                 $"Vui lòng đến trước {reservation.StartTime:dd/MM/yyyy HH:mm}.",
                 "ReservationApproved",
@@ -740,9 +740,9 @@ public class ReservationService : IReservationService
 
             await _notificationService.SendAsync(
                 reservation.DriverId,
-                "❌ Đặt chỗ bị từ chối",
-                $"Đặt chỗ {reservation.BookingCode} bị từ chối. " +
-                $"Lý do: {reservation.RejectReason}. Vui lòng liên hệ Admin để được hỗ trợ hoàn tiền.",
+                "❌ Reservation Rejected",
+                $"Reservation {reservation.BookingCode} was rejected. " +
+                $"Reason: {reservation.RejectReason}. Please contact Admin for refund assistance.",
                 "ReservationRejected",
                 reservation.Id);
 
@@ -845,8 +845,8 @@ public class ReservationService : IReservationService
         // Gửi Notification cho Driver
         await _notificationService.SendAsync(
             reservation.DriverId,
-            "🔄 Thay đổi ô đỗ",
-            $"Do sự cố vận hành, ô đỗ của bạn đã được chuyển sang ô {newSlot.SlotNumber}. Mong bạn thông cảm.",
+            "🔄 Parking Slot Changed",
+            $"Due to an operational issue, your parking slot has been reassigned to {newSlot.SlotNumber}. We apologize for the inconvenience.",
             "ReservationReassigned",
             reservation.Id
         );

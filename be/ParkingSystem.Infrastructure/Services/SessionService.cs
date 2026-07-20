@@ -464,7 +464,7 @@ public class SessionService : ISessionService
         // Bắn Notification báo thành công và thời hạn 15 phút
         await _notificationService.SendAsync(
             driverId,
-            "✅ Thanh toán trước thành công",
+            "✅ Prepaid Successfully",
             $"Bạn đã thanh toán {amountDue:N0} VND. Bạn có 15 phút ân hạn (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}) để đưa xe ra khỏi bãi mà không phát sinh thêm phí.",
             "PrePaySuccess",
             sessionId);

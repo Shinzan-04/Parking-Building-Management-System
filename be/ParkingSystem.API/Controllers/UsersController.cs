@@ -75,7 +75,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> AssignRole(Guid id, [FromBody] AssignRoleRequest request)
     {
         var result = await _userService.AssignRoleAsync(id, request);
-        if (!result) return NotFound(new { message = "Không tìm thấy người dùng." });
+        if (!result) return NotFound(new { message = "User not found." });
         return Ok(new { message = $"Cấp quyền {request.Role} thành công." });
     }
 
@@ -84,7 +84,7 @@ public class UsersController : ControllerBase
     public async Task<IActionResult> Unlock(Guid id)
     {
         var result = await _userService.UnlockAsync(id);
-        if (!result) return NotFound(new { message = "Không tìm thấy người dùng." });
+        if (!result) return NotFound(new { message = "User not found." });
         return Ok(new { message = "Tài khoản đã được mở khóa." });
     }
 }

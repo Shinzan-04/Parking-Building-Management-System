@@ -214,18 +214,18 @@ public class ReservationCleanupService : BackgroundService
                     var (title, body) = reservation.Status switch
                     {
                         ReservationStatus.Cancelled => (
-                            "Đặt chỗ bị hủy — Hết hạn thanh toán",
-                            $"Đặt chỗ {reservation.BookingCode} đã bị hủy vì không thanh toán trong {PaymentTimeoutMinutes} phút."
+                            "Reservation Cancelled — Payment Timeout",
+                            $"Reservation {reservation.BookingCode} has been cancelled due to no payment within {PaymentTimeoutMinutes} minutes."
                         ),
                         ReservationStatus.Rejected => (
-                            "Đặt chỗ bị từ chối — Hết thời gian duyệt",
-                            $"Đặt chỗ {reservation.BookingCode} đã bị từ chối tự động. Tiền sẽ được hoàn lại."
+                            "Reservation Rejected — Review Timeout",
+                            $"Reservation {reservation.BookingCode} has been automatically rejected. The money will be refunded."
                         ),
                         ReservationStatus.NoShow => (
-                            "🚫 Không đến — NoShow",
-                            $"Đặt chỗ {reservation.BookingCode} đã bị đánh dấu NoShow vì không check-in đúng giờ. Không hoàn tiền."
+                            "🚫 No-Show",
+                            $"Reservation {reservation.BookingCode} has been marked as No-Show because you did not check-in on time. No refund."
                         ),
-                        _ => ("Thông báo đặt chỗ", reservation.RejectReason ?? "")
+                        _ => ("Reservation Notice", reservation.RejectReason ?? "")
                     };
 
                     await notificationService.SendAsync(

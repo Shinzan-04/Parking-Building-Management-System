@@ -256,11 +256,11 @@ public class CheckOutService : ICheckOutService
                 var walletTx = new ParkingSystem.Domain.Entities.WalletTransaction
                 {
                     Id = Guid.NewGuid(),
-                    UserId = session.DriverId.Value,
+                    UserId = session.Driver.Id,
                     Amount = -amountDue,
                     Type = "AutoPay",
                     Status = "Success",
-                    Description = $"Tự động thanh toán phí đỗ xe (Session: {session.SessionCode})",
+                    Description = $"Auto payment for parking fee (Session: {session.SessionCode})",
                     ReferenceId = session.Id.ToString(),
                     CreatedAt = exitTime
                 };
@@ -287,9 +287,9 @@ public class CheckOutService : ICheckOutService
                 if (_notificationService != null)
                 {
                     await _notificationService.SendAsync(
-                        session.DriverId.Value,
-                        "🚗 Tự động thanh toán qua cổng",
-                        $"Hệ thống đã tự động trừ {autoPayment.Amount:N0} VND từ Ví của bạn để thanh toán phí đỗ xe.",
+                        session.Driver.Id,
+                        "🚗 Auto Payment at Gate",
+                        $"The system has automatically deducted {autoPayment.Amount:N0} VND from your Wallet to pay the parking fee.",
                         "AutoPaySuccess",
                         session.Id);
                 }

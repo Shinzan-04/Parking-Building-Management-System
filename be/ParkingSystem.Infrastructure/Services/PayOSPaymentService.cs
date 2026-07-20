@@ -292,8 +292,8 @@ public class PayOSPaymentService : IPaymentService
                 {
                     await _notificationService.SendAsync(
                         activatedSub.DriverId,
-                        "Vé tháng đã kích hoạt",
-                        $"Vé tháng cho xe {activatedSub.LicensePlate} đã thanh toán thành công và có hiệu lực đến {activatedSub.EndDate:dd/MM/yyyy}.",
+                        "Monthly Pass Activated",
+                        $"The monthly pass for vehicle {activatedSub.LicensePlate} has been successfully paid and is valid until {activatedSub.EndDate:dd/MM/yyyy}.",
                         "SubscriptionActivated",
                         activatedSub.Id
                     );
@@ -458,8 +458,8 @@ public class PayOSPaymentService : IPaymentService
             {
                 await _notificationService.SendAsync(
                     notifyDriverId.Value,
-                    "💰 Hoàn tiền thành công",
-                    $"Số tiền {payment.Amount:N0} VND đã được hoàn vào ví của bạn.",
+                    "💰 Refund Successful",
+                    $"The amount of {payment.Amount:N0} VND has been refunded to your wallet.",
                     "RefundSuccess",
                     payment.ReservationId);
             }
@@ -609,8 +609,8 @@ public class PayOSPaymentService : IPaymentService
         {
             await _notificationService.SendAsync(
                 driverId.Value,
-                "❌ Yêu cầu hoàn tiền bị từ chối",
-                $"Yêu cầu hoàn tiền {payment.Amount:N0} VND đã bị từ chối. Lý do: {payment.RefundFailureReason}",
+                "❌ Refund Request Rejected",
+                $"The refund request for {payment.Amount:N0} VND was rejected. Reason: {payment.RefundFailureReason}",
                 "RefundRejected",
                 paymentFull?.ReservationId);
         }

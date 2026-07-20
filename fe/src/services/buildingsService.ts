@@ -75,7 +75,7 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('Phản hồi từ máy chủ không hợp lệ.');
+    throw new Error('Invalid response from server.');
   }
 
   if (!res.ok) {

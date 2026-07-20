@@ -23,7 +23,7 @@ public class WalletService : IWalletService
     public async Task<WalletBalanceDto> GetMyBalanceAsync(Guid userId)
     {
         var user = await _context.Users.FindAsync(userId);
-        if (user == null) throw new Exception("Không tìm thấy người dùng.");
+        if (user == null) throw new Exception("User not found.");
 
         var transactions = await _context.WalletTransactions
             .Where(t => t.UserId == userId)
@@ -50,7 +50,7 @@ public class WalletService : IWalletService
     public async Task<(bool Success, string Message)> WithdrawAsync(Guid userId, WithdrawRequestDto request)
     {
         if (request.Amount < 10000)
-            throw new Exception("Số tiền rút tối thiểu là 10,000 VNĐ.");
+            throw new Exception("Minimum withdrawal amount is 10,000 VND.");
 
         // Dùng Transaction để tránh race condition trừ tiền quá số dư
         using var transaction = await _context.Database.BeginTransactionAsync();
@@ -59,10 +59,10 @@ public class WalletService : IWalletService
             // Lock row User để xử lý đồng thời an toàn (nếu DB hỗ trợ, ở đây ta query bthg nhưng có EF transaction)
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
             if (user == null)
-                throw new Exception("Không tìm thấy người dùng.");
+                throw new Exception("User not found.");
 
             if (user.Balance < request.Amount)
-                throw new Exception("Số dư không đủ để rút tiền.");
+                throw new Exception("Insufficient balance for withdrawal.");
 
             // Tìm tài khoản ngân hàng mặc định
             var defaultBank = await _context.UserBankAccounts.FirstOrDefaultAsync(b => b.UserId == userId && b.IsDefault);
@@ -73,7 +73,7 @@ public class WalletService : IWalletService
 
             if (defaultBank == null)
             {
-                throw new Exception("Vui lòng liên kết tài khoản ngân hàng trước khi rút tiền.");
+                throw new Exception("Please link a bank account before withdrawing.");
             }
 
             // 1. Trừ tiền và tạo giao dịch Pending trước
@@ -102,7 +102,7 @@ public class WalletService : IWalletService
                 walletTx.Status = "Success";
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return (true, "Rút tiền thành công. Tiền đang được chuyển về ngân hàng của bạn.");
+                return (true, "Withdrawal successful. Funds are being transferred to your bank.");
             }
             else
             {

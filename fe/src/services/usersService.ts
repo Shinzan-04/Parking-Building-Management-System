@@ -67,7 +67,7 @@ async function authFetch<T>(path: string, token: string, options?: RequestInit):
   try {
     data = JSON.parse(text);
   } catch {
-    throw new Error('Phản hồi từ máy chủ không hợp lệ.');
+    throw new Error('Invalid response from server.');
   }
 
   if (!res.ok) {

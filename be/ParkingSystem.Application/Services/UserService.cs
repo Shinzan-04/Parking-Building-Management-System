@@ -85,14 +85,14 @@ public class UserService : IUserService
 
     public async Task<IEnumerable<UserResponse>> GetStaffByBuildingAsync(Guid buildingId)
     {
-        var users = await _repository.FindAsync(u => u.AssignedBuildingId == buildingId && u.Role == Domain.Enums.Role.Staff);
+        var users = await _repository.FindAsync(u => u.AssignedBuildingId == buildingId && (u.Role == Domain.Enums.Role.Staff || u.Role == Domain.Enums.Role.Manager));
         return users.Select(u => MapToResponse(u));
     }
 
     public async Task<bool> AssignStaffToBuildingAsync(Guid staffId, Guid buildingId)
     {
         var user = await _repository.GetByIdAsync(staffId);
-        if (user == null || user.Role != Domain.Enums.Role.Staff) return false;
+        if (user == null || (user.Role != Domain.Enums.Role.Staff && user.Role != Domain.Enums.Role.Manager)) return false;
 
         user.AssignedBuildingId = buildingId;
         user.UpdatedAt = DateTime.UtcNow;

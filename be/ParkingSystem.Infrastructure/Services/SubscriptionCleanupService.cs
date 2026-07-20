@@ -89,8 +89,8 @@ public class SubscriptionCleanupService : BackgroundService
 
                     await notificationService.SendAsync(
                         sub.DriverId,
-                        "Vé tháng đã kích hoạt",
-                        $"Vé tháng cho xe {sub.LicensePlate} đã thanh toán thành công và có hiệu lực đến {sub.EndDate:dd/MM/yyyy}.",
+                        "Monthly Pass Activated",
+                        $"The monthly pass for vehicle {sub.LicensePlate} has been successfully paid and is valid until {sub.EndDate:dd/MM/yyyy}.",
                         "SubscriptionActivated",
                         sub.Id
                     );
