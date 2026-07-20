@@ -882,10 +882,10 @@ function StepSelectFloor({
                 }));
                 onNext();
               } else {
-                alert('Không có chỗ đỗ nào khả dụng theo gợi ý của AI.');
+                alert('No parking spots available according to Smart Suggest.');
               }
             } catch (err: any) {
-              alert('AI Suggest error: ' + err.message);
+              alert('Smart Suggest error: ' + err.message);
             } finally {
               setLoadingAi(false);
             }
@@ -894,7 +894,7 @@ function StepSelectFloor({
           className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
         >
           {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          {loadingAi ? 'AI Thinking...' : 'AI Suggest'}
+          {loadingAi ? 'Smart Thinking...' : 'Smart Suggest'}
         </button>
       </div>
 
