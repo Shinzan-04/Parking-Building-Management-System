@@ -719,12 +719,40 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   )}
                 </div>
 
-                {/* History Log Block (Mock) */}
+                {/* History Log Block */}
                 <div className="glass-card rounded-[1.5rem] p-6">
                   <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-4">HISTORY LOG</h3>
-                  <div className="border admin-border admin-bg-surface rounded-xl py-10 flex items-center justify-center">
-                    <span className="text-xs font-medium admin-text-faint">No history logs available</span>
-                  </div>
+                  {exitSessionData?.feeBreakdown?.surchargeLogs && exitSessionData.feeBreakdown.surchargeLogs.length > 0 ? (
+                    <div className="space-y-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
+                      {exitSessionData.feeBreakdown.surchargeLogs.map((log, index) => {
+                        const lowerName = log.name.toLowerCase();
+                        const isEarly = lowerName.includes('early') || lowerName.includes('đến sớm');
+                        const isOverdue = lowerName.includes('late') || lowerName.includes('overdue');
+                        
+                        let textColorClass = 'admin-text';
+                        if (isEarly) textColorClass = 'text-[#b45309] dark:text-orange-500';
+                        else if (isOverdue) textColorClass = 'text-[#FF4C4C]';
+
+                        return (
+                          <div key={index} className="flex justify-between items-start pb-3 border-b border-dashed admin-border last:border-0">
+                            <div>
+                              <div className={`text-xs font-bold mb-1 ${textColorClass}`}>{log.name}</div>
+                              <div className="text-[9px] admin-text-faint font-medium">
+                                {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                              </div>
+                            </div>
+                            <div className="text-xs font-black admin-text">
+                              + {log.amount.toLocaleString('vi-VN')} ₫
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="border admin-border admin-bg-surface rounded-xl py-10 flex items-center justify-center">
+                      <span className="text-xs font-medium admin-text-faint">No history logs available</span>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -38,6 +38,11 @@ export interface FeeBreakdownDto {
   dayPassTotal: number;
   nightPassTotal: number;
   totalFee: number;
+  surchargeLogs?: {
+    name: string;
+    timestamp: string;
+    amount: number;
+  }[];
 }
 
 export interface CheckOutSearchResult {
