@@ -119,8 +119,11 @@ if (File.Exists(modelPath))
 }
 else
 {
-    // Tạm thời nếu ko có file, khởi tạo dummy hoặc ném lỗi tuỳ policy.
-    // Trong thực tế, AI phải có file model.
+    // Tạm thời nếu ko có file, khởi tạo dummy để không làm sập server do thiếu Dependency Injection
+    // Tránh dùng throw ở constructor vì DI container sẽ nổ tung khi Init các Controller
+    builder.Services.AddSingleton<ParkingSystem.Application.Interfaces.Lpr.IYoloDetector>(
+        new DummyYoloDetector()
+    );
 }
 
 builder.Services.AddMemoryCache(); // Register IMemoryCache for PlateCacheService
@@ -234,3 +237,11 @@ app.MapHub<ParkingSystem.API.Hubs.ParkingHub>("/parking-hub");
 app.MapHub<ParkingSystem.API.Hubs.ChatHub>("/chatHub");
 
 app.Run();
+
+class DummyYoloDetector : ParkingSystem.Application.Interfaces.Lpr.IYoloDetector
+{
+    public Task<ParkingSystem.Application.Interfaces.Lpr.DetectionBox?> DetectBestPlateAsync(string base64Image)
+    {
+        return Task.FromResult<ParkingSystem.Application.Interfaces.Lpr.DetectionBox?>(null);
+    }
+}

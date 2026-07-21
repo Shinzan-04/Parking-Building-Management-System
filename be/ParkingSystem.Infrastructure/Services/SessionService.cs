@@ -112,12 +112,13 @@ public class SessionService : ISessionService
         var totalCount = await query.CountAsync();
 
         // Sắp xếp: xe vào sớm nhất lên đầu (đang gửi lâu nhất)
-        var items = await query
+        var dbItems = await query
             .OrderByDescending(s => s.EntryTime)
             .Skip((filter.Page - 1) * filter.PageSize)
             .Take(filter.PageSize)
-            .Select(s => MapToDto(s))
             .ToListAsync();
+
+        var items = dbItems.Select(s => MapToDto(s)).ToList();
 
         // Thống kê nhanh
         var now = DateTime.UtcNow;

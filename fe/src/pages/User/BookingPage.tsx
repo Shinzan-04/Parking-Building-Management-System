@@ -740,7 +740,7 @@ function StepDateTime({
               {costResult.total.toLocaleString('vi-VN')}đ
             </span>
             <p className="text-[9px] text-stone-500 dark:text-stone-400 font-medium leading-relaxed text-right max-w-[120px]">
-              Phí tính theo block. {state.duration}h =<br />
+              Block-based fee. {state.duration}h =<br />
               {totalBlocks} block(s).
             </p>
           </div>
