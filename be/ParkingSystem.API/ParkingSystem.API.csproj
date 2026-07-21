@@ -21,6 +21,7 @@
     <ProjectReference Include="..\ParkingSystem.Infrastructure\ParkingSystem.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
