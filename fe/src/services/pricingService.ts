@@ -1,3 +1,5 @@
+import { apiClient } from './apiClient';
+
 /**
  * pricingService.ts
  * Service cho PricingPolicies — dùng cho Manager/Admin Portal
@@ -6,25 +8,7 @@
  * Tất cả fields (cũ + block ngày/đêm mới) đều nằm trong PricingPolicyResponse.
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
-async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers ?? {}),
-    },
-  });
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  if (!text.trim()) { if (res.ok) return undefined as T; throw new Error(`Error ${res.status}.`); }
-  let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Invalid response.'); }
-  if (!res.ok) throw new Error((data as { message?: string }).message ?? `Error ${res.status}.`);
-  return data as T;
-}
 
 // ─── PricingPolicy ─────────────────────────────────────────────────────────────
 // Chứa cả chính sách giá cũ (block/giờ/ngày) lẫn block ngày/đêm mới (dùng cho Booking)
@@ -92,20 +76,20 @@ export interface UpdatePricingPolicyRequest {
   overtimeMultiplier: number;
 }
 
-export const getAllPolicies = (token?: string): Promise<PricingPolicyResponse[]> =>
-  apiFetch('/api/PricingPolicies', undefined, token);
+export const getAllPolicies = (): Promise<PricingPolicyResponse[]> =>
+  apiClient('/api/PricingPolicies');
 
 export const getPolicyById = (id: string): Promise<PricingPolicyResponse> =>
-  apiFetch(`/api/PricingPolicies/${id}`);
+  apiClient(`/api/PricingPolicies/${id}`);
 
 export const getPolicyByVehicleType = (vehicleTypeId: string): Promise<PricingPolicyResponse> =>
-  apiFetch(`/api/PricingPolicies/vehicle-type/${vehicleTypeId}`);
+  apiClient(`/api/PricingPolicies/vehicle-type/${vehicleTypeId}`);
 
-export const createPolicy = (payload: CreatePricingPolicyRequest, token: string): Promise<PricingPolicyResponse> =>
-  apiFetch('/api/PricingPolicies', { method: 'POST', body: JSON.stringify(payload) }, token);
+export const createPolicy = (payload: CreatePricingPolicyRequest): Promise<PricingPolicyResponse> =>
+  apiClient('/api/PricingPolicies', { method: 'POST', body: JSON.stringify(payload) });
 
-export const updatePolicy = (id: string, payload: UpdatePricingPolicyRequest, token: string): Promise<PricingPolicyResponse> =>
-  apiFetch(`/api/PricingPolicies/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
+export const updatePolicy = (id: string, payload: UpdatePricingPolicyRequest): Promise<PricingPolicyResponse> =>
+  apiClient(`/api/PricingPolicies/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 
-export const deletePolicy = (id: string, token: string): Promise<void> =>
-  apiFetch(`/api/PricingPolicies/${id}`, { method: 'DELETE' }, token);
+export const deletePolicy = (id: string): Promise<void> =>
+  apiClient(`/api/PricingPolicies/${id}`, { method: 'DELETE' });

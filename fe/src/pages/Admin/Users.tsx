@@ -152,7 +152,7 @@ export default function UsersPage() {
   const quickChangeRole = async (userId: string, role: Role) => {
     if (!token) return;
     try {
-      await assignRole(userId, { role: UI_TO_API[role] }, token);
+      await assignRole(userId, { role: UI_TO_API[role] });
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
     } catch {
       // silently revert — dropdown closes below
@@ -182,7 +182,7 @@ export default function UsersPage() {
         role: UI_TO_API[form.role],
         phoneNumber: form.phone.trim() || null,
         email: form.email.trim() || null,
-      }, token);
+      });
       setUsers(prev => [...prev, mapApiUser(created)]);
       closeModal();
     } catch (e: unknown) {
@@ -202,7 +202,7 @@ export default function UsersPage() {
         role: UI_TO_API[form.role],
         phoneNumber: form.phone.trim() || null,
         email: form.email.trim() || null,
-      }, token);
+      });
       setUsers(prev => prev.map(u => u.id !== selected.id ? u : mapApiUser(updated)));
       closeModal();
     } catch (e: unknown) {
@@ -215,7 +215,7 @@ export default function UsersPage() {
     if (!selected || !token) return;
     setSubmitting(true);
     try {
-      await deleteUser(selected.id, token);
+      await deleteUser(selected.id);
       setUsers(prev => prev.filter(u => u.id !== selected.id));
       closeModal();
     } catch (e: unknown) {
@@ -227,7 +227,7 @@ export default function UsersPage() {
   const handleUnlock = async (userId: string) => {
     if (!token) return;
     try {
-      await unlockUser(userId, token);
+      await unlockUser(userId);
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, isLocked: false, lockoutEnd: null } : u));
     } catch { /* ignore */ }
   };

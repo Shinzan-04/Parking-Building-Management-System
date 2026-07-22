@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
+import { apiClient } from './apiClient';
+
 
 export interface WalkInRequest {
   licensePlate: string;
@@ -26,35 +27,9 @@ export interface CheckInResult {
   message: string;
 }
 
-async function authFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options?.headers ?? {}),
-    },
-  });
 
-  if (res.status === 204) return undefined as T;
-
-  const text = await res.text();
-  if (!text.trim()) {
-    if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
-  }
-
-  let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Invalid response from server.'); }
-
-  if (!res.ok) {
-    throw new Error((data as { message?: string }).message ?? `Yêu cầu thất bại (${res.status}).`);
-  }
-  return data as T;
-}
-
-export const checkInWalkIn = (payload: WalkInRequest, token: string): Promise<CheckInResult> =>
-  authFetch('/api/checkin/walk-in', token, { method: 'POST', body: JSON.stringify(payload) });
+export const checkInWalkIn = (payload: WalkInRequest): Promise<CheckInResult> =>
+  apiClient('/api/checkin/walk-in', { method: 'POST', body: JSON.stringify(payload) });
 
 export interface BookingCheckInRequest {
   bookingCode: string;
@@ -63,8 +38,8 @@ export interface BookingCheckInRequest {
   entryImageBase64?: string;
 }
 
-export const checkInWithBooking = (payload: BookingCheckInRequest, token: string): Promise<CheckInResult> =>
-  authFetch('/api/checkin/booking', token, { method: 'POST', body: JSON.stringify(payload) });
+export const checkInWithBooking = (payload: BookingCheckInRequest): Promise<CheckInResult> =>
+  apiClient('/api/checkin/booking', { method: 'POST', body: JSON.stringify(payload) });
 
 // ★ SMART CHECK-IN — API duy nhất cho cổng vào ★
 export interface SmartCheckInRequest {
@@ -74,5 +49,5 @@ export interface SmartCheckInRequest {
   slotId?: string;
 }
 
-export const smartCheckIn = (payload: SmartCheckInRequest, token: string): Promise<CheckInResult> =>
-  authFetch('/api/checkin/smart', token, { method: 'POST', body: JSON.stringify(payload) });
+export const smartCheckIn = (payload: SmartCheckInRequest): Promise<CheckInResult> =>
+  apiClient('/api/checkin/smart', { method: 'POST', body: JSON.stringify(payload) });

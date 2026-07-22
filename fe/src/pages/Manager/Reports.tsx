@@ -107,7 +107,7 @@ export default function ManagerReports() {
     try {
       // Load KPI: active sessions + capacity
       const [activeRes, buildings] = await Promise.all([
-        getActiveSessions({ pageSize: 1 }, token),
+        getActiveSessions({ pageSize: 1 }),
         getBuildings(),
         getParkingSlots(),
       ]);
@@ -126,7 +126,7 @@ export default function ManagerReports() {
           fromDate: `${fromDate}T00:00:00`,
           toDate:   `${toDate}T23:59:59`,
           pageSize: 500,
-        }, token),
+        }),
       ]);
 
       const sessions = completedRes.items;

@@ -249,7 +249,7 @@ export default function AdminRefunds() {
     if (!approveItem) return;
     setActionLoading(true);
     try {
-      await refundPayment(approveItem.paymentId, token);
+      await refundPayment(approveItem.paymentId);
       showToast('success', `Refund of ${fmt(approveItem.amount)} approved`);
       setApproveItem(null); load();
     } catch (e: unknown) {
@@ -261,7 +261,7 @@ export default function AdminRefunds() {
     if (!rejectItem) return;
     setActionLoading(true);
     try {
-      await rejectRefund(rejectItem.paymentId, reason, token);
+      await rejectRefund(rejectItem.paymentId, reason);
       showToast('success', 'Refund request rejected');
       setRejectItem(null); load();
     } catch (e: unknown) {

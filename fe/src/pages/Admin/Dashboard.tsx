@@ -91,7 +91,7 @@ export default function Dashboard() {
 
       // All in parallel
       const [firstPage, buildings] = await Promise.all([
-        searchSessions({ ...sessionParams, page: 1 }, token),
+        searchSessions({ ...sessionParams, page: 1 }),
         getBuildings(),
       ]);
 
@@ -100,7 +100,7 @@ export default function Dashboard() {
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
-            searchSessions({ ...sessionParams, page: i + 2 }, token)
+            searchSessions({ ...sessionParams, page: i + 2 })
           )
         );
         rest.forEach(r => allItems.push(...r.items));

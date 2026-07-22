@@ -18,7 +18,7 @@ export default function DevPanel({ onActionSuccess }: DevPanelProps = {}) {
   const handleDevFastForward = async (minutes: number) => {
     if (!token) return;
     try {
-      await devFastForwardTime(minutes, token);
+      await devFastForwardTime(minutes);
       if (onActionSuccess) onActionSuccess();
       else window.location.reload();
     } catch (err: any) {

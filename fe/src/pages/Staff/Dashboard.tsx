@@ -55,7 +55,7 @@ export default function StaffDashboard() {
       };
 
       const [sessionsRes, buildings] = await Promise.all([
-        searchSessions(sessionParams, token),
+        searchSessions(sessionParams),
         buildingId ? Promise.resolve(null) : getBuildings(),
       ]);
 

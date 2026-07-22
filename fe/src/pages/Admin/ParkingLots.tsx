@@ -496,7 +496,7 @@ function SlotStatusPanel({
     if (newStatus === slot.status) { onClose(); return; }
     setLoading(true); setError('');
     try {
-      const updated = await updateSlotStatus(slot.id, newStatus, token);
+      const updated = await updateSlotStatus(slot.id, newStatus);
       onUpdated(updated);
       onClose();
     } catch (e) {
@@ -799,7 +799,7 @@ export default function ParkingLots() {
     setFloorLoading(true); setFloorError('');
     try {
       const nextIndex = editFloors.length > 0 ? Math.max(...editFloors.map(f => f.floorIndex)) + 1 : 0;
-      const created = await createFloor({ buildingId: selected.id, name, floorIndex: nextIndex }, token);
+      const created = await createFloor({ buildingId: selected.id, name, floorIndex: nextIndex });
 
       const prefix = floorPrefix(created.name);
       await Promise.all(
@@ -808,7 +808,7 @@ export default function ParkingLots() {
             floorId: created.id,
             vehicleTypeId: newFloorVehicleTypeId,
             slotNumber: `${prefix}-${String(i + 1).padStart(3, '0')}`,
-          }, token)
+          })
         )
       );
       created.slotCount = slotCount;

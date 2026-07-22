@@ -186,7 +186,7 @@ export default function ManagerReservations() {
     setApiError('');
     try {
       if (user?.assignedBuildingId) {
-        const building = await getBuildingById(user.assignedBuildingId, token);
+        const building = await getBuildingById(user.assignedBuildingId);
         setApprovalMode(building.approvalMode);
       }
       const data = await getAllActiveReservations(token);
@@ -230,7 +230,7 @@ export default function ManagerReservations() {
     setApproveError('');
     try {
       const payload: ReviewReservationRequest = { isAccepted: true };
-      await reviewReservation(approveTarget.id, payload, token);
+      await reviewReservation(approveTarget.id, payload);
       await loadData(true);
       setApproveTarget(null);
     } catch (e) {
@@ -248,7 +248,7 @@ export default function ManagerReservations() {
     setRejectError('');
     try {
       const payload: ReviewReservationRequest = { isAccepted: false, reason: rejectReason.trim() };
-      await reviewReservation(rejectTarget.id, payload, token);
+      await reviewReservation(rejectTarget.id, payload);
       await loadData(true);
       setRejectTarget(null);
       setRejectReason('');
@@ -268,7 +268,7 @@ export default function ManagerReservations() {
     setReassigning(true);
     setReassignError('');
     try {
-      await reassignSlot(reassignTarget.id, selectedSlotId, token);
+      await reassignSlot(reassignTarget.id, selectedSlotId);
       await loadData(true);
       setReassignTarget(null);
     } catch (e) {
@@ -284,7 +284,7 @@ export default function ManagerReservations() {
     if (!token || !user?.assignedBuildingId) return;
     setUpdatingMode(true);
     try {
-      await updateBuildingApprovalMode(user.assignedBuildingId, mode, token);
+      await updateBuildingApprovalMode(user.assignedBuildingId, mode);
       setApprovalMode(mode);
     } catch (e) {
       setApiError('Error updating approval mode.');

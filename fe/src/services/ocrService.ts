@@ -1,3 +1,5 @@
+import { apiClient } from './apiClient';
+
 // ─── Types ─────────────────────────────────────────────────────────────────
 
 export interface ScanPlateResponse {
@@ -10,7 +12,6 @@ export interface ScanPlateResponse {
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

@@ -221,7 +221,7 @@ export default function StaffReservations() {
     setApproveError('');
     try {
       const payload: ReviewReservationRequest = { isAccepted: true };
-      await reviewReservation(approveTarget.id, payload, token);
+      await reviewReservation(approveTarget.id, payload);
       await loadData(true);
       setApproveTarget(null);
     } catch (e) {
@@ -239,7 +239,7 @@ export default function StaffReservations() {
     setRejectError('');
     try {
       const payload: ReviewReservationRequest = { isAccepted: false, reason: rejectReason.trim() };
-      await reviewReservation(rejectTarget.id, payload, token);
+      await reviewReservation(rejectTarget.id, payload);
       await loadData(true);
       setRejectTarget(null);
       setRejectReason('');
@@ -259,7 +259,7 @@ export default function StaffReservations() {
     setReassigning(true);
     setReassignError('');
     try {
-      await reassignSlot(reassignTarget.id, selectedSlotId, token);
+      await reassignSlot(reassignTarget.id, selectedSlotId);
       await loadData(true);
       setReassignTarget(null);
     } catch (e) {

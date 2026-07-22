@@ -869,7 +869,7 @@ function StepSelectFloor({
             try {
               setLoadingAi(true);
               const token = localStorage.getItem('sp_token') || '';
-              const suggestions = await getAiSuggestions(state.vehicleType!, lotId, 1, token);
+              const suggestions = await getAiSuggestions(state.vehicleType!, lotId, 1);
               if (suggestions.length > 0) {
                 const best = suggestions[0];
                 setState(s => ({
@@ -1394,7 +1394,7 @@ function ConfirmationPopup({
       setSubmitting(true);
       setError(null);
       const token = localStorage.getItem('sp_token') || '';
-      const res = await depositWallet({ amount: depositAmount }, token);
+      const res = await depositWallet({ amount: depositAmount });
       window.open(res.checkoutUrl, '_blank', 'noopener');
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tạo giao dịch nạp tiền.');
@@ -1442,7 +1442,7 @@ function ConfirmationPopup({
         const newVehicle = await createVehicle({
           plateNumber: state.licensePlate,
           vehicleTypeId: state.vehicleType!
-        }, token);
+        });
         vehicleIdToUse = newVehicle.id;
       }
 
@@ -1456,7 +1456,7 @@ function ConfirmationPopup({
         paymentMethod: paymentMethod === 'PayOS' ? 4 : 0
       };
 
-      const res = await createReservation(payload, token);
+      const res = await createReservation(payload);
       setCreatedReservation(res);
 
       if (paymentMethod === 'PayOS') {
@@ -1466,7 +1466,7 @@ function ConfirmationPopup({
           reservationId: res.id,
         };
 
-        const payOSRes = await createPayOSPayment(paymentPayload, token);
+        const payOSRes = await createPayOSPayment(paymentPayload);
 
         // Tính toán QR data thực tế chính xác dựa trên bookingCode thực tế vừa được tạo
         const realQrData = JSON.stringify({
@@ -1548,7 +1548,7 @@ function ConfirmationPopup({
       }
 
       try {
-        const result = await verifyPayment(pendingOrderCode, token);
+        const result = await verifyPayment(pendingOrderCode);
         if (cancelled) return;
 
         if (result.isPaid) {

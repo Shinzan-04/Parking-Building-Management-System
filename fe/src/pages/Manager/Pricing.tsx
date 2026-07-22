@@ -199,16 +199,16 @@ export default function ManagerPricing() {
     setSubmitting(true);
     try {
       const payload: CreatePricingPolicyRequest = { vehicleTypeId: form.vehicleTypeId, ...buildPayload() };
-      const created = await createPolicy(payload, token);
+      const created = await createPolicy(payload);
       setPolicies(prev => [...prev, created]);
       
       if (form.monthlyPrice !== '') {
         const mp = parseNum(form.monthlyPrice);
         if (selectedMonthly) {
-          const m = await updateMonthlyPassPolicy(selectedMonthly.id, { monthlyPrice: mp, isActive: true }, token);
+          const m = await updateMonthlyPassPolicy(selectedMonthly.id, { monthlyPrice: mp, isActive: true });
           setMonthlyPolicies(prev => prev.map(x => x.id === m.id ? m : x));
         } else {
-          const m = await createMonthlyPassPolicy({ vehicleTypeId: form.vehicleTypeId, monthlyPrice: mp }, token);
+          const m = await createMonthlyPassPolicy({ vehicleTypeId: form.vehicleTypeId, monthlyPrice: mp });
           setMonthlyPolicies(prev => [...prev, m]);
         }
       }
@@ -226,16 +226,16 @@ export default function ManagerPricing() {
     setSubmitting(true);
     try {
       const payload: UpdatePricingPolicyRequest = buildPayload();
-      const updated = await updatePolicy(selected.id, payload, token);
+      const updated = await updatePolicy(selected.id, payload);
       setPolicies(prev => prev.map(p => p.id === selected.id ? updated : p));
       
       if (form.monthlyPrice !== '') {
         const mp = parseNum(form.monthlyPrice);
         if (selectedMonthly) {
-          const m = await updateMonthlyPassPolicy(selectedMonthly.id, { monthlyPrice: mp, isActive: true }, token);
+          const m = await updateMonthlyPassPolicy(selectedMonthly.id, { monthlyPrice: mp, isActive: true });
           setMonthlyPolicies(prev => prev.map(x => x.id === m.id ? m : x));
         } else {
-          const m = await createMonthlyPassPolicy({ vehicleTypeId: selected.vehicleTypeId, monthlyPrice: mp }, token);
+          const m = await createMonthlyPassPolicy({ vehicleTypeId: selected.vehicleTypeId, monthlyPrice: mp });
           setMonthlyPolicies(prev => [...prev, m]);
         }
       }
@@ -250,7 +250,7 @@ export default function ManagerPricing() {
     if (!selected || !token) return;
     setSubmitting(true);
     try {
-      await deletePolicy(selected.id, token);
+      await deletePolicy(selected.id);
       setPolicies(prev => prev.filter(p => p.id !== selected.id));
       closeModal();
     } catch (e) {

@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
+import { apiClient } from './apiClient';
+
 
 export type ReservationStatus =
   | 'PaymentPending' | 'Paid' | 'PendingReview' | 'Confirmed' | 'CheckedIn' | 'Completed' | 'Cancelled' | 'Rejected' | 'NoShow' | 'PaymentFailed';
@@ -27,41 +28,6 @@ export interface ReservationResponse {
   createdAt: string;
 }
 
-async function authFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options?.headers ?? {}),
-    },
-  });
-
-  if (res.status === 204) return undefined as T;
-
-  const text = await res.text();
-  if (!text.trim()) {
-    if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
-  }
-
-  let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Invalid response from server.'); }
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('sp_token');
-      localStorage.removeItem('sp_user');
-      window.location.replace('/auth');
-    }
-    const body = data as Record<string, unknown>;
-    const err = new Error((body.message as string | undefined) ?? `Yêu cầu thất bại (${res.status}).`) as Error & Record<string, unknown>;
-    // Attach extra fields so callers can inspect structured errors
-    Object.assign(err, body);
-    throw err;
-  }
-  return data as T;
-}
 
 export interface CreateReservationRequest {
   vehicleId: string;
@@ -73,20 +39,20 @@ export interface CreateReservationRequest {
   paymentMethod?: number; // 0 = Wallet, 4 = PayOS
 }
 
-export const getMyReservations = (token: string): Promise<ReservationResponse[]> =>
-  authFetch('/api/reservations/my-reservations', token);
+export const getMyReservations = (): Promise<ReservationResponse[]> =>
+  apiClient('/api/reservations/my-reservations');
 
-export const cancelReservation = (id: string, token: string): Promise<void> =>
-  authFetch(`/api/reservations/${id}/cancel`, token, { method: 'PUT' });
+export const cancelReservation = (id: string): Promise<void> =>
+  apiClient(`/api/reservations/${id}/cancel`, { method: 'PUT' });
 
-export const createReservation = (payload: CreateReservationRequest, token: string): Promise<ReservationResponse> =>
-  authFetch('/api/reservations', token, { method: 'POST', body: JSON.stringify(payload) });
+export const createReservation = (payload: CreateReservationRequest): Promise<ReservationResponse> =>
+  apiClient('/api/reservations', { method: 'POST', body: JSON.stringify(payload) });
 
-export const confirmPayment = (id: string, token: string): Promise<{ message: string }> =>
-  authFetch(`/api/reservations/${id}/payment-success`, token, { method: 'PUT' });
+export const confirmPayment = (id: string): Promise<{ message: string }> =>
+  apiClient(`/api/reservations/${id}/payment-success`, { method: 'PUT' });
 
-export const failPayment = (id: string, token: string): Promise<{ message: string }> =>
-  authFetch(`/api/reservations/${id}/payment-failed`, token, { method: 'PUT' });
+export const failPayment = (id: string): Promise<{ message: string }> =>
+  apiClient(`/api/reservations/${id}/payment-failed`, { method: 'PUT' });
 
 export interface AiSuggestionResponse {
   slotId: string;
@@ -97,14 +63,14 @@ export interface AiSuggestionResponse {
   reason: string;
 }
 
-export const getAiSuggestions = (vehicleTypeId: string, buildingId?: string, topN: number = 5, token?: string): Promise<AiSuggestionResponse[]> => {
+export const getAiSuggestions = (vehicleTypeId: string, buildingId?: string, topN: number = 5): Promise<AiSuggestionResponse[]> => {
   const params = new URLSearchParams();
   params.append('vehicleTypeId', vehicleTypeId);
   if (buildingId) params.append('buildingId', buildingId);
   params.append('topN', topN.toString());
   
   // ai-suggest can be public or authenticated, assuming authenticated if token is provided
-  return authFetch(`/api/reservations/ai-suggest?${params.toString()}`, token || '');
+  return apiClient(`/api/reservations/ai-suggest?${params.toString()}`, token || '');
 }
 
 // ─── Manager / Staff endpoints ────────────────────────────────────────────────
@@ -128,12 +94,12 @@ export interface ReviewReservationRequest {
 }
 
 /** Lấy danh sách đặt chỗ đang Pending (Manager/Staff) */
-export const getPendingReservations = (token: string): Promise<ReservationResponse[]> =>
-  authFetch('/api/reservations/pending', token);
+export const getPendingReservations = (): Promise<ReservationResponse[]> =>
+  apiClient('/api/reservations/pending');
 
 /** Lấy tất cả danh sách đặt chỗ đang Active/Pending (để hiển thị và đổi chỗ) */
-export const getAllActiveReservations = (token: string): Promise<ReservationResponse[]> =>
-  authFetch('/api/reservations/all-active', token);
+export const getAllActiveReservations = (): Promise<ReservationResponse[]> =>
+  apiClient('/api/reservations/all-active');
 
 /** Duyệt hoặc từ chối đặt chỗ */
 export const reviewReservation = (
@@ -141,7 +107,7 @@ export const reviewReservation = (
   payload: ReviewReservationRequest,
   token: string,
 ): Promise<{ message: string }> =>
-  authFetch(`/api/reservations/${id}/review`, token, {
+  apiClient(`/api/reservations/${id}/review`, {
     method: 'PUT',
     body: JSON.stringify(payload),
   });
@@ -152,7 +118,7 @@ export const reassignSlot = (
   newSlotId: string,
   token: string,
 ): Promise<{ message: string }> =>
-  authFetch(`/api/reservations/${id}/reassign-slot`, token, {
+  apiClient(`/api/reservations/${id}/reassign-slot`, {
     method: 'PUT',
     body: JSON.stringify({ newSlotId }),
   });

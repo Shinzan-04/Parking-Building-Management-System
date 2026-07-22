@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   loginApi,
   googleLoginApi,
@@ -26,6 +26,29 @@ export function useAuth() {
   const [user, setUser]       = useState<AuthResponse | null>(readStorage);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+
+  // Lắng nghe sự kiện từ apiClient
+  useEffect(() => {
+    const handleLogout = () => {
+      setUser(null);
+      setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+    };
+
+    const handleTokenRefreshed = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail) {
+        setUser(customEvent.detail);
+      }
+    };
+
+    window.addEventListener('auth:logout', handleLogout);
+    window.addEventListener('auth:token_refreshed', handleTokenRefreshed);
+
+    return () => {
+      window.removeEventListener('auth:logout', handleLogout);
+      window.removeEventListener('auth:token_refreshed', handleTokenRefreshed);
+    };
+  }, []);
 
   /**
    * Lưu session vào localStorage và cập nhật React state.

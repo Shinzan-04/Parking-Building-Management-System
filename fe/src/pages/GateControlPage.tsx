@@ -264,7 +264,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
         vehicleTypeId: vtId,
         entryImageBase64: entryImageBase64 || undefined,
         slotId: selectedSlotId || undefined,
-      }, token);
+      });
 
       showNotification('success',
         `✓ Check-in successful: ${result.licensePlate} → Bldg ${result.buildingName}, Flr ${result.floorName}, Slot ${result.slotNumber}`
@@ -333,7 +333,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
         staffId: user.userId,
         paymentMethod: 0, // Cash
         paymentAmount: exitSessionData.estimatedFee,
-      }, token);
+      });
 
       showNotification('success', `Payment successful: ${result.totalFee.toLocaleString('en-US')} VND. Barrier opened!`);
       setExitLicensePlate('');

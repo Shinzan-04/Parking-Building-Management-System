@@ -1,9 +1,10 @@
+import { apiClient } from './apiClient';
+
 /**
  * subscriptionService.ts
  * Giao tiếp với API Subscriptions & MonthlyPassPolicies
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 // Tương ứng với SubscriptionStatus bên backend
@@ -65,57 +66,26 @@ export interface RegisterSubscriptionRequest {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-async function apiFetch<T>(path: string, token?: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers ?? {}),
-    },
-  });
-
-  if (res.status === 204) return undefined as T;
-
-  const text = await res.text();
-  if (!text.trim()) {
-    if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
-  }
-
-  let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Invalid response.'); }
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('sp_token');
-      localStorage.removeItem('sp_user');
-      window.location.replace('/auth');
-    }
-    throw new Error((data as { message?: string }).message ?? `Error ${res.status}.`);
-  }
-  return data as T;
-}
 
 // ── MonthlyPassPolicies API ───────────────────────────────────────────────────
 export const getAllPolicies = (): Promise<MonthlyPassPolicyResponse[]> =>
-  apiFetch('/api/MonthlyPassPolicies');
+  apiClient('/api/MonthlyPassPolicies');
 
 export const getPolicyByVehicleType = (vehicleTypeId: string): Promise<MonthlyPassPolicyResponse> =>
-  apiFetch(`/api/MonthlyPassPolicies/vehicle-type/${vehicleTypeId}`);
+  apiClient(`/api/MonthlyPassPolicies/vehicle-type/${vehicleTypeId}`);
 
-export const createMonthlyPassPolicy = (payload: CreateMonthlyPassPolicyRequest, token: string): Promise<MonthlyPassPolicyResponse> =>
-  apiFetch('/api/MonthlyPassPolicies', token, { method: 'POST', body: JSON.stringify(payload) });
+export const createMonthlyPassPolicy = (payload: CreateMonthlyPassPolicyRequest): Promise<MonthlyPassPolicyResponse> =>
+  apiClient('/api/MonthlyPassPolicies', { method: 'POST', body: JSON.stringify(payload) });
 
-export const updateMonthlyPassPolicy = (id: string, payload: UpdateMonthlyPassPolicyRequest, token: string): Promise<MonthlyPassPolicyResponse> =>
-  apiFetch(`/api/MonthlyPassPolicies/${id}`, token, { method: 'PUT', body: JSON.stringify(payload) });
+export const updateMonthlyPassPolicy = (id: string, payload: UpdateMonthlyPassPolicyRequest): Promise<MonthlyPassPolicyResponse> =>
+  apiClient(`/api/MonthlyPassPolicies/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 
-export const deleteMonthlyPassPolicy = (id: string, token: string): Promise<void> =>
-  apiFetch(`/api/MonthlyPassPolicies/${id}`, token, { method: 'DELETE' });
+export const deleteMonthlyPassPolicy = (id: string): Promise<void> =>
+  apiClient(`/api/MonthlyPassPolicies/${id}`, { method: 'DELETE' });
 
 // ── Subscriptions API ─────────────────────────────────────────────────────────
-export const getMySubscriptions = (token: string): Promise<SubscriptionResponse[]> =>
-  apiFetch('/api/Subscriptions/my-subscriptions', token);
+export const getMySubscriptions = (): Promise<SubscriptionResponse[]> =>
+  apiClient('/api/Subscriptions/my-subscriptions');
 
 // Kết quả đăng ký — Wallet trả về subscription, PayOS trả thêm checkoutUrl + qrCode
 export interface RegisterSubscriptionResult {
@@ -130,7 +100,7 @@ export const registerSubscription = (
   payload: RegisterSubscriptionRequest,
   token: string,
 ): Promise<RegisterSubscriptionResult> =>
-  apiFetch('/api/Subscriptions/register', token, {
+  apiClient('/api/Subscriptions/register', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -140,7 +110,7 @@ export const requestCancelSubscription = (
   reason: string,
   token: string,
 ): Promise<{ message: string }> =>
-  apiFetch(`/api/Subscriptions/${id}/request-cancel`, token, {
+  apiClient(`/api/Subscriptions/${id}/request-cancel`, {
     method: 'POST',
     body: JSON.stringify({ reason }),
   });
@@ -152,18 +122,18 @@ export const verifySubscriptionPayment = (
   id: string,
   token: string,
 ): Promise<{ isActive: boolean }> =>
-  apiFetch(`/api/Subscriptions/${id}/verify-payment`, token, { method: 'POST' });
+  apiClient(`/api/Subscriptions/${id}/verify-payment`, { method: 'POST' });
 
 // ── Admin/Manager API ────────────────────────────────────────────────────────
-export const getAllSubscriptions = (token: string): Promise<SubscriptionResponse[]> =>
-  apiFetch('/api/Subscriptions', token);
+export const getAllSubscriptions = (): Promise<SubscriptionResponse[]> =>
+  apiClient('/api/Subscriptions');
 
 export const processCancelSubscription = (
   id: string,
   payload: { isApproved: boolean; refundAmount: number; rejectReason?: string },
   token: string,
 ): Promise<{ message: string }> =>
-  apiFetch(`/api/Subscriptions/${id}/process-cancel`, token, {
+  apiClient(`/api/Subscriptions/${id}/process-cancel`, {
     method: 'POST',
     body: JSON.stringify(payload),
   });
@@ -181,4 +151,4 @@ export const verifyPayOSPayment = (
   orderCode: number,
   token: string,
 ): Promise<VerifyPayOSPaymentResult> =>
-  apiFetch(`/api/payments/verify/${orderCode}`, token);
+  apiClient(`/api/payments/verify/${orderCode}`);

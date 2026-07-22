@@ -88,7 +88,7 @@ export default function ProfilePage() {
           fullName: values.fullName.trim(),
           email: values.email.trim(),
           phoneNumber: values.phoneNumber ? values.phoneNumber.trim() : null
-        }, token);
+        });
 
         // Lưu dữ liệu vào profile state
         setProfile(updated);
@@ -115,7 +115,7 @@ export default function ProfilePage() {
     try {
       setLoadingProfile(true);
       setErrorProfile(null);
-      const data = await getProfileApi(token);
+      const data = await getProfileApi();
       setProfile(data);
       
       // Đồng bộ hóa giá trị khởi tạo form

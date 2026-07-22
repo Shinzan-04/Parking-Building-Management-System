@@ -112,7 +112,7 @@ export default function AdminReports() {
 
       // Run in parallel: page 1 sessions + buildings + users + transactions
       const [firstPage, buildings, users, txRes] = await Promise.all([
-        searchSessions({ ...sessionParams, page: 1 }, token),
+        searchSessions({ ...sessionParams, page: 1 }),
         getBuildings(),
         getUsers(token),
         getTransactions(token, {
@@ -127,7 +127,7 @@ export default function AdminReports() {
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
-            searchSessions({ ...sessionParams, page: i + 2 }, token)
+            searchSessions({ ...sessionParams, page: i + 2 })
           )
         );
         rest.forEach(r => allItems.push(...r.items));

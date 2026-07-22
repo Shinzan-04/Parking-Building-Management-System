@@ -107,7 +107,7 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
   useEffect(() => {
     let mounted = true;
     if (statusKey === 'Occupied' || statusKey === 'Reserved') {
-      getCurrentVehicle(slot.id, token)
+      getCurrentVehicle(slot.id)
         .then(res => {
           if (!mounted || !res) return;
           if (res.licensePlate) setLicensePlate(res.licensePlate);

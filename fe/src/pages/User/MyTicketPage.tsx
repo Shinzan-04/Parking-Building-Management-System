@@ -120,7 +120,7 @@ export default function MyTicketPage() {
     try {
       setSubmittingCancel(true);
       setCancellingId(id);
-      await cancelReservation(id, token);
+      await cancelReservation(id);
       alert('Booking cancelled successfully.');
       await fetchTickets(); // reload list
     } catch (err: any) {

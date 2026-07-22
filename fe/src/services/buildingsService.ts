@@ -1,4 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
+import { apiClient } from './apiClient';
+
 
 export interface BuildingResponse {
   id: string;
@@ -52,55 +53,24 @@ export function isSlotMaintenance(status: string | number): boolean {
   return status === 'Maintenance' || status === 4;
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers ?? {}),
-    },
-  });
-
-  if (res.status === 204) return undefined as T;
-
-  const text = await res.text();
-
-  if (!text.trim()) {
-    if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
-  }
-
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error('Invalid response from server.');
-  }
-
-  if (!res.ok) {
-    throw new Error((data as { message?: string }).message ?? `Yêu cầu thất bại (${res.status}).`);
-  }
-  return data as T;
-}
 
 export const getBuildings = (): Promise<BuildingResponse[]> =>
-  apiFetch('/api/buildings');
+  apiClient('/api/buildings');
 
-export const getBuildingById = (id: string, token: string): Promise<BuildingResponse> =>
-  apiFetch(`/api/buildings/${id}`, undefined, token);
+export const getBuildingById = (id: string): Promise<BuildingResponse> =>
+  apiClient(`/api/buildings/${id}`);
 
-export const createBuilding = (payload: CreateBuildingRequest, token: string): Promise<BuildingResponse> =>
-  apiFetch('/api/buildings', { method: 'POST', body: JSON.stringify(payload) }, token);
+export const createBuilding = (payload: CreateBuildingRequest): Promise<BuildingResponse> =>
+  apiClient('/api/buildings', { method: 'POST', body: JSON.stringify(payload) });
 
-export const updateBuilding = (id: string, payload: UpdateBuildingRequest, token: string): Promise<BuildingResponse> =>
-  apiFetch(`/api/buildings/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
+export const updateBuilding = (id: string, payload: UpdateBuildingRequest): Promise<BuildingResponse> =>
+  apiClient(`/api/buildings/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 
-export const updateBuildingApprovalMode = (id: string, mode: number, token: string): Promise<BuildingResponse> =>
-  apiFetch(`/api/buildings/${id}/approval-mode`, { method: 'PUT', body: JSON.stringify(mode) }, token);
+export const updateBuildingApprovalMode = (id: string, mode: number): Promise<BuildingResponse> =>
+  apiClient(`/api/buildings/${id}/approval-mode`, { method: 'PUT', body: JSON.stringify(mode) });
 
-export const deleteBuilding = (id: string, token: string): Promise<void> =>
-  apiFetch(`/api/buildings/${id}`, { method: 'DELETE' }, token);
+export const deleteBuilding = (id: string): Promise<void> =>
+  apiClient(`/api/buildings/${id}`, { method: 'DELETE' });
 
 export interface CreateFloorRequest {
   buildingId: string;
@@ -109,19 +79,19 @@ export interface CreateFloorRequest {
 }
 
 export const getFloors = (): Promise<FloorResponse[]> =>
-  apiFetch('/api/floors');
+  apiClient('/api/floors');
 
 export const getFloorsByBuilding = (buildingId: string): Promise<FloorResponse[]> =>
-  apiFetch(`/api/floors/building/${buildingId}`);
+  apiClient(`/api/floors/building/${buildingId}`);
 
-export const createFloor = (payload: CreateFloorRequest, token: string): Promise<FloorResponse> =>
-  apiFetch('/api/floors', { method: 'POST', body: JSON.stringify(payload) }, token);
+export const createFloor = (payload: CreateFloorRequest): Promise<FloorResponse> =>
+  apiClient('/api/floors', { method: 'POST', body: JSON.stringify(payload) });
 
-export const updateFloor = (id: string, payload: { name: string, floorIndex: number }, token: string): Promise<FloorResponse> =>
-  apiFetch(`/api/floors/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
+export const updateFloor = (id: string, payload: { name: string, floorIndex: number }): Promise<FloorResponse> =>
+  apiClient(`/api/floors/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 
-export const deleteFloor = (id: string, token: string): Promise<void> =>
-  apiFetch(`/api/floors/${id}`, { method: 'DELETE' }, token);
+export const deleteFloor = (id: string): Promise<void> =>
+  apiClient(`/api/floors/${id}`, { method: 'DELETE' });
 
 export interface VehicleTypeResponse {
   id: string;
@@ -137,16 +107,16 @@ export interface CreateParkingSlotRequest {
 }
 
 export const getVehicleTypes = (): Promise<VehicleTypeResponse[]> =>
-  apiFetch('/api/VehicleTypes');
+  apiClient('/api/VehicleTypes');
 
-export const createParkingSlot = (payload: CreateParkingSlotRequest, token: string): Promise<ParkingSlotSummary> =>
-  apiFetch('/api/parkingslots', { method: 'POST', body: JSON.stringify(payload) }, token);
+export const createParkingSlot = (payload: CreateParkingSlotRequest): Promise<ParkingSlotSummary> =>
+  apiClient('/api/parkingslots', { method: 'POST', body: JSON.stringify(payload) });
 
 export const getParkingSlots = (): Promise<ParkingSlotSummary[]> =>
-  apiFetch('/api/parkingslots');
+  apiClient('/api/parkingslots');
 
 export const getParkingSlotsByBuilding = (buildingId: string): Promise<ParkingSlotSummary[]> =>
-  apiFetch(`/api/parkingslots?buildingId=${buildingId}`);
+  apiClient(`/api/parkingslots?buildingId=${buildingId}`);
 
 export interface CurrentVehicleResponse {
   licensePlate: string | null;
@@ -154,8 +124,8 @@ export interface CurrentVehicleResponse {
   expectedEndTime: string | null;
 }
 
-export const getCurrentVehicle = (slotId: string, token?: string): Promise<CurrentVehicleResponse> =>
-  apiFetch(`/api/parkingslots/${slotId}/current-vehicle`, undefined, token);
+export const getCurrentVehicle = (slotId: string): Promise<CurrentVehicleResponse> =>
+  apiClient(`/api/parkingslots/${slotId}/current-vehicle`);
 
 export interface StaffResponse {
   id: string;
@@ -167,11 +137,11 @@ export interface StaffResponse {
   assignedBuildingId?: string | null;
 }
 
-export const getBuildingStaff = (buildingId: string, token: string): Promise<StaffResponse[]> =>
-  apiFetch(`/api/buildings/${buildingId}/staff`, undefined, token);
+export const getBuildingStaff = (buildingId: string): Promise<StaffResponse[]> =>
+  apiClient(`/api/buildings/${buildingId}/staff`);
 
-export const assignStaffToBuilding = (buildingId: string, staffId: string, token: string): Promise<void> =>
-  apiFetch(`/api/buildings/${buildingId}/staff/${staffId}`, { method: 'POST' }, token);
+export const assignStaffToBuilding = (buildingId: string, staffId: string): Promise<void> =>
+  apiClient(`/api/buildings/${buildingId}/staff/${staffId}`, { method: 'POST' });
 
-export const unassignStaffFromBuilding = (buildingId: string, staffId: string, token: string): Promise<void> =>
-  apiFetch(`/api/buildings/${buildingId}/staff/${staffId}`, { method: 'DELETE' }, token);
+export const unassignStaffFromBuilding = (buildingId: string, staffId: string): Promise<void> =>
+  apiClient(`/api/buildings/${buildingId}/staff/${staffId}`, { method: 'DELETE' });

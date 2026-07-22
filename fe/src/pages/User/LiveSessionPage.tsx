@@ -107,7 +107,7 @@ export default function LiveSessionPage() {
   const handleDevFastForward = async (minutes: number) => {
     if (!token || !session) return;
     try {
-      await devFastForwardTime(minutes, token);
+      await devFastForwardTime(minutes);
       const data = await getMyActiveSession(token);
       if (data) {
         setSession(data);

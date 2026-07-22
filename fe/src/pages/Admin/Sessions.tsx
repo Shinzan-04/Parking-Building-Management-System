@@ -95,7 +95,7 @@ function SessionDetailModal({
   useEffect(() => {
     (async () => {
       try {
-        const s = await getSessionById(sessionId, token);
+        const s = await getSessionById(sessionId);
         setSession(s);
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Unable to load details.');
@@ -243,7 +243,7 @@ export default function AdminSessions() {
 
     try {
       // KPI (from active session summary)
-      const kpiRes: SessionListResponse = await getActiveSessions({ pageSize: 1 }, token);
+      const kpiRes: SessionListResponse = await getActiveSessions({ pageSize: 1 });
       setSummary(kpiRes.summary);
 
       // Session list
@@ -255,7 +255,7 @@ export default function AdminSessions() {
         page,
         pageSize: PAGE_SIZE,
       };
-      const listRes: SessionListResponse = await searchSessions(params, token);
+      const listRes: SessionListResponse = await searchSessions(params);
       setSessions(listRes.items);
       setTotalCount(listRes.totalCount);
       setTotalPages(listRes.totalPages || 1);
