@@ -71,7 +71,7 @@ export async function googleLoginApi(idToken: string): Promise<AuthResponse> {
 
 export interface SendOtpRequest {
   email: string;
-  /** "Register" hoặc "ForgotPassword" */
+  /** "Register" | "ForgotPassword" | "ChangePassword" */
   purpose: string;
 }
 
@@ -86,6 +86,11 @@ export interface VerifyRegisterRequest {
 
 export interface ResetPasswordRequest {
   email: string;
+  otpCode: string;
+  newPassword: string;
+}
+
+export interface ChangePasswordRequest {
   otpCode: string;
   newPassword: string;
 }
@@ -111,6 +116,13 @@ export async function verifyRegisterApi(payload: VerifyRegisterRequest): Promise
  */
 export async function resetPasswordApi(payload: ResetPasswordRequest): Promise<{ message: string }> {
   return apiClient<{ message: string }>('/api/auth/reset-password', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+/**
+ * Đổi mật khẩu (dành cho user đã đăng nhập). Cần gửi OTP với purpose "ChangePassword" trước.
+ */
+export async function changePasswordApi(payload: ChangePasswordRequest): Promise<{ message: string }> {
+  return apiClient<{ message: string }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 export interface LogoutRequest {
