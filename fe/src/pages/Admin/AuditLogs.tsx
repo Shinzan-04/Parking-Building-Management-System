@@ -195,7 +195,7 @@ export default function AuditLogs() {
     else setRefreshing(true);
     setError('');
     try {
-      const data = await getAuditLogs(token);
+      const data = await getAuditLogs();
       setLogs(data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load activity logs.');

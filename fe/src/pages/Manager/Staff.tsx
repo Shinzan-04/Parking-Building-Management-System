@@ -75,7 +75,7 @@ export default function ManagerStaff() {
     if (!activeToken) { setLoading(false); return; }
     if (isRefresh) setRefreshing(true);
     try {
-      const data = await getUsers(activeToken);
+      const data = await getUsers();
       const staffOnly = data
         .filter(u => normalizeRole(u.role as Parameters<typeof normalizeRole>[0]) === 'Staff')
         .map(mapApiUser);
@@ -124,7 +124,7 @@ export default function ManagerStaff() {
         role: 'Staff',
         phoneNumber: form.phone.trim() || null,
         email: form.email.trim() || null,
-      }, activeToken);
+      });
       setStaff(prev => [...prev, mapApiUser(created)]);
       closeModal();
       showToast('success', `Added staff "${created.fullName}".`);
@@ -147,7 +147,7 @@ export default function ManagerStaff() {
         role: 'Staff',
         phoneNumber: form.phone.trim() || null,
         email: form.email.trim() || null,
-      }, activeToken);
+      });
       setStaff(prev => prev.map(s => s.id !== selected.id ? s : mapApiUser(updated)));
       closeModal();
       showToast('success', 'Staff information updated.');
@@ -163,7 +163,7 @@ export default function ManagerStaff() {
     if (!activeToken) { setFormError('Session expired.'); return; }
     setSubmitting(true);
     try {
-      await deleteUser(selected.id, activeToken);
+      await deleteUser(selected.id);
       setStaff(prev => prev.filter(s => s.id !== selected.id));
       closeModal();
       showToast('success', `Deleted staff "${selected.fullName}".`);

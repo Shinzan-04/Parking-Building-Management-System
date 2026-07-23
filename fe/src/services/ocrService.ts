@@ -17,17 +17,18 @@ export interface ScanPlateResponse {
 
 async function post<TBody, TResponse>(
   path: string,
-  body: TBody,
-  token?: string
+  body: TBody
 ): Promise<TResponse> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
+  const token = localStorage.getItem('sp_token');
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
+  const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
   const res = await fetch(`${BASE_URL}${path}`, {
     method: 'POST',
     headers,
@@ -68,14 +69,11 @@ async function post<TBody, TResponse>(
 // ─── Services ───────────────────────────────────────────────────────────────
 
 export async function scanPlate(
-  imageBase64: string,
-  token?: string | null
+  imageBase64: string
 ): Promise<ScanPlateResponse> {
   return post<{ ImageBase64: string }, ScanPlateResponse>(
     '/api/Ocr/scan-plate',
-    { ImageBase64: imageBase64 },
-    token ?? undefined
-  );
+    { ImageBase64: imageBase64 });
 }
 
 export interface ScanAndCheckInResponse {
@@ -89,14 +87,11 @@ export interface ScanAndCheckInResponse {
 
 export async function scanAndCheckIn(
   imageBase64: string,
-  vehicleTypeId: string,
-  token?: string | null
+  vehicleTypeId: string
 ): Promise<ScanAndCheckInResponse> {
   return post<{ imageBase64: string; vehicleTypeId: string }, ScanAndCheckInResponse>(
     '/api/Ocr/scan-and-checkin',
-    { imageBase64, vehicleTypeId },
-    token ?? undefined
-  );
+    { imageBase64, vehicleTypeId });
 }
 
 

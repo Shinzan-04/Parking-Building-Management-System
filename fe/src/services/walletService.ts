@@ -82,14 +82,14 @@ function normalizeBank(b: Record<string, unknown>): BankAccount {
 // ─── API calls ────────────────────────────────────────────────────────────────
 
 export const getWallet = async (): Promise<WalletInfo> => {
-  const raw = await authFetch<Record<string, unknown>>('/api/wallets/me');
+  const raw = await apiClient<Record<string, unknown>>('/api/wallets/me');
   const balance = (raw.balance ?? raw.Balance ?? 0) as number;
   const rawTxs = ((raw.transactions ?? raw.Transactions ?? []) as Record<string, unknown>[]);
   return { balance, transactions: rawTxs.map(normalizeTx) };
 };
 
 export const depositWallet = async (payload: DepositRequest): Promise<DepositResponse> => {
-  const raw = await authFetch<Record<string, unknown>>('/api/wallets/deposit', token, { method: 'POST', body: JSON.stringify(payload) });
+  const raw = await apiClient<Record<string, unknown>>('/api/wallets/deposit', { method: 'POST', body: JSON.stringify(payload) });
   return {
     checkoutUrl: (raw.checkoutUrl ?? raw.CheckoutUrl ?? '') as string,
     orderCode: (raw.orderCode ?? raw.OrderCode ?? 0) as number,
@@ -101,7 +101,7 @@ export const withdrawWallet = (payload: WithdrawRequest): Promise<WithdrawRespon
   apiClient('/api/wallets/withdraw', { method: 'POST', body: JSON.stringify(payload) });
 
 export const getBankAccounts = async (): Promise<BankAccount[]> => {
-  const raw = await authFetch<Record<string, unknown>[]>('/api/wallets/bank-accounts');
+  const raw = await apiClient<Record<string, unknown>[]>('/api/wallets/bank-accounts');
   return (raw ?? []).map(normalizeBank);
 };
 

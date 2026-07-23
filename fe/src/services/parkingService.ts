@@ -113,12 +113,10 @@ export const createSlot = (payload: CreateSlotRequest): Promise<ParkingSlotDetai
 export const updateSlotStatus = (
   slotId: string,
   status: SlotStatus,
-  token: string,
 ): Promise<ParkingSlotDetail> =>
   apiClient(
     `/api/parkingslots/${slotId}/status`,
     { method: 'PATCH', body: JSON.stringify({ status: SLOT_STATUS_ENUM[status] }) },
-    token,
   );
 
 /** Xoá slot */

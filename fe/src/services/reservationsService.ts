@@ -70,7 +70,7 @@ export const getAiSuggestions = (vehicleTypeId: string, buildingId?: string, top
   params.append('topN', topN.toString());
   
   // ai-suggest can be public or authenticated, assuming authenticated if token is provided
-  return apiClient(`/api/reservations/ai-suggest?${params.toString()}`, token || '');
+  return apiClient(`/api/reservations/ai-suggest?${params.toString()}`);
 }
 
 // ─── Manager / Staff endpoints ────────────────────────────────────────────────
@@ -105,7 +105,6 @@ export const getAllActiveReservations = (): Promise<ReservationResponse[]> =>
 export const reviewReservation = (
   id: string,
   payload: ReviewReservationRequest,
-  token: string,
 ): Promise<{ message: string }> =>
   apiClient(`/api/reservations/${id}/review`, {
     method: 'PUT',
@@ -116,7 +115,6 @@ export const reviewReservation = (
 export const reassignSlot = (
   id: string,
   newSlotId: string,
-  token: string,
 ): Promise<{ message: string }> =>
   apiClient(`/api/reservations/${id}/reassign-slot`, {
     method: 'PUT',

@@ -114,8 +114,8 @@ export default function AdminReports() {
       const [firstPage, buildings, users, txRes] = await Promise.all([
         searchSessions({ ...sessionParams, page: 1 }),
         getBuildings(),
-        getUsers(token),
-        getTransactions(token, {
+        getUsers(),
+        getTransactions({
           fromDate: `${fromDate}T00:00:00Z`,
           toDate:   `${toDate}T23:59:59Z`,
           pageSize: 1000

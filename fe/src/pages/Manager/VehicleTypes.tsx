@@ -29,7 +29,8 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
-async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
+async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+  const token = localStorage.getItem('sp_token');
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
@@ -47,13 +48,13 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
   return data as T;
 }
 
-const createVehicleType = (payload: { name: string; description?: string }, token: string) =>
+const createVehicleType = (payload: { name: string; description?: string }) =>
   apiFetch<VehicleTypeResponse>('/api/VehicleTypes', { method: 'POST', body: JSON.stringify(payload) });
 
-const updateVehicleType = (id: string, payload: { name: string; description?: string }, token: string) =>
+const updateVehicleType = (id: string, payload: { name: string; description?: string }) =>
   apiFetch<VehicleTypeResponse>(`/api/VehicleTypes/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 
-const deleteVehicleType = (id: string, token: string) =>
+const deleteVehicleType = (id: string) =>
   apiFetch<void>(`/api/VehicleTypes/${id}`, { method: 'DELETE' });
 
 // ─── Types ────────────────────────────────────────────────────────────────────

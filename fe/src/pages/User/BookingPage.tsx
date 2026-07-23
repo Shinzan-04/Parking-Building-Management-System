@@ -1341,7 +1341,7 @@ function ConfirmationPopup({
       try {
         const token = localStorage.getItem('sp_token') || '';
         if (token) {
-          const info = await getWallet(token);
+          const info = await getWallet();
           setWalletBalance(info.balance);
         }
       } catch (err) {
@@ -2100,7 +2100,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
     async function loadMyVehicles() {
       try {
         setLoadingMyVehicles(true);
-        const data = await getMyVehicles(token);
+        const data = await getMyVehicles();
         setMyVehicles(data);
 
         // Không tự động điền xe nữa theo yêu cầu của user

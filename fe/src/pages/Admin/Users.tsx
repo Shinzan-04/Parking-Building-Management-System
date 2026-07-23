@@ -133,7 +133,7 @@ export default function UsersPage() {
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
-    getUsers(token)
+    getUsers()
       .then(data => setUsers(data.map(mapApiUser)))
       .catch(err => setApiError(err.message))
       .finally(() => setLoading(false));

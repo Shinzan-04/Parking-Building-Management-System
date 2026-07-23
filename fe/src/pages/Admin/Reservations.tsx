@@ -189,7 +189,7 @@ export default function AdminReservations() {
         const building = await getBuildingById(user.assignedBuildingId);
         setApprovalMode(building.approvalMode);
       }
-      const data = await getAllActiveReservations(token);
+      const data = await getAllActiveReservations();
       setReservations(data);
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Unable to load reservation list.');

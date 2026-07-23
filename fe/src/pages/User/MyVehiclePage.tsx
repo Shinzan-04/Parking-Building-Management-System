@@ -57,7 +57,7 @@ export default function MyVehiclePage() {
       setError(null);
 
       const [vehiclesData, typesData] = await Promise.all([
-        getMyVehicles(token),
+        getMyVehicles(),
         getVehicleTypes(),
       ]);
 
@@ -136,18 +136,14 @@ export default function MyVehiclePage() {
           {
             plateNumber: formPlateNumber.trim(),
             vehicleTypeId: formVehicleTypeId,
-          },
-          token
-        );
+          });
       } else {
         // Gọi API tạo mới phương tiện
         await createVehicle(
           {
             plateNumber: formPlateNumber.trim(),
             vehicleTypeId: formVehicleTypeId,
-          },
-          token
-        );
+          });
       }
 
       setIsModalOpen(false);

@@ -86,7 +86,7 @@ export interface PaymentListResult {
 }
 
 export const getPaymentList = (
-  token: string,
+  
   params: { status?: string; page?: number; pageSize?: number } = {}
 ): Promise<PaymentListResult> => {
   const qs = new URLSearchParams();
@@ -110,15 +110,13 @@ export interface PaymentRefundResponse {
 }
 
 export const refundPayment = (
-  paymentId: string,
-  token: string
+  paymentId: string
 ): Promise<PaymentRefundResponse> =>
   apiClient(`/api/payments/${paymentId}/refund`, { method: 'POST' });
 
 export const rejectRefund = (
   paymentId: string,
-  reason: string,
-  token: string
+  reason: string
 ): Promise<{ message: string }> =>
   apiClient(`/api/payments/${paymentId}/reject-refund`, {
     method: 'POST',
@@ -141,7 +139,7 @@ export interface TransactionHistoryResult {
 }
 
 export const getTransactions = (
-  token: string,
+  
   params: {
     fromDate?: string;
     toDate?: string;
