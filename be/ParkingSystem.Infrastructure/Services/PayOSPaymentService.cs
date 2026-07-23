@@ -401,13 +401,13 @@ public class PayOSPaymentService : IPaymentService
         if (payment == null)
             throw new KeyNotFoundException("Không tìm thấy giao dịch Payment.");
 
+        // Chống Double Refund (Idempotency) — kiểm tra trước để trả đúng message khi đã hoàn tiền rồi
+        if (!string.IsNullOrEmpty(payment.RefundReferenceId) || payment.Status == PaymentStatus.Refunded)
+            throw new InvalidOperationException("Giao dịch này đã được hoàn tiền trước đó.");
+
         // Bắt buộc trạng thái phải là Refunding mới cho hoàn tiền
         if (payment.Status != PaymentStatus.Refunding)
             throw new InvalidOperationException($"Không thể hoàn tiền. Trạng thái hiện tại của Payment là: {payment.Status}");
-
-        // Chống Double Refund (Idempotency)
-        if (!string.IsNullOrEmpty(payment.RefundReferenceId) || payment.Status == PaymentStatus.Refunded)
-            throw new InvalidOperationException("Giao dịch này đã được hoàn tiền trước đó.");
 
         // Tạo mã tham chiếu duy nhất (idempotency key)
         string referenceId = $"RF_{DateTime.UtcNow:yyyyMMddHHmmss}_{Guid.NewGuid().ToString().Substring(0, 6).ToUpper()}";

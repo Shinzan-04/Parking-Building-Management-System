@@ -133,6 +133,7 @@ public class ReservationService : IReservationService
             var slot = await _context.ParkingSlots
                 .FromSqlRaw("SELECT * FROM \"ParkingSlots\" WHERE \"Id\" = {0} FOR UPDATE", targetSlotId)
                 .Include(s => s.Floor)
+                    .ThenInclude(f => f!.Building)
                 .FirstOrDefaultAsync();
 
             if (slot == null)
@@ -199,11 +200,7 @@ public class ReservationService : IReservationService
             if (approvalMode != ReservationApprovalMode.AutoReject)
             {
                 // Manual hoặc AutoApprove: kiểm tra isAutoApprove để set initialStatus
-                // Load Floor để lấy BuildingId chính xác
-                var slotWithFloor = await _context.ParkingSlots
-                    .Include(s => s.Floor)
-                    .FirstOrDefaultAsync(s => s.Id == slot.Id);
-                var buildingId = slotWithFloor?.Floor?.BuildingId;
+                var buildingId = slot.Floor?.BuildingId;
                 var assignedStaffs = await _context.Users
                     .Where(u => u.Role == ParkingSystem.Domain.Enums.Role.Admin
                              || u.Role == ParkingSystem.Domain.Enums.Role.Manager
