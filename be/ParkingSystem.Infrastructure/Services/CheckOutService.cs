@@ -421,10 +421,10 @@ public class CheckOutService : ICheckOutService
         // Cash / other methods
         if (request.PaymentMethod == PaymentMethod.Cash && request.PaymentAmount.HasValue)
         {
-            if (request.PaymentAmount.Value < priceResult.TotalFee)
+            if (request.PaymentAmount.Value < amountDue)
             {
                 throw new InvalidOperationException(
-                    $"Amount provided ({request.PaymentAmount.Value:N0} VND) is less than the parking fee ({priceResult.TotalFee:N0} VND).");
+                    $"Amount provided ({request.PaymentAmount.Value:N0} VND) is less than the parking fee ({amountDue:N0} VND).");
             }
         }
 
@@ -492,7 +492,7 @@ public class CheckOutService : ICheckOutService
         decimal? changeAmount = null;
         if (request.PaymentMethod == PaymentMethod.Cash && request.PaymentAmount.HasValue)
         {
-            changeAmount = request.PaymentAmount.Value - priceResult.TotalFee;
+            changeAmount = request.PaymentAmount.Value - amountDue;
         }
 
         return new CheckOutConfirmResponse
