@@ -221,7 +221,7 @@ export default function AdminMonthlyPassRequests() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await getAllSubscriptions(token);
+      const res = await getAllSubscriptions();
       setItems(res);
     } catch (e: unknown) {
       setError((e as Error).message ?? 'Error loading data');

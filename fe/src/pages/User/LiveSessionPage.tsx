@@ -21,7 +21,7 @@ export default function LiveSessionPage() {
   const fetchSession = async () => {
     if (!token) return;
     try {
-      const data = await getMyActiveSession(token);
+      const data = await getMyActiveSession();
       if (data) {
         setSession(data);
         setDynamicFee(data.currentFee);
@@ -62,7 +62,7 @@ export default function LiveSessionPage() {
     const fetchSessionFee = async () => {
       if (!token) return;
       try {
-        const data = await getMyActiveSession(token);
+        const data = await getMyActiveSession();
         if (data) {
           setDynamicFee(data.currentFee);
         }
@@ -108,7 +108,7 @@ export default function LiveSessionPage() {
     if (!token || !session) return;
     try {
       await devFastForwardTime(minutes);
-      const data = await getMyActiveSession(token);
+      const data = await getMyActiveSession();
       if (data) {
         setSession(data);
         setDynamicFee(data.currentFee);
@@ -122,8 +122,8 @@ export default function LiveSessionPage() {
   const handleDevReset = async () => {
     if (!token || !session) return;
     try {
-      await devResetTime(token);
-      const data = await getMyActiveSession(token);
+      await devResetTime();
+      const data = await getMyActiveSession();
       if (data) {
         setSession(data);
         setDynamicFee(data.currentFee);

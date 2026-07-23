@@ -677,12 +677,12 @@ export default function ParkingLots() {
     setSelectedSlotId(null);
     setAssigningStaffId('');
     setModalType('detail');
-    const activeToken = getActiveToken(token);
+    const activeToken = getActiveToken();
     if (!activeToken) return;
     setStaffLoading(true);
     Promise.all([
-      getBuildingStaff(lot.id, activeToken),
-      getUsers(activeToken),
+      getBuildingStaff(lot.id),
+      getUsers(),
     ]).then(([assigned, allUsers]) => {
       const uniqueAssigned = assigned.filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
       setBuildingStaff(uniqueAssigned);
@@ -702,14 +702,14 @@ export default function ParkingLots() {
     setSelected(lot);
     setAssigningStaffId('');
     setModalType('staff');
-    const activeToken = getActiveToken(token);
+    const activeToken = getActiveToken();
     if (!activeToken) return;
     setStaffLoading(true);
     Promise.all([
-      getBuildingStaff(lot.id, activeToken),
-      getUsers(activeToken),
+      getBuildingStaff(lot.id),
+      getUsers(),
       // Fetch staff for ALL other buildings so we can exclude already-assigned staff
-      ...lots.filter(l => l.id !== lot.id).map(l => getBuildingStaff(l.id, activeToken).catch(() => [] as StaffResponse[])),
+      ...lots.filter(l => l.id !== lot.id).map(l => getBuildingStaff(l.id).catch(() => [] as StaffResponse[])),
     ]).then(([assigned, allUsers, ...otherBuildingStaffArrays]) => {
       const uniqueAssigned2 = (assigned as StaffResponse[]).filter((s, i, arr) => arr.findIndex(x => x.id === s.id) === i);
       setBuildingStaff(uniqueAssigned2);
@@ -843,7 +843,7 @@ export default function ParkingLots() {
   };
 
   const saveFloorEdit = async (f: FloorResponse) => {
-    const activeToken = getActiveToken(token);
+    const activeToken = getActiveToken();
     if (!activeToken) { setEditFloorError('Session expired, please log in again.'); return; }
     if (!selected) return;
     const newName = editFloorName.trim();
@@ -853,7 +853,7 @@ export default function ParkingLots() {
     try {
       // ── Rename ──
       if (newName && newName !== f.name) {
-        await updateFloor(f.id, { name: newName, floorIndex: f.floorIndex }, activeToken);
+        await updateFloor(f.id, { name: newName, floorIndex: f.floorIndex });
       }
 
       // ── Adjust slot count ──
@@ -885,7 +885,7 @@ export default function ParkingLots() {
           if (toRestore.length > 0) {
             const BATCH = 10;
             for (let i = 0; i < toRestore.length; i += BATCH) {
-              await Promise.all(toRestore.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Available', activeToken)));
+              await Promise.all(toRestore.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Available')));
             }
           }
           if (toCreate > 0) {
@@ -897,7 +897,7 @@ export default function ParkingLots() {
                   floorId: f.id,
                   vehicleTypeId: editFloorVehicleTypeId,
                   slotNumber: `${prefix}-${String(totalExisting + i + 1).padStart(3, '0')}`,
-                }, activeToken)
+                })
               )
             );
           }
@@ -911,7 +911,7 @@ export default function ParkingLots() {
           }
           const BATCH = 10;
           for (let i = 0; i < toDisable.length; i += BATCH) {
-            await Promise.all(toDisable.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Maintenance', activeToken)));
+            await Promise.all(toDisable.slice(i, i + BATCH).map(s => updateSlotStatus(s.id, 'Maintenance')));
           }
         }
       }
@@ -938,11 +938,11 @@ export default function ParkingLots() {
   };
 
   const handleDeleteFloor = async (floorId: string) => {
-    const activeToken = getActiveToken(token);
+    const activeToken = getActiveToken();
     if (!activeToken) return;
     setFloorLoading(true); setFloorError('');
     try {
-      await deleteFloor(floorId, activeToken);
+      await deleteFloor(floorId);
       setEditFloors(prev => prev.filter(f => f.id !== floorId));
       setAllFloors(prev => prev.filter(f => f.id !== floorId));
       if (selected) setLots(prev => prev.map(l => l.id === selected.id ? { ...l, floorCount: l.floorCount - 1 } : l));
@@ -965,7 +965,7 @@ export default function ParkingLots() {
   const handleAdd = async () => {
     const err = validateForm();
     if (err) { setFormError(err); return; }
-    const activeToken = token ?? getActiveToken(token);
+    const activeToken = token ?? getActiveToken();
     if (!activeToken) { setFormError('Session expired, please log in again.'); return; }
     setSubmitting(true);
     try {
@@ -973,7 +973,7 @@ export default function ParkingLots() {
         name: form.name.trim(),
         address: form.address.trim(),
         totalCapacity: Number(form.totalSpots),
-      }, activeToken);
+      });
       setLots(prev => [...prev, {
         id: created.id,
         name: created.name,
@@ -995,7 +995,7 @@ export default function ParkingLots() {
   const handleEdit = async () => {
     const err = validateForm();
     if (err) { setFormError(err); return; }
-    const activeToken = token ?? getActiveToken(token);
+    const activeToken = token ?? getActiveToken();
     if (!selected || !activeToken) { setFormError('Session expired, please log in again.'); return; }
     setSubmitting(true);
     try {
@@ -1003,7 +1003,7 @@ export default function ParkingLots() {
         name: form.name.trim(),
         address: form.address.trim(),
         totalCapacity: Number(form.totalSpots),
-      }, activeToken);
+      });
       setLots(prev => prev.map(l => l.id !== selected.id ? l : {
         ...l,
         name: updated.name,
@@ -1020,11 +1020,11 @@ export default function ParkingLots() {
   };
 
   const handleDelete = async () => {
-    const activeToken = token ?? getActiveToken(token);
+    const activeToken = token ?? getActiveToken();
     if (!selected || !activeToken) { setFormError('Session expired, please log in again.'); return; }
     setSubmitting(true);
     try {
-      await deleteBuilding(selected.id, activeToken);
+      await deleteBuilding(selected.id);
       setLots(prev => prev.filter(l => l.id !== selected.id));
       closeModal();
     } catch (e: unknown) {
@@ -1269,11 +1269,11 @@ export default function ParkingLots() {
                           <button
                             disabled={staffActionLoading}
                             onClick={async () => {
-                              const activeToken = getActiveToken(token);
+                              const activeToken = getActiveToken();
                               if (!activeToken) { showToast('error', 'Session expired.'); return; }
                               setStaffActionLoading(true);
                               try {
-                                await unassignStaffFromBuilding(selected.id, s.id, activeToken);
+                                await unassignStaffFromBuilding(selected.id, s.id);
                                 setBuildingStaff(prev => prev.filter(x => x.id !== s.id));
                                 setAllStaffList(prev => prev.map(x =>
                                   x.id === s.id ? { ...x, assignedBuildingId: null } : x
@@ -1318,11 +1318,11 @@ export default function ParkingLots() {
                       disabled={!assigningStaffId || staffActionLoading}
                       onClick={async () => {
                         if (!assigningStaffId) return;
-                        const activeToken = getActiveToken(token);
+                        const activeToken = getActiveToken();
                         if (!activeToken) { showToast('error', 'Session expired.'); return; }
                         setStaffActionLoading(true);
                         try {
-                          await assignStaffToBuilding(selected.id, assigningStaffId, activeToken);
+                          await assignStaffToBuilding(selected.id, assigningStaffId);
                           const staffMember = allStaffList.find(s => s.id === assigningStaffId);
                           if (staffMember) {
                             setBuildingStaff(prev => [...prev, staffMember]);
@@ -1435,11 +1435,11 @@ export default function ParkingLots() {
                     onSelectSlot={setSelectedSlotId}
                     vehicleTypes={vehicleTypes}
                     onConfirm={async (slotId, action, vehicleTypeId) => {
-                      const activeToken = getActiveToken(token);
+                      const activeToken = getActiveToken();
                       if (!activeToken) { showToast('error', 'Session expired.'); return; }
                       const newStatus = action === 'release' ? 'Available' : action === 'maintain' ? 'Maintenance' : 'Occupied';
                       try {
-                        await updateSlotStatus(slotId, newStatus, activeToken);
+                        await updateSlotStatus(slotId, newStatus);
                         const selectedVt = vehicleTypeId ? vehicleTypes.find(v => v.id === vehicleTypeId) : undefined;
                         const updatedSlots = allSlots.map(s => s.id === slotId ? {
                           ...s,
@@ -1468,13 +1468,13 @@ export default function ParkingLots() {
                       }
                     }}
                     onBulkRelease={async (slotIds, action = 'release') => {
-                      const activeToken = getActiveToken(token);
+                      const activeToken = getActiveToken();
                       if (!activeToken) { showToast('error', 'Session expired.'); return; }
                       const newStatus = action === 'maintain' ? 'Maintenance' : 'Available';
                       try {
                         const BATCH = 10;
                         for (let i = 0; i < slotIds.length; i += BATCH) {
-                          await Promise.all(slotIds.slice(i, i + BATCH).map(id => updateSlotStatus(id, newStatus, activeToken)));
+                          await Promise.all(slotIds.slice(i, i + BATCH).map(id => updateSlotStatus(id, newStatus)));
                         }
                         const updatedSlots = allSlots.map(s =>
                           slotIds.includes(s.id) ? { ...s, status: newStatus, vehicleTypeName: undefined, vehicleTypeId: undefined } : s

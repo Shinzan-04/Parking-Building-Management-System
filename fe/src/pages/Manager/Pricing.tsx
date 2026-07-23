@@ -107,7 +107,7 @@ export default function ManagerPricing() {
     const errors: string[] = [];
     const [vts, allPolicies, allMonthly] = await Promise.all([
       getVehicleTypes().catch(() => { errors.push('vehicle types'); return [] as VehicleTypeResponse[]; }),
-      getAllPolicies(token).catch(() => { errors.push('pricing policies'); return [] as PricingPolicyResponse[]; }),
+      getAllPolicies().catch(() => { errors.push('pricing policies'); return [] as PricingPolicyResponse[]; }),
       getAllMonthlyPolicies().catch(() => { errors.push('monthly pass'); return [] as MonthlyPassPolicyResponse[]; })
     ]);
     setVehicleTypes(vts);

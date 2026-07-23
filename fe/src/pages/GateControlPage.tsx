@@ -297,7 +297,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
     setExitLoading(true);
     try {
-      const result = await searchCheckOutByQr(exitQrCode, exitLicensePlate, token, user?.assignedBuildingId);
+      const result = await searchCheckOutByQr(exitQrCode, exitLicensePlate, user?.assignedBuildingId);
       setExitSessionData(result);
       if (result.isPlateMismatch) {
         showNotification('error', 'WARNING: Scanned license plate does NOT match the ticket!');

@@ -97,8 +97,7 @@ export interface RegisterSubscriptionResult {
 }
 
 export const registerSubscription = (
-  payload: RegisterSubscriptionRequest,
-  token: string,
+  payload: RegisterSubscriptionRequest
 ): Promise<RegisterSubscriptionResult> =>
   apiClient('/api/Subscriptions/register', {
     method: 'POST',
@@ -107,8 +106,7 @@ export const registerSubscription = (
 
 export const requestCancelSubscription = (
   id: string,
-  reason: string,
-  token: string,
+  reason: string
 ): Promise<{ message: string }> =>
   apiClient(`/api/Subscriptions/${id}/request-cancel`, {
     method: 'POST',
@@ -119,8 +117,7 @@ export const requestCancelSubscription = (
 // Dùng cho polling trong modal đăng ký, và để kiểm tra lại thủ công nếu user đã đóng modal
 // trước khi thanh toán được xác nhận (subscription bị auto-cancel sau 15 phút nếu không kích hoạt).
 export const verifySubscriptionPayment = (
-  id: string,
-  token: string,
+  id: string
 ): Promise<{ isActive: boolean }> =>
   apiClient(`/api/Subscriptions/${id}/verify-payment`, { method: 'POST' });
 
@@ -130,8 +127,7 @@ export const getAllSubscriptions = (): Promise<SubscriptionResponse[]> =>
 
 export const processCancelSubscription = (
   id: string,
-  payload: { isApproved: boolean; refundAmount: number; rejectReason?: string },
-  token: string,
+  payload: { isApproved: boolean; refundAmount: number; rejectReason?: string }
 ): Promise<{ message: string }> =>
   apiClient(`/api/Subscriptions/${id}/process-cancel`, {
     method: 'POST',
@@ -149,6 +145,5 @@ export interface VerifyPayOSPaymentResult {
 
 export const verifyPayOSPayment = (
   orderCode: number,
-  token: string,
 ): Promise<VerifyPayOSPaymentResult> =>
   apiClient(`/api/payments/verify/${orderCode}`);

@@ -46,7 +46,7 @@ export default function UserLayout() {
   useEffect(() => {
     if (!token) { setActivePassDaysLeft(null); return; }
     let cancelled = false;
-    getMySubscriptions(token)
+    getMySubscriptions()
       .then(subs => {
         if (cancelled) return;
         const active = subs.find(s => s.status === 'Active');

@@ -57,7 +57,7 @@ export default function MyTicketPage() {
     try {
       setLoading(true);
       setError(null);
-      const data = await getMyReservations(token);
+      const data = await getMyReservations();
       setReservations(data);
     } catch (err: any) {
       console.error(err);

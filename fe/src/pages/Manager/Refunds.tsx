@@ -130,7 +130,7 @@ export default function ManagerRefunds() {
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const res = await getPaymentList(token, { status: statusFilter || undefined, page, pageSize: PAGE_SIZE });
+      const res = await getPaymentList({ status: statusFilter || undefined, page, pageSize: PAGE_SIZE });
       setItems(res.items); setTotal(res.totalCount);
     } catch (e: unknown) {
       setError((e as Error).message ?? 'Failed to load data');

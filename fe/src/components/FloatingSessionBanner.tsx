@@ -22,7 +22,7 @@ export default function FloatingSessionBanner() {
     // Once the backend implements the API, replace this with a real fetch
     const fetchActiveSession = async () => {
       try {
-        const data = await getMyActiveSession(token);
+        const data = await getMyActiveSession();
         if (data) {
           setActiveSession(data);
         } else {

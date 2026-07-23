@@ -841,8 +841,8 @@ export default function MonthlyPassPage() {
 
       if (token) {
         const [subsData, vehiclesData] = await Promise.all([
-          getMySubscriptions(token),
-          getMyVehicles(token),
+          getMySubscriptions(),
+          getMyVehicles(),
         ]);
         setSubscriptions(subsData || []);
         setVehicles(vehiclesData || []);

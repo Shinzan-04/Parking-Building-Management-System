@@ -29,7 +29,7 @@ export default function DevPanel({ onActionSuccess }: DevPanelProps = {}) {
   const handleDevReset = async () => {
     if (!token) return;
     try {
-      await devResetTime(token);
+      await devResetTime();
       if (onActionSuccess) onActionSuccess();
       else window.location.reload();
     } catch (err: any) {

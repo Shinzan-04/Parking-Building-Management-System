@@ -268,7 +268,7 @@ export default function WalletPage() {
     if (!token) return;
     setLoading(true); setError(null);
     try {
-      const [walletRes, banksRes] = await Promise.all([getWallet(token), getBankAccounts(token)]);
+      const [walletRes, banksRes] = await Promise.all([getWallet(), getBankAccounts()]);
       setBalance(walletRes.balance);
       setTransactions(walletRes.transactions ?? []);
       setBanks(banksRes ?? []);

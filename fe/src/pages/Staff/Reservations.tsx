@@ -180,7 +180,7 @@ export default function StaffReservations() {
     else setRefreshing(true);
     setApiError('');
     try {
-      const data = await getAllActiveReservations(token);
+      const data = await getAllActiveReservations();
       setReservations(data);
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Unable to load reservations.');
