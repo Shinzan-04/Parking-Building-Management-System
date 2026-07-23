@@ -85,7 +85,7 @@ export default function ManagerDashboard() {
           fromDate: `${weekAgo}T00:00:00Z`,
           toDate:   `${todayStr}T23:59:59Z`,
           pageSize: 200,
-        }, token),
+        }),
         getBuildings(),
         getParkingSlots(),
       ]);
@@ -101,7 +101,7 @@ export default function ManagerDashboard() {
               toDate:   `${todayStr}T23:59:59Z`,
               pageSize: 200,
               page: i + 2,
-            }, token)
+            })
           )
         );
         rest.forEach(r => allCompleted.push(...r.items));

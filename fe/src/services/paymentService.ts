@@ -1,40 +1,6 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
+import { apiClient } from './apiClient';
 
-async function authFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options?.headers ?? {}),
-    },
-  });
 
-  if (res.status === 204) return undefined as T;
-
-  const text = await res.text();
-  if (!text.trim()) {
-    if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
-  }
-
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error('Phản hồi từ máy chủ không hợp lệ.');
-  }
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('sp_token');
-      localStorage.removeItem('sp_user');
-      window.location.replace('/auth');
-    }
-    throw new Error((data as { message?: string }).message ?? `Yêu cầu thất bại (${res.status}).`);
-  }
-  return data as T;
-}
 
 export interface CreatePayOSPaymentRequest {
   amount: number;
@@ -63,14 +29,14 @@ export interface PaymentStatusResult {
   statusLabel: string;
 }
 
-export const createPayOSPayment = (payload: CreatePayOSPaymentRequest, token: string): Promise<PayOSCheckoutResponse> =>
-  authFetch('/api/payments/payos/create', token, {
+export const createPayOSPayment = (payload: CreatePayOSPaymentRequest): Promise<PayOSCheckoutResponse> =>
+  apiClient('/api/payments/payos/create', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 
-export const getPaymentStatus = (sessionId: string, token: string): Promise<PaymentStatusResult> =>
-  authFetch(`/api/payments/status/${sessionId}`, token);
+export const getPaymentStatus = (sessionId: string): Promise<PaymentStatusResult> =>
+  apiClient(`/api/payments/status/${sessionId}`);
 
 export interface VerifyPaymentResult {
   orderCode: number;
@@ -78,8 +44,8 @@ export interface VerifyPaymentResult {
   isPaid: boolean;
 }
 
-export const verifyPayment = (orderCode: number, token: string): Promise<VerifyPaymentResult> =>
-  authFetch(`/api/payments/verify/${orderCode}`, token);
+export const verifyPayment = (orderCode: number): Promise<VerifyPaymentResult> =>
+  apiClient(`/api/payments/verify/${orderCode}`);
 
 // ─── Refund Management (Admin / Manager / Staff) ────────────────────────────
 
@@ -128,7 +94,7 @@ export const getPaymentList = (
   if (params.page)     qs.set('page',     String(params.page));
   if (params.pageSize) qs.set('pageSize', String(params.pageSize));
   const query = qs.toString() ? `?${qs}` : '';
-  return authFetch(`/api/payments/list${query}`, token);
+  return apiClient(`/api/payments/list${query}`);
 };
 
 export interface PaymentRefundResponse {
@@ -147,14 +113,14 @@ export const refundPayment = (
   paymentId: string,
   token: string
 ): Promise<PaymentRefundResponse> =>
-  authFetch(`/api/payments/${paymentId}/refund`, token, { method: 'POST' });
+  apiClient(`/api/payments/${paymentId}/refund`, { method: 'POST' });
 
 export const rejectRefund = (
   paymentId: string,
   reason: string,
   token: string
 ): Promise<{ message: string }> =>
-  authFetch(`/api/payments/${paymentId}/reject-refund`, token, {
+  apiClient(`/api/payments/${paymentId}/reject-refund`, {
     method: 'POST',
     body: JSON.stringify({ reason }),
   });
@@ -192,6 +158,6 @@ export const getTransactions = (
   if (params.pageSize) qs.set('pageSize', String(params.pageSize));
   
   const query = qs.toString() ? `?${qs}` : '';
-  return authFetch(`/api/Transactions${query}`, token);
+  return apiClient(`/api/Transactions${query}`);
 };
 

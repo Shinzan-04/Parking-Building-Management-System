@@ -66,7 +66,7 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
       if (mode === 'lpr') {
         // LPR MODE: Convert to base64 and call OCR API
         const imageBase64 = canvasRef.current.toDataURL('image/jpeg').split(',')[1];
-        const result = await scanPlate(imageBase64, token);
+        const result = await scanPlate(imageBase64);
 
         if (result) {
           onSuccess(result, imageBase64);

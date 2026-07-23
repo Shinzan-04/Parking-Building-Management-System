@@ -24,7 +24,7 @@ export function useNotification(token: string | null) {
     if (!t) return;
     setLoading(true);
     try {
-      const notiRes = await getNotifications(t, 1, 20);
+      const notiRes = await getNotifications(1, 20);
       const items = Array.isArray(notiRes.items) ? notiRes.items : [];
       setNotifications(items);
     } catch { /* ignore */ } finally {
@@ -37,7 +37,7 @@ export function useNotification(token: string | null) {
     const t = tokenRef.current;
     if (!t) return;
     try {
-      const res = await getUnreadCount(t);
+      const res = await getUnreadCount();
       setUnreadCount(res.unreadCount);
     } catch { /* ignore */ }
   }, []);
@@ -47,7 +47,7 @@ export function useNotification(token: string | null) {
     const t = tokenRef.current;
     if (!t) return;
     try {
-      await markAsRead(id, t);
+      await markAsRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
     } catch { /* ignore */ }
@@ -60,7 +60,7 @@ export function useNotification(token: string | null) {
     // Optimistic: update UI ngay lập tức
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     setUnreadCount(0);
-    markAllAsRead(t).catch(() => { /* ignore */ });
+    markAllAsRead().catch(() => { /* ignore */ });
   }, []);
 
   // Initial load: chỉ lấy unread count để hiện badge, KHÔNG mark gì cả
@@ -86,10 +86,10 @@ export function useNotification(token: string | null) {
       const t = tokenRef.current;
       if (!t) return;
       try {
-        const countRes = await getUnreadCount(t);
+        const countRes = await getUnreadCount();
         setUnreadCount(countRes.unreadCount);
         // Chỉ prepend noti mới nếu panel đang mở (notifications.length > 0)
-        const notiRes = await getNotifications(t, 1, 5);
+        const notiRes = await getNotifications(1, 5);
         const fresh = Array.isArray(notiRes.items) ? notiRes.items : [];
         setNotifications(prev => {
           if (prev.length === 0) return prev; // panel chưa mở, không load

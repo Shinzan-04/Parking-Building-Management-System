@@ -38,20 +38,20 @@ export default function Vehicles() {
       const today = new Date().toISOString().split('T')[0];
 
       const [activePage, completedPage] = await Promise.all([
-        getActiveSessions({ pageSize: 200 }, token),
+        getActiveSessions({ pageSize: 200 }),
         searchSessions({
           status: 'Completed',
           fromDate: `${today}T00:00:00Z`,
           toDate:   `${today}T23:59:59Z`,
           pageSize: 200,
-        }, token),
+        }),
       ]);
 
       const activeAll = [...activePage.items];
       if (activePage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: activePage.totalPages - 1 }, (_, i) =>
-            getActiveSessions({ pageSize: 200, page: i + 2 }, token)
+            getActiveSessions({ pageSize: 200, page: i + 2 })
           )
         );
         rest.forEach(r => activeAll.push(...r.items));
@@ -67,7 +67,7 @@ export default function Vehicles() {
               toDate:   `${today}T23:59:59Z`,
               pageSize: 200,
               page: i + 2,
-            }, token)
+            })
           )
         );
         rest.forEach(r => completedAll.push(...r.items));

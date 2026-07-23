@@ -321,7 +321,7 @@ function RegisterModal({
     setSubmitting(true);
     setError('');
     try {
-      const result: RegisterSubscriptionResult = await registerSubscription({ vehicleId, paymentMethod }, token);
+      const result: RegisterSubscriptionResult = await registerSubscription({ vehicleId, paymentMethod });
 
       if (paymentMethod === 4) {
         // PayOS: backend returns checkoutUrl and qrCode
@@ -355,7 +355,7 @@ function RegisterModal({
     const poll = async () => {
       setCheckingPayment(true);
       try {
-        const result = await verifySubscriptionPayment(pendingSubscriptionId, token);
+        const result = await verifySubscriptionPayment(pendingSubscriptionId);
         if (!cancelled && result.isActive) {
           onPaid();
           setStep('payos-success');
@@ -735,7 +735,7 @@ function CancelModal({
     setSubmitting(true);
     setError('');
     try {
-      await requestCancelSubscription(sub.id, reason, token);
+      await requestCancelSubscription(sub.id, reason);
       onSuccess();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to submit the cancellation request.');
@@ -880,7 +880,7 @@ export default function MonthlyPassPage() {
     if (!token || verifyingSubId) return;
     setVerifyingSubId(sub.id);
     try {
-      const result = await verifySubscriptionPayment(sub.id, token);
+      const result = await verifySubscriptionPayment(sub.id);
       if (result.isActive) {
         setSuccessMsg('Monthly pass activated! Payment has been confirmed.');
         setTimeout(() => setSuccessMsg(''), 5000);

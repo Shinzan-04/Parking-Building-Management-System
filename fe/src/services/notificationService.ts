@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
+import { apiClient } from './apiClient';
 
 export interface NotificationResponse {
   id: string;
@@ -21,38 +21,6 @@ export interface UnreadCountResponse {
   unreadCount: number;
 }
 
-async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers ?? {}),
-    },
-  });
-
-  if (res.status === 204) return undefined as T;
-
-  const text = await res.text();
-
-  if (!text.trim()) {
-    if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
-  }
-
-  let data: unknown;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error('Phản hồi từ máy chủ không hợp lệ.');
-  }
-
-  if (!res.ok) {
-    throw new Error((data as { message?: string }).message ?? `Yêu cầu thất bại (${res.status}).`);
-  }
-  return data as T;
-}
-
 // Backend không cấu hình camelCase nên trả PascalCase — normalize về camelCase
 function normalizeNotification(n: Record<string, unknown>): NotificationResponse {
   return {
@@ -66,8 +34,8 @@ function normalizeNotification(n: Record<string, unknown>): NotificationResponse
   };
 }
 
-export const getNotifications = async (token: string, page = 1, pageSize = 20): Promise<NotificationListResponse> => {
-  const raw = await apiFetch<unknown>(`/api/notifications?page=${page}&pageSize=${pageSize}`, undefined, token);
+export const getNotifications = async (page = 1, pageSize = 20): Promise<NotificationListResponse> => {
+  const raw = await apiClient<unknown>(`/api/notifications?page=${page}&pageSize=${pageSize}`);
   // Backend trả array thẳng (không có wrapper)
   if (Array.isArray(raw)) {
     const items = (raw as Record<string, unknown>[]).map(normalizeNotification);
@@ -83,15 +51,15 @@ export const getNotifications = async (token: string, page = 1, pageSize = 20): 
   };
 };
 
-export const getUnreadCount = async (token: string): Promise<UnreadCountResponse> => {
-  const raw = await apiFetch<unknown>('/api/notifications/unread-count', undefined, token);
+export const getUnreadCount = async (): Promise<UnreadCountResponse> => {
+  const raw = await apiClient<unknown>('/api/notifications/unread-count');
   if (typeof raw === 'number') return { unreadCount: raw };
   const obj = raw as Record<string, unknown> | null;
   return { unreadCount: ((obj?.['unreadCount'] ?? obj?.['UnreadCount']) as number) ?? 0 };
 };
 
-export const markAsRead = (id: string, token: string): Promise<{ message: string }> =>
-  apiFetch(`/api/notifications/${id}/read`, { method: 'PUT' }, token);
+export const markAsRead = (id: string): Promise<{ message: string }> =>
+  apiClient(`/api/notifications/${id}/read`, { method: 'PUT' });
 
-export const markAllAsRead = (token: string): Promise<{ message: string }> =>
-  apiFetch('/api/notifications/read-all', { method: 'PUT' }, token);
+export const markAllAsRead = (): Promise<{ message: string }> =>
+  apiClient('/api/notifications/read-all', { method: 'PUT' });

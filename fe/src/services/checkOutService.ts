@@ -1,34 +1,11 @@
+import { apiClient } from './apiClient';
+
 /**
  * checkOutService.ts
  * Service cho API CheckOut
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
-async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers ?? {}),
-    },
-  });
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  if (!text.trim()) {
-    if (res.ok) return undefined as T;
-    throw new Error(`Lỗi ${res.status}.`);
-  }
-  let data: any;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error('Phản hồi không hợp lệ.');
-  }
-  if (!res.ok) throw new Error(data.message ?? `Lỗi ${res.status}.`);
-  return data as T;
-}
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -38,6 +15,11 @@ export interface FeeBreakdownDto {
   dayPassTotal: number;
   nightPassTotal: number;
   totalFee: number;
+  surchargeLogs?: {
+    name: string;
+    timestamp: string;
+    amount: number;
+  }[];
 }
 
 export interface CheckOutSearchResult {
@@ -58,6 +40,7 @@ export interface CheckOutSearchResult {
   feeBreakdown?: FeeBreakdownDto;
   message: string;
   isPlateMismatch?: boolean;
+  penaltyFee?: number;
 }
 
 export interface CheckOutConfirmRequest {
@@ -123,33 +106,33 @@ export interface OcrCheckOutResult {
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
 /** Tìm kiếm xe đang gửi trong bãi theo biển số (chuẩn hóa trên BE) */
-export const searchCheckOut = (licensePlate: string, token: string, buildingId?: string): Promise<CheckOutSearchResult> => {
+export const searchCheckOut = (licensePlate: string, buildingId?: string): Promise<CheckOutSearchResult> => {
   let url = `/api/CheckOut/search?licensePlate=${encodeURIComponent(licensePlate)}`;
   if (buildingId) {
     url += `&buildingId=${encodeURIComponent(buildingId)}`;
   }
-  return apiFetch(url, undefined, token);
+  return apiClient(url);
 };
 
 /** Tìm kiếm xe đang gửi trong bãi theo mã QR */
-export const searchCheckOutByQr = (qrCode: string, licensePlate: string, token: string, buildingId?: string): Promise<CheckOutSearchResult> => {
+export const searchCheckOutByQr = (qrCode: string, licensePlate: string, buildingId?: string): Promise<CheckOutSearchResult> => {
   let url = `/api/CheckOut/search?qrCode=${encodeURIComponent(qrCode)}&licensePlate=${encodeURIComponent(licensePlate)}`;
   if (buildingId) {
     url += `&buildingId=${encodeURIComponent(buildingId)}`;
   }
-  return apiFetch(url, undefined, token);
+  return apiClient(url);
 };
 
 /** Xác nhận thanh toán và cho xe ra bãi */
-export const confirmCheckOut = (request: CheckOutConfirmRequest, token: string): Promise<CheckOutConfirmResponse> =>
-  apiFetch(`/api/CheckOut/confirm`, {
+export const confirmCheckOut = (request: CheckOutConfirmRequest): Promise<CheckOutConfirmResponse> =>
+  apiClient(`/api/CheckOut/confirm`, {
     method: 'POST',
     body: JSON.stringify(request),
-  }, token);
+  });
 
 /** Xử lý check-out bằng OCR */
-export const ocrCheckOut = (request: OcrCheckOutRequest, token: string): Promise<OcrCheckOutResult> =>
-  apiFetch(`/api/CheckOut/ocr-checkout`, {
+export const ocrCheckOut = (request: OcrCheckOutRequest): Promise<OcrCheckOutResult> =>
+  apiClient(`/api/CheckOut/ocr-checkout`, {
     method: 'POST',
     body: JSON.stringify(request),
-  }, token);
+  });

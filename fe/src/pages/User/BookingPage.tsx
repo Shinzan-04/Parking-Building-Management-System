@@ -740,7 +740,7 @@ function StepDateTime({
               {costResult.total.toLocaleString('vi-VN')}đ
             </span>
             <p className="text-[9px] text-stone-500 dark:text-stone-400 font-medium leading-relaxed text-right max-w-[120px]">
-              Phí tính theo block. {state.duration}h =<br />
+              Block-based fee. {state.duration}h =<br />
               {totalBlocks} block(s).
             </p>
           </div>
@@ -869,7 +869,7 @@ function StepSelectFloor({
             try {
               setLoadingAi(true);
               const token = localStorage.getItem('sp_token') || '';
-              const suggestions = await getAiSuggestions(state.vehicleType!, lotId, 1, token);
+              const suggestions = await getAiSuggestions(state.vehicleType!, lotId, 1);
               if (suggestions.length > 0) {
                 const best = suggestions[0];
                 setState(s => ({
@@ -882,10 +882,10 @@ function StepSelectFloor({
                 }));
                 onNext();
               } else {
-                alert('Không có chỗ đỗ nào khả dụng theo gợi ý của AI.');
+                alert('No parking spots available according to Smart Suggest.');
               }
             } catch (err: any) {
-              alert('AI Suggest error: ' + err.message);
+              alert('Smart Suggest error: ' + err.message);
             } finally {
               setLoadingAi(false);
             }
@@ -894,7 +894,7 @@ function StepSelectFloor({
           className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
         >
           {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          {loadingAi ? 'AI Thinking...' : 'AI Suggest'}
+          {loadingAi ? 'Smart Thinking...' : 'Smart Suggest'}
         </button>
       </div>
 
@@ -1055,10 +1055,10 @@ function StepSelectSlot({
       {/* ── Stats Thống kê nhanh ── */}
       <div className="flex items-center gap-4 flex-wrap">
         {[
-          { label: 'Còn trống', count: availableCount, dot: 'bg-emerald-400' },
-          { label: 'Đang dùng', count: occupiedCount, dot: 'bg-red-400' },
-          { label: 'Đặt trước', count: reservedCount, dot: 'bg-amber-400' },
-          { label: 'Tổng', count: filteredSlots.length, dot: 'bg-stone-400' },
+          { label: 'Available', count: availableCount, dot: 'bg-emerald-400' },
+          { label: 'Occupied', count: occupiedCount, dot: 'bg-red-400' },
+          { label: 'Reserved', count: reservedCount, dot: 'bg-amber-400' },
+          { label: 'Total', count: filteredSlots.length, dot: 'bg-stone-400' },
         ].map(({ label, count, dot }) => (
           <div key={label} className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${dot}`} />
@@ -1071,9 +1071,9 @@ function StepSelectSlot({
       {filteredSlots.length === 0 ? (
         <div className="py-14 text-center bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-200 dark:border-white/10">
           <ParkingSquare size={36} className="text-stone-300 mx-auto mb-3" />
-          <p className="text-sm text-stone-500 font-bold">Không có chỗ đỗ</p>
+          <p className="text-sm text-stone-500 font-bold">No slots available</p>
           <p className="text-xs text-stone-400 mt-1">
-            Tầng này chưa có ô đỗ phù hợp với loại xe của bạn.
+            This floor has no available slots suitable for your vehicle.
           </p>
         </div>
       ) : (
@@ -1125,7 +1125,7 @@ function StepSelectSlot({
                       <button
                         key={slot.id}
                         disabled={!isAvailable || isWrongType}
-                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}${isWrongType ? ' (Khác loại xe)' : ''}`}
+                        title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${slot.status}${isWrongType ? ' (Wrong vehicle type)' : ''}`}
                         onClick={() => {
                           if (!isAvailable || isWrongType) return;
                           setState((s) => ({
@@ -1165,23 +1165,23 @@ function StepSelectSlot({
       <div className="flex items-center flex-wrap gap-4 pt-3 border-t border-gray-100 dark:border-white/10 text-[11px] text-stone-500">
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-emerald-50 border-2 border-emerald-300 flex-shrink-0" />
-          Còn trống
+          Available
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-[#FF4C4C] border-2 border-[#FF4C4C] flex-shrink-0" />
-          Đã chọn
+          Selected
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-red-50 border-2 border-red-200 flex-shrink-0" />
-          Đang dùng
+          Occupied
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-4 h-4 rounded-md bg-amber-50 border-2 border-amber-200 flex-shrink-0" />
-          Đặt trước
+          Reserved
         </div>
         {state.slot && (
           <span className="ml-auto text-[#FF4C4C] font-bold">
-            Đã chọn: {state.slot}
+            Selected: {state.slot}
           </span>
         )}
       </div>
@@ -1394,7 +1394,7 @@ function ConfirmationPopup({
       setSubmitting(true);
       setError(null);
       const token = localStorage.getItem('sp_token') || '';
-      const res = await depositWallet({ amount: depositAmount }, token);
+      const res = await depositWallet({ amount: depositAmount });
       window.open(res.checkoutUrl, '_blank', 'noopener');
     } catch (err: any) {
       setError(err.message || 'Lỗi khi tạo giao dịch nạp tiền.');
@@ -1442,7 +1442,7 @@ function ConfirmationPopup({
         const newVehicle = await createVehicle({
           plateNumber: state.licensePlate,
           vehicleTypeId: state.vehicleType!
-        }, token);
+        });
         vehicleIdToUse = newVehicle.id;
       }
 
@@ -1456,7 +1456,7 @@ function ConfirmationPopup({
         paymentMethod: paymentMethod === 'PayOS' ? 4 : 0
       };
 
-      const res = await createReservation(payload, token);
+      const res = await createReservation(payload);
       setCreatedReservation(res);
 
       if (paymentMethod === 'PayOS') {
@@ -1466,7 +1466,7 @@ function ConfirmationPopup({
           reservationId: res.id,
         };
 
-        const payOSRes = await createPayOSPayment(paymentPayload, token);
+        const payOSRes = await createPayOSPayment(paymentPayload);
 
         // Tính toán QR data thực tế chính xác dựa trên bookingCode thực tế vừa được tạo
         const realQrData = JSON.stringify({
@@ -1548,7 +1548,7 @@ function ConfirmationPopup({
       }
 
       try {
-        const result = await verifyPayment(pendingOrderCode, token);
+        const result = await verifyPayment(pendingOrderCode);
         if (cancelled) return;
 
         if (result.isPaid) {

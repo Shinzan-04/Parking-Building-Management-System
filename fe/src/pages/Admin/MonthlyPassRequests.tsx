@@ -239,7 +239,7 @@ export default function AdminMonthlyPassRequests() {
     if (!approveItem) return;
     setActionLoading(true);
     try {
-      await processCancelSubscription(approveItem.id, { isApproved: true, refundAmount: 0 }, token);
+      await processCancelSubscription(approveItem.id, { isApproved: true, refundAmount: 0 });
       showToast('success', `Approved monthly pass cancellation for vehicle ${approveItem.licensePlate}`);
       setApproveItem(null); load();
     } catch (e: unknown) {
@@ -251,7 +251,7 @@ export default function AdminMonthlyPassRequests() {
     if (!rejectItem) return;
     setActionLoading(true);
     try {
-      await processCancelSubscription(rejectItem.id, { isApproved: false, refundAmount: 0, rejectReason: reason }, token);
+      await processCancelSubscription(rejectItem.id, { isApproved: false, refundAmount: 0, rejectReason: reason });
       showToast('success', 'Rejected the monthly pass cancellation request');
       setRejectItem(null); load();
     } catch (e: unknown) {

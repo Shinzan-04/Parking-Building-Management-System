@@ -59,7 +59,7 @@ function DepositModal({ onClose, onSuccess, token }: { onClose: () => void; onSu
     if (!n || n < 10_000) { setError('Số tiền tối thiểu là 10,000 ₫'); return; }
     setLoading(true); setError(null);
     try {
-      const res = await depositWallet({ amount: n }, token);
+      const res = await depositWallet({ amount: n });
       localStorage.setItem('pending_deposit_order', String(res.orderCode));
       window.location.href = res.checkoutUrl;
     } catch (e: unknown) {
@@ -123,7 +123,7 @@ function WithdrawModal({ balance, bankAccounts, onClose, onSuccess, token }: {
     if (!defaultBank) { setError('Vui lòng thêm tài khoản ngân hàng mặc định trước'); return; }
     setLoading(true); setError(null);
     try {
-      const res = await withdrawWallet({ amount: n }, token);
+      const res = await withdrawWallet({ amount: n });
       setSuccess(res.message ?? 'Yêu cầu rút tiền đã được gửi!');
       setTimeout(() => { onSuccess(); onClose(); }, 2000);
     } catch (e: unknown) {
@@ -204,7 +204,7 @@ function AddBankModal({ onClose, onSuccess, token }: { onClose: () => void; onSu
     }
     setLoading(true); setError(null);
     try {
-      await createBankAccount(form, token);
+      await createBankAccount(form);
       onSuccess();
       onClose();
     } catch (e: unknown) {
@@ -342,13 +342,13 @@ export default function WalletPage() {
   const handleDeleteBank = async (id: string) => {
     if (!token) return;
     setDeletingId(id);
-    try { await deleteBankAccount(id, token); await loadData(); } catch { /* ignore */ } finally { setDeletingId(null); }
+    try { await deleteBankAccount(id); await loadData(); } catch { /* ignore */ } finally { setDeletingId(null); }
   };
 
   const handleSetDefault = async (id: string) => {
     if (!token) return;
     setSettingDefaultId(id);
-    try { await setDefaultBankAccount(id, token); await loadData(); } catch { /* ignore */ } finally { setSettingDefaultId(null); }
+    try { await setDefaultBankAccount(id); await loadData(); } catch { /* ignore */ } finally { setSettingDefaultId(null); }
   };
 
   // ── styles ──────────────────────────────────────────────────────────────────

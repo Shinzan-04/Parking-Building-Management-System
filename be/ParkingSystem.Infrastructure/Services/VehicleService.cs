@@ -35,16 +35,16 @@ public class VehicleService : IVehicleService
     public async Task<VehicleResponse> CreateVehicleAsync(Guid driverId, CreateVehicleRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.PlateNumber))
-            throw new InvalidOperationException("Biển số xe không được để trống.");
+            throw new InvalidOperationException("License plate cannot be empty.");
 
         var existing = await _context.Vehicles
             .AnyAsync(v => v.PlateNumber == request.PlateNumber && v.DriverId == driverId);
         if (existing)
-            throw new InvalidOperationException("Biển số xe này đã được đăng ký trong tài khoản của bạn.");
+            throw new InvalidOperationException("This license plate is already registered to your account.");
 
         var vehicleType = await _context.VehicleTypes.FindAsync(request.VehicleTypeId);
         if (vehicleType == null)
-            throw new InvalidOperationException("Loại xe không hợp lệ.");
+            throw new InvalidOperationException("Invalid vehicle type.");
 
         // Nếu đây là xe đầu tiên thì tự động set IsPrimary
         var isFirstVehicle = !await _context.Vehicles.AnyAsync(v => v.DriverId == driverId);
@@ -80,19 +80,19 @@ public class VehicleService : IVehicleService
             .FirstOrDefaultAsync(v => v.Id == id && v.DriverId == driverId);
 
         if (vehicle == null)
-            throw new InvalidOperationException("Không tìm thấy phương tiện.");
+            throw new InvalidOperationException("Vehicle not found.");
 
         if (string.IsNullOrWhiteSpace(request.PlateNumber))
-            throw new InvalidOperationException("Biển số xe không được để trống.");
+            throw new InvalidOperationException("License plate cannot be empty.");
 
         var existing = await _context.Vehicles
             .AnyAsync(v => v.PlateNumber == request.PlateNumber && v.DriverId == driverId && v.Id != id);
         if (existing)
-            throw new InvalidOperationException("Biển số xe này đã bị trùng lặp với xe khác của bạn.");
+            throw new InvalidOperationException("This license plate duplicates another of your vehicles.");
 
         var vehicleType = await _context.VehicleTypes.FindAsync(request.VehicleTypeId);
         if (vehicleType == null)
-            throw new InvalidOperationException("Loại xe không hợp lệ.");
+            throw new InvalidOperationException("Invalid vehicle type.");
 
         vehicle.PlateNumber = request.PlateNumber.Trim();
         vehicle.VehicleTypeId = request.VehicleTypeId;
@@ -139,7 +139,7 @@ public class VehicleService : IVehicleService
     {
         var vehicles = await _context.Vehicles.Where(v => v.DriverId == driverId).ToListAsync();
         var targetVehicle = vehicles.FirstOrDefault(v => v.Id == id);
-        if (targetVehicle == null) throw new InvalidOperationException("Không tìm thấy phương tiện.");
+        if (targetVehicle == null) throw new InvalidOperationException("Vehicle not found.");
 
         foreach (var v in vehicles)
         {

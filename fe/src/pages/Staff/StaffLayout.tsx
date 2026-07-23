@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import toast from 'react-hot-toast';
-import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon, ChevronDown, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import NotificationBell from '../../components/NotificationBell';
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/staff/reservations', label: 'Reservations', icon: CalendarCheck, end: false },
   { to: '/staff/slots', label: 'Parking Slots', icon: MapPin, end: false },
   { to: '/staff/chat', label: 'Live Chat', icon: MessageSquare, end: false },
+  { to: '/staff/exceptions', label: 'Exceptions', icon: AlertTriangle, end: false },
   {
     label: 'Gate Control', icon: DoorOpen,
     children: [

@@ -1,27 +1,11 @@
+import { apiClient } from './apiClient';
+
 /**
  * sessionsService.ts
  * Service cho Sessions API — dùng cho Manager Reports & Sessions management
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
-async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers ?? {}),
-    },
-  });
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  if (!text.trim()) { if (res.ok) return undefined as T; throw new Error(`Lỗi ${res.status}.`); }
-  let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Phản hồi không hợp lệ.'); }
-  if (!res.ok) throw new Error((data as { message?: string }).message ?? `Lỗi ${res.status}.`);
-  return data as T;
-}
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -30,17 +14,17 @@ export type CheckInMethod = 'WalkIn' | 'Booking';
 export type IssueType = 'None' | 'LostTicket' | 'WrongPlate' | 'WrongSlot' | 'Unpaid';
 
 export const SESSION_STATUS_LABELS: Record<SessionStatus, string> = {
-  Active: 'Đang đỗ',
-  Completed: 'Đã ra',
-  Overdue: 'Quá giờ',
+  Active: 'Active',
+  Completed: 'Completed',
+  Overdue: 'Overdue',
 };
 
 export const ISSUE_TYPE_LABELS: Record<IssueType, string> = {
-  None: 'Bình thường',
-  LostTicket: 'Mất vé',
-  WrongPlate: 'Sai biển số',
-  WrongSlot: 'Sai khu vực',
-  Unpaid: 'Chưa thanh toán',
+  None: 'Normal',
+  LostTicket: 'Lost Ticket',
+  WrongPlate: 'Wrong Plate',
+  WrongSlot: 'Wrong Slot',
+  Unpaid: 'Unpaid',
 };
 
 export interface SessionDto {
@@ -130,29 +114,29 @@ function buildQueryString(params: SessionFilterParams): string {
 }
 
 /** Lấy danh sách session đang Active */
-export const getActiveSessions = (params: SessionFilterParams, token: string): Promise<SessionListResponse> =>
-  apiFetch(`/api/sessions/active${buildQueryString(params)}`, undefined, token);
+export const getActiveSessions = (params: SessionFilterParams): Promise<SessionListResponse> =>
+  apiClient(`/api/sessions/active${buildQueryString(params)}`);
 
 /** Tìm kiếm session theo bộ lọc (bao gồm Completed) */
-export const searchSessions = (params: SessionFilterParams, token: string): Promise<SessionListResponse> =>
-  apiFetch(`/api/sessions/search${buildQueryString(params)}`, undefined, token);
+export const searchSessions = (params: SessionFilterParams): Promise<SessionListResponse> =>
+  apiClient(`/api/sessions/search${buildQueryString(params)}`);
 
 /** Xem chi tiết 1 session */
-export const getSessionById = (id: string, token: string): Promise<SessionDto> =>
-  apiFetch(`/api/sessions/${id}`, undefined, token);
+export const getSessionById = (id: string): Promise<SessionDto> =>
+  apiClient(`/api/sessions/${id}`);
 
 /** Tìm session Active theo biển số */
-export const findSessionByPlate = (plate: string, token: string): Promise<SessionDto | null> =>
-  apiFetch(`/api/sessions/find-by-plate?plate=${encodeURIComponent(plate)}`, undefined, token);
+export const findSessionByPlate = (plate: string): Promise<SessionDto | null> =>
+  apiClient(`/api/sessions/find-by-plate?plate=${encodeURIComponent(plate)}`);
 
 /** Lấy Live Session (phiên đang đỗ) của User/Driver */
-export const getMyActiveSession = (token: string): Promise<MyActiveSessionResponse | null> =>
-  apiFetch(`/api/sessions/my-active`, undefined, token);
+export const getMyActiveSession = (): Promise<MyActiveSessionResponse | null> =>
+  apiClient(`/api/sessions/my-active`);
 
 /** [DEV ONLY] Tua thời gian để kiểm tra phí */
-export const devFastForwardTime = (minutes: number, token: string): Promise<{ message: string }> =>
-  apiFetch(`/api/sessions/dev/fast-forward?minutes=${minutes}`, { method: 'POST' }, token);
+export const devFastForwardTime = (minutes: number): Promise<{ message: string }> =>
+  apiClient(`/api/sessions/dev/fast-forward?minutes=${minutes}`, { method: 'POST' });
 
 /** [DEV ONLY] Reset thời gian đỗ về hiện tại */
-export const devResetTime = (token: string): Promise<{ message: string }> =>
-  apiFetch(`/api/sessions/dev/reset-time`, { method: 'POST' }, token);
+export const devResetTime = (): Promise<{ message: string }> =>
+  apiClient(`/api/sessions/dev/reset-time`, { method: 'POST' });

@@ -49,7 +49,7 @@ public class BuildingsController : ControllerBase
     }
 
     [HttpPut("{id}/approval-mode")]
-    [Authorize(Roles = "Admin,Manager,Staff")]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateApprovalMode(Guid id, [FromBody] int mode)
     {
         var building = await _buildingService.GetByIdAsync(id);
@@ -90,8 +90,8 @@ public class BuildingsController : ControllerBase
     public async Task<IActionResult> AssignStaff(Guid id, Guid staffId)
     {
         var result = await _userService.AssignStaffToBuildingAsync(staffId, id);
-        if (!result) return BadRequest(new { message = "Không tìm thấy nhân viên hoặc người dùng không phải Staff." });
-        return Ok(new { message = "Đã phân công nhân viên vào tòa nhà." });
+        if (!result) return BadRequest(new { message = "Account not found or invalid (only Staff or Manager allowed)." });
+        return Ok(new { message = "Staff assigned to building." });
     }
 
     [HttpDelete("{id}/staff/{staffId}")]
@@ -99,7 +99,7 @@ public class BuildingsController : ControllerBase
     public async Task<IActionResult> UnassignStaff(Guid id, Guid staffId)
     {
         var result = await _userService.UnassignStaffFromBuildingAsync(staffId);
-        if (!result) return NotFound(new { message = "Không tìm thấy nhân viên." });
-        return Ok(new { message = "Đã gỡ nhân viên khỏi tòa nhà." });
+        if (!result) return NotFound(new { message = "Staff not found." });
+        return Ok(new { message = "Staff unassigned from building." });
     }
 }

@@ -166,7 +166,7 @@ export default function MyVehiclePage() {
 
     try {
       setLoading(true);
-      await deleteVehicle(id, token);
+      await deleteVehicle(id);
       await loadData();
     } catch (err: any) {
       alert(err.message || 'Không thể xóa phương tiện này.');
@@ -179,7 +179,7 @@ export default function MyVehiclePage() {
     if (!token) return;
     try {
       setLoading(true);
-      await setPrimaryVehicle(id, token);
+      await setPrimaryVehicle(id);
       await loadData();
     } catch (err: any) {
       alert(err.message || 'Không thể đặt phương tiện này làm mặc định.');

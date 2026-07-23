@@ -1,3 +1,5 @@
+using ParkingSystem.Application.DTOs.CheckOut;
+
 namespace ParkingSystem.Application.DTOs.Session;
 
 public class MyActiveSessionResponse
@@ -17,4 +19,5 @@ public class MyActiveSessionResponse
     public bool IsPrepaid { get; set; }
     public DateTime? PrepaidStartTime { get; set; }
     public DateTime? PrepaidEndTime { get; set; }
+    public List<SurchargeLogItemDto>? SurchargeLogs { get; set; }
 }

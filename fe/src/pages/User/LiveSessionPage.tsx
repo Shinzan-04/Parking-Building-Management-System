@@ -107,7 +107,7 @@ export default function LiveSessionPage() {
   const handleDevFastForward = async (minutes: number) => {
     if (!token || !session) return;
     try {
-      await devFastForwardTime(minutes, token);
+      await devFastForwardTime(minutes);
       const data = await getMyActiveSession(token);
       if (data) {
         setSession(data);
@@ -128,15 +128,15 @@ export default function LiveSessionPage() {
         setSession(data);
         setDynamicFee(data.currentFee);
       }
-      alert('Đã khôi phục thời gian về hiện tại!');
+      alert('Restored to current time!');
     } catch (err: any) {
-      alert('Lỗi khôi phục thời gian: ' + err.message);
+      alert('Error restoring time: ' + err.message);
     }
   };
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-[#F4F7F9] flex items-center justify-center">
+      <div className="min-h-screen bg-[#F4F7F9] dark:bg-[#111111] flex items-center justify-center transition-colors">
         <div className="w-8 h-8 border-4 border-[#2B52FF] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
@@ -169,13 +169,13 @@ export default function LiveSessionPage() {
   }
 
   return (
-    <div className="min-h-full bg-[#F4F7F9] text-slate-800 font-sans pb-10 relative">
+    <div className="min-h-full bg-[#F4F7F9] dark:bg-[#111111] text-slate-800 dark:text-stone-200 font-sans pb-10 relative transition-colors">
       {/* Header */}
-      <div className="bg-white px-4 py-4 flex items-center shadow-sm sticky top-0 z-50 lg:px-8">
-        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-500 hover:text-slate-800 transition-colors">
+      <div className="bg-white dark:bg-[#18181B] border-b border-transparent dark:border-white/5 px-4 py-4 flex items-center shadow-sm sticky top-0 z-50 lg:px-8 transition-colors">
+        <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-stone-200 transition-colors">
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-lg font-bold flex-1 text-center pr-8 lg:pr-0 lg:text-left lg:ml-4">Phiên đỗ xe hiện tại</h1>
+        <h1 className="text-lg font-bold flex-1 text-center pr-8 lg:pr-0 lg:text-left lg:ml-4">Current Parking Session</h1>
       </div>
 
       {/* Main Grid Container for Desktop */}
@@ -206,7 +206,7 @@ export default function LiveSessionPage() {
               </div>
 
               <p className="text-[10px] text-white/80 font-bold text-center uppercase tracking-widest mb-4 bg-white/10 py-1.5 px-3 rounded-full mt-2">
-                Mã quét tại cổng ra
+                Exit QR Code
               </p>
             </div>
 
@@ -259,114 +259,131 @@ export default function LiveSessionPage() {
           {/* Top Level Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Time Card */}
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex flex-col justify-center transition-all hover:shadow-md">
+            <div className="bg-white dark:bg-[#18181B] rounded-3xl p-5 shadow-sm border border-slate-100 dark:border-white/10 flex flex-col justify-center transition-all hover:shadow-md">
               <div className="flex items-center gap-2 text-[#2B52FF] mb-3">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-500/10 flex items-center justify-center">
                   <Clock size={16} />
                 </div>
-                <span className="text-[10px] uppercase font-bold tracking-widest">Thời gian đỗ</span>
+                <span className="text-[10px] uppercase font-bold tracking-widest">Parking Duration</span>
               </div>
-              <div className="text-4xl lg:text-5xl font-black font-mono tracking-wider text-slate-800">{elapsedString}</div>
-              <div className="text-[9px] text-slate-400 mt-2 uppercase font-bold tracking-widest">Giờ : Phút : Giây</div>
+              <div className="text-4xl lg:text-5xl font-black font-mono tracking-wider text-slate-800 dark:text-white">{elapsedString}</div>
+              <div className="text-[9px] text-slate-400 mt-2 uppercase font-bold tracking-widest">Hr : Min : Sec</div>
             </div>
 
             {/* Fee Card */}
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex flex-col justify-center transition-all hover:shadow-md">
+            <div className="bg-white dark:bg-[#18181B] rounded-3xl p-5 shadow-sm border border-slate-100 dark:border-white/10 flex flex-col justify-center transition-all hover:shadow-md">
               <div className="flex items-center gap-2 text-emerald-500 mb-3">
-                <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 flex items-center justify-center">
                   <CreditCard size={16} />
                 </div>
-                <span className="text-[10px] uppercase font-bold tracking-widest">Phí hiện tại</span>
+                <span className="text-[10px] uppercase font-bold tracking-widest">Current Fee</span>
               </div>
               <div className="flex items-baseline gap-2">
-                <div className="text-4xl lg:text-5xl font-black text-slate-800">{dynamicFee.toLocaleString('vi-VN')}</div>
+                <div className="text-4xl lg:text-5xl font-black text-slate-800 dark:text-white">{dynamicFee.toLocaleString('vi-VN')}</div>
                 <div className="text-lg font-bold text-slate-400">đ</div>
               </div>
-              <div className="text-[9px] text-slate-400 mt-2 font-medium">Cập nhật liên tục</div>
+              <div className="text-[9px] text-slate-400 mt-2 font-medium">Updating in real-time</div>
             </div>
           </div>
 
           {/* Merged Location & Details Card */}
-          <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex flex-col mb-4 transition-all hover:shadow-md">
-            <div className="flex items-start gap-4 border-b border-slate-100 pb-4 mb-4">
-              <div className="w-10 h-10 rounded-2xl bg-orange-50 flex items-center justify-center shrink-0">
+          <div className="bg-white dark:bg-[#18181B] rounded-3xl p-5 shadow-sm border border-slate-100 dark:border-white/10 flex flex-col mb-4 transition-all hover:shadow-md">
+            <div className="flex items-start gap-4 border-b border-slate-100 dark:border-white/5 pb-4 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-orange-50 dark:bg-orange-500/10 flex items-center justify-center shrink-0">
                 <MapPin size={20} className="text-orange-500" />
               </div>
               <div>
                 <div className="text-[9px] text-orange-500 font-bold uppercase tracking-widest mb-1">Parking Spot</div>
-                <div className="text-xl sm:text-2xl font-black text-slate-800 capitalize">{session.floorName} — Ô {session.slotNumber}</div>
+                <div className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white capitalize">{session.floorName.replace('Tầng', 'Floor')} — Slot {session.slotNumber}</div>
               </div>
             </div>
 
             <div>
               <div className="text-[9px] text-[#2B52FF] font-bold uppercase tracking-widest mb-2">Parking Lot</div>
-              <div className="text-base font-bold text-slate-800 mb-3">{session.buildingName}</div>
+              <div className="text-base font-bold text-slate-800 dark:text-white mb-3">{session.buildingName.replace('Tòa nhà', 'Building')}</div>
 
-              <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                <span className="text-xs font-bold text-slate-500">Vehicle Type</span>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50 dark:border-white/5">
+                <span className="text-xs font-bold text-slate-500 dark:text-stone-400">Vehicle Type</span>
                 <span className="text-xs font-bold text-[#2B52FF] capitalize">{session.vehicleTypeName}</span>
               </div>
-              <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                <span className="text-xs font-bold text-slate-500">Check-in Method</span>
+              <div className="flex justify-between items-center py-2 border-b border-slate-50 dark:border-white/5">
+                <span className="text-xs font-bold text-slate-500 dark:text-stone-400">Check-in Method</span>
                 <span className="text-xs font-bold text-[#2B52FF]">
-                  {session.isPrepaid ? 'Khách Đặt Trước' : 'Khách Vãng Lai'}
+                  {session.isPrepaid ? 'Prepaid' : 'Walk-in'}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Surcharge Logs */}
-          {session.isPrepaid && dynamicFee > 0 && (
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex flex-col mb-4 transition-all hover:shadow-md">
-              <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Clock size={16} className="text-[#2B52FF]" />
-                Surcharge Logs
-              </h3>
+          <div className="bg-white dark:bg-[#18181B] rounded-3xl p-5 shadow-sm border border-slate-100 dark:border-white/10 flex flex-col mb-4 transition-all hover:shadow-md">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+              <Clock size={16} className="text-[#2B52FF]" />
+              Surcharge Logs
+            </h3>
 
-              <div className="space-y-4 max-h-[120px] overflow-y-auto pr-2">
+            {dynamicFee > 0 ? (
+              <div className="space-y-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
                 {session.surchargeLogs && session.surchargeLogs.length > 0 ? (
-                  session.surchargeLogs.map((log, index) => (
-                    <div key={index} className="flex justify-between items-start pb-3 border-b border-slate-50 border-dashed">
-                      <div>
-                        <div className="text-xs font-bold text-red-500 mb-1">{log.name}</div>
-                        <div className="text-[9px] text-slate-400 font-medium">
-                          {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                  session.surchargeLogs.map((log, index) => {
+                    const lowerName = log.name.toLowerCase();
+                    const isEarly = lowerName.includes('early') || lowerName.includes('đến sớm');
+                    const isOverdue = lowerName.includes('late') || lowerName.includes('overdue');
+                    
+                    let textColorClass = 'text-slate-700 dark:text-slate-300'; // Default for normal blocks
+                    if (isEarly) textColorClass = 'text-[#b45309] dark:text-orange-500';
+                    else if (isOverdue) textColorClass = 'text-[#ef4444]';
+
+                    return (
+                      <div key={index} className="flex justify-between items-start pb-3 border-b border-dashed border-[#e2e8f0] dark:border-white/10 last:border-0">
+                        <div>
+                          <div className={`text-xs font-bold mb-1 ${textColorClass}`}>{log.name}</div>
+                          <div className="text-[9px] text-slate-400 font-medium">
+                            {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                        </div>
+                        <div className="text-sm font-black text-slate-900 dark:text-white">
+                          + {log.amount.toLocaleString('vi-VN')} ₫
                         </div>
                       </div>
-                      <div className="text-xs font-black text-slate-800">
-                        + {log.amount.toLocaleString('vi-VN')} đ
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
-                  <div className="flex justify-between items-start pb-3 border-b border-slate-50 border-dashed">
+                  <div className="flex justify-between items-start pb-3 border-b border-dashed border-[#e2e8f0] dark:border-white/10 last:border-0">
                     <div>
-                      <div className="text-xs font-bold text-red-500 mb-1">Late Departure Surcharge</div>
+                      <div className="text-xs font-bold text-[#ef4444] mb-1">Fee Accumulation</div>
                       <div className="text-[9px] text-slate-400 font-medium">
                         {new Date().toLocaleDateString('vi-VN')} {new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
-                    <div className="text-xs font-black text-slate-800">
-                      + {dynamicFee.toLocaleString('vi-VN')} đ
+                    <div className="text-sm font-black text-slate-900 dark:text-white">
+                      + {dynamicFee.toLocaleString('vi-VN')} ₫
                     </div>
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="flex flex-col items-center justify-center py-4">
+                <span className="text-sm font-bold text-emerald-500 mb-1">No Surcharges Incurred</span>
+                <span className="text-[10px] text-slate-400 font-medium text-center">
+                  {session.isPrepaid ? 'You are parking within the valid schedule.' : 'You have not incurred any fees yet.'}
+                </span>
+              </div>
+            )}
+          </div>
 
           {/* Fee Policy & Notice */}
-          <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-100 flex flex-col mb-4 transition-all hover:shadow-md">
-            <h3 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
+          <div className="bg-white dark:bg-[#18181B] rounded-3xl p-5 shadow-sm border border-slate-100 dark:border-white/10 flex flex-col mb-4 transition-all hover:shadow-md">
+            <h3 className="text-xs font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
               <AlertTriangle size={16} className="text-orange-500" />
               Fee Policy & Notice
             </h3>
             <div className="space-y-1.5">
-              <p className="text-[10px] text-slate-600 leading-relaxed">
-                <span className="font-bold text-orange-600">Early Arrival:</span> Check-in is allowed up to 15 mins before booked time. Arriving earlier incurs surcharges.
+              <p className="text-[10px] text-slate-600 dark:text-stone-400 leading-relaxed">
+                <span className="font-bold text-orange-500">Early Arrival:</span> Check-in is allowed up to 15 mins before booked time. Arriving earlier incurs surcharges.
               </p>
-              <p className="text-[10px] text-slate-600 leading-relaxed">
-                <span className="font-bold text-orange-600">Late Departure:</span> Surcharges apply immediately if parked past the booked exit time.
+              <p className="text-[10px] text-slate-600 dark:text-stone-400 leading-relaxed">
+                <span className="font-bold text-orange-500">Late Departure:</span> Surcharges apply immediately if parked past the booked exit time.
               </p>
             </div>
           </div>
@@ -384,10 +401,10 @@ export default function LiveSessionPage() {
             )}
             <button
               onClick={handleReport}
-              className="w-full sm:flex-1 bg-white border-2 border-slate-100 hover:bg-slate-50 hover:border-slate-200 text-slate-600 font-bold py-4 rounded-2xl transition-all flex justify-center items-center gap-2 text-sm"
+              className="w-full sm:flex-1 bg-white dark:bg-[#18181B] border-2 border-slate-100 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 hover:border-slate-200 dark:hover:border-white/20 text-slate-600 dark:text-stone-300 font-bold py-4 rounded-2xl transition-all flex justify-center items-center gap-2 text-sm"
             >
               <Flag size={18} />
-              Báo Cáo Sự Cố
+              Report Issue
             </button>
           </div>
         </div>

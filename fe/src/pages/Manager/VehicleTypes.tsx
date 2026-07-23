@@ -48,13 +48,13 @@ async function apiFetch<T>(path: string, options?: RequestInit, token?: string):
 }
 
 const createVehicleType = (payload: { name: string; description?: string }, token: string) =>
-  apiFetch<VehicleTypeResponse>('/api/VehicleTypes', { method: 'POST', body: JSON.stringify(payload) }, token);
+  apiFetch<VehicleTypeResponse>('/api/VehicleTypes', { method: 'POST', body: JSON.stringify(payload) });
 
 const updateVehicleType = (id: string, payload: { name: string; description?: string }, token: string) =>
-  apiFetch<VehicleTypeResponse>(`/api/VehicleTypes/${id}`, { method: 'PUT', body: JSON.stringify(payload) }, token);
+  apiFetch<VehicleTypeResponse>(`/api/VehicleTypes/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
 
 const deleteVehicleType = (id: string, token: string) =>
-  apiFetch<void>(`/api/VehicleTypes/${id}`, { method: 'DELETE' }, token);
+  apiFetch<void>(`/api/VehicleTypes/${id}`, { method: 'DELETE' });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -189,7 +189,7 @@ export default function ManagerVehicleTypes() {
       const created = await createVehicleType({
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-      }, token);
+      });
       setVehicleTypes(prev => [...prev, {
         ...created,
         slotCounts: { Available: 0, Occupied: 0, Reserved: 0, Maintenance: 0, TemporaryHeld: 0 },
@@ -211,7 +211,7 @@ export default function ManagerVehicleTypes() {
       const updated = await updateVehicleType(selected.id, {
         name: form.name.trim(),
         description: form.description.trim() || undefined,
-      }, token);
+      });
       setVehicleTypes(prev => prev.map(vt => vt.id !== selected.id ? vt : {
         ...vt, name: updated.name, description: updated.description,
       }));
@@ -226,7 +226,7 @@ export default function ManagerVehicleTypes() {
     if (!selected || !token) return;
     setSubmitting(true);
     try {
-      await deleteVehicleType(selected.id, token);
+      await deleteVehicleType(selected.id);
       setVehicleTypes(prev => prev.filter(vt => vt.id !== selected.id));
       closeModal();
     } catch (e) {

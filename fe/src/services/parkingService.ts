@@ -1,10 +1,11 @@
+import { apiClient } from './apiClient';
+
 /**
  * parkingService.ts
  * Service mở rộng cho ParkingSlots — dùng cho Manager Portal
  * Bao gồm: CRUD slot, cập nhật trạng thái, thống kê theo tầng
  */
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
 // ─── Enums (khớp với backend ParkingEnums.cs) ─────────────────────────────────
 
@@ -83,56 +84,30 @@ export const SLOT_STATUS_FROM_ENUM: Record<number, SlotStatus> = {
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
-async function apiFetch<T>(path: string, options?: RequestInit, token?: string): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers ?? {}),
-    },
-  });
-
-  if (res.status === 204) return undefined as T;
-
-  const text = await res.text();
-  if (!text.trim()) {
-    if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
-  }
-
-  let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Phản hồi không hợp lệ.'); }
-
-  if (!res.ok) {
-    throw new Error((data as { message?: string }).message ?? `Yêu cầu thất bại (${res.status}).`);
-  }
-  return data as T;
-}
 
 // ─── ParkingSlots API ─────────────────────────────────────────────────────────
 
 /** Lấy tất cả slots */
 export const getAllSlots = (buildingId?: string): Promise<ParkingSlotDetail[]> => {
   const query = buildingId ? `?buildingId=${buildingId}` : '';
-  return apiFetch(`/api/parkingslots${query}`);
+  return apiClient(`/api/parkingslots${query}`);
 };
 
 /** Lấy slots theo tầng (thực tế - vật lý) */
 export const getSlotsByFloor = (floorId: string): Promise<ParkingSlotDetail[]> =>
-  apiFetch(`/api/parkingslots/floor/${floorId}`);
+  apiClient(`/api/parkingslots/floor/${floorId}`);
 
 /** Lấy slots theo tầng có tính toán đặt chỗ tương lai */
 export const getAvailableSlotsByFloor = (floorId: string, startTime: string, endTime: string): Promise<ParkingSlotDetail[]> =>
-  apiFetch(`/api/parkingslots/floor/${floorId}/availability?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}`);
+  apiClient(`/api/parkingslots/floor/${floorId}/availability?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}`);
 
 /** Lấy slots còn trống theo loại xe */
 export const getAvailableSlotsByVehicleType = (vehicleTypeId: string): Promise<ParkingSlotDetail[]> =>
-  apiFetch(`/api/parkingslots/available/${vehicleTypeId}`);
+  apiClient(`/api/parkingslots/available/${vehicleTypeId}`);
 
 /** Tạo slot mới */
-export const createSlot = (payload: CreateSlotRequest, token: string): Promise<ParkingSlotDetail> =>
-  apiFetch('/api/parkingslots', { method: 'POST', body: JSON.stringify(payload) }, token);
+export const createSlot = (payload: CreateSlotRequest): Promise<ParkingSlotDetail> =>
+  apiClient('/api/parkingslots', { method: 'POST', body: JSON.stringify(payload) });
 
 /** Cập nhật trạng thái slot (PATCH) — gửi integer vì backend dùng System.Text.Json mặc định */
 export const updateSlotStatus = (
@@ -140,19 +115,19 @@ export const updateSlotStatus = (
   status: SlotStatus,
   token: string,
 ): Promise<ParkingSlotDetail> =>
-  apiFetch(
+  apiClient(
     `/api/parkingslots/${slotId}/status`,
     { method: 'PATCH', body: JSON.stringify({ status: SLOT_STATUS_ENUM[status] }) },
     token,
   );
 
 /** Xoá slot */
-export const deleteSlot = (slotId: string, token: string): Promise<void> =>
-  apiFetch(`/api/parkingslots/${slotId}`, { method: 'DELETE' }, token);
+export const deleteSlot = (slotId: string): Promise<void> =>
+  apiClient(`/api/parkingslots/${slotId}`, { method: 'DELETE' });
 
 /** Gợi ý slot AI cho loại xe */
 export const getRecommendedSlots = (vehicleTypeId: string, top = 5): Promise<{
   totalRecommendations: number;
   slots: SlotRecommendation[];
 }> =>
-  apiFetch(`/api/checkin/recommend-slots/${vehicleTypeId}?top=${top}`);
+  apiClient(`/api/checkin/recommend-slots/${vehicleTypeId}?top=${top}`);

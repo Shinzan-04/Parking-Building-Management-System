@@ -1,184 +1,277 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Loader2, RefreshCw, AlertTriangle, Search, Building2 } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Loader2, RefreshCw, AlertTriangle, Search, Building2,
+  Car, Bike, Truck, CircleParking, Wrench, ChevronDown, ChevronUp,
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import {
   getFloorsByBuilding,
   getParkingSlotsByBuilding,
-  isSlotOccupied,
-  isSlotMaintenance,
 } from '../../services/buildingsService';
+import { getCurrentVehicle } from '../../services/buildingsService';
 import type { ParkingSlotSummary, FloorResponse } from '../../services/buildingsService';
+
+/* ─────────────────────────── helpers ─────────────────────────── */
 
 type SlotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
 
 function getStatusLabel(status: string | number): SlotStatus {
-  if (status === 'Available'    || status === 0) return 'Available';
-  if (status === 'Reserved'     || status === 2) return 'Reserved';
-  if (status === 'Occupied'     || status === 3) return 'Occupied';
-  if (status === 'Maintenance'  || status === 4) return 'Maintenance';
-  return 'Available'; // TemporaryHeld (1) fallback
+  if (status === 'Available'   || status === 0) return 'Available';
+  if (status === 'Reserved'    || status === 2) return 'Reserved';
+  if (status === 'Occupied'    || status === 3) return 'Occupied';
+  if (status === 'Maintenance' || status === 4) return 'Maintenance';
+  return 'Available';
 }
 
-const STATUS_COLORS: Record<SlotStatus, string> = {
-  Available:   'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-  Occupied:    'bg-blue-500/15 text-blue-400 border-blue-500/30',
-  Reserved:    'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30',
-  Maintenance: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
+// Màu nền + viền + text cho từng trạng thái (dark-mode friendly)
+const STATUS_STYLE: Record<SlotStatus, { bg: string; border: string; text: string; dot: string; cardText: string }> = {
+  Available:   { bg: 'rgba(16,185,129,0.18)',  border: 'rgba(16,185,129,0.55)', text: '#10b981', dot: '#10b981', cardText: '#0d1a14' },
+  Occupied:    { bg: 'rgba(239,68,68,0.18)',   border: 'rgba(239,68,68,0.55)',  text: '#f87171', dot: '#ef4444', cardText: '#1a0a0a' },
+  Reserved:    { bg: 'rgba(168,85,247,0.18)',  border: 'rgba(168,85,247,0.55)', text: '#c084fc', dot: '#a855f7', cardText: '#130d1a' },
+  Maintenance: { bg: 'rgba(100,116,139,0.22)', border: 'rgba(100,116,139,0.5)', text: '#94a3b8', dot: '#64748b', cardText: '#1a1a1a' },
 };
 
-const STATUS_VI: Record<SlotStatus, string> = {
-  Available:   'Available',
-  Occupied:    'Occupied',
-  Reserved:    'Reserved',
-  Maintenance: 'Maintenance',
+const STATUS_LABEL_VI: Record<SlotStatus, string> = {
+  Available:   'Trống',
+  Occupied:    'Có xe',
+  Reserved:    'Đã đặt',
+  Maintenance: 'Bảo trì',
 };
+
+// Icon loại xe nhỏ gọn
+function VehicleIcon({ name }: { name?: string }) {
+  const n = (name ?? '').toLowerCase();
+  if (n.includes('bike') || n.includes('motor') || n.includes('xe máy')) return <Bike size={10} />;
+  if (n.includes('truck') || n.includes('tải'))                           return <Truck size={10} />;
+  return <Car size={10} />;
+}
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
-import { getCurrentVehicle } from '../../services/buildingsService';
+/* ─────────────────────────── Tooltip ─────────────────────────── */
+interface TooltipProps { content: React.ReactNode; children: React.ReactElement }
 
-function SlotRow({ slot, floorName, token }: { slot: ParkingSlotSummary, floorName: string, token: string }) {
+function Tooltip({ content, children }: TooltipProps) {
+  const [visible, setVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  const show = () => {
+    if (ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.top - 8, left: r.left + r.width / 2 });
+    }
+    setVisible(true);
+  };
+
+  return (
+    <div ref={ref} onMouseEnter={show} onMouseLeave={() => setVisible(false)} style={{ position: 'relative', display: 'inline-block' }}>
+      {children}
+      {visible && (
+        <div
+          style={{
+            position: 'fixed',
+            top: pos.top,
+            left: pos.left,
+            transform: 'translate(-50%, -100%)',
+            zIndex: 9999,
+            background: '#1e2130',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 10,
+            padding: '10px 14px',
+            minWidth: 180,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            pointerEvents: 'none',
+          }}
+        >
+          {content}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────── SlotCard ─────────────────────────── */
+interface SlotCardProps {
+  slot: ParkingSlotSummary;
+  floorName: string;
+  token: string;
+}
+
+function SlotCard({ slot, floorName, token }: SlotCardProps) {
   const statusKey = getStatusLabel(slot.status);
+  const style = STATUS_STYLE[statusKey];
   const [licensePlate, setLicensePlate] = useState<string | null>(null);
-  const [loadingPlate, setLoadingPlate] = useState(false);
-  const [isOverdue, setIsOverdue] = useState(false);
+  const [isOverdue, setIsOverdue]       = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
     if (statusKey === 'Occupied' || statusKey === 'Reserved') {
-      setLoadingPlate(true);
-      getCurrentVehicle(slot.id, token)
+      getCurrentVehicle(slot.id)
         .then(res => {
-          if (isMounted && res) {
-            if (res.licensePlate) setLicensePlate(res.licensePlate);
-            if (res.status === 'Overdue') setIsOverdue(true);
-          }
+          if (!mounted || !res) return;
+          if (res.licensePlate) setLicensePlate(res.licensePlate);
+          if (res.status === 'Overdue') setIsOverdue(true);
         })
-        .catch(() => {})
-        .finally(() => {
-          if (isMounted) setLoadingPlate(false);
-        });
+        .catch(() => {});
     } else {
       setLicensePlate(null);
       setIsOverdue(false);
     }
-    return () => { isMounted = false; };
+    return () => { mounted = false; };
   }, [slot.id, statusKey, token]);
 
-  return (
-    <tr
-      className="border-b last:border-0 transition-colors hover:bg-white/[0.02]"
-      style={{ borderColor: 'var(--admin-border)' }}
-    >
-      <td className="px-6 py-3.5">
-        <span className="text-sm font-mono font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
-          {slot.slotNumber ?? slot.id.slice(0, 8)}
+  // Tooltip nội dung đầy đủ
+  const tooltipContent = (
+    <div style={{ fontSize: 12, lineHeight: 1.6 }}>
+      <div style={{ color: '#fff', fontWeight: 700, fontFamily: 'monospace', fontSize: 14, marginBottom: 6 }}>
+        {slot.slotNumber ?? slot.id.slice(0, 8)}
+      </div>
+      <div style={{ color: '#94a3b8' }}>
+        <span style={{ color: '#64748b' }}>Tầng: </span>
+        <span style={{ color: '#e2e8f0' }}>{floorName}</span>
+      </div>
+      <div style={{ color: '#94a3b8' }}>
+        <span style={{ color: '#64748b' }}>Loại xe: </span>
+        <span style={{ color: '#e2e8f0' }}>{slot.vehicleTypeName ?? '—'}</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+        <span
+          style={{
+            display: 'inline-block',
+            width: 8, height: 8, borderRadius: '50%',
+            background: style.dot,
+            flexShrink: 0,
+          }}
+        />
+        <span style={{ color: style.text, fontWeight: 600 }}>
+          {STATUS_LABEL_VI[statusKey]}
         </span>
-      </td>
-      <td className="px-4 py-3.5">
-        <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>{floorName}</span>
-      </td>
-      <td className="px-4 py-3.5">
-        <div className="flex flex-col">
-          <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>
-            {slot.vehicleTypeName ?? '—'}
+        {isOverdue && (
+          <span style={{ color: '#f87171', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>
+            · Overdue
           </span>
-          {loadingPlate ? (
-            <span className="text-xs text-[#FF4C4C] mt-1 flex items-center gap-1">
-              <Loader2 size={10} className="animate-spin" /> Loading...
-            </span>
-          ) : licensePlate ? (
-            <span className={`text-xs font-mono font-bold mt-1 px-2 py-0.5 rounded w-fit ${isOverdue ? 'bg-red-500/20 text-red-400' : 'bg-white/10'}`} style={isOverdue ? {} : { color: 'var(--admin-text-primary)' }}>
-              {licensePlate}
-            </span>
-          ) : (statusKey === 'Occupied' || statusKey === 'Reserved') ? (
-            <span className="text-xs font-mono mt-1 px-2 py-0.5 rounded bg-white/5 w-fit" style={{ color: 'var(--admin-text-muted)' }}>
-              Unknown
-            </span>
-          ) : null}
+        )}
+      </div>
+      {licensePlate && (
+        <div style={{ marginTop: 6, background: 'rgba(255,255,255,0.07)', borderRadius: 6, padding: '3px 8px', fontFamily: 'monospace', fontSize: 13, color: isOverdue ? '#f87171' : '#fff', display: 'inline-block' }}>
+          {licensePlate}
         </div>
-      </td>
-      <td className="px-4 py-3.5">
-        <div className="flex items-center gap-2">
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${STATUS_COLORS[statusKey]}`}>
-            {STATUS_VI[statusKey]}
+      )}
+    </div>
+  );
+
+  return (
+    <Tooltip content={tooltipContent}>
+      <div
+        style={{
+          width: 90,
+          minHeight: 72,
+          borderRadius: 10,
+          border: `1.5px solid ${isOverdue ? '#ef4444' : style.border}`,
+          background: isOverdue ? 'rgba(239,68,68,0.18)' : style.bg,
+          padding: '7px 8px 6px',
+          cursor: 'default',
+          transition: 'transform 0.15s, box-shadow 0.15s',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+          position: 'relative',
+          boxSizing: 'border-box',
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
+          (e.currentTarget as HTMLDivElement).style.boxShadow = `0 6px 20px ${style.dot}33`;
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLDivElement).style.transform = '';
+          (e.currentTarget as HTMLDivElement).style.boxShadow = '';
+        }}
+      >
+        {/* Header: vehicle icon + slot code */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ color: style.cardText, opacity: 0.85, display: 'flex' }}>
+            <VehicleIcon name={slot.vehicleTypeName} />
+          </span>
+          <span style={{
+            fontFamily: 'monospace',
+            fontWeight: 700,
+            fontSize: 11,
+            color: style.cardText,
+            letterSpacing: '0.02em',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            flex: 1,
+          }}>
+            {slot.slotNumber ?? slot.id.slice(0, 8)}
           </span>
           {isOverdue && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold bg-pink-500/20 text-pink-500 uppercase tracking-wider">
-              <AlertTriangle size={10} />
-              Overdue
-            </span>
+            <AlertTriangle size={9} style={{ color: '#f87171', flexShrink: 0 }} />
           )}
         </div>
-      </td>
-    </tr>
+
+        {/* Vehicle type (nhỏ) */}
+        <div style={{
+          fontSize: 9,
+          color: style.cardText,
+          opacity: 0.75,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {slot.vehicleTypeName ?? '—'}
+        </div>
+
+        {/* License plate or status dot */}
+        {licensePlate ? (
+          <div style={{
+            fontFamily: 'monospace',
+            fontSize: 9,
+            fontWeight: 700,
+            color: isOverdue ? '#b91c1c' : style.cardText,
+            background: 'rgba(0,0,0,0.08)',
+            borderRadius: 4,
+            padding: '1px 5px',
+            alignSelf: 'flex-start',
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {licensePlate}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+            <span style={{
+              display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+              background: style.dot, flexShrink: 0,
+            }} />
+            <span style={{ fontSize: 9, color: style.cardText, opacity: 0.85, fontWeight: 600 }}>
+              {STATUS_LABEL_VI[statusKey]}
+            </span>
+          </div>
+        )}
+      </div>
+    </Tooltip>
   );
 }
 
-export default function StaffSlotList() {
-  const { user, token } = useAuth();
-  const buildingId = user?.assignedBuildingId;
+/* ─────────────────────────── FloorSection ─────────────────────────── */
+interface FloorSectionProps {
+  floor: FloorResponse;
+  slots: ParkingSlotSummary[];
+  token: string;
+  filterStatus: string;
+  search: string;
+}
 
-  const [slots,         setSlots]         = useState<ParkingSlotSummary[]>([]);
-  const [floors,        setFloors]        = useState<FloorResponse[]>([]);
-  const [buildingName,  setBuildingName]  = useState('');
-  const [loading,       setLoading]       = useState(true);
-  const [refreshing,    setRefreshing]    = useState(false);
-  const [apiError,      setApiError]      = useState('');
-  const [search,        setSearch]        = useState('');
-  const [filterFloor,   setFilterFloor]   = useState('');
-  const [filterStatus,  setFilterStatus]  = useState('');
-
-  const loadData = useCallback(async (silent = false) => {
-    if (!buildingId) { setLoading(false); return; }
-    if (!silent) setLoading(true);
-    else setRefreshing(true);
-    setApiError('');
-
-    try {
-      const [slotsData, floorsData, buildingRes] = await Promise.all([
-        getParkingSlotsByBuilding(buildingId),
-        getFloorsByBuilding(buildingId),
-        fetch(`${BASE_URL}/api/buildings/${buildingId}`),
-      ]);
-
-      setSlots(slotsData);
-      setFloors(floorsData);
-
-      if (buildingRes.ok) {
-        const b = await buildingRes.json();
-        setBuildingName(b.name ?? '');
-      }
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Unable to load data.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [buildingId]);
-
-  useEffect(() => { loadData(); }, [loadData]);
-
-  // Lắng nghe sự kiện Realtime (SignalR) được phát từ useNotification
-  useEffect(() => {
-    const handleUpdate = () => {
-      // Refresh ngầm
-      loadData(true);
-    };
-
-    window.addEventListener('dashboardUpdate', handleUpdate);
-    window.addEventListener('slotUpdate', handleUpdate);
-
-    return () => {
-      window.removeEventListener('dashboardUpdate', handleUpdate);
-      window.removeEventListener('slotUpdate', handleUpdate);
-    };
-  }, [loadData]);
+function FloorSection({ floor, slots, token, filterStatus, search }: FloorSectionProps) {
+  const [collapsed, setCollapsed] = useState(false);
 
   const filtered = slots.filter(s => {
-    const statusStr = getStatusLabel(s.status);
-    if (filterFloor  && s.floorId !== filterFloor)  return false;
-    if (filterStatus && statusStr !== filterStatus)  return false;
+    const st = getStatusLabel(s.status);
+    if (filterStatus && st !== filterStatus) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!(s.slotNumber ?? '').toLowerCase().includes(q) &&
@@ -194,157 +287,337 @@ export default function StaffSlotList() {
     maintenance: slots.filter(s => getStatusLabel(s.status) === 'Maintenance').length,
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm" style={{ color: 'var(--admin-text-faint)' }}>Loading slots...</p>
-      </div>
-    );
-  }
+  return (
+    <div
+      style={{
+        background: 'var(--admin-bg-card)',
+        border: '1px solid var(--admin-border)',
+        borderRadius: 16,
+        overflow: 'hidden',
+      }}
+    >
+      {/* Floor header */}
+      <button
+        onClick={() => setCollapsed(c => !c)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '14px 20px',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          borderBottom: collapsed ? 'none' : '1px solid var(--admin-border)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 34, height: 34, borderRadius: 10,
+            background: 'rgba(255,76,76,0.12)',
+          }}>
+            <CircleParking size={17} style={{ color: '#FF4C4C' }} />
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ color: 'var(--admin-text-primary)', fontWeight: 700, fontSize: 15 }}>
+              {floor.name}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+              <span style={{ fontSize: 11, color: STATUS_STYLE.Available.text }}>
+                ● {counts.available} trống
+              </span>
+              <span style={{ fontSize: 11, color: STATUS_STYLE.Occupied.text }}>
+                ● {counts.occupied} có xe
+              </span>
+              {counts.reserved > 0 && (
+                <span style={{ fontSize: 11, color: STATUS_STYLE.Reserved.text }}>
+                  ● {counts.reserved} đặt
+                </span>
+              )}
+              {counts.maintenance > 0 && (
+                <span style={{ fontSize: 11, color: STATUS_STYLE.Maintenance.text }}>
+                  <Wrench size={9} style={{ display: 'inline', marginRight: 2 }} />
+                  {counts.maintenance} bảo trì
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+            background: 'rgba(255,255,255,0.06)', color: 'var(--admin-text-muted)',
+          }}>
+            {slots.length} ô
+          </span>
+          {collapsed
+            ? <ChevronDown size={16} style={{ color: 'var(--admin-text-faint)' }} />
+            : <ChevronUp   size={16} style={{ color: 'var(--admin-text-faint)' }} />
+          }
+        </div>
+      </button>
 
-  if (!buildingId) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Building2 size={36} style={{ color: 'var(--admin-text-faint)' }} />
-        <p className="text-sm font-medium" style={{ color: 'var(--admin-text-muted)' }}>
-          Account is not assigned to a building. Please contact your Manager.
-        </p>
-      </div>
-    );
-  }
+      {/* Slot grid */}
+      {!collapsed && (
+        <div style={{ padding: '16px 20px 20px' }}>
+          {filtered.length === 0 ? (
+            <p style={{ color: 'var(--admin-text-faint)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
+              Không tìm thấy ô phù hợp
+            </p>
+          ) : (
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 10,
+            }}>
+              {filtered.map(slot => (
+                <SlotCard key={slot.id} slot={slot} floorName={floor.name} token={token} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────────────── Main Page ─────────────────────────── */
+export default function StaffSlotList() {
+  const { user, token } = useAuth();
+  const buildingId = user?.assignedBuildingId;
+
+  const [slots,        setSlots]        = useState<ParkingSlotSummary[]>([]);
+  const [floors,       setFloors]       = useState<FloorResponse[]>([]);
+  const [buildingName, setBuildingName] = useState('');
+  const [loading,      setLoading]      = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
+  const [apiError,     setApiError]     = useState('');
+  const [search,       setSearch]       = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
+  const loadData = useCallback(async (silent = false) => {
+    if (!buildingId) { setLoading(false); return; }
+    if (!silent) setLoading(true);
+    else setRefreshing(true);
+    setApiError('');
+
+    try {
+      const [slotsData, floorsData, buildingRes] = await Promise.all([
+        getParkingSlotsByBuilding(buildingId),
+        getFloorsByBuilding(buildingId),
+        fetch(`${BASE_URL}/api/buildings/${buildingId}`),
+      ]);
+      setSlots(slotsData);
+      setFloors(floorsData);
+      if (buildingRes.ok) {
+        const b = await buildingRes.json();
+        setBuildingName(b.name ?? '');
+      }
+    } catch (err) {
+      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [buildingId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Lắng nghe realtime (SignalR)
+  useEffect(() => {
+    const handle = () => loadData(true);
+    window.addEventListener('dashboardUpdate', handle);
+    window.addEventListener('slotUpdate', handle);
+    return () => {
+      window.removeEventListener('dashboardUpdate', handle);
+      window.removeEventListener('slotUpdate', handle);
+    };
+  }, [loadData]);
+
+  // Tổng thống kê toàn bộ
+  const totals = {
+    available:   slots.filter(s => getStatusLabel(s.status) === 'Available').length,
+    occupied:    slots.filter(s => getStatusLabel(s.status) === 'Occupied').length,
+    reserved:    slots.filter(s => getStatusLabel(s.status) === 'Reserved').length,
+    maintenance: slots.filter(s => getStatusLabel(s.status) === 'Maintenance').length,
+  };
+
+  // Sắp xếp tầng theo floorIndex
+  const sortedFloors = [...floors].sort((a, b) => a.floorIndex - b.floorIndex);
+
+  /* ── Loading ── */
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 240, gap: 12 }}>
+      <Loader2 size={28} style={{ color: '#FF4C4C', animation: 'spin 1s linear infinite' }} />
+      <p style={{ color: 'var(--admin-text-faint)', fontSize: 13 }}>Đang tải sơ đồ bãi xe...</p>
+    </div>
+  );
+
+  if (!buildingId) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 240, gap: 12 }}>
+      <Building2 size={36} style={{ color: 'var(--admin-text-faint)' }} />
+      <p style={{ color: 'var(--admin-text-muted)', fontSize: 13, fontWeight: 500 }}>
+        Tài khoản chưa được phân công tòa nhà. Liên hệ quản lý.
+      </p>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      {/* ── Header ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-2xl font-bold" style={{ color: 'var(--admin-text-primary)' }}>
-              Parking Slots
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--admin-text-primary)' }}>
+              Sơ đồ bãi xe
             </h2>
             {buildingName && (
-              <span className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-[#FF4C4C]/10 text-[#FF4C4C]">
-                <Building2 size={12} />
-                {buildingName}
+              <span style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
+                background: 'rgba(255,76,76,0.12)', color: '#FF4C4C',
+              }}>
+                <Building2 size={11} /> {buildingName}
               </span>
             )}
           </div>
-          <p className="text-sm" style={{ color: 'var(--admin-text-faint)' }}>
-            Total {slots.length} slots
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--admin-text-faint)' }}>
+            {slots.length} ô • {floors.length} tầng
           </p>
         </div>
         <button
           onClick={() => loadData(true)}
           disabled={refreshing}
-          className="p-2.5 rounded-xl transition-colors"
-          style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
+          style={{
+            padding: '8px 10px', borderRadius: 10, border: '1px solid var(--admin-border)',
+            background: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center',
+          }}
+          title="Làm mới"
         >
-          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+          <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
         </button>
       </div>
 
+      {/* ── Error ── */}
       {apiError && (
-        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-400/10 border border-red-400/20">
-          <AlertTriangle size={15} className="text-red-400 shrink-0" />
-          <p className="text-sm text-red-400">{apiError}</p>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+          borderRadius: 12, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
+        }}>
+          <AlertTriangle size={14} style={{ color: '#f87171', flexShrink: 0 }} />
+          <p style={{ margin: 0, fontSize: 13, color: '#f87171' }}>{apiError}</p>
         </div>
       )}
 
-      {/* Summary chips */}
-      <div className="flex flex-wrap gap-3">
-        {([
-          { key: '',            label: `All (${slots.length})` },
-          { key: 'Available',   label: `Available (${counts.available})` },
-          { key: 'Occupied',    label: `Occupied (${counts.occupied})` },
-          { key: 'Reserved',    label: `Reserved (${counts.reserved})` },
-          { key: 'Maintenance', label: `Maintenance (${counts.maintenance})` },
-        ] as { key: string; label: string }[]).map(({ key, label }) => (
-          <button
-            key={key}
-            onClick={() => setFilterStatus(key)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
-              filterStatus === key
-                ? 'bg-[#FF4C4C]/10 text-[#FF4C4C] border-[#FF4C4C]/30'
-                : 'border-transparent hover:border-white/10'
-            }`}
-            style={filterStatus === key ? {} : { backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* ── Summary Bar + Filter Status chips ── */}
+      <div style={{
+        background: 'var(--admin-bg-card)',
+        border: '1px solid var(--admin-border)',
+        borderRadius: 14,
+        padding: '14px 18px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 12,
+      }}>
+        {/* Legend tổng quan */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          {(
+            [
+              { key: 'Available',   label: 'Trống',   count: totals.available,   color: STATUS_STYLE.Available.dot },
+              { key: 'Occupied',    label: 'Có xe',   count: totals.occupied,    color: STATUS_STYLE.Occupied.dot },
+              { key: 'Reserved',    label: 'Đặt trước', count: totals.reserved,  color: STATUS_STYLE.Reserved.dot },
+              { key: 'Maintenance', label: 'Bảo trì', count: totals.maintenance, color: STATUS_STYLE.Maintenance.dot },
+            ] as { key: string; label: string; count: number; color: string }[]
+          ).map(({ key, label, count, color }) => (
+            <button
+              key={key}
+              onClick={() => setFilterStatus(f => f === key ? '' : key)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                background: filterStatus === key ? `${color}22` : 'transparent',
+                border: filterStatus === key ? `1.5px solid ${color}55` : '1.5px solid transparent',
+                borderRadius: 20, padding: '4px 12px 4px 8px',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: filterStatus === key ? color : 'var(--admin-text-muted)' }}>
+                {label}
+              </span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, minWidth: 22, textAlign: 'center',
+                background: filterStatus === key ? `${color}33` : 'rgba(255,255,255,0.07)',
+                color: filterStatus === key ? color : 'var(--admin-text-faint)',
+                padding: '0 6px', borderRadius: 10,
+              }}>
+                {count}
+              </span>
+            </button>
+          ))}
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[180px]">
-          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--admin-text-faint)' }} />
+          {filterStatus && (
+            <button
+              onClick={() => setFilterStatus('')}
+              style={{
+                fontSize: 11, color: 'var(--admin-text-faint)', background: 'transparent',
+                border: 'none', cursor: 'pointer', textDecoration: 'underline',
+              }}
+            >
+              Bỏ lọc
+            </button>
+          )}
+        </div>
+
+        {/* Search */}
+        <div style={{ position: 'relative', minWidth: 200 }}>
+          <Search size={13} style={{
+            position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)',
+            color: 'var(--admin-text-faint)',
+          }} />
           <input
             type="text"
-            placeholder="Search by slot number, vehicle type..."
+            placeholder="Tìm ô slot, biển số..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm border outline-none transition-colors"
             style={{
-              backgroundColor: 'var(--admin-bg-card)',
-              color: 'var(--admin-text-primary)',
-              borderColor: 'var(--admin-border)',
+              width: '100%', paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8,
+              borderRadius: 10, fontSize: 12, border: '1px solid var(--admin-border)',
+              background: 'var(--admin-bg-base)', color: 'var(--admin-text-primary)',
+              outline: 'none', boxSizing: 'border-box',
             }}
           />
         </div>
-
-        <select
-          value={filterFloor}
-          onChange={e => setFilterFloor(e.target.value)}
-          className="px-4 py-2.5 rounded-xl text-sm border outline-none"
-          style={{
-            backgroundColor: 'var(--admin-bg-card)',
-            color: 'var(--admin-text-primary)',
-            borderColor: 'var(--admin-border)',
-          }}
-        >
-          <option value="">All floors</option>
-          {floors.map(f => (
-            <option key={f.id} value={f.id}>{f.name}</option>
-          ))}
-        </select>
       </div>
 
-      {/* Table */}
-      <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b" style={{ borderColor: 'var(--admin-border)' }}>
-                {['Slot', 'Floor', 'Vehicle Type', 'Status'].map(h => (
-                  <th key={h} className="text-left text-xs font-medium px-4 py-3 first:pl-6" style={{ color: 'var(--admin-text-faint)' }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={4} className="text-center py-12 text-sm" style={{ color: 'var(--admin-text-faint)' }}>
-                    No matching slots found
-                  </td>
-                </tr>
-              ) : filtered.map(slot => (
-                <SlotRow 
-                  key={slot.id} 
-                  slot={slot} 
-                  floorName={floors.find(f => f.id === slot.floorId)?.name ?? slot.floorId} 
-                  token={token ?? ''} 
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="px-6 py-3 border-t text-xs" style={{ borderColor: 'var(--admin-border)', color: 'var(--admin-text-faint)' }}>
-          Showing {filtered.length} / {slots.length} slots
-        </div>
+      {/* ── Floor sections ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {sortedFloors.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--admin-text-faint)', fontSize: 13 }}>
+            Chưa có tầng nào được cấu hình.
+          </div>
+        ) : sortedFloors.map(floor => {
+          const floorSlots = slots.filter(s => s.floorId === floor.id);
+          return (
+            <FloorSection
+              key={floor.id}
+              floor={floor}
+              slots={floorSlots}
+              token={token ?? ''}
+              filterStatus={filterStatus}
+              search={search}
+            />
+          );
+        })}
+      </div>
+
+      {/* ── Footer ── */}
+      <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--admin-text-faint)', paddingBottom: 8 }}>
+        Hover vào ô để xem chi tiết đầy đủ · Nhấn vào nhãn để lọc theo trạng thái
       </div>
     </div>
   );

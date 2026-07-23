@@ -1,39 +1,6 @@
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
+import { apiClient } from './apiClient';
 
-async function authFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...(options?.headers ?? {}),
-    },
-  });
 
-  if (res.status === 204) return undefined as T;
-
-  const text = await res.text();
-  if (!text.trim()) {
-    if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
-  }
-
-  let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Phản hồi từ máy chủ không hợp lệ.'); }
-
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('sp_token');
-      localStorage.removeItem('sp_user');
-      window.location.replace('/auth');
-    }
-    const body = data as Record<string, unknown>;
-    // Backend có thể trả PascalCase hoặc camelCase
-    const msg = (body.message ?? body.Message) as string | undefined;
-    throw new Error(msg ?? `Yêu cầu thất bại (${res.status}).`);
-  }
-  return data as T;
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,14 +81,14 @@ function normalizeBank(b: Record<string, unknown>): BankAccount {
 
 // ─── API calls ────────────────────────────────────────────────────────────────
 
-export const getWallet = async (token: string): Promise<WalletInfo> => {
-  const raw = await authFetch<Record<string, unknown>>('/api/wallets/me', token);
+export const getWallet = async (): Promise<WalletInfo> => {
+  const raw = await authFetch<Record<string, unknown>>('/api/wallets/me');
   const balance = (raw.balance ?? raw.Balance ?? 0) as number;
   const rawTxs = ((raw.transactions ?? raw.Transactions ?? []) as Record<string, unknown>[]);
   return { balance, transactions: rawTxs.map(normalizeTx) };
 };
 
-export const depositWallet = async (payload: DepositRequest, token: string): Promise<DepositResponse> => {
+export const depositWallet = async (payload: DepositRequest): Promise<DepositResponse> => {
   const raw = await authFetch<Record<string, unknown>>('/api/wallets/deposit', token, { method: 'POST', body: JSON.stringify(payload) });
   return {
     checkoutUrl: (raw.checkoutUrl ?? raw.CheckoutUrl ?? '') as string,
@@ -130,19 +97,19 @@ export const depositWallet = async (payload: DepositRequest, token: string): Pro
   };
 };
 
-export const withdrawWallet = (payload: WithdrawRequest, token: string): Promise<WithdrawResponse> =>
-  authFetch('/api/wallets/withdraw', token, { method: 'POST', body: JSON.stringify(payload) });
+export const withdrawWallet = (payload: WithdrawRequest): Promise<WithdrawResponse> =>
+  apiClient('/api/wallets/withdraw', { method: 'POST', body: JSON.stringify(payload) });
 
-export const getBankAccounts = async (token: string): Promise<BankAccount[]> => {
-  const raw = await authFetch<Record<string, unknown>[]>('/api/wallets/bank-accounts', token);
+export const getBankAccounts = async (): Promise<BankAccount[]> => {
+  const raw = await authFetch<Record<string, unknown>[]>('/api/wallets/bank-accounts');
   return (raw ?? []).map(normalizeBank);
 };
 
-export const createBankAccount = (payload: CreateBankAccountRequest, token: string): Promise<BankAccount> =>
-  authFetch('/api/wallets/bank-account', token, { method: 'POST', body: JSON.stringify(payload) });
+export const createBankAccount = (payload: CreateBankAccountRequest): Promise<BankAccount> =>
+  apiClient('/api/wallets/bank-account', { method: 'POST', body: JSON.stringify(payload) });
 
-export const deleteBankAccount = (id: string, token: string): Promise<void> =>
-  authFetch(`/api/wallets/bank-account/${id}`, token, { method: 'DELETE' });
+export const deleteBankAccount = (id: string): Promise<void> =>
+  apiClient(`/api/wallets/bank-account/${id}`, { method: 'DELETE' });
 
-export const setDefaultBankAccount = (id: string, token: string): Promise<void> =>
-  authFetch(`/api/wallets/bank-account/${id}/set-default`, token, { method: 'PUT' });
+export const setDefaultBankAccount = (id: string): Promise<void> =>
+  apiClient(`/api/wallets/bank-account/${id}/set-default`, { method: 'PUT' });

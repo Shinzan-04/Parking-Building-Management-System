@@ -37,7 +37,7 @@ public class CheckOutController : ControllerBase
         }
         if (string.IsNullOrWhiteSpace(licensePlate))
         {
-            return BadRequest(new { message = "Biển số xe không được để trống." });
+            return BadRequest(new { message = "License plate cannot be empty." });
         }
 
         try

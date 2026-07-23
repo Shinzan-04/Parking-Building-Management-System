@@ -11,10 +11,14 @@ export default function DevPanel({ onActionSuccess }: DevPanelProps = {}) {
   const { token } = useAuth();
   const [isDevMenuOpen, setIsDevMenuOpen] = useState(false);
 
+  if (!import.meta.env.DEV) {
+    return null;
+  }
+
   const handleDevFastForward = async (minutes: number) => {
     if (!token) return;
     try {
-      await devFastForwardTime(minutes, token);
+      await devFastForwardTime(minutes);
       if (onActionSuccess) onActionSuccess();
       else window.location.reload();
     } catch (err: any) {
@@ -34,7 +38,7 @@ export default function DevPanel({ onActionSuccess }: DevPanelProps = {}) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-4">
+    <div className="fixed bottom-6 left-6 z-50 flex flex-col items-start gap-4">
       {isDevMenuOpen && (
         <div className="w-[340px] bg-[#171923] rounded-2xl shadow-2xl border border-slate-700/50 overflow-hidden font-sans text-white mb-2">
           <div className="flex items-center justify-between px-4 py-3 bg-[#8b5cf6]">

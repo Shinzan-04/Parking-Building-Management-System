@@ -112,12 +112,13 @@ public class SessionService : ISessionService
         var totalCount = await query.CountAsync();
 
         // Sắp xếp: xe vào sớm nhất lên đầu (đang gửi lâu nhất)
-        var items = await query
+        var dbItems = await query
             .OrderByDescending(s => s.EntryTime)
             .Skip((filter.Page - 1) * filter.PageSize)
             .Take(filter.PageSize)
-            .Select(s => MapToDto(s))
             .ToListAsync();
+
+        var items = dbItems.Select(s => MapToDto(s)).ToList();
 
         // Thống kê nhanh
         var now = DateTime.UtcNow;
@@ -288,10 +289,12 @@ public class SessionService : ISessionService
 
         // Tái sử dụng logic tính phí chính xác (Block Day/Night) từ CheckOutService
         decimal currentFee = 0;
+        List<ParkingSystem.Application.DTOs.CheckOut.SurchargeLogItemDto>? surchargeLogs = null;
         try
         {
             var feeResult = await _checkOutService.CalculateFeeBySessionIdAsync(session.Id);
             currentFee = feeResult.EstimatedFee;
+            surchargeLogs = feeResult.FeeBreakdown?.SurchargeLogs;
         }
         catch
         {
@@ -318,7 +321,8 @@ public class SessionService : ISessionService
             PrePaidAmount = session.PrePaidAmount,
             IsPrepaid = isPrepaid,
             PrepaidStartTime = prepaidStartTime,
-            PrepaidEndTime = prepaidEndTime
+            PrepaidEndTime = prepaidEndTime,
+            SurchargeLogs = surchargeLogs
         };
     }
 
@@ -464,7 +468,7 @@ public class SessionService : ISessionService
         // Bắn Notification báo thành công và thời hạn 15 phút
         await _notificationService.SendAsync(
             driverId,
-            "✅ Thanh toán trước thành công",
+            "✅ Prepaid Successfully",
             $"Bạn đã thanh toán {amountDue:N0} VND. Bạn có 15 phút ân hạn (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}) để đưa xe ra khỏi bãi mà không phát sinh thêm phí.",
             "PrePaySuccess",
             sessionId);

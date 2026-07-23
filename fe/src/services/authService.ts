@@ -45,34 +45,13 @@ export interface ApiError {
   message: string;
 }
 
-// ─── Config ─────────────────────────────────────────────────────────────────
-
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-async function post<TBody, TResponse>(path: string, body: TBody): Promise<TResponse> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    // BE trả về { message: "..." } khi lỗi
-    throw new Error((data as ApiError).message ?? 'Đã xảy ra lỗi, vui lòng thử lại.');
-  }
-
-  return data as TResponse;
-}
+import { apiClient } from './apiClient';
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
 
 /** Đăng nhập bằng username + password */
 export async function loginApi(payload: LoginRequest): Promise<AuthResponse> {
-  return post<LoginRequest, AuthResponse>('/api/auth/login', payload);
+  return apiClient<AuthResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 /**
@@ -80,19 +59,19 @@ export async function loginApi(payload: LoginRequest): Promise<AuthResponse> {
  * Flow đăng ký thật: sendOtpApi() → verifyRegisterApi()
  */
 export async function registerApi(payload: RegisterRequest): Promise<RegisterResponse> {
-  return post<RegisterRequest, RegisterResponse>('/api/auth/register', payload);
+  return apiClient<RegisterResponse>('/api/auth/register', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 /** Đăng nhập / đăng ký bằng Google ID Token */
 export async function googleLoginApi(idToken: string): Promise<AuthResponse> {
-  return post<GoogleLoginRequest, AuthResponse>('/api/auth/google-login', { idToken });
+  return apiClient<AuthResponse>('/api/auth/google-login', { method: 'POST', body: JSON.stringify({ idToken }) });
 }
 
 // ─── OTP API ─────────────────────────────────────────────────────────────────
 
 export interface SendOtpRequest {
   email: string;
-  /** "Register" hoặc "ForgotPassword" */
+  /** "Register" | "ForgotPassword" | "ChangePassword" */
   purpose: string;
 }
 
@@ -111,12 +90,17 @@ export interface ResetPasswordRequest {
   newPassword: string;
 }
 
+export interface ChangePasswordRequest {
+  otpCode: string;
+  newPassword: string;
+}
+
 /**
  * Gửi mã OTP về email.
  * Purpose: "Register" | "ForgotPassword"
  */
 export async function sendOtpApi(payload: SendOtpRequest): Promise<{ message: string }> {
-  return post<SendOtpRequest, { message: string }>('/api/auth/send-otp', payload);
+  return apiClient<{ message: string }>('/api/auth/send-otp', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 /**
@@ -124,14 +108,21 @@ export async function sendOtpApi(payload: SendOtpRequest): Promise<{ message: st
  * Backend sẽ tạo user và trả về AuthResponse nếu thành công.
  */
 export async function verifyRegisterApi(payload: VerifyRegisterRequest): Promise<RegisterResponse> {
-  return post<VerifyRegisterRequest, RegisterResponse>('/api/auth/verify-register', payload);
+  return apiClient<RegisterResponse>('/api/auth/verify-register', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 /**
  * Đặt lại mật khẩu bằng OTP (quên mật khẩu).
  */
 export async function resetPasswordApi(payload: ResetPasswordRequest): Promise<{ message: string }> {
-  return post<ResetPasswordRequest, { message: string }>('/api/auth/reset-password', payload);
+  return apiClient<{ message: string }>('/api/auth/reset-password', { method: 'POST', body: JSON.stringify(payload) });
+}
+
+/**
+ * Đổi mật khẩu (dành cho user đã đăng nhập). Cần gửi OTP với purpose "ChangePassword" trước.
+ */
+export async function changePasswordApi(payload: ChangePasswordRequest): Promise<{ message: string }> {
+  return apiClient<{ message: string }>('/api/auth/change-password', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 export interface LogoutRequest {
@@ -142,7 +133,7 @@ export interface LogoutRequest {
  * Đăng xuất khỏi hệ thống và vô hiệu hóa Refresh Token ở backend.
  */
 export async function logoutApi(payload: LogoutRequest): Promise<{ message: string }> {
-  return post<LogoutRequest, { message: string }>('/api/auth/logout', payload);
+  return apiClient<{ message: string }>('/api/auth/logout', { method: 'POST', body: JSON.stringify(payload) });
 }
 
 export interface UpdateProfileRequest {
@@ -166,37 +157,16 @@ export interface ProfileResponse {
 /**
  * Lấy thông tin profile từ JWT token hiện tại
  */
-export async function getProfileApi(token: string): Promise<ProfileResponse> {
-  const res = await fetch(`${BASE_URL}/api/auth/me`, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message ?? 'Không thể tải thông tin cá nhân.');
-  }
-  return data as ProfileResponse;
+export async function getProfileApi(): Promise<ProfileResponse> {
+  return apiClient<ProfileResponse>('/api/auth/me', { method: 'GET' });
 }
 
 /**
  * Cập nhật thông tin profile
  */
-export async function updateProfileApi(payload: UpdateProfileRequest, token: string): Promise<ProfileResponse> {
-  const res = await fetch(`${BASE_URL}/api/auth/profile`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    },
-    body: JSON.stringify(payload)
-  });
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message ?? 'Cập nhật thông tin thất bại.');
-  }
-  return data as ProfileResponse;
+export async function updateProfileApi(payload: UpdateProfileRequest): Promise<ProfileResponse> {
+  return apiClient<ProfileResponse>('/api/auth/profile', { method: 'PUT', body: JSON.stringify(payload) });
 }
+
 
 

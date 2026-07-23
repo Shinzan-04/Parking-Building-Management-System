@@ -256,11 +256,11 @@ public class CheckOutService : ICheckOutService
                 var walletTx = new ParkingSystem.Domain.Entities.WalletTransaction
                 {
                     Id = Guid.NewGuid(),
-                    UserId = session.DriverId.Value,
+                    UserId = session.Driver.Id,
                     Amount = -amountDue,
                     Type = "AutoPay",
                     Status = "Success",
-                    Description = $"Tự động thanh toán phí đỗ xe (Session: {session.SessionCode})",
+                    Description = $"Auto payment for parking fee (Session: {session.SessionCode})",
                     ReferenceId = session.Id.ToString(),
                     CreatedAt = exitTime
                 };
@@ -287,9 +287,9 @@ public class CheckOutService : ICheckOutService
                 if (_notificationService != null)
                 {
                     await _notificationService.SendAsync(
-                        session.DriverId.Value,
-                        "🚗 Tự động thanh toán qua cổng",
-                        $"Hệ thống đã tự động trừ {autoPayment.Amount:N0} VND từ Ví của bạn để thanh toán phí đỗ xe.",
+                        session.Driver.Id,
+                        "🚗 Auto Payment at Gate",
+                        $"The system has automatically deducted {autoPayment.Amount:N0} VND from your Wallet to pay the parking fee.",
                         "AutoPaySuccess",
                         session.Id);
                 }
@@ -823,6 +823,8 @@ public class CheckOutService : ICheckOutService
         int dayBlockCount = 0;
         int nightBlockCount = 0;
 
+        var surchargeLogs = new List<SurchargeLogItemDto>();
+
         // Vòng lặp duyệt qua từng block
         var currentMilli = entryTime;
         var blockTimeSpan = TimeSpan.FromHours(pricingPolicy.BlockDurationHours > 0 ? pricingPolicy.BlockDurationHours : 4);
@@ -842,11 +844,23 @@ public class CheckOutService : ICheckOutService
             {
                 totalFee += pricingPolicy.NightBlockRate;
                 nightBlockCount++;
+                surchargeLogs.Add(new SurchargeLogItemDto
+                {
+                    Name = isOverdue ? "Overdue Night Block" : "Night Block",
+                    Timestamp = currentMilli,
+                    Amount = pricingPolicy.NightBlockRate
+                });
             }
             else
             {
                 totalFee += pricingPolicy.DayBlockRate;
                 dayBlockCount++;
+                surchargeLogs.Add(new SurchargeLogItemDto
+                {
+                    Name = isOverdue ? "Overdue Day Block" : "Day Block",
+                    Timestamp = currentMilli,
+                    Amount = pricingPolicy.DayBlockRate
+                });
             }
 
             currentMilli = currentMilli.Add(blockTimeSpan);
@@ -854,22 +868,55 @@ public class CheckOutService : ICheckOutService
 
         // Kiểm tra trần theo ngày (Daily Rate)
         int durationDays = (int)Math.Floor(totalHours / 24.0);
+        bool capped = false;
+        decimal capAmount = 0;
+
         if (pricingPolicy.DailyRate > 0)
         {
             if (durationDays > 0)
             {
                 decimal capFee = (durationDays + 1) * pricingPolicy.DailyRate;
-                if (totalFee > capFee) totalFee = capFee;
+                if (totalFee > capFee)
+                {
+                    totalFee = capFee;
+                    capped = true;
+                    capAmount = capFee;
+                }
             }
             else if (totalFee > pricingPolicy.DailyRate)
             {
                 totalFee = pricingPolicy.DailyRate;
+                capped = true;
+                capAmount = pricingPolicy.DailyRate;
+            }
+
+            if (capped)
+            {
+                surchargeLogs.Clear();
+                surchargeLogs.Add(new SurchargeLogItemDto
+                {
+                    Name = "Daily Max Cap Reached",
+                    Timestamp = entryTime,
+                    Amount = capAmount
+                });
             }
         }
 
         if (isOverdue && pricingPolicy.OvertimeMultiplier > 0)
         {
             totalFee *= pricingPolicy.OvertimeMultiplier;
+            
+            if (surchargeLogs.Any() && !capped)
+            {
+                foreach (var log in surchargeLogs)
+                {
+                    log.Amount *= pricingPolicy.OvertimeMultiplier;
+                }
+            }
+            else if (capped && surchargeLogs.Any())
+            {
+                surchargeLogs[0].Amount *= pricingPolicy.OvertimeMultiplier;
+            }
         }
 
         return new PriceCalculationResult
@@ -885,7 +932,8 @@ public class CheckOutService : ICheckOutService
                 NightPassCount = nightBlockCount,
                 DayPassTotal = dayBlockCount * pricingPolicy.DayBlockRate,
                 NightPassTotal = nightBlockCount * pricingPolicy.NightBlockRate,
-                TotalFee = totalFee
+                TotalFee = totalFee,
+                SurchargeLogs = surchargeLogs
             }
         };
     }
