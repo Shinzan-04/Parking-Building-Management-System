@@ -235,4 +235,20 @@ public class WalletsController : ControllerBase
             return BadRequest(new { Message = ex.Message });
         }
     }
+
+    [HttpGet("my-server-ip")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetServerOutboundIp()
+    {
+        try
+        {
+            using var client = new HttpClient();
+            var ip = await client.GetStringAsync("https://api.ipify.org");
+            return Ok(new { IP = ip.Trim() });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Error = ex.Message });
+        }
+    }
 }
