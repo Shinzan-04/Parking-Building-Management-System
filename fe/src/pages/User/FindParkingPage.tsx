@@ -712,7 +712,7 @@ export default function FindParkingPage() {
               <button
                 onClick={handleLocateMe}
                 disabled={locatingUser}
-                title="Tìm bãi đỗ gần tôi"
+                title="Find parking near me"
                 className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-md transition-all duration-300 ${userLocation
                   ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500'
                   : 'bg-white dark:bg-[#18181B] border-gray-200 dark:border-white/10 text-stone-600 dark:text-stone-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-blue-500 hover:border-blue-200 dark:hover:border-blue-500/50'

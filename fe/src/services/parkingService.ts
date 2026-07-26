@@ -12,11 +12,11 @@ import { apiClient } from './apiClient';
 export type SlotStatus = 'Available' | 'TemporaryHeld' | 'Reserved' | 'Occupied' | 'Maintenance';
 
 export const SLOT_STATUS_LABELS: Record<SlotStatus, string> = {
-  Available:   'Còn trống',
-  TemporaryHeld: 'Đang giữ chỗ',
-  Occupied:    'Đang sử dụng',
-  Reserved:    'Đã đặt trước',
-  Maintenance: 'Bảo trì',
+  Available:   'Available',
+  TemporaryHeld: 'On Hold',
+  Occupied:    'Occupied',
+  Reserved:    'Reserved',
+  Maintenance: 'Maintenance',
 };
 
 export const SLOT_STATUS_COLORS: Record<SlotStatus, { bg: string; text: string; dot: string }> = {

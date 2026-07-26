@@ -181,7 +181,7 @@ function VerifyOtpForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = otp.join('');
-    if (code.length < OTP_LENGTH) { setError('Vui lòng nhập đủ 6 chữ số OTP.'); return; }
+    if (code.length < OTP_LENGTH) { setError('Please enter all 6 digits of the OTP.'); return; }
 
     setLoading(true);
     setError(null);
@@ -202,7 +202,7 @@ function VerifyOtpForm({
         navigate(getPostLoginPath(response.role as AuthRole), { replace: true });
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Mã OTP không hợp lệ hoặc đã hết hạn.');
+      setError(err instanceof Error ? err.message : 'Invalid or expired OTP code.');
     } finally {
       setLoading(false);
     }
@@ -220,7 +220,7 @@ function VerifyOtpForm({
       setCanResend(false);
       setResendKey((k) => k + 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gửi lại OTP thất bại.');
+      setError(err instanceof Error ? err.message : 'Failed to resend OTP.');
     } finally {
       setLoading(false);
     }
@@ -249,18 +249,18 @@ function VerifyOtpForm({
           </div>
 
           <h1 className="text-5xl font-extrabold mb-4 leading-tight text-stone-900">
-            Xác thực
-            <span className="block text-[#FF4C4C] mt-2">tài khoản của bạn</span>
+            Verify
+            <span className="block text-[#FF4C4C] mt-2">your account</span>
           </h1>
           <p className="text-stone-500 text-lg font-medium max-w-md leading-relaxed">
-            Chúng tôi đã gửi mã xác thực 6 chữ số tới email của bạn. Mã có hiệu lực <strong className="text-[#FF4C4C]">5 phút</strong>.
+            We've sent a 6-digit verification code to your email. The code is valid for <strong className="text-[#FF4C4C]">5 minutes</strong>.
           </p>
 
           <div className="mt-10 flex items-center justify-center gap-10">
             {[
-              { value: '6',     label: 'Chữ số',   color: 'text-[#FF4C4C]'  },
-              { value: '5 min', label: 'Hiệu lực', color: 'text-[#FF4C4C]' },
-              { value: '100%',  label: 'Bảo mật',  color: 'text-[#FF4C4C]'  },
+              { value: '6',     label: 'Digits',   color: 'text-[#FF4C4C]'  },
+              { value: '5 min', label: 'Validity', color: 'text-[#FF4C4C]' },
+              { value: '100%',  label: 'Secure',  color: 'text-[#FF4C4C]'  },
             ].map((s) => (
               <div key={s.label}>
                 <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
@@ -279,7 +279,7 @@ function VerifyOtpForm({
                      hover:text-[#FF4C4C] hover:bg-gray-100 font-bold transition-all px-3.5 py-2 rounded-xl border border-gray-200/40 bg-white"
         >
           <ArrowLeft className="w-4 h-4" />
-          Quay lại đăng ký
+          Back to Sign Up
         </Link>
 
         <div className="w-full max-w-md">
@@ -299,9 +299,9 @@ function VerifyOtpForm({
               <>
                 {/* Tiêu đề */}
                 <div className="text-center mb-8">
-                  <h2 className="text-2xl font-bold text-stone-900 mb-2">Xác thực Email</h2>
+                  <h2 className="text-2xl font-bold text-stone-900 mb-2">Verify Email</h2>
                   <p className="text-stone-400 text-sm font-medium">
-                    Mã OTP đã được gửi tới
+                    The OTP code has been sent to
                   </p>
                   <p className="text-[#FF4C4C] text-sm font-bold mt-1 break-all">{email}</p>
                 </div>
@@ -324,7 +324,7 @@ function VerifyOtpForm({
                       hasError={!!error}
                     />
                     <p className="text-center text-xs text-stone-450 font-medium">
-                      Nhập thủ công hoặc dán (Ctrl+V) mã từ email
+                      Type manually or paste (Ctrl+V) the code from your email
                     </p>
                   </div>
 
@@ -332,7 +332,7 @@ function VerifyOtpForm({
                   <div className="flex flex-col items-center gap-2">
                     {!canResend ? (
                       <>
-                        <p className="text-xs text-stone-400 font-semibold">Gửi lại mã sau</p>
+                        <p className="text-xs text-stone-400 font-semibold">Resend code in</p>
                         <CountdownTimer
                           key={resendKey}
                           seconds={RESEND_DELAY}
@@ -348,7 +348,7 @@ function VerifyOtpForm({
                                    font-extrabold transition-colors disabled:opacity-50"
                       >
                         <RefreshCw className="w-4 h-4" />
-                        Gửi lại mã OTP
+                        Resend OTP Code
                       </button>
                     )}
                   </div>
@@ -369,17 +369,17 @@ function VerifyOtpForm({
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                         </svg>
-                        Đang xác thực…
+                        Verifying…
                       </span>
-                    ) : 'Xác thực & Tạo tài khoản'}
+                    ) : 'Verify & Create Account'}
                   </button>
                 </form>
 
                 {/* Gợi ý spam */}
                 <p className="mt-6 text-center text-xs text-stone-550 font-semibold leading-relaxed">
-                  Không nhận được email? Kiểm tra thư mục{' '}
+                  Didn't receive the email? Check your{' '}
                   <span className="text-[#FF4C4C] font-extrabold">Spam / Junk</span>
-                  {' '}hoặc nhấn Gửi lại ở trên.
+                  {' '}folder or click Resend above.
                 </p>
               </>
             ) : (
@@ -390,10 +390,10 @@ function VerifyOtpForm({
                   <CheckCircle2 className="w-10 h-10 text-white" />
                 </div>
                 <div className="text-center">
-                  <p className="text-stone-900 font-bold text-lg">Tài khoản đã được tạo!</p>
-                  <p className="text-stone-400 text-sm mt-1 font-medium">Chào mừng bạn tới PARKING BUILDING.</p>
+                  <p className="text-stone-900 font-bold text-lg">Account created!</p>
+                  <p className="text-stone-400 text-sm mt-1 font-medium">Welcome to PARKING BUILDING.</p>
                 </div>
-                <p className="text-xs text-stone-450 font-bold">Đang chuyển hướng…</p>
+                <p className="text-xs text-stone-450 font-bold">Redirecting…</p>
               </div>
             )}
           </div>

@@ -115,7 +115,7 @@ export const FloatingChat: React.FC = () => {
           {
               id: 'welcome',
               sender: 'Bot',
-              content: 'Chào bạn, tôi là ParkAssist! Mình có thể giúp gì cho bạn về bãi đỗ xe hôm nay?',
+              content: "Hi there, I'm ParkAssist! How can I help you with parking today?",
               createdAt: new Date().toISOString()
           }
       ]);
@@ -178,12 +178,12 @@ export const FloatingChat: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-lg leading-tight">
-                  {status === 'AgentHandling' ? 'Nhân viên Hỗ trợ' : 'ParkAssist AI'}
+                  {status === 'AgentHandling' ? 'Support Agent' : 'ParkAssist AI'}
                 </h3>
                 <p className="text-xs text-gray-300">
-                  {status === 'Escalated' 
-                      ? 'Đang kết nối nhân viên...' 
-                      : (status === 'AgentHandling' ? 'Đang trực tuyến' : 'Trợ lý ảo 24/7')}
+                  {status === 'Escalated'
+                      ? 'Connecting to an agent...'
+                      : (status === 'AgentHandling' ? 'Online now' : '24/7 Virtual Assistant')}
                 </p>
               </div>
             </div>
@@ -195,8 +195,8 @@ export const FloatingChat: React.FC = () => {
         {!sessionId ? (
           <div className="flex-1 p-6 flex flex-col bg-gray-50 overflow-y-auto">
             <div className="mb-6">
-               <h3 className="font-bold text-lg text-gray-800">Chào mừng bạn! 👋</h3>
-               <p className="text-sm text-gray-600 mt-2">Vui lòng chọn Tòa nhà mà bạn muốn liên hệ hoặc cần hỗ trợ đỗ xe:</p>
+               <h3 className="font-bold text-lg text-gray-800">Welcome! 👋</h3>
+               <p className="text-sm text-gray-600 mt-2">Please select the building you'd like to contact or need parking assistance for:</p>
             </div>
             <div className="space-y-3">
               {buildings.map(b => (
@@ -245,38 +245,38 @@ export const FloatingChat: React.FC = () => {
               
               {status === 'Escalated' && !hasSubmittedInfo && !localStorage.getItem('sp_user') && !user && (
                 <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mx-2">
-                  <p className="text-sm font-medium mb-3 text-gray-800">Để lại thông tin để nhân viên liên hệ:</p>
+                  <p className="text-sm font-medium mb-3 text-gray-800">Leave your details so an agent can contact you:</p>
                   <div className="space-y-2">
-                    <input 
-                      type="text" 
-                      placeholder="Tên của bạn" 
+                    <input
+                      type="text"
+                      placeholder="Your name"
                       value={guestName}
                       onChange={e => setGuestName(e.target.value)}
                       className="w-full text-gray-900 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#FF4C4C]"
                     />
-                    <input 
-                      type="text" 
-                      placeholder="Số điện thoại" 
+                    <input
+                      type="text"
+                      placeholder="Phone number"
                       value={guestPhone}
                       onChange={e => setGuestPhone(e.target.value)}
                       className="w-full text-gray-900 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#FF4C4C]"
                     />
-                    <button 
+                    <button
                       type="button"
                       onClick={submitGuestInfo}
                       disabled={!guestName.trim() || !guestPhone.trim()}
                       className="w-full bg-[#FF4C4C] text-white text-sm font-medium py-2 rounded-lg hover:bg-red-600 disabled:opacity-50 transition-colors"
                     >
-                      Gửi thông tin
+                      Submit Details
                     </button>
                   </div>
                 </div>
               )}
-              
+
               {status === 'Escalated' && (
                 <div className="flex justify-center">
                    <span className="text-xs font-medium bg-amber-100 text-amber-800 px-3 py-1 rounded-full animate-pulse">
-                      Đang tìm nhân viên trống để hỗ trợ bạn...
+                      Looking for an available agent to assist you...
                    </span>
                 </div>
               )}
@@ -286,7 +286,7 @@ export const FloatingChat: React.FC = () => {
 
             {status === 'BotHandling' && (
               <div className="flex gap-2 overflow-x-auto px-3 py-3 bg-white border-t border-gray-100">
-                {["Bãi xe còn chỗ không?", "Bảng giá đỗ xe máy?", "Bảng giá đỗ ô tô?", "Có trạm sạc xe điện không?", "Mất vé xe phải làm sao?", "Tôi muốn gặp nhân sự"]
+                {["Are there any spots available?", "What's the price for motorbike parking?", "What's the price for car parking?", "Is there an EV charging station?", "What should I do if I lost my ticket?", "I'd like to speak with a human agent"]
                   .filter(q => !messages.some(m => m.sender === 'User' && m.content.trim() === q))
                   .map((q, i) => (
                   <button
@@ -307,7 +307,7 @@ export const FloatingChat: React.FC = () => {
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 disabled={status === 'Escalated'}
-                placeholder={status === 'Escalated' ? "Vui lòng đợi nhân viên..." : "Nhập tin nhắn..."}
+                placeholder={status === 'Escalated' ? "Please wait for an agent..." : "Type a message..."}
                 className="flex-1 text-sm bg-gray-50 border border-gray-100 rounded-full px-4 py-2.5 outline-none focus:border-[#FF4C4C] focus:bg-white transition-colors disabled:opacity-50 text-gray-900"
               />
               <button

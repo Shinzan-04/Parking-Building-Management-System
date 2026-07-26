@@ -96,12 +96,12 @@ export default function LiveSessionPage() {
   }, [session?.entryTime, session?.id, token, navigate]);
 
   const handlePayment = () => {
-    alert(`Đang tiến hành thanh toán ${dynamicFee.toLocaleString('vi-VN')} đ`);
+    alert(`Processing payment of ${dynamicFee.toLocaleString('vi-VN')} đ`);
     // navigate to payment gateway or handle checkout
   };
 
   const handleReport = () => {
-    alert('Mở form báo cáo sự cố (Sẽ tích hợp sau)');
+    alert('Opening issue report form (coming soon)');
   };
 
   const handleDevFastForward = async (minutes: number) => {
@@ -113,9 +113,9 @@ export default function LiveSessionPage() {
         setSession(data);
         setDynamicFee(data.currentFee);
       }
-      alert(`Đã tua nhanh ${minutes} phút! Giờ vào và Giờ đặt trước đã bị lùi về ${minutes} phút trước. Phí đã được tính toán lại!`);
+      alert(`Fast-forwarded ${minutes} minutes! Entry time and booked time have been shifted back ${minutes} minutes. Fee has been recalculated!`);
     } catch (err: any) {
-      alert('Lỗi tua thời gian: ' + err.message);
+      alert('Error fast-forwarding time: ' + err.message);
     }
   };
 

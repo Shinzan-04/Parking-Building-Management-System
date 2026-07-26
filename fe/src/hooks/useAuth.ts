@@ -31,7 +31,7 @@ export function useAuth() {
   useEffect(() => {
     const handleLogout = () => {
       setUser(null);
-      setError('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+      setError('Your session has expired. Please log in again.');
     };
 
     const handleTokenRefreshed = (e: Event) => {
@@ -73,7 +73,7 @@ export function useAuth() {
       saveSession(response);
       return response;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Đăng nhập thất bại.';
+      const msg = err instanceof Error ? err.message : 'Login failed.';
       setError(msg);
       throw err;
     } finally {
@@ -93,7 +93,7 @@ export function useAuth() {
       saveSession(response);
       return response;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Google đăng nhập thất bại.';
+      const msg = err instanceof Error ? err.message : 'Google login failed.';
       setError(msg);
       throw err;
     } finally {
