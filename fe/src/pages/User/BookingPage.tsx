@@ -295,7 +295,7 @@ function StepLicensePlate({
       {loadingMyVehicles && myVehicles.length === 0 && (
         <div className="flex flex-col items-center justify-center py-10 gap-2">
           <Loader2 size={24} className="text-[#FF4C4C] animate-spin" />
-          <p className="text-xs text-stone-400 font-semibold">Đang tải danh sách xe...</p>
+          <p className="text-xs text-stone-400 font-semibold">Loading your vehicles...</p>
         </div>
       )}
 
@@ -364,9 +364,9 @@ function StepLicensePlate({
                               {v.plateNumber}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
-                              <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">{v.vehicleTypeName || 'Phương tiện'}</p>
+                              <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">{v.vehicleTypeName || 'Vehicle'}</p>
                               {v.isPrimary && (
-                                <span className="bg-amber-500/10 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">Mặc định</span>
+                                <span className="bg-amber-500/10 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">Default</span>
                               )}
                             </div>
                           </div>
@@ -378,12 +378,12 @@ function StepLicensePlate({
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-sm text-stone-500">Bạn chưa có xe nào được lưu.</p>
+                  <p className="text-sm text-stone-500">You don't have any saved vehicles yet.</p>
                   <button
                     onClick={() => setState((s) => ({ ...s, plateInputType: 'manual' }))}
                     className="text-sm font-bold text-[#FF4C4C] mt-2 hover:underline"
                   >
-                    Chuyển sang nhập thủ công
+                    Switch to manual entry
                   </button>
                 </div>
               )}
@@ -1397,7 +1397,7 @@ function ConfirmationPopup({
       const res = await depositWallet({ amount: depositAmount });
       window.open(res.checkoutUrl, '_blank', 'noopener');
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi tạo giao dịch nạp tiền.');
+      setError(err.message || 'Error creating deposit transaction.');
     } finally {
       setSubmitting(false);
     }
@@ -1515,9 +1515,9 @@ function ConfirmationPopup({
       if (err.code === 'INSUFFICIENT_BALANCE' && err.requiredAmount) {
         const fmt = (n: number) => n.toLocaleString('vi-VN') + ' ₫';
         setError(
-          `Số dư ví không đủ. Cần nạp thêm ${fmt(err.requiredAmount)} ` +
-          `(Tổng phí: ${fmt(err.totalFee ?? 0)} — Số dư hiện tại: ${fmt(err.currentBalance ?? 0)}). ` +
-          `Vui lòng nạp tiền vào ví trước khi đặt chỗ.`
+          `Insufficient wallet balance. You need to deposit ${fmt(err.requiredAmount)} more ` +
+          `(Total fee: ${fmt(err.totalFee ?? 0)} — Current balance: ${fmt(err.currentBalance ?? 0)}). ` +
+          `Please top up your wallet before booking.`
         );
       } else {
         setError(err.message || 'Reservation failed. Please check your information.');
@@ -1541,7 +1541,7 @@ function ConfirmationPopup({
 
       if (seconds > 600) {
         clearInterval(interval);
-        setError('Hết thời gian chờ (10 phút). Vui lòng thử lại.');
+        setError('Timed out (10 minutes). Please try again.');
         setPhase('payment');
         setPendingOrderCode(null);
         return;
@@ -1562,7 +1562,7 @@ function ConfirmationPopup({
           try { payosTabRef.current?.close(); } catch { }
           payosTabRef.current = null;
           setPendingOrderCode(null);
-          setError('Thanh toán thất bại. Vui lòng thử lại.');
+          setError('Payment failed. Please try again.');
           setPhase('payment');
         }
       } catch {
@@ -1824,7 +1824,7 @@ function ConfirmationPopup({
               ) : (
                 <div className="flex justify-center">
                   <div className="w-[220px] h-[220px] bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 border border-dashed">
-                    <span className="text-xs">Không thể tải mã QR</span>
+                    <span className="text-xs">Unable to load QR code</span>
                   </div>
                 </div>
               )}
@@ -2295,7 +2295,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
         entry.setHours(h, m, 0, 0);
 
         if (entry <= now) {
-          toast.error('Thời gian chọn đã trôi qua. Vui lòng chọn thời gian khác mới hơn.');
+          toast.error('The selected time has already passed. Please choose a later time.');
           return;
         }
       }

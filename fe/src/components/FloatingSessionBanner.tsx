@@ -123,7 +123,7 @@ export default function FloatingSessionBanner() {
               </div>
               <div>
                 <div className="text-[10px] font-bold text-white/80 uppercase tracking-wider mb-0.5">
-                  Đang đỗ xe
+                  Currently Parked
                 </div>
                 <div className="font-bold font-mono tracking-widest text-sm">
                   {elapsedString}

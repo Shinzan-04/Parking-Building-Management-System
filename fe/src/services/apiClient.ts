@@ -92,7 +92,7 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
   const text = await res.text();
   if (!text.trim()) {
     if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
+    throw new Error(`Request failed (${res.status}).`);
   }
 
   let data: unknown;
@@ -103,7 +103,7 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
   }
 
   if (!res.ok) {
-    throw new Error((data as { message?: string }).message ?? `Yêu cầu thất bại (${res.status}).`);
+    throw new Error((data as { message?: string }).message ?? `Request failed (${res.status}).`);
   }
 
   return data as T;

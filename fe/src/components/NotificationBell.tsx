@@ -17,7 +17,7 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: string |
       return (
         <div style={{ padding: '12px 16px', fontSize: 12, color: '#ef4444', display: 'flex', alignItems: 'center', gap: 6 }}>
           <AlertCircle size={14} />
-          Lỗi hiển thị thông báo
+          Error displaying notifications
         </div>
       );
     }
@@ -37,13 +37,13 @@ function timeAgo(dateStr: string | undefined): string {
     // Đảm bảo parse đúng UTC — backend trả ISO string không có 'Z' suffix
     const normalized = dateStr.endsWith('Z') || dateStr.includes('+') ? dateStr : dateStr + 'Z';
     const diff = Date.now() - new Date(normalized).getTime();
-    if (isNaN(diff) || diff < 0) return 'vừa xong';
+    if (isNaN(diff) || diff < 0) return 'just now';
     const mins = Math.floor(diff / 60_000);
-    if (mins < 1)  return 'vừa xong';
-    if (mins < 60) return `${mins} phút trước`;
+    if (mins < 1)  return 'just now';
+    if (mins < 60) return `${mins} min ago`;
     const hrs = Math.floor(mins / 60);
-    if (hrs < 24)  return `${hrs} giờ trước`;
-    return `${Math.floor(hrs / 24)} ngày trước`;
+    if (hrs < 24)  return `${hrs} hr ago`;
+    return `${Math.floor(hrs / 24)} days ago`;
   } catch {
     return '';
   }
@@ -93,7 +93,7 @@ function NotificationPanel({
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--admin-border)', flexShrink: 0 }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--admin-text-primary)' }}>
-          Thông báo
+          Notifications
           {unreadCount > 0 && (
             <span style={{ backgroundColor: accentColor, color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 99, padding: '1px 6px' }}>
               {unreadCount}
@@ -106,7 +106,7 @@ function NotificationPanel({
             style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 500, color: accentColor, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
           >
             <CheckCheck size={13} />
-            Đọc tất cả
+            Mark all as read
           </button>
         )}
       </div>
@@ -115,11 +115,11 @@ function NotificationPanel({
       <div style={{ overflowY: 'auto', flex: 1 }}>
         {loading && notifications.length === 0 ? (
           <p style={{ textAlign: 'center', padding: '32px 0', fontSize: 12, color: 'var(--admin-text-faint)', margin: 0 }}>
-            Đang tải...
+            Loading...
           </p>
         ) : notifications.length === 0 ? (
           <p style={{ textAlign: 'center', padding: '32px 0', fontSize: 12, color: 'var(--admin-text-faint)', margin: 0 }}>
-            Không có thông báo nào.
+            No notifications.
           </p>
         ) : (
           notifications.map(n => (
@@ -217,7 +217,7 @@ export default function NotificationBell({ token, accentColor = '#FF4C4C' }: Pro
         onClick={handleBellClick}
         className="relative p-2 rounded-xl transition-colors"
         style={{ backgroundColor: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)' }}
-        title="Thông báo"
+        title="Notifications"
       >
         <Bell size={17} />
         {unreadCount > 0 && (
