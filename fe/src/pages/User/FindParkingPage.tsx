@@ -106,27 +106,31 @@ interface ParkingLot {
   features: string[];
 }
 
-// ---------- Hàm sinh toạ độ nhất quán ở Hà Nội ----------
-function getBuildingCoordinates(buildingId: string, address: string): { lat: number; lng: number } {
+// ---------- Hàm sinh toạ độ nhất quán (Mock) ----------
+function getBuildingCoordinates(buildingId: string, address: string, name: string): { lat: number; lng: number } {
+  // Ưu tiên hardcode toạ độ thật cho 3 toạ nhà bạn đang test
+  if (name.includes('Tòa nhà C')) return { lat: 10.7618, lng: 106.7032 }; // Gần 35 Hoàng Diệu, Q4, HCM
+  if (name.includes('Tòa nhà B')) return { lat: 10.8016, lng: 106.7118 }; // Bình Thạnh, HCM
+  if (name.includes('Tòa nhà A')) return { lat: 10.7769, lng: 106.7009 }; // Khu vực trung tâm Q1, HCM
+
   let hash = 0;
   const str = buildingId + address;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  // Hanoi coordinates: lat 21.0285, lng 105.8542
-  // Thêm offset nhất quán trong khoảng [-0.015, 0.015] để các toạ độ không bị trùng và tập trung gần khu trung tâm
+  // Mặc định sinh ngẫu nhiên quanh Hồ Chí Minh: lat 10.7626, lng 106.6601
   const latOffset = ((Math.abs(hash) % 300) / 10000) - 0.015;
   const lngOffset = ((Math.abs(hash >> 3) % 300) / 10000) - 0.015;
 
   return {
-    lat: 21.0285 + latOffset,
-    lng: 105.8542 + lngOffset,
+    lat: 10.7626 + latOffset,
+    lng: 106.6601 + lngOffset,
   };
 }
 
 // ---------- Ánh xạ dữ liệu BuildingResponse sang ParkingLot ----------
 function mapBuildingToParkingLot(b: BuildingResponse): ParkingLot {
-  const coords = getBuildingCoordinates(b.id, b.address);
+  const coords = getBuildingCoordinates(b.id, b.address, b.name);
   // Sử dụng số lượng slot trống thật từ backend, nếu không có fallback về 0
   const available = b.availableSpots || 0;
   return {
@@ -576,7 +580,7 @@ export default function FindParkingPage() {
         <div className="flex-1 relative overflow-hidden">
           {/* Leaflet Map */}
           <MapContainer
-            center={[21.0285, 105.8542]}
+            center={[10.7626, 106.6601]}
             zoom={13}
             className="w-full h-full"
             style={{ background: '#F3F3F5' }}
