@@ -192,6 +192,13 @@ export default function StaffReservations() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Listen for realtime events (SignalR) dispatched from useNotification
+  useEffect(() => {
+    const handleUpdate = () => loadData(true);
+    window.addEventListener('dashboardUpdate', handleUpdate);
+    return () => window.removeEventListener('dashboardUpdate', handleUpdate);
+  }, [loadData]);
+
   const loadSlots = async () => {
     if (!token) return;
     setLoadingSlots(true);
