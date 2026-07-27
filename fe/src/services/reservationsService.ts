@@ -63,12 +63,13 @@ export interface AiSuggestionResponse {
   reason: string;
 }
 
-export const getAiSuggestions = (vehicleTypeId: string, buildingId?: string, topN: number = 5): Promise<AiSuggestionResponse[]> => {
+export const getAiSuggestions = (vehicleTypeId: string, buildingId?: string, topN: number = 5, startTime?: string): Promise<AiSuggestionResponse[]> => {
   const params = new URLSearchParams();
   params.append('vehicleTypeId', vehicleTypeId);
   if (buildingId) params.append('buildingId', buildingId);
   params.append('topN', topN.toString());
-  
+  if (startTime) params.append('startTime', startTime);
+
   // ai-suggest can be public or authenticated, assuming authenticated if token is provided
   return apiClient(`/api/reservations/ai-suggest?${params.toString()}`);
 }

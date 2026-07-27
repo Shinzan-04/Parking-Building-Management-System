@@ -343,9 +343,9 @@ export default function ManagerReservations() {
                 disabled={updatingMode}
                 className="bg-transparent text-sm font-bold text-white outline-none disabled:opacity-50 cursor-pointer"
               >
-                <option value={0} className="text-black">Manual</option>
-                <option value={1} className="text-black">Auto-Approve All</option>
-                <option value={2} className="text-black">Auto-Reject All</option>
+                <option value={0} style={{ color: '#000', backgroundColor: '#fff' }}>Manual</option>
+                <option value={1} style={{ color: '#000', backgroundColor: '#fff' }}>Auto-Approve All</option>
+                <option value={2} style={{ color: '#000', backgroundColor: '#fff' }}>Auto-Reject All</option>
               </select>
             </div>
           )}
@@ -552,9 +552,9 @@ export default function ManagerReservations() {
                   onChange={e => setSelectedSlotId(e.target.value)}
                   className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-400/50 transition-colors"
                 >
-                  <option value="" disabled className="dark:bg-stone-900">-- Please select an available slot --</option>
+                  <option value="" disabled style={{ color: '#000', backgroundColor: '#fff' }}>-- Please select an available slot --</option>
                   {availableSlots.map(s => (
-                    <option key={s.id} value={s.id} className="dark:bg-stone-900">
+                    <option key={s.id} value={s.id} style={{ color: '#000', backgroundColor: '#fff' }}>
                       Slot {s.slotNumber} (Floor {s.floorName})
                     </option>
                   ))}

@@ -196,7 +196,7 @@ export default function AdminSettings() {
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
             >
               {['VND', 'USD', 'EUR'].map(c => (
-                <option key={c} value={c} className="bg-[#121214]">{c}</option>
+                <option key={c} value={c} style={{ color: '#000', backgroundColor: '#fff' }}>{c}</option>
               ))}
             </select>
           </Field>
@@ -208,7 +208,7 @@ export default function AdminSettings() {
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
           >
             {['Asia/Ho_Chi_Minh', 'UTC', 'Asia/Bangkok', 'Asia/Singapore'].map(tz => (
-              <option key={tz} value={tz} className="bg-[#121214]">{tz}</option>
+              <option key={tz} value={tz} style={{ color: '#000', backgroundColor: '#fff' }}>{tz}</option>
             ))}
           </select>
         </Field>
