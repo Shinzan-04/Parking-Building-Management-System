@@ -37,7 +37,7 @@ public class CheckOutService : ICheckOutService
         _auditLogService = auditLogService;
     }
 
-    public async Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string? qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null)
+    public async Task<CheckOutSearchResult> SearchByQrCodeAndPlateAsync(string? qrCode, string licensePlate, Guid? staffId = null, Guid? requestBuildingId = null, bool isLostTicket = false)
     {
         if (string.IsNullOrWhiteSpace(qrCode) && string.IsNullOrWhiteSpace(licensePlate))
         {
@@ -72,6 +72,11 @@ public class CheckOutService : ICheckOutService
         if (session == null)
         {
             throw new InvalidOperationException("Invalid card or parking session does not exist.");
+        }
+
+        if (isLostTicket && session.IssueType != ParkingSystem.Domain.Enums.IssueType.LostTicket)
+        {
+            throw new InvalidOperationException("Vehicle is not reported as lost ticket! Cannot use lost ticket mode for check-out.");
         }
 
         bool isMismatch = false;
