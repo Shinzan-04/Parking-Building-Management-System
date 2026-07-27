@@ -941,7 +941,7 @@ export default function FindParkingPage() {
                               </div>
                               <div className="text-center">
                                 <p className={`font-bold text-xs ${isSelected ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-stone-200'}`}>
-                                  {floor.name}
+                                  Floor {floor.name}
                                 </p>
                                 <p className="text-[10px] text-stone-400 mt-0.5">
                                   {(() => {

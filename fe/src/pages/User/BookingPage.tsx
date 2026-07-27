@@ -933,7 +933,7 @@ function StepSelectFloor({
               </div>
               <div className="text-center">
                 <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-stone-200'}`}>
-                  {floor.name}
+                  Floor {floor.name}
                 </p>
                 <p className="text-xs text-stone-400 mt-0.5">
                   {(() => {
