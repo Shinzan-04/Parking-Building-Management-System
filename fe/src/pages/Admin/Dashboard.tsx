@@ -8,6 +8,7 @@ import {
   CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { getBuildings } from '../../services/buildingsService';
 import { searchSessions } from '../../services/sessionsService';
 import type { SessionDto } from '../../services/sessionsService';
@@ -25,8 +26,9 @@ function getLast7Days() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
+    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
     return {
-      label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
+      label: `${weekday} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
       date: toUTCDateStr(d),
     };
   });
@@ -50,6 +52,8 @@ function RevenueTooltip({ active, payload, label }: {
 
 export default function Dashboard() {
   const { token } = useAuth();
+  const { theme } = useTheme();
+  const axisTickColor = theme === 'dark' ? '#ffffff66' : '#0A0A0C99';
 
   const today = new Date().toLocaleDateString('vi-VN', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -218,11 +222,11 @@ export default function Dashboard() {
         </div>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={revenueData} barSize={28}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: '#ffffff66', fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false}
+            <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#ffffff0d' : '#0000000d'} vertical={false} />
+            <XAxis dataKey="label" tick={{ fill: axisTickColor, fontSize: 12 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: axisTickColor, fontSize: 11 }} axisLine={false} tickLine={false}
               tickFormatter={v => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${(v / 1_000).toFixed(0)}k` : String(v)} />
-            <Tooltip content={<RevenueTooltip />} cursor={{ fill: '#ffffff05' }} />
+            <Tooltip content={<RevenueTooltip />} cursor={{ fill: theme === 'dark' ? '#ffffff05' : '#00000005' }} />
             <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
               {revenueData.map((entry, i) => (
                 <Cell key={i} fill={entry.revenue === maxRevenue && entry.revenue > 0 ? '#FF4C4C' : '#FF4C4C55'} />

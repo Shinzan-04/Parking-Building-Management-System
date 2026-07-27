@@ -433,9 +433,9 @@ function SlotMap({
                 onChange={e => setSelectedVehicleTypeId(e.target.value)}
                 className="flex-1 bg-white border border-[#FF4C4C]/30 rounded-lg px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:border-[#FF4C4C]/60 transition-colors"
               >
-                <option value="">-- Select vehicle type --</option>
+                <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>-- Select vehicle type --</option>
                 {(vehicleTypes ?? []).map(vt => (
-                  <option key={vt.id} value={vt.id}>{vt.name}</option>
+                  <option key={vt.id} value={vt.id} style={{ color: '#000', backgroundColor: '#fff' }}>{vt.name}</option>
                 ))}
               </select>
               <button
@@ -1299,7 +1299,7 @@ export default function ParkingLots() {
                       disabled={allStaffList.filter(s => !s.assignedBuildingId).length === 0}
                       className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-gray-700 dark:text-white focus:outline-none focus:border-blue-400 transition-colors disabled:opacity-40"
                     >
-                      <option value="">
+                      <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>
                         {allStaffList.filter(s => !s.assignedBuildingId).length === 0
                           ? '-- No staff available --'
                           : '-- Select staff --'}
@@ -1307,7 +1307,7 @@ export default function ParkingLots() {
                       {allStaffList
                         .filter(s => !s.assignedBuildingId)
                         .map(s => (
-                          <option key={s.id} value={s.id}>{s.fullName} (@{s.username})</option>
+                          <option key={s.id} value={s.id} style={{ color: '#000', backgroundColor: '#fff' }}>{s.fullName} (@{s.username})</option>
                         ))}
                     </select>
                     <button
@@ -1581,9 +1581,9 @@ export default function ParkingLots() {
                         onChange={e => setForm(prev => ({ ...prev, status: e.target.value as ParkingLot['status'] }))}
                         className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                       >
-                        <option value="active">Active</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="full">Full</option>
+                        <option value="active" style={{ color: '#000', backgroundColor: '#fff' }}>Active</option>
+                        <option value="maintenance" style={{ color: '#000', backgroundColor: '#fff' }}>Maintenance</option>
+                        <option value="full" style={{ color: '#000', backgroundColor: '#fff' }}>Full</option>
                       </select>
                     </div>
                   )}
@@ -1697,9 +1697,9 @@ export default function ParkingLots() {
                                     onChange={e => { setEditFloorVehicleTypeId(e.target.value); setEditFloorError(''); }}
                                     className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                                   >
-                                    <option value="">-- Select vehicle type --</option>
+                                    <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>-- Select vehicle type --</option>
                                     {vehicleTypes.map(vt => (
-                                      <option key={vt.id} value={vt.id}>{vt.name}</option>
+                                      <option key={vt.id} value={vt.id} style={{ color: '#000', backgroundColor: '#fff' }}>{vt.name}</option>
                                     ))}
                                   </select>
                                 </div>
@@ -1813,9 +1813,9 @@ export default function ParkingLots() {
                           onChange={e => { setNewFloorVehicleTypeId(e.target.value); setFloorError(''); }}
                           className="flex-1 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/40 transition-colors appearance-none"
                         >
-                          <option value="">-- Select vehicle type --</option>
+                          <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>-- Select vehicle type --</option>
                           {vehicleTypes.map(vt => (
-                            <option key={vt.id} value={vt.id}>{vt.name}</option>
+                            <option key={vt.id} value={vt.id} style={{ color: '#000', backgroundColor: '#fff' }}>{vt.name}</option>
                           ))}
                         </select>
                         <button

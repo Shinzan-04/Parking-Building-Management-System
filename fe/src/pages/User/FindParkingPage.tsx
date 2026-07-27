@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../hooks/useAuth';
 import { getBuildings, getFloorsByBuilding } from '../../services/buildingsService';
 import type { BuildingResponse, FloorResponse } from '../../services/buildingsService';
-import { getSlotsByFloor, SLOT_STATUS_COLORS, SLOT_STATUS_LABELS, SLOT_STATUS_FROM_ENUM } from '../../services/parkingService';
+import { getSlotsByFloor, getAvailableSlotsByFloor, SLOT_STATUS_COLORS, SLOT_STATUS_LABELS, SLOT_STATUS_FROM_ENUM } from '../../services/parkingService';
 import type { ParkingSlotDetail, SlotStatus } from '../../services/parkingService';
 import { getVehicleTypes } from '../../services/vehicleTypesService';
 import type { VehicleTypeResponse } from '../../services/vehicleTypesService';
@@ -323,9 +323,12 @@ export default function FindParkingPage() {
           const sorted = floors.sort((a, b) => a.floorIndex - b.floorIndex);
           setBuildingFloors(sorted);
 
-          // Fetch slots for all floors to count them
+          // Fetch slots for all floors to count them (using +4h availability)
+          const now = new Date();
+          const later = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+          
           const slotsArrays = await Promise.all(
-            sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
+            sorted.map((f) => getAvailableSlotsByFloor(f.id, now.toISOString(), later.toISOString()).catch(() => []))
           );
           setAllBuildingSlots(slotsArrays.flat());
         })
@@ -342,7 +345,10 @@ export default function FindParkingPage() {
   useEffect(() => {
     if (selectedFloorId) {
       setIsLoadingSlots(true);
-      getSlotsByFloor(selectedFloorId)
+      const now = new Date();
+      const later = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+      
+      getAvailableSlotsByFloor(selectedFloorId, now.toISOString(), later.toISOString())
         .then((slots) => {
           setFloorSlots(slots.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber)));
         })

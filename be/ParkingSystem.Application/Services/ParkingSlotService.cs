@@ -131,13 +131,16 @@ public class ParkingSlotService : IParkingSlotService
             }
             else if (!isImmediate)
             {
-                // Đặt cho tương lai VÀ không có ai đặt trùng → mở slot
+                // Đặt cho tương lai VÀ không có ai đặt trùng → mở slot (nhưng KHÔNG mở slot đang bảo trì)
                 // Dù vật lý slot đang Occupied (có xe đỗ hiện tại),
                 // nhưng đến ngày tương lai xe đó đã đi rồi → Available
-                res.Status = SlotStatus.Available;
+                if (res.Status != SlotStatus.Maintenance)
+                {
+                    res.Status = SlotStatus.Available;
+                }
             }
             // Nếu isImmediate VÀ không overlap → giữ nguyên status vật lý
-            // (nếu Occupied thì vẫn Occupied, Available thì vẫn Available)
+            // (nếu Occupied thì vẫn Occupied, Available thì vẫn Available, Maintenance thì vẫn Maintenance)
         }
 
         return responses;

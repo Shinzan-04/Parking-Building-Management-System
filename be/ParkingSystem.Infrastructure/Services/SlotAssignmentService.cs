@@ -40,15 +40,15 @@ public class SlotAssignmentService : ISlotAssignmentService
         return 999;
     }
 
-    public async Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, int topN = 5)
+    public async Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, int topN = 5, DateTime? startTime = null)
     {
-        return await GetRecommendedSlotsAsync(vehicleTypeId, null, topN);
+        return await GetRecommendedSlotsAsync(vehicleTypeId, null, topN, startTime);
     }
 
-    public async Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, Guid? buildingId, int topN = 5)
+    public async Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, Guid? buildingId, int topN = 5, DateTime? startTime = null)
     {
-        var now = DateTime.UtcNow;
-        var limitTime = now.AddHours(4);
+        var targetTime = startTime ?? DateTime.UtcNow;
+        var limitTime = targetTime.AddHours(4);
         var activeStatuses = new[] 
         { 
             ReservationStatus.PaymentPending, 
@@ -58,15 +58,26 @@ public class SlotAssignmentService : ISlotAssignmentService
             ReservationStatus.CheckedIn 
         };
 
-        // Lấy tất cả slot trống phù hợp với loại xe
-        // VÀ KHÔNG có Reservation nào (ở trạng thái chiếm giữ) có StartTime nằm trong 4 tiếng tới
+        // Lấy tất cả slot phù hợp với loại xe
+        // KHÔNG có Reservation nào (ở trạng thái chiếm giữ) trùng vào khoảng 4 tiếng từ thời điểm chọn
         var query = _context.ParkingSlots
             .Include(s => s.Floor)
                 .ThenInclude(f => f.Building)
-            .Where(s => s.VehicleTypeId == vehicleTypeId && s.Status == SlotStatus.Available)
+            .Where(s => s.VehicleTypeId == vehicleTypeId)
             .Where(s => !s.Reservations.Any(r => 
                 activeStatuses.Contains(r.Status) && 
-                r.StartTime < limitTime && r.EndTime > now));
+                r.StartTime < limitTime && r.EndTime > targetTime));
+        
+        // Nếu chọn đặt cho tương lai, ta không cần bắt buộc slot phải đang Available ngay bây giờ
+        // (vì hiện tại có thể có xe đang đỗ, nhưng đến lúc đó xe đi rồi)
+        if (startTime == null || startTime <= DateTime.UtcNow.AddMinutes(30))
+        {
+            query = query.Where(s => s.Status == SlotStatus.Available);
+        }
+        else
+        {
+            query = query.Where(s => s.Status != SlotStatus.Maintenance);
+        }
 
         if (buildingId.HasValue)
             query = query.Where(s => s.Floor.BuildingId == buildingId.Value);
@@ -141,14 +152,14 @@ public class SlotAssignmentService : ISlotAssignmentService
             .ToList();
     }
 
-    public async Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId)
+    public async Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId, DateTime? startTime = null)
     {
-        return await GetBestSlotAsync(vehicleTypeId, null);
+        return await GetBestSlotAsync(vehicleTypeId, null, startTime);
     }
 
-    public async Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId, Guid? buildingId)
+    public async Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId, Guid? buildingId, DateTime? startTime = null)
     {
-        var recommendations = await GetRecommendedSlotsAsync(vehicleTypeId, buildingId, 1);
+        var recommendations = await GetRecommendedSlotsAsync(vehicleTypeId, buildingId, 1, startTime);
         return recommendations.FirstOrDefault();
     }
 }

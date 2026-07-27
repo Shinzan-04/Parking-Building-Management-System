@@ -869,7 +869,14 @@ function StepSelectFloor({
             try {
               setLoadingAi(true);
               const token = localStorage.getItem('sp_token') || '';
-              const suggestions = await getAiSuggestions(state.vehicleType!, lotId, 1);
+              let startTimeStr = undefined;
+              if (state.entryDate && state.entryTime) {
+                const [h, m] = state.entryTime.split(':').map(Number);
+                const entry = new Date(state.entryDate);
+                entry.setHours(h, m, 0, 0);
+                startTimeStr = entry.toISOString();
+              }
+              const suggestions = await getAiSuggestions(state.vehicleType!, lotId, 1, startTimeStr);
               if (suggestions.length > 0) {
                 const best = suggestions[0];
                 setState(s => ({
@@ -989,8 +996,10 @@ function StepSelectSlot({
     false;
   const VehicleIcon = isMotorbike ? Bike : Car;
 
-  // Hiển thị tất cả các slot, không lọc theo loại xe hay trạng thái
-  const filteredSlots = slots;
+  // Hiển thị tất cả các slot, được sắp xếp thứ tự theo tên ô đỗ (slotNumber) để dàn layout đẹp
+  const filteredSlots = [...slots].sort((a, b) => {
+    return a.slotNumber.localeCompare(b.slotNumber, undefined, { numeric: true, sensitivity: 'base' });
+  });
 
   // Lấy icon động dựa theo vehicleTypeId của từng slot
   const getSlotIcon = (slot: ParkingSlotDetail) => {
@@ -2242,13 +2251,22 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
         setLoadingSlots(true);
         let data: ParkingSlotDetail[];
 
-        if (state.entryDate && state.entryTime && state.exitDate && state.exitTime) {
+        if (state.entryDate && state.entryTime) {
           const [h, m] = state.entryTime.split(':').map(Number);
           const entry = new Date(state.entryDate);
           entry.setHours(h, m, 0, 0);
 
-          const exit = new Date(state.exitDate);
-          const [exH, exM] = state.exitTime.split(':').map(Number);
+          let exTime = state.exitTime;
+          let exDate = state.exitDate;
+
+          if (!exTime || !exDate) {
+            const exitFallback = new Date(entry.getTime() + (state.duration || 0) * 60 * 60 * 1000);
+            exTime = `${String(exitFallback.getHours()).padStart(2, '0')}:${String(exitFallback.getMinutes()).padStart(2, '0')}`;
+            exDate = getLocalDateStr(exitFallback);
+          }
+
+          const exit = new Date(exDate);
+          const [exH, exM] = exTime.split(':').map(Number);
           exit.setHours(exH, exM, 0, 0);
 
           // Dùng API mới tính toán overlap

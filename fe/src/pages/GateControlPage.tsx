@@ -13,6 +13,7 @@ import {
   Bike,
   Ticket,
   Loader,
+  Printer,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -481,7 +482,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 {/* Manual Entry Block */}
                 <div className="glass-card rounded-[1.5rem] p-6 flex flex-col">
                   <div className="flex items-center gap-2 mb-6 pb-4 border-b admin-border">
-                    <span className="font-mono font-bold text-lg admin-text">{`>_`}</span>
+                    <span className="font-mono font-bold text-lg admin-text">{`>`}</span>
                     <h3 className="text-sm font-bold admin-text uppercase tracking-widest">MANUAL ENTRY</h3>
                   </div>
 
@@ -959,41 +960,91 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
       {/* Check-in Result Modal (Ticket / QR) */}
       {checkInResultData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="admin-bg-surface rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border admin-border">
-            <div className="p-6 flex flex-col items-center">
-              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-              </div>
-              <h3 className="text-xl font-bold admin-text mb-1">E-Ticket</h3>
-              <p className="text-xs admin-text-muted font-medium mb-6">Session ID: <span className="font-mono text-[#FF4C4C] font-bold">{checkInResultData.sessionCode}</span></p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4">
+          <style>{`
+            .ticket-mask {
+              --r: 20px;
+              -webkit-mask-image: 
+                radial-gradient(circle at 0 0, transparent calc(var(--r) - 0.5px), black var(--r)),
+                radial-gradient(circle at 100% 0, transparent calc(var(--r) - 0.5px), black var(--r)),
+                radial-gradient(circle at 0 100%, transparent calc(var(--r) - 0.5px), black var(--r)),
+                radial-gradient(circle at 100% 100%, transparent calc(var(--r) - 0.5px), black var(--r));
+              -webkit-mask-size: 51% 51%;
+              -webkit-mask-position: top left, top right, bottom left, bottom right;
+              -webkit-mask-repeat: no-repeat;
+            }
+          `}</style>
+          
+          <div className="relative w-full max-w-[320px] animate-fade-in-up flex flex-col items-center">
+            
+            <div className="w-full flex flex-col drop-shadow-[0_15px_30px_rgba(0,0,0,0.2)]">
+              
+              {/* TOP TICKET */}
+              <div className="ticket-mask w-full pt-10 pb-8 px-6 flex flex-col items-center relative z-10 bg-white">
+                
+                {/* Red Border */}
+                <div className="absolute inset-[8px] border-[2.5px] border-[#ef4444] rounded-[10px] pointer-events-none"></div>
 
-              {checkInResultData.sessionQrCodeBase64 && (
-                <div className="admin-bg-surface rounded-2xl p-4 inline-block border admin-border mb-6 shadow-sm">
-                  <img
-                    src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
-                    alt="Session QR"
-                    className="w-48 h-48 mx-auto object-contain"
-                  />
+                <div className="z-10 flex flex-col items-center w-full justify-center px-4">
+                  <h3 className="text-[#ef4444] font-black text-[3.25rem] uppercase tracking-tighter leading-none mb-1">Park</h3>
+                  <h3 className="text-[#ef4444] font-black text-[3.25rem] uppercase tracking-widest leading-none mb-8">Ticket</h3>
+                  
+                  <div className="w-full flex justify-between items-center mb-6">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest">Plate</span>
+                      <span className="text-xl font-black text-stone-800">{checkInResultData.licensePlate}</span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest">Type</span>
+                      <span className="text-lg font-bold text-stone-700">{checkInResultData.vehicleTypeName}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center w-full">
+                    <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest">Location</span>
+                    <span className="text-2xl font-black text-stone-800">Floor {checkInResultData.floorName}</span>
+                    <span className="text-sm font-bold text-stone-600">{checkInResultData.buildingName}</span>
+                  </div>
                 </div>
-              )}
+              </div>
 
-              <div className="w-full space-y-3 admin-bg-base p-4 rounded-xl border admin-border">
-                <p className="text-sm flex justify-between"><span className="admin-text-muted">License Plate:</span> <span className="font-bold admin-text font-mono text-lg">{checkInResultData.licensePlate}</span></p>
-                <p className="text-sm flex justify-between"><span className="admin-text-muted">Vehicle Type:</span> <span className="font-bold admin-text">{checkInResultData.vehicleTypeName}</span></p>
-                <p className="text-sm flex justify-between"><span className="admin-text-muted">Location:</span> <span className="font-bold text-[#FF4C4C]">Floor {checkInResultData.floorName}, Slot {checkInResultData.slotNumber}</span></p>
-                <p className="text-sm flex justify-between"><span className="admin-text-muted">Building:</span> <span className="font-bold admin-text">{checkInResultData.buildingName}</span></p>
+              {/* DIVIDER */}
+              <div className="w-full h-0 relative flex justify-center items-center z-20">
+                <div className="w-full border-t-[5px] border-dotted border-[#ef4444]/40 mx-[24px]"></div>
+              </div>
+
+              {/* BOTTOM TICKET */}
+              <div className="ticket-mask w-full pt-6 pb-8 px-6 flex flex-col items-center relative z-10 bg-white">
+                
+                {/* Red Border */}
+                <div className="absolute inset-[8px] border-[2.5px] border-[#ef4444] rounded-[10px] pointer-events-none"></div>
+
+                <div className="z-10 flex flex-row w-full justify-between items-center h-full px-2 mt-2">
+                  {checkInResultData.sessionQrCodeBase64 && (
+                    <img 
+                      src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`} 
+                      alt="Session QR" 
+                      className="w-[160px] h-[160px] object-contain"
+                    />
+                  )}
+                  <div className="flex flex-col text-right">
+                    <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest mb-0.5">Slot</span>
+                    <span className="text-3xl font-black text-[#ef4444] tracking-tighter leading-none">{checkInResultData.slotNumber}</span>
+                    <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest mt-2">ID: {checkInResultData.sessionCode}</span>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="p-4 border-t flex justify-end gap-3 admin-bg-base">
-              <button
-                onClick={() => setCheckInResultData(null)}
-                className="h-10 px-6 rounded-xl font-bold text-sm bg-[#FF4C4C] hover:bg-[#E13B3B] text-white transition-colors w-full"
-              >
-                Print & Close
-              </button>
-            </div>
+            {/* Print & Close Button */}
+            <button
+              onClick={() => setCheckInResultData(null)}
+              className="mt-8 px-8 py-3.5 rounded-full font-black text-sm bg-white hover:bg-stone-100 text-[#ef4444] shadow-xl transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              <Printer size={16} />
+              Print & Close
+            </button>
+            
           </div>
         </div>
       )}
