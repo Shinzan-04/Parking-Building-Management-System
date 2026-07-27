@@ -188,6 +188,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   const [payOsLoading, setPayOsLoading] = useState(false);
   const [isPayOsPaid, setIsPayOsPaid] = useState<boolean>(false);
   const [isCashReceived, setIsCashReceived] = useState<boolean>(false);
+  const [isLostTicketMode, setIsLostTicketMode] = useState<boolean>(false);
 
   useEffect(() => {
     setIsCashReceived(false);
@@ -300,7 +301,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   };
 
   const handleSearchExit = async () => {
-    if (!exitQrCode.trim()) {
+    if (!isLostTicketMode && !exitQrCode.trim()) {
       showNotification('error', 'Please scan or enter the QR Code first.');
       return;
     }
@@ -312,7 +313,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
     setExitLoading(true);
     try {
-      const result = await searchCheckOutByQr(exitQrCode, exitLicensePlate, user?.assignedBuildingId);
+      const result = await searchCheckOutByQr(exitQrCode, exitLicensePlate, user?.assignedBuildingId, isLostTicketMode);
       setExitSessionData(result);
       if (result.isPlateMismatch) {
         showNotification('error', 'WARNING: Scanned license plate does NOT match the ticket!');
@@ -670,7 +671,20 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 <div className="glass-card rounded-[1.5rem] p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[11px] font-bold admin-text-faint uppercase tracking-widest">MANUAL ENTRY & SEARCH</h3>
-                    <span className="text-[9px] font-bold admin-text-faint uppercase tracking-widest admin-bg-surface border admin-border px-2 py-1 rounded-md">ENABLE MANUAL ENTRY</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLostTicketMode(!isLostTicketMode);
+                        if (!isLostTicketMode) setExitQrCode('');
+                      }}
+                      className={`text-[9px] font-bold uppercase tracking-widest border px-3 py-1.5 rounded-lg transition-colors ${
+                        isLostTicketMode 
+                          ? 'bg-[#FF4C4C]/10 border-[#FF4C4C]/30 text-[#FF4C4C]' 
+                          : 'admin-bg-surface admin-border admin-text hover:bg-[#FF4C4C]/5 hover:text-[#FF4C4C] hover:border-[#FF4C4C]/30'
+                      }`}
+                    >
+                      {isLostTicketMode ? 'LOST TICKET MODE: ON' : 'LOST TICKET'}
+                    </button>
                   </div>
                   <div className="flex flex-col gap-3">
                     <div className="flex gap-3">
@@ -678,8 +692,9 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         type="text"
                         value={exitQrCode}
                         onChange={(event) => setExitQrCode(event.target.value)}
-                        placeholder="QR Code / Session ID"
-                        className="h-14 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-sm font-medium admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10"
+                        placeholder={isLostTicketMode ? "QR bypassed in Lost Ticket Mode" : "QR Code / Session ID"}
+                        disabled={isLostTicketMode}
+                        className="h-14 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-sm font-medium admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div className="flex gap-3">
@@ -694,7 +709,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       <button
                         type="button"
                         onClick={handleSearchExit}
-                        disabled={exitLoading || !exitQrCode.trim() || !exitLicensePlate.trim()}
+                        disabled={exitLoading || (!isLostTicketMode && !exitQrCode.trim()) || !exitLicensePlate.trim()}
                         className="h-14 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 text-sm font-bold text-[#fff] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[120px]"
                       >
                         {exitLoading ? <Loader className="w-5 h-5 animate-spin" /> : 'Search'}

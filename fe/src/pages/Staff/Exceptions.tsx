@@ -168,14 +168,7 @@ export default function StaffExceptions() {
                 </span>
               </div>
 
-              <div className="flex justify-between items-center py-2 border-b" style={{ borderColor: 'var(--admin-border)' }}>
-                <span className="text-sm flex items-center gap-2" style={{ color: 'var(--admin-text-muted)' }}>
-                  <Ticket size={15} /> Current Ticket Code
-                </span>
-                <span className="font-mono text-sm" style={{ color: 'var(--admin-text-faint)' }}>
-                  {session.sessionCode}
-                </span>
-              </div>
+
 
               {session.entryImageUrl && (
                 <div className="pt-2">
