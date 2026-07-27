@@ -10,6 +10,7 @@ import {
 } from '../../services/reservationsService';
 import type { ReservationResponse } from '../../services/reservationsService';
 import { QRCodeSVG } from 'qrcode.react';
+import toast from 'react-hot-toast';
 import FloatingSessionBanner from '../../components/FloatingSessionBanner';
 import {
   ArrowLeft,
@@ -28,6 +29,7 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 
 export default function MyTicketPage() {
@@ -50,6 +52,8 @@ export default function MyTicketPage() {
   // State cho hủy đặt chỗ
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [ticketToCancel, setTicketToCancel] = useState<string | null>(null);
 
   // Load danh sách vé
   const fetchTickets = async () => {
@@ -113,21 +117,27 @@ export default function MyTicketPage() {
     navigate('/auth');
   };
 
-  const handleCancelBooking = async (id: string) => {
-    if (!token) return;
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+  const handleCancelBooking = (id: string) => {
+    setTicketToCancel(id);
+    setCancelModalOpen(true);
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!token || !ticketToCancel) return;
     
     try {
       setSubmittingCancel(true);
-      setCancellingId(id);
-      await cancelReservation(id);
-      alert('Booking cancelled successfully.');
+      setCancellingId(ticketToCancel);
+      await cancelReservation(ticketToCancel);
+      toast.success('Booking cancelled successfully.');
       await fetchTickets(); // reload list
     } catch (err: any) {
-      alert(err.message || 'Failed to cancel booking.');
+      toast.error(err.message || 'Failed to cancel booking.');
     } finally {
       setSubmittingCancel(false);
       setCancellingId(null);
+      setCancelModalOpen(false);
+      setTicketToCancel(null);
     }
   };
 
@@ -427,6 +437,42 @@ export default function MyTicketPage() {
           </div>
         )}
       </main>
+
+      {/* ── CANCEL CONFIRMATION MODAL ── */}
+      {cancelModalOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up transition-colors duration-300">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-500" />
+              </div>
+              <h3 className="text-xl font-bold text-stone-900 dark:text-white mb-2">Cancel Booking?</h3>
+              <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
+                Are you sure you want to cancel this booking? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setCancelModalOpen(false);
+                    setTicketToCancel(null);
+                  }}
+                  className="flex-1 py-3 px-4 rounded-xl border border-gray-200 dark:border-white/10 text-stone-700 dark:text-stone-300 font-bold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                >
+                  Keep It
+                </button>
+                <button
+                  onClick={confirmCancelBooking}
+                  disabled={submittingCancel}
+                  className="flex-1 py-3 px-4 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  {submittingCancel ? <Loader2 size={18} className="animate-spin" /> : null}
+                  Yes, Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── QR CODE DISPLAY MODAL ── */}
       {selectedTicketForQr && (

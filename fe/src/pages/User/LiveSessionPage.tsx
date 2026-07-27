@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Car, MapPin, Clock, CreditCard, AlertTriangle,
   ChevronLeft, Navigation, Flag, FastForward, RotateCcw
@@ -12,19 +12,24 @@ import DevPanel from '../../components/dev/DevPanel';
 
 export default function LiveSessionPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get('sessionId');
   const { user, token } = useAuth();
 
-  const [session, setSession] = useState<MyActiveSessionResponse | null>(null);
-  const [elapsedString, setElapsedString] = useState('00:00:00');
-  const [dynamicFee, setDynamicFee] = useState(0);
+  const [sessions, setSessions] = useState<MyActiveSessionResponse[]>([]);
+  const [now, setNow] = useState(new Date().getTime());
 
   const fetchSession = async () => {
     if (!token) return;
     try {
       const data = await getMyActiveSession();
-      if (data) {
-        setSession(data);
-        setDynamicFee(data.currentFee);
+      if (data && data.length > 0) {
+        if (sessionId) {
+          const target = data.find(s => s.id === sessionId);
+          setSessions(target ? [target] : [data[0]]);
+        } else {
+          setSessions([data[0]]);
+        }
       } else {
         navigate(-1);
       }
@@ -39,32 +44,22 @@ export default function LiveSessionPage() {
 
   // Timer & API Polling & SignalR
   useEffect(() => {
-    if (!session) return;
+    if (sessions.length === 0) return;
 
-    const entryTime = new Date(session.entryTime).getTime();
-
-    // Cập nhật đồng hồ mỗi giây
-    const updateTime = () => {
-      const now = new Date().getTime();
-      const diffMs = Math.max(0, now - entryTime);
-
-      const totalSeconds = Math.floor(diffMs / 1000);
-      const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
-      const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
-      const s = (totalSeconds % 60).toString().padStart(2, '0');
-      setElapsedString(`${h}:${m}:${s}`);
-    };
-
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
+    const interval = setInterval(() => setNow(new Date().getTime()), 1000);
 
     // Poll backend mỗi 60 giây để cập nhật lại fee chính xác từ hệ thống
     const fetchSessionFee = async () => {
       if (!token) return;
       try {
         const data = await getMyActiveSession();
-        if (data) {
-          setDynamicFee(data.currentFee);
+        if (data && data.length > 0) {
+          if (sessionId) {
+            const target = data.find(s => s.id === sessionId);
+            setSessions(target ? [target] : [data[0]]);
+          } else {
+            setSessions([data[0]]);
+          }
         }
       } catch (err) {
         console.error('Lỗi khi lấy fee:', err);
@@ -81,7 +76,7 @@ export default function LiveSessionPage() {
       .build();
 
     connection.on("ReceiveCheckoutSuccess", (checkoutSessionId: string) => {
-      if (session.id === checkoutSessionId) {
+      if (sessions.some(s => s.id === checkoutSessionId)) {
         navigate(`/checkout-success?sessionId=${checkoutSessionId}`);
       }
     });
@@ -93,72 +88,14 @@ export default function LiveSessionPage() {
       clearInterval(feeInterval);
       connection.stop();
     };
-  }, [session?.entryTime, session?.id, token, navigate]);
+  }, [sessions.length, token, navigate]);
 
-
-
-  const handleDevFastForward = async (minutes: number) => {
-    if (!token || !session) return;
-    try {
-      await devFastForwardTime(minutes);
-      const data = await getMyActiveSession();
-      if (data) {
-        setSession(data);
-        setDynamicFee(data.currentFee);
-      }
-      alert(`Fast-forwarded ${minutes} minutes! Entry time and booked time have been shifted back ${minutes} minutes. Fee has been recalculated!`);
-    } catch (err: any) {
-      alert('Error fast-forwarding time: ' + err.message);
-    }
-  };
-
-  const handleDevReset = async () => {
-    if (!token || !session) return;
-    try {
-      await devResetTime();
-      const data = await getMyActiveSession();
-      if (data) {
-        setSession(data);
-        setDynamicFee(data.currentFee);
-      }
-      alert('Restored to current time!');
-    } catch (err: any) {
-      alert('Error restoring time: ' + err.message);
-    }
-  };
-
-  if (!session) {
+  if (sessions.length === 0) {
     return (
       <div className="min-h-screen bg-[#F4F7F9] dark:bg-[#111111] flex items-center justify-center transition-colors">
         <div className="w-8 h-8 border-4 border-[#2B52FF] border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
-  }
-
-  // Format Date for 'Giờ vào'
-  const entryDate = new Date(session.entryTime);
-  const formattedEntryDate = `${entryDate.toLocaleDateString('vi-VN')} ${entryDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}`;
-
-  const entryDateStr = entryDate.toLocaleDateString('vi-VN');
-  const entryTimeStr = entryDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-
-  let bookedArrivalDateStr = '';
-  let bookedArrivalTimeStr = '';
-  let bookedExitDateStr = '';
-  let bookedExitTimeStr = '';
-  let checkInAllowedStr = '';
-
-  if (session.isPrepaid && session.prepaidStartTime && session.prepaidEndTime) {
-    const pStart = new Date(session.prepaidStartTime);
-    bookedArrivalDateStr = pStart.toLocaleDateString('vi-VN');
-    bookedArrivalTimeStr = pStart.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-
-    const pEnd = new Date(session.prepaidEndTime);
-    bookedExitDateStr = pEnd.toLocaleDateString('vi-VN');
-    bookedExitTimeStr = pEnd.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-
-    const allowedCheckIn = new Date(pStart.getTime() - 15 * 60000);
-    checkInAllowedStr = allowedCheckIn.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   }
 
   return (
@@ -168,11 +105,47 @@ export default function LiveSessionPage() {
         <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-slate-500 dark:text-stone-400 hover:text-slate-800 dark:hover:text-stone-200 transition-colors">
           <ChevronLeft size={24} />
         </button>
-        <h1 className="text-lg font-bold flex-1 text-center pr-8 lg:pr-0 lg:text-left lg:ml-4">Current Parking Session</h1>
+        <h1 className="text-lg font-bold flex-1 text-center pr-8 lg:pr-0 lg:text-left lg:ml-4">Current Parking Sessions</h1>
       </div>
 
-      {/* Main Grid Container for Desktop */}
-      <div className="max-w-6xl mx-auto px-4 mt-6 lg:mt-8 lg:grid lg:grid-cols-12 lg:gap-4 lg:items-stretch">
+      <div className="space-y-12 pt-6 lg:pt-8">
+        {sessions.map((session, index) => {
+          const entryDate = new Date(session.entryTime);
+          const entryDateStr = entryDate.toLocaleDateString('vi-VN');
+          const entryTimeStr = entryDate.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+          let bookedArrivalDateStr = '';
+          let bookedArrivalTimeStr = '';
+          let bookedExitDateStr = '';
+          let bookedExitTimeStr = '';
+          let checkInAllowedStr = '';
+
+          if (session.isPrepaid && session.prepaidStartTime && session.prepaidEndTime) {
+            const pStart = new Date(session.prepaidStartTime);
+            bookedArrivalDateStr = pStart.toLocaleDateString('vi-VN');
+            bookedArrivalTimeStr = pStart.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+            const pEnd = new Date(session.prepaidEndTime);
+            bookedExitDateStr = pEnd.toLocaleDateString('vi-VN');
+            bookedExitTimeStr = pEnd.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+
+            const allowedCheckIn = new Date(pStart.getTime() - 15 * 60000);
+            checkInAllowedStr = allowedCheckIn.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          }
+
+          const diffMs = Math.max(0, now - entryDate.getTime());
+          const totalSeconds = Math.floor(diffMs / 1000);
+          const h = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+          const m = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+          const s = (totalSeconds % 60).toString().padStart(2, '0');
+          const elapsedString = `${h}:${m}:${s}`;
+          const dynamicFee = session.currentFee;
+
+          return (
+            <div key={session.id}>
+              {index > 0 && <div className="max-w-6xl mx-auto px-4 mb-10"><hr className="border-slate-200 dark:border-white/10" /></div>}
+              {/* Main Grid Container for Desktop */}
+              <div className="max-w-6xl mx-auto px-4 lg:grid lg:grid-cols-12 lg:gap-4 lg:items-stretch">
 
         {/* LEFT COLUMN: The "E-Ticket" (4 columns out of 12) */}
         <div className="lg:col-span-4 bg-gradient-to-br from-[#1A36A8] to-[#2B52FF] rounded-3xl p-5 shadow-2xl text-white relative overflow-hidden flex flex-col mb-6 lg:mb-0">
@@ -381,7 +354,11 @@ export default function LiveSessionPage() {
             </div>
           </div>
 
-        </div>
+              </div>
+            </div>
+          </div>
+          );
+        })}
       </div>
 
       <DevPanel onActionSuccess={fetchSession} />

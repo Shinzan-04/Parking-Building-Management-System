@@ -33,12 +33,7 @@ export default function CheckoutSuccessPage() {
           Your payment has been confirmed and the barrier is now open. Thank you for parking with us!
         </p>
 
-        {sessionId && (
-          <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 flex flex-col items-center justify-center mb-8 backdrop-blur-sm">
-            <span className="text-[10px] text-stone-500 font-bold uppercase tracking-widest mb-1">Session ID</span>
-            <span className="text-sm font-mono font-bold text-stone-300">{sessionId.slice(0, 8).toUpperCase()}</span>
-          </div>
-        )}
+
 
         <div className="w-full flex flex-col gap-3">
           <button

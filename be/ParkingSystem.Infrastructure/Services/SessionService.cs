@@ -273,9 +273,9 @@ public class SessionService : ISessionService
     /// <summary>
     /// Lấy thông tin phiên đỗ xe hiện tại (Live Session) của user (Driver)
     /// </summary>
-    public async Task<MyActiveSessionResponse?> GetMyActiveSessionAsync(Guid driverId)
+    public async Task<List<MyActiveSessionResponse>> GetMyActiveSessionAsync(Guid driverId)
     {
-        var session = await _context.ParkingSessions
+        var sessions = await _context.ParkingSessions
             .Include(s => s.VehicleType)
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
@@ -283,47 +283,52 @@ public class SessionService : ISessionService
             .Include(s => s.Reservation)
             .Where(s => s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted)
             .OrderByDescending(s => s.EntryTime)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-        if (session == null) return null;
+        var resultList = new List<MyActiveSessionResponse>();
 
-        // Tái sử dụng logic tính phí chính xác (Block Day/Night) từ CheckOutService
-        decimal currentFee = 0;
-        List<ParkingSystem.Application.DTOs.CheckOut.SurchargeLogItemDto>? surchargeLogs = null;
-        try
+        foreach (var session in sessions)
         {
-            var feeResult = await _checkOutService.CalculateFeeBySessionIdAsync(session.Id);
-            currentFee = feeResult.EstimatedFee;
-            surchargeLogs = feeResult.FeeBreakdown?.SurchargeLogs;
+            // Tái sử dụng logic tính phí chính xác (Block Day/Night) từ CheckOutService
+            decimal currentFee = 0;
+            List<ParkingSystem.Application.DTOs.CheckOut.SurchargeLogItemDto>? surchargeLogs = null;
+            try
+            {
+                var feeResult = await _checkOutService.CalculateFeeBySessionIdAsync(session.Id);
+                currentFee = feeResult.EstimatedFee;
+                surchargeLogs = feeResult.FeeBreakdown?.SurchargeLogs;
+            }
+            catch
+            {
+                currentFee = 0;
+            }
+
+            bool isPrepaid = session.CheckInMethod == CheckInMethod.Booking && session.Reservation != null;
+            DateTime? prepaidStartTime = isPrepaid ? session.Reservation!.StartTime : null;
+            DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : session.GracePeriodEndTime;
+
+            resultList.Add(new MyActiveSessionResponse
+            {
+                Id = session.Id,
+                SessionCode = session.SessionCode,
+                SessionQrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(session.SessionCode),
+                LicensePlate = session.LicensePlate,
+                VehicleTypeName = session.VehicleType?.Name ?? "",
+                EntryTime = session.EntryTime,
+                BuildingName = session.ParkingSlot?.Floor?.Building?.Name ?? "",
+                FloorName = session.ParkingSlot?.Floor?.Name ?? "",
+                SlotNumber = session.ParkingSlot?.SlotNumber ?? "",
+                PricePerHour = 0, // Dùng Block thay vì HourlyRate
+                CurrentFee = currentFee,
+                PrePaidAmount = session.PrePaidAmount,
+                IsPrepaid = isPrepaid,
+                PrepaidStartTime = prepaidStartTime,
+                PrepaidEndTime = prepaidEndTime,
+                SurchargeLogs = surchargeLogs
+            });
         }
-        catch
-        {
-            currentFee = 0;
-        }
 
-        bool isPrepaid = session.CheckInMethod == CheckInMethod.Booking && session.Reservation != null;
-        DateTime? prepaidStartTime = isPrepaid ? session.Reservation!.StartTime : null;
-        DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : session.GracePeriodEndTime;
-
-        return new MyActiveSessionResponse
-        {
-            Id = session.Id,
-            SessionCode = session.SessionCode,
-            SessionQrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(session.SessionCode),
-            LicensePlate = session.LicensePlate,
-            VehicleTypeName = session.VehicleType?.Name ?? "",
-            EntryTime = session.EntryTime,
-            BuildingName = session.ParkingSlot?.Floor?.Building?.Name ?? "",
-            FloorName = session.ParkingSlot?.Floor?.Name ?? "",
-            SlotNumber = session.ParkingSlot?.SlotNumber ?? "",
-            PricePerHour = 0, // Dùng Block thay vì HourlyRate
-            CurrentFee = currentFee,
-            PrePaidAmount = session.PrePaidAmount,
-            IsPrepaid = isPrepaid,
-            PrepaidStartTime = prepaidStartTime,
-            PrepaidEndTime = prepaidEndTime,
-            SurchargeLogs = surchargeLogs
-        };
+        return resultList;
     }
 
     /// <summary>

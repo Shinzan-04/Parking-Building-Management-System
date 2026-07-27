@@ -132,7 +132,7 @@ public class SessionsController : ControllerBase
             var driverId = Guid.Parse(driverIdClaim);
             var result = await _sessionService.GetMyActiveSessionAsync(driverId);
 
-            if (result == null)
+            if (result == null || result.Count == 0)
             {
                 return NoContent();
             }
