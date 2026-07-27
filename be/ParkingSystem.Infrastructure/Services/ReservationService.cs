@@ -177,9 +177,10 @@ public class ReservationService : IReservationService
             var bookingCode = await GenerateBookingCodeAsync();
 
             // Cập nhật trạng thái Slot → TemporaryHeld
-            // CHỈ đổi khi slot đang Available. Nếu slot đã Reserved/Occupied (do booking khác ngày),
-            // KHÔNG ghi đè để tránh phá hủy trạng thái của booking đang hoạt động.
-            var shouldUpdateSlotStatus = slot.Status == SlotStatus.Available;
+            // CHỈ đổi khi slot đang Available VÀ booking bắt đầu trong vòng 30 phút nữa.
+            // Nếu booking cho tương lai (ví dụ: ngày mai), KHÔNG ghi đè để slot hôm nay vẫn có thể được dùng.
+            var isImmediate = request.StartTime <= DateTime.UtcNow.AddMinutes(30);
+            var shouldUpdateSlotStatus = slot.Status == SlotStatus.Available && isImmediate;
             if (shouldUpdateSlotStatus)
             {
                 slot.Status = SlotStatus.TemporaryHeld;
@@ -703,8 +704,8 @@ public class ReservationService : IReservationService
         {
             reservation.Status = ReservationStatus.Confirmed;
 
-            // Đổi slot sang Reserved
-            if (slot != null)
+            // Đổi slot sang Reserved (chỉ đổi nếu booking sắp diễn ra)
+            if (slot != null && reservation.StartTime <= DateTime.UtcNow.AddMinutes(30))
             {
                 slot.Status = SlotStatus.Reserved;
                 slot.UpdatedAt = DateTime.UtcNow;
@@ -825,16 +826,18 @@ public class ReservationService : IReservationService
         reservation.UpdatedAt = DateTime.UtcNow;
         LogState(reservation, "Reassigned", $"Staff {staffId} đổi ô đỗ từ {oldSlotId} sang {newSlotId}");
 
-        // Khóa ô mới
-        newSlot.Status = SlotStatus.Reserved;
-        newSlot.UpdatedAt = DateTime.UtcNow;
-
-        // Nhả ô cũ
-        var oldSlot = await _context.ParkingSlots.FindAsync(oldSlotId);
-        if (oldSlot != null && oldSlot.Status == SlotStatus.Reserved)
+        // Cập nhật trạng thái vật lý của ô mới/cũ nếu booking sắp diễn ra
+        if (reservation.StartTime <= DateTime.UtcNow.AddMinutes(30))
         {
-            oldSlot.Status = SlotStatus.Available;
-            oldSlot.UpdatedAt = DateTime.UtcNow;
+            newSlot.Status = SlotStatus.Reserved;
+            newSlot.UpdatedAt = DateTime.UtcNow;
+
+            var oldSlot = await _context.ParkingSlots.FindAsync(oldSlotId);
+            if (oldSlot != null && (oldSlot.Status == SlotStatus.Reserved || oldSlot.Status == SlotStatus.TemporaryHeld))
+            {
+                oldSlot.Status = SlotStatus.Available;
+                oldSlot.UpdatedAt = DateTime.UtcNow;
+            }
         }
 
         await _context.SaveChangesAsync();

@@ -43,10 +43,10 @@ const SLOT_STATUS_LABELS: Record<SlotStatus, string> = {
 };
 
 const SLOT_STATUS_COLORS: Record<SlotStatus, { bg: string; text: string }> = {
-  Available:   { bg: 'bg-[#FF4C4C]/10',   text: 'text-[#FF4C4C]' },
-  Occupied:    { bg: 'bg-amber-500/15',    text: 'text-amber-500' },
-  Reserved:    { bg: 'bg-amber-400/15',    text: 'text-amber-400' },
-  Maintenance: { bg: 'bg-red-400/15',      text: 'text-red-400' },
+  Available:   { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  Occupied:    { bg: 'bg-blue-500/15',    text: 'text-blue-400' },
+  Reserved:    { bg: 'bg-fuchsia-500/15', text: 'text-fuchsia-400' },
+  Maintenance: { bg: 'bg-zinc-500/15',    text: 'text-zinc-400' },
 };
 
 const statusConfig = {
@@ -154,18 +154,19 @@ function SlotMap({
   const maintCount     = activeFloorSlots.filter(s => normalizeStatus(s.status) === 'Maintenance').length;
 
   const slotColorClass = (status: SlotStatus, isSelected: boolean, isBulkPicked: boolean) => {
-    if (isBulkPicked && status === 'Available')   return 'bg-red-500 border-red-400 text-white scale-105 z-10 shadow-md ring-2 ring-red-400/60';
-    if (isBulkPicked && status === 'Maintenance') return 'bg-green-500 border-green-400 text-white scale-105 z-10 shadow-md ring-2 ring-green-400/60';
-    if (isSelected) return 'bg-[#FF4C4C] border-[#FF4C4C] text-white scale-110 z-10 shadow-lg';
+    if (isBulkPicked && status === 'Available')   return 'bg-zinc-500 border-zinc-400 text-white scale-105 z-10 shadow-md ring-2 ring-zinc-400/60';
+    if (isBulkPicked && status === 'Maintenance') return 'bg-emerald-500 border-emerald-400 text-white scale-105 z-10 shadow-md ring-2 ring-emerald-400/60';
+    if (isSelected) return 'bg-white border-white text-black scale-110 z-10 shadow-lg';
+    
     switch (status) {
       case 'Available':   return bulkMode
-        ? 'bg-[#FF4C4C]/10 border-[#FF4C4C]/40 text-[#FF4C4C] hover:bg-red-500/20 cursor-pointer ring-1 ring-[#FF4C4C]/30'
-        : 'bg-[#FF4C4C]/10 border-[#FF4C4C]/40 text-[#FF4C4C] hover:bg-[#FF4C4C]/20 cursor-pointer';
-      case 'Occupied':    return 'bg-amber-400/20 border-amber-400/60 text-amber-500 cursor-default';
-      case 'Reserved':    return 'bg-amber-300/20 border-amber-300/60 text-amber-400 cursor-default';
+        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer ring-1 ring-emerald-500/30'
+        : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer';
+      case 'Occupied':    return 'bg-blue-500/20 border-blue-500/60 text-blue-400 cursor-default';
+      case 'Reserved':    return 'bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-400 cursor-default';
       case 'Maintenance': return bulkMode
-        ? 'bg-red-500/20 border-red-500/70 text-red-500 hover:bg-green-500/20 hover:border-green-500/60 cursor-pointer ring-1 ring-red-400/40'
-        : 'bg-red-500/20 border-red-500/70 text-red-500 hover:bg-red-500/30 cursor-pointer';
+        ? 'bg-zinc-500/20 border-zinc-500/70 text-zinc-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 cursor-pointer ring-1 ring-zinc-400/40'
+        : 'bg-zinc-500/20 border-zinc-500/70 text-zinc-400 hover:bg-zinc-500/30 cursor-pointer';
     }
   };
 
@@ -272,10 +273,10 @@ function SlotMap({
           <div className="flex items-center flex-wrap gap-x-4 gap-y-2 pt-2 border-t border-black/10 dark:border-white/5 text-xs text-gray-500 dark:text-white/40">
             {/* Stats — always visible */}
             {[
-              { label: 'Free',      count: availableCount, colorClass: 'bg-[#FF4C4C]/20 border-[#FF4C4C]/40' },
-              { label: 'Occupied',  count: occupiedCount,  colorClass: 'bg-amber-500/20 border-amber-500/40' },
-              { label: 'Reserved',  count: reservedCount,  colorClass: 'bg-amber-400/20 border-amber-400/40' },
-              { label: 'Maintenance', count: maintCount,   colorClass: 'bg-red-400/20 border-red-400/40' },
+              { label: 'Available', count: availableCount, colorClass: 'bg-emerald-500/20 border-emerald-500/40' },
+              { label: 'Occupied',  count: occupiedCount,  colorClass: 'bg-blue-500/20 border-blue-500/40' },
+              { label: 'Reserved',  count: reservedCount,  colorClass: 'bg-fuchsia-500/20 border-fuchsia-500/40' },
+              { label: 'Maintenance', count: maintCount,   colorClass: 'bg-zinc-500/20 border-zinc-500/40' },
             ].map(s => (
               <div key={s.label} className="flex items-center gap-1.5">
                 <span className={`w-3 h-3 rounded border ${s.colorClass}`} />

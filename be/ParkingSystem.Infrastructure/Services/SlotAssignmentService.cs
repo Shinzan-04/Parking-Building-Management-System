@@ -47,11 +47,26 @@ public class SlotAssignmentService : ISlotAssignmentService
 
     public async Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, Guid? buildingId, int topN = 5)
     {
+        var now = DateTime.UtcNow;
+        var limitTime = now.AddHours(4);
+        var activeStatuses = new[] 
+        { 
+            ReservationStatus.PaymentPending, 
+            ReservationStatus.Paid,
+            ReservationStatus.PendingReview,
+            ReservationStatus.Confirmed, 
+            ReservationStatus.CheckedIn 
+        };
+
         // Lấy tất cả slot trống phù hợp với loại xe
+        // VÀ KHÔNG có Reservation nào (ở trạng thái chiếm giữ) có StartTime nằm trong 4 tiếng tới
         var query = _context.ParkingSlots
             .Include(s => s.Floor)
                 .ThenInclude(f => f.Building)
-            .Where(s => s.VehicleTypeId == vehicleTypeId && s.Status == SlotStatus.Available);
+            .Where(s => s.VehicleTypeId == vehicleTypeId && s.Status == SlotStatus.Available)
+            .Where(s => !s.Reservations.Any(r => 
+                activeStatuses.Contains(r.Status) && 
+                r.StartTime < limitTime && r.EndTime > now));
 
         if (buildingId.HasValue)
             query = query.Where(s => s.Floor.BuildingId == buildingId.Value);
