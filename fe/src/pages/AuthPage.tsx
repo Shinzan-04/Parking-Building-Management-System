@@ -532,13 +532,7 @@ export default function AuthPage() {
             </div>
           </div>
 
-          {/* Terms */}
-          <p className="text-center text-xs text-stone-400 font-medium mt-5 leading-relaxed">
-            By continuing, you agree to PARKING BUILDING's{' '}
-            <a href="#" className="text-[#FF4C4C] hover:underline font-semibold">Terms of Service</a>
-            {' '}and{' '}
-            <a href="#" className="text-[#FF4C4C] hover:underline font-semibold">Privacy Policy</a>
-          </p>
+
         </div>
       </div>
     </div>

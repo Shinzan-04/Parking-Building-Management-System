@@ -29,15 +29,15 @@ public class CheckOutController : ControllerBase
     /// </summary>
     /// <param name="licensePlate">Bien so xe can tim (khong can chuan hoa truoc)</param>
     [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string? qrCode = null, [FromQuery] string? licensePlate = null, [FromQuery] Guid? buildingId = null)
+    public async Task<IActionResult> Search([FromQuery] string? qrCode = null, [FromQuery] string? licensePlate = null, [FromQuery] Guid? buildingId = null, [FromQuery] bool isLostTicket = false)
     {
-        if (string.IsNullOrWhiteSpace(qrCode))
+        if (!isLostTicket && string.IsNullOrWhiteSpace(qrCode))
         {
-            return BadRequest(new { message = "Xe chưa được duyệt mất vé. Vui lòng quét mã QR!" });
+            return BadRequest(new { message = "Vehicle is not reported as lost ticket. Please scan the QR code!" });
         }
-        if (string.IsNullOrWhiteSpace(licensePlate))
+        if (string.IsNullOrWhiteSpace(qrCode) && string.IsNullOrWhiteSpace(licensePlate))
         {
-            return BadRequest(new { message = "License plate cannot be empty." });
+            return BadRequest(new { message = "Please scan the QR code or enter the license plate." });
         }
 
         try
@@ -49,7 +49,7 @@ public class CheckOutController : ControllerBase
                 staffId = userId;
             }
 
-            var result = await _checkOutService.SearchByQrCodeAndPlateAsync(qrCode, licensePlate, staffId, buildingId);
+            var result = await _checkOutService.SearchByQrCodeAndPlateAsync(qrCode, licensePlate, staffId, buildingId, isLostTicket);
             return Ok(result);
         }
         catch (InvalidOperationException ex)

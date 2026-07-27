@@ -870,8 +870,6 @@ export default function UserLandingPage() {
                 >
                   My Tickets
                 </span>
-                <span className="opacity-50 cursor-not-allowed">Privacy Policy</span>
-                <span className="opacity-50 cursor-not-allowed">Terms of Service</span>
               </div>
 
               {/* Copyright */}

@@ -95,14 +95,7 @@ export default function LiveSessionPage() {
     };
   }, [session?.entryTime, session?.id, token, navigate]);
 
-  const handlePayment = () => {
-    alert(`Processing payment of ${dynamicFee.toLocaleString('vi-VN')} đ`);
-    // navigate to payment gateway or handle checkout
-  };
 
-  const handleReport = () => {
-    alert('Opening issue report form (coming soon)');
-  };
 
   const handleDevFastForward = async (minutes: number) => {
     if (!token || !session) return;
@@ -388,25 +381,6 @@ export default function LiveSessionPage() {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="pt-1 flex flex-col sm:flex-row items-center gap-3">
-            {(!session.isPrepaid || dynamicFee > 0) && (
-              <button
-                onClick={handlePayment}
-                className="w-full sm:flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 rounded-2xl shadow-xl shadow-emerald-600/20 transition-all hover:-translate-y-1 flex justify-center items-center gap-2 text-base border border-transparent"
-              >
-                <CreditCard size={18} />
-                Pay Surcharge: {dynamicFee.toLocaleString('vi-VN')} đ
-              </button>
-            )}
-            <button
-              onClick={handleReport}
-              className="w-full sm:flex-1 bg-white dark:bg-[#18181B] border-2 border-slate-100 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-white/5 hover:border-slate-200 dark:hover:border-white/20 text-slate-600 dark:text-stone-300 font-bold py-4 rounded-2xl transition-all flex justify-center items-center gap-2 text-sm"
-            >
-              <Flag size={18} />
-              Report Issue
-            </button>
-          </div>
         </div>
       </div>
 
