@@ -25,6 +25,8 @@ import type { ParkingSlotDetail } from '../services/parkingService';
 import { searchCheckOut, searchCheckOutByQr, confirmCheckOut, ocrCheckOut } from '../services/checkOutService';
 import type { CheckOutSearchResult } from '../services/checkOutService';
 import { MapPin, X } from 'lucide-react';
+import { createPayOSPayment, verifyPayment } from '../services/paymentService';
+import { QRCodeSVG } from 'qrcode.react';
 type VehicleType = 'car' | 'motorbike' | 'ev';
 
 
@@ -181,6 +183,19 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   const [exceptionAction, setExceptionAction] = useState<ExceptionAction | null>(null);
   const [vehicleTypeMap, setVehicleTypeMap] = useState<Record<string, string>>({});
 
+  const [payOsQrCode, setPayOsQrCode] = useState<string | null>(null);
+  const [payOsOrderCode, setPayOsOrderCode] = useState<number | null>(null);
+  const [payOsLoading, setPayOsLoading] = useState(false);
+  const [isPayOsPaid, setIsPayOsPaid] = useState<boolean>(false);
+  const [isCashReceived, setIsCashReceived] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsCashReceived(false);
+    setIsPayOsPaid(false);
+    setPayOsQrCode(null);
+    setPayOsOrderCode(null);
+  }, [exitSessionData?.sessionId]);
+
   const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -317,7 +332,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
     showNotification('success', `Scanned QR Code: ${qrCode}`);
   };
 
-  const handleCollectAndOpen = async () => {
+  const handleCollectAndOpen = async (method: number = 0) => {
     if (!exitSessionData) {
       showNotification('error', 'No active session found for this vehicle.');
       return;
@@ -331,7 +346,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       const result = await confirmCheckOut({
         sessionId: exitSessionData.sessionId,
         staffId: user.userId,
-        paymentMethod: 0, // Cash
+        paymentMethod: method, // Default to Cash (0)
         paymentAmount: exitSessionData.estimatedFee,
       });
 
@@ -351,6 +366,52 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   const openExceptionModal = (action: ExceptionAction) => {
     setExceptionAction(action);
     setExceptionModalOpen(true);
+  };
+
+  useEffect(() => {
+    let intervalId: number;
+    if (payOsOrderCode && exitSessionData) {
+      intervalId = window.setInterval(async () => {
+        try {
+          const status = await verifyPayment(payOsOrderCode);
+          if (status.isPaid) {
+            clearInterval(intervalId);
+            showNotification('success', 'Customer has paid via Bank transfer successfully!');
+            setPayOsQrCode(null);
+            setPayOsOrderCode(null);
+            setIsPayOsPaid(true);
+          }
+        } catch (err) {
+          // ignore error while polling
+        }
+      }, 3000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payOsOrderCode, exitSessionData]);
+
+  const handleGeneratePayOsQr = async () => {
+    if (!exitSessionData) return;
+    setPayOsLoading(true);
+    try {
+      const res = await createPayOSPayment({
+        amount: exitSessionData.estimatedFee,
+        description: `Fee ${exitSessionData.licensePlate}`,
+        parkingSessionId: exitSessionData.sessionId,
+      });
+      if (res.qrCode) {
+        setPayOsQrCode(res.qrCode);
+        setPayOsOrderCode(res.orderCode);
+      } else {
+        showNotification('error', 'PayOS did not return QR Code.');
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Failed to generate PayOS QR');
+    } finally {
+      setPayOsLoading(false);
+    }
   };
 
   const handleEntryCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
@@ -868,14 +929,73 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   </div>
 
                   <div className="mt-auto space-y-3">
+                    {payOsQrCode && (
+                      <div className="flex flex-col items-center justify-center p-4 border admin-border rounded-xl mb-4 bg-white dark:bg-[#18181B]">
+                        <p className="text-[10px] font-bold text-[#FF4C4C] mb-3 uppercase tracking-widest text-center">Scan to Pay via Bank</p>
+                        <div className="bg-white p-2 rounded-xl">
+                          <QRCodeSVG value={payOsQrCode} size={160} level="M" includeMargin={true} />
+                        </div>
+                        <p className="text-xs text-center mt-3 font-medium admin-text-muted">Waiting for payment...</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayOsQrCode(null);
+                            setPayOsOrderCode(null);
+                          }}
+                          className="mt-3 text-[10px] font-bold text-red-500 hover:underline tracking-widest uppercase"
+                        >
+                          Cancel QR
+                        </button>
+                      </div>
+                    )}
+
+                    {!payOsQrCode && !isPayOsPaid && (
+                      <button
+                        type="button"
+                        onClick={handleGeneratePayOsQr}
+                        disabled={!exitSessionData || exitSessionData.estimatedFee <= 0 || payOsLoading}
+                        className="w-full h-14 flex items-center justify-center gap-2 rounded-xl border admin-border admin-bg-surface hover:admin-bg-surface/10 disabled:opacity-40 text-sm font-bold text-[#FF4C4C] transition-colors shadow-sm"
+                      >
+                        {payOsLoading ? <Loader className="w-5 h-5 animate-spin" /> : <QrCode className="w-5 h-5" />}
+                        Generate QR (PayOS)
+                      </button>
+                    )}
+
+                    {!payOsQrCode && !isPayOsPaid && exitSessionData && exitSessionData.estimatedFee > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCashReceived(!isCashReceived)}
+                        className={`w-full h-12 mt-2 mb-2 rounded-xl border flex items-center justify-center gap-2 text-sm font-bold transition-all ${
+                          isCashReceived
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-stone-50 dark:bg-white/5 border admin-border admin-text-muted hover:admin-bg-surface/10'
+                        }`}
+                      >
+                        {isCashReceived ? <CheckCircle2 className="w-5 h-5" /> : <div className="w-5 h-5 rounded-full border-2 border-current opacity-50" />}
+                        {isCashReceived ? 'Cash Received Confirmed' : 'Mark as Cash Received'}
+                      </button>
+                    )}
+
+                    {isPayOsPaid && (
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-xl p-3 mb-2 text-center text-xs font-bold flex flex-col items-center justify-center gap-1">
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span>Payment Received via PayOS</span>
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      onClick={handleCollectAndOpen}
-                      disabled={!exitSessionData}
+                      onClick={() => handleCollectAndOpen(isPayOsPaid ? 1 : 0)}
+                      disabled={
+                        !exitSessionData || 
+                        payOsLoading || 
+                        !!payOsQrCode || 
+                        (!isPayOsPaid && exitSessionData.estimatedFee > 0 && !isCashReceived)
+                      }
                       className="w-full flex items-center justify-center gap-2 h-14 rounded-xl bg-[#FF4C4C] hover:bg-[#E13B3B] disabled:opacity-40 text-sm font-bold text-white transition-colors shadow-sm"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      Process & Release
+                      {exitSessionData?.estimatedFee === 0 ? 'Process & Release' : (isPayOsPaid ? 'Process & Release (PayOS)' : 'Process & Release (Cash)')}
                     </button>
                     <button
                       type="button"
