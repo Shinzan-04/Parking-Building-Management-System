@@ -123,11 +123,11 @@ public class ReservationsController : ControllerBase
     // --- API GỢI Ý VỊ TRÍ BỞI AI ---
 
     [HttpGet("ai-suggest")]
-    public async Task<IActionResult> GetAISuggestions([FromQuery] Guid vehicleTypeId, [FromQuery] Guid? buildingId, [FromQuery] int topN = 5)
+    public async Task<IActionResult> GetAISuggestions([FromQuery] Guid vehicleTypeId, [FromQuery] Guid? buildingId, [FromQuery] int topN = 5, [FromQuery] DateTime? startTime = null)
     {
         try
         {
-            var suggestions = await _slotAssignmentService.GetRecommendedSlotsAsync(vehicleTypeId, buildingId, topN);
+            var suggestions = await _slotAssignmentService.GetRecommendedSlotsAsync(vehicleTypeId, buildingId, topN, startTime);
             return Ok(suggestions);
         }
         catch (Exception ex)

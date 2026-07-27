@@ -187,7 +187,10 @@ export default function AdminReservations() {
     try {
       if (user?.assignedBuildingId) {
         const building = await getBuildingById(user.assignedBuildingId);
-        setApprovalMode(building.approvalMode);
+        let mode = 0;
+        if (building.approvalMode === 'AutoApprove' || building.approvalMode === 1) mode = 1;
+        else if (building.approvalMode === 'AutoReject' || building.approvalMode === 2) mode = 2;
+        setApprovalMode(mode);
       }
       const data = await getAllActiveReservations();
       setReservations(data);
@@ -197,7 +200,7 @@ export default function AdminReservations() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token]);
+  }, [token, user?.assignedBuildingId]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
