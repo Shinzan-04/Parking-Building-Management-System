@@ -641,17 +641,22 @@ public class ReservationService : IReservationService
 
     // --- For Staff ---
 
-    public async Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync(Guid staffId)
+    public async Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync(Guid staffId, Guid? buildingId = null)
     {
         var staff = await _context.Users.FindAsync(staffId);
 
         var query = _context.Reservations
             .Include(r => r.ParkingSlot)
             .ThenInclude(ps => ps.Floor)
-            .Where(r => r.Status == ReservationStatus.PendingReview); // Chỉ hiện những cái đã thanh toán
+            .Where(r => r.Status == ReservationStatus.PendingReview);
 
-        if (staff != null && staff.AssignedBuildingId.HasValue)
+        if (buildingId.HasValue)
         {
+            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == buildingId.Value);
+        }
+        else if (staff != null && staff.AssignedBuildingId.HasValue && staff.Role != ParkingSystem.Domain.Enums.Role.Admin && staff.Role != ParkingSystem.Domain.Enums.Role.Manager)
+        {
+            // Only strict filter for Staff role. Admins and Managers can see all if buildingId is not specified.
             var assignedBuildingId = staff.AssignedBuildingId.Value;
             query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == assignedBuildingId);
         }
@@ -663,7 +668,7 @@ public class ReservationService : IReservationService
         return reservations.Select(r => MapToResponse(r, r.ParkingSlot));
     }
 
-    public async Task<IEnumerable<ReservationResponse>> GetAllActiveReservationsAsync(Guid staffId)
+    public async Task<IEnumerable<ReservationResponse>> GetAllActiveReservationsAsync(Guid staffId, Guid? buildingId = null)
     {
         var staff = await _context.Users.FindAsync(staffId);
 
@@ -673,7 +678,11 @@ public class ReservationService : IReservationService
             .ThenInclude(ps => ps.Floor)
             .Where(r => validStatuses.Contains(r.Status));
 
-        if (staff != null && staff.AssignedBuildingId.HasValue)
+        if (buildingId.HasValue)
+        {
+            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == buildingId.Value);
+        }
+        else if (staff != null && staff.AssignedBuildingId.HasValue && staff.Role != ParkingSystem.Domain.Enums.Role.Admin && staff.Role != ParkingSystem.Domain.Enums.Role.Manager)
         {
             var assignedBuildingId = staff.AssignedBuildingId.Value;
             query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == assignedBuildingId);

@@ -140,25 +140,25 @@ public class ReservationsController : ControllerBase
 
     [HttpGet("pending")]
     [Authorize(Roles = "Staff,Manager,Admin")]
-    public async Task<IActionResult> GetPendingReservations()
+    public async Task<IActionResult> GetPendingReservations([FromQuery] Guid? buildingId)
     {
         var staffIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(staffIdClaim)) return Unauthorized();
 
         var staffId = Guid.Parse(staffIdClaim);
-        var result = await _reservationService.GetPendingReservationsAsync(staffId);
+        var result = await _reservationService.GetPendingReservationsAsync(staffId, buildingId);
         return Ok(result);
     }
 
     [HttpGet("all-active")]
     [Authorize(Roles = "Staff,Manager,Admin")]
-    public async Task<IActionResult> GetAllActiveReservations()
+    public async Task<IActionResult> GetAllActiveReservations([FromQuery] Guid? buildingId)
     {
         var staffIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(staffIdClaim)) return Unauthorized();
 
         var staffId = Guid.Parse(staffIdClaim);
-        var result = await _reservationService.GetAllActiveReservationsAsync(staffId);
+        var result = await _reservationService.GetAllActiveReservationsAsync(staffId, buildingId);
         return Ok(result);
     }
 

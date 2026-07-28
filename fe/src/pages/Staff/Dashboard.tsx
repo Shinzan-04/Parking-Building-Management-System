@@ -395,7 +395,7 @@ export default function StaffDashboard() {
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-[var(--admin-bg-card)]"
                 style={{ color: 'var(--admin-text-primary)' }}
               >
                 <ChevronLeft size={16} />
@@ -406,7 +406,7 @@ export default function StaffDashboard() {
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-[var(--admin-bg-card)]"
                 style={{ color: 'var(--admin-text-primary)' }}
               >
                 <ChevronRight size={16} />

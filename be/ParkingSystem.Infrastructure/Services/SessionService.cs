@@ -129,6 +129,24 @@ public class SessionService : ISessionService
         var now = DateTime.UtcNow;
         var todayStart = now.Date;
         
+        // Xác định BuildingId để filter Summary
+        Guid? summaryBuildingId = filter.BuildingId;
+        if (filter.StaffId.HasValue && !summaryBuildingId.HasValue)
+        {
+            var staff = await _context.Users.FindAsync(filter.StaffId.Value);
+            if (staff != null) summaryBuildingId = staff.AssignedBuildingId;
+        }
+
+        var baseSummaryQuery = _context.ParkingSessions
+            .Include(s => s.ParkingSlot)
+            .ThenInclude(ps => ps.Floor)
+            .Where(s => !s.IsDeleted);
+
+        if (summaryBuildingId.HasValue)
+        {
+            baseSummaryQuery = baseSummaryQuery.Where(s => s.ParkingSlot != null && s.ParkingSlot.Floor != null && s.ParkingSlot.Floor.BuildingId == summaryBuildingId.Value);
+        }
+
         var summary = new SessionSummary
         {
             TotalActive = await _context.ParkingSessions

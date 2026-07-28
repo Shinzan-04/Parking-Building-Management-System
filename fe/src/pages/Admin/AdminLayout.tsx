@@ -65,7 +65,7 @@ export default function AdminLayout() {
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30 shrink-0 overflow-hidden hover:scale-105 transition-transform duration-200">
-            <Car size={18} className={`text-white ${driving ? 'animate-car-drive' : ''}`} />
+            <Car size={18} className={`admin-text ${driving ? 'animate-car-drive' : ''}`} />
           </div>
           {!collapsed && (
             <div className="ml-3 overflow-hidden">
@@ -119,7 +119,7 @@ export default function AdminLayout() {
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1"
               style={{ backgroundColor: 'var(--admin-bg-card)' }}
             >
-              <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-sm shrink-0">
+              <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center admin-text font-bold text-sm shrink-0">
                 {initials}
               </div>
               <div className="flex-1 min-w-0">

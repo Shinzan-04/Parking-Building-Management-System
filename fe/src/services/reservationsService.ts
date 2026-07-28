@@ -95,12 +95,16 @@ export interface ReviewReservationRequest {
 }
 
 /** Lấy danh sách đặt chỗ đang Pending (Manager/Staff) */
-export const getPendingReservations = (): Promise<ReservationResponse[]> =>
-  apiClient('/api/reservations/pending');
+export const getPendingReservations = (buildingId?: string): Promise<ReservationResponse[]> => {
+  const url = buildingId ? `/api/reservations/pending?buildingId=${buildingId}` : '/api/reservations/pending';
+  return apiClient(url);
+}
 
 /** Lấy tất cả danh sách đặt chỗ đang Active/Pending (để hiển thị và đổi chỗ) */
-export const getAllActiveReservations = (): Promise<ReservationResponse[]> =>
-  apiClient('/api/reservations/all-active');
+export const getAllActiveReservations = (buildingId?: string): Promise<ReservationResponse[]> => {
+  const url = buildingId ? `/api/reservations/all-active?buildingId=${buildingId}` : '/api/reservations/all-active';
+  return apiClient(url);
+}
 
 /** Duyệt hoặc từ chối đặt chỗ */
 export const reviewReservation = (

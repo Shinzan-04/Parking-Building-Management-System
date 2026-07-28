@@ -122,7 +122,7 @@ export default function StaffLayout() {
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30 shrink-0 overflow-hidden hover:scale-105 transition-transform duration-200">
-            <Car size={18} className={`text-white ${driving ? 'animate-car-drive' : ''}`} />
+            <Car size={18} className={`admin-text ${driving ? 'animate-car-drive' : ''}`} />
           </div>
           {!isCollapsed && (
             <div className="ml-3 overflow-hidden">
@@ -208,7 +208,7 @@ export default function StaffLayout() {
                     {!isCollapsed && <span className="truncate">{item.label}</span>}
                     {item.to === '/staff/chat' && pendingChatCount > 0 && (
                       <span
-                        className={`shrink-0 flex items-center justify-center rounded-full bg-[#FF4C4C] text-white text-[10px] font-bold ${isCollapsed ? 'absolute -top-1 -right-1 w-4 h-4' : 'ml-auto min-w-[18px] h-[18px] px-1'}`}
+                        className={`shrink-0 flex items-center justify-center rounded-full bg-[#FF4C4C] admin-text text-[10px] font-bold ${isCollapsed ? 'absolute -top-1 -right-1 w-4 h-4' : 'ml-auto min-w-[18px] h-[18px] px-1'}`}
                       >
                         {pendingChatCount > 9 ? '9+' : pendingChatCount}
                       </span>
@@ -227,7 +227,7 @@ export default function StaffLayout() {
             style={{ backgroundColor: 'var(--admin-bg-card)' }}
             title={isCollapsed ? user?.fullName ?? 'Staff' : undefined}
           >
-            <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-sm shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center admin-text font-bold text-sm shrink-0">
               {initials}
             </div>
             {!isCollapsed && (
