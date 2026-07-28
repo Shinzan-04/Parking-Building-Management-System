@@ -170,14 +170,18 @@ export default function StaffExceptions() {
 
 
 
-              {session.entryImageUrl && (
-                <div className="pt-2">
-                  <span className="text-sm flex items-center gap-2 mb-2" style={{ color: 'var(--admin-text-muted)' }}>
-                    Check-in Photo
-                  </span>
+              <div className="pt-2">
+                <span className="text-sm flex items-center gap-2 mb-2" style={{ color: 'var(--admin-text-muted)' }}>
+                  Check-in Photo
+                </span>
+                {session.entryImageUrl ? (
                   <img src={session.entryImageUrl} alt="Check-in" className="w-full h-auto rounded-lg object-cover border border-dashed" style={{ borderColor: 'var(--admin-border)' }} />
-                </div>
-              )}
+                ) : (
+                  <div className="w-full h-32 rounded-lg border-2 border-dashed flex items-center justify-center text-sm" style={{ borderColor: 'var(--admin-border)', color: 'var(--admin-text-faint)', backgroundColor: 'var(--admin-bg-base)' }}>
+                    No check-in photo available
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

@@ -284,7 +284,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       });
 
       showNotification('success',
-        `✓ Check-in successful: ${result.licensePlate} → Bldg ${result.buildingName}, Flr ${result.floorName}, Slot ${result.slotNumber}`
+        `Check-in successful: ${result.licensePlate} — ${result.buildingName}, Floor ${result.floorName}, Slot ${result.slotNumber}`
       );
       setCheckInResultData(result);
       setEntryLicensePlate('');

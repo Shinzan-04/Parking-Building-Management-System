@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Car, MapPin, BarChart3, LogOut,
@@ -38,6 +38,11 @@ export default function ManagerLayout() {
 
   const W  = collapsed ? 'w-[68px]' : 'w-64';
   const ML = collapsed ? 'ml-[68px]' : 'ml-64';
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-width', collapsed ? '68px' : '256px');
+    return () => { document.documentElement.style.removeProperty('--sidebar-width'); };
+  }, [collapsed]);
 
   return (
     <div

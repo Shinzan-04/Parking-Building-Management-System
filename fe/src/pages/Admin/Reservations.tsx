@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import toast from 'react-hot-toast';
 import {
   CalendarCheck, Check, X, Loader2, RefreshCw,
   AlertTriangle, Clock, MapPin, FileText,
@@ -243,8 +244,10 @@ export default function AdminReservations() {
       await reviewReservation(approveTarget.id, payload);
       await loadData(true);
       setApproveTarget(null);
+      toast.success('Reservation approved successfully.');
     } catch (e) {
       setApproveError(e instanceof Error ? e.message : 'Approval failed.');
+      toast.error(e instanceof Error ? e.message : 'Approval failed.');
       setApproving(false);
     }
   };
@@ -262,8 +265,10 @@ export default function AdminReservations() {
       await loadData(true);
       setRejectTarget(null);
       setRejectReason('');
+      toast.success('Reservation rejected successfully.');
     } catch (e) {
       setRejectError(e instanceof Error ? e.message : 'Rejection failed.');
+      toast.error(e instanceof Error ? e.message : 'Rejection failed.');
       setRejecting(false);
     }
   };
@@ -281,8 +286,11 @@ export default function AdminReservations() {
       await reassignSlot(reassignTarget.id, selectedSlotId);
       await loadData(true);
       setReassignTarget(null);
+      setSelectedSlotId('');
+      toast.success('Slot reassigned successfully.');
     } catch (e) {
-      setReassignError(e instanceof Error ? e.message : 'Slot reassignment failed.');
+      setReassignError(e instanceof Error ? e.message : 'Reassignment failed.');
+      toast.error(e instanceof Error ? e.message : 'Reassignment failed.');
     } finally {
       setReassigning(false);
     }

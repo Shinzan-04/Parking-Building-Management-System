@@ -58,6 +58,12 @@ export default function StaffLayout() {
 
   useEffect(() => { refreshPendingChatCount(); }, [refreshPendingChatCount]);
 
+  // Sync sidebar width CSS variable for global toaster offset
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '68px' : '256px');
+    return () => { document.documentElement.style.removeProperty('--sidebar-width'); };
+  }, [isCollapsed]);
+
   // Refresh badge instantly when ChatDashboard takes over/closes a session locally
   useEffect(() => {
     const handler = () => refreshPendingChatCount();
