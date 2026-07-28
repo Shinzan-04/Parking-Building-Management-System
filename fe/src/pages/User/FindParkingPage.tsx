@@ -251,15 +251,43 @@ export default function FindParkingPage() {
   const [routeInfo, setRouteInfo] = useState<{ distKm: string; mins: number } | null>(null);
 
   const handleGetDirections = useCallback(async (toLat: number, toLng: number) => {
-    if (!userLocation) {
-      alert('Please enable location service first for directions!');
-      return;
+    let currentLoc = userLocation;
+
+    if (!currentLoc) {
+      if (!navigator.geolocation) {
+        alert('Trình duyệt không hỗ trợ định vị.');
+        return;
+      }
+      try {
+        currentLoc = await new Promise<{lat: number, lng: number}>((resolve, reject) => {
+          setLocatingUser(true);
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              setUserLocation(coords);
+              setLocatingUser(false);
+              resolve(coords);
+            },
+            (err) => {
+              setLocatingUser(false);
+              reject(err);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+          );
+        });
+      } catch (err: any) {
+        alert('Vui lòng cấp quyền truy cập vị trí để xem đường đi!');
+        return;
+      }
     }
+
+    if (!currentLoc) return;
+
     setIsLoadingRoute(true);
     setRouteCoords(null);
     setRouteInfo(null);
     try {
-      const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lng},${userLocation.lat};${toLng},${toLat}?overview=full&geometries=geojson`;
+      const url = `https://router.project-osrm.org/route/v1/driving/${currentLoc.lng},${currentLoc.lat};${toLng},${toLat}?overview=full&geometries=geojson`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.code !== 'Ok' || !data.routes?.length) throw new Error();
@@ -273,9 +301,12 @@ export default function FindParkingPage() {
         distKm: distM < 1000 ? `${Math.round(distM)} m` : `${(distM / 1000).toFixed(1)} km`,
         mins: Math.ceil(durS / 60),
       });
-      mapInstance?.flyTo([toLat, toLng], 16, { duration: 1 });
+      if (mapInstance) {
+        const bounds = L.latLngBounds([currentLoc.lat, currentLoc.lng], [toLat, toLng]);
+        mapInstance.flyToBounds(bounds, { padding: [80, 80], duration: 1.5 });
+      }
     } catch {
-      alert('Failed to calculate route. Check your connection.');
+      alert('Không thể tải đường đi. Vui lòng kiểm tra kết nối mạng.');
     } finally {
       setIsLoadingRoute(false);
     }
@@ -284,6 +315,9 @@ export default function FindParkingPage() {
   const handleCancelRoute = useCallback(() => {
     setRouteCoords(null);
     setRouteInfo(null);
+    setUserLocation(null);
+    setFlyToUser(false);
+    setSortBy('relevance');
   }, []);
 
   // ── API Buildings state ──
@@ -410,8 +444,10 @@ export default function FindParkingPage() {
 
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
 
-  // Filter & sort dựa trên danh sách tòa nhà lấy từ API
   const filtered = buildingsList.filter((lot) => {
+    // Luôn hiển thị toà nhà đang được chọn (để không bị mất marker khi tìm đường)
+    if (selectedLot?.id === lot.id) return true;
+
     const matchType =
       vehicleFilter === 'all' || lot.vehicleTypes.includes(vehicleFilter);
     const matchSearch =
