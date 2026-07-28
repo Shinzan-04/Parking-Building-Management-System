@@ -124,18 +124,34 @@ public class SessionService : ISessionService
         var now = DateTime.UtcNow;
         var todayStart = now.Date;
         
+        // Xác định BuildingId để filter Summary
+        Guid? summaryBuildingId = filter.BuildingId;
+        if (filter.StaffId.HasValue && !summaryBuildingId.HasValue)
+        {
+            var staff = await _context.Users.FindAsync(filter.StaffId.Value);
+            if (staff != null) summaryBuildingId = staff.AssignedBuildingId;
+        }
+
+        var baseSummaryQuery = _context.ParkingSessions
+            .Include(s => s.ParkingSlot)
+            .ThenInclude(ps => ps.Floor)
+            .Where(s => !s.IsDeleted);
+
+        if (summaryBuildingId.HasValue)
+        {
+            baseSummaryQuery = baseSummaryQuery.Where(s => s.ParkingSlot != null && s.ParkingSlot.Floor != null && s.ParkingSlot.Floor.BuildingId == summaryBuildingId.Value);
+        }
+
         var summary = new SessionSummary
         {
-            TotalActive = await _context.ParkingSessions
-                .CountAsync(s => s.Status == SessionStatus.Active && !s.IsDeleted),
-            TotalOverdue = await _context.ParkingSessions
-                .CountAsync(s => s.Status == SessionStatus.Overdue && !s.IsDeleted),
-            TotalCompletedToday = await _context.ParkingSessions
-                .CountAsync(s => s.Status == SessionStatus.Completed 
-                              && s.ExitTime >= todayStart && !s.IsDeleted),
-            TotalRevenueToday = await _context.ParkingSessions
-                .Where(s => s.Status == SessionStatus.Completed 
-                         && s.ExitTime >= todayStart && !s.IsDeleted)
+            TotalActive = await baseSummaryQuery
+                .CountAsync(s => s.Status == SessionStatus.Active),
+            TotalOverdue = await baseSummaryQuery
+                .CountAsync(s => s.Status == SessionStatus.Overdue),
+            TotalCompletedToday = await baseSummaryQuery
+                .CountAsync(s => s.Status == SessionStatus.Completed && s.ExitTime >= todayStart),
+            TotalRevenueToday = await baseSummaryQuery
+                .Where(s => s.Status == SessionStatus.Completed && s.ExitTime >= todayStart)
                 .SumAsync(s => s.TotalFee)
         };
 

@@ -13,8 +13,8 @@ public interface IReservationService
     Task<bool> FailPaymentAsync(Guid reservationId);
     
     // For Staff
-    Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync(Guid staffId);
-    Task<IEnumerable<ReservationResponse>> GetAllActiveReservationsAsync(Guid staffId);
+    Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync(Guid staffId, Guid? buildingId = null);
+    Task<IEnumerable<ReservationResponse>> GetAllActiveReservationsAsync(Guid staffId, Guid? buildingId = null);
     Task<bool> ReviewReservationAsync(Guid reservationId, Guid staffId, ReviewReservationRequest request);
     Task<bool> ReassignSlotAsync(Guid reservationId, Guid newSlotId, Guid staffId);
     
