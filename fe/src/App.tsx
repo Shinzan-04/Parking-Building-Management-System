@@ -134,13 +134,7 @@ export default function App() {
         </Routes>
       </Suspense>
       <GlobalChat />
-      <Toaster 
-        position="top-center" 
-        containerStyle={{ 
-          left: 'var(--sidebar-width, 16px)',
-          transition: 'left 0.3s ease'
-        }} 
-      />
+      <Toaster position="top-center" />
     </BrowserRouter>
   );
 }

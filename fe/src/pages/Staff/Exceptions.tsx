@@ -4,6 +4,31 @@ import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import type { SessionDto } from '../../services/sessionsService';
 
+const showCustomToast = (kind: 'success' | 'error', message: string) => {
+  toast.custom((t) => {
+    const tone =
+      kind === 'success'
+        ? 'border-emerald-100 bg-white text-emerald-700 shadow-emerald-500/10'
+        : 'border-red-100 bg-white text-red-700 shadow-red-500/10';
+    const Icon = kind === 'success' ? CheckCircle2 : AlertTriangle;
+    
+    return (
+      <div
+        className={`w-80 min-h-[4.5rem] rounded-2xl border p-4 shadow-xl flex items-center gap-3.5 pointer-events-auto ${tone}`}
+        style={{
+          animation: t.visible ? 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'none',
+          opacity: t.visible ? 1 : 0,
+          transition: 'opacity 0.4s'
+        }}
+      >
+        <Icon size={26} className={`shrink-0 ${kind === 'success' ? 'text-emerald-500' : 'text-red-500'}`} />
+        <span className="text-sm font-bold leading-snug text-left">{message}</span>
+      </div>
+    );
+  }, { duration: 3000, position: 'top-center' });
+};
+
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
 export default function StaffExceptions() {
@@ -21,7 +46,7 @@ export default function StaffExceptions() {
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchPlate.trim()) {
-      toast.error('Please enter a license plate to search');
+      showCustomToast('error', 'Please enter a license plate to search');
       return;
     }
 
@@ -36,10 +61,10 @@ export default function StaffExceptions() {
       
       if (!res.ok) {
         if (res.status === 404) {
-          toast.error(`No vehicle with license plate '${searchPlate}' found in the parking lot.`);
+          showCustomToast('error', `No vehicle with license plate '${searchPlate}' found in the parking lot.`);
         } else {
           const err = await res.json();
-          toast.error(err.message || 'Error searching for session.');
+          showCustomToast('error', err.message || 'Error searching for session.');
         }
         return;
       }
@@ -47,7 +72,7 @@ export default function StaffExceptions() {
       const data = await res.json();
       setSession(data);
     } catch (err) {
-      toast.error('Unable to connect to the server.');
+      showCustomToast('error', 'Unable to connect to the server.');
     } finally {
       setLoading(false);
     }
@@ -72,15 +97,15 @@ export default function StaffExceptions() {
       
       if (!res.ok) {
         const err = await res.json();
-        toast.error(err.message || 'Error reissuing ticket.');
+        showCustomToast('error', err.message || 'Error reissuing ticket.');
         return;
       }
 
       const result = await res.json();
       setNewSessionCode(result.sessionCode);
-      toast.success('Ticket reissued successfully!');
+      showCustomToast('success', 'Ticket reissued successfully!');
     } catch (err) {
-      toast.error('Error calling the reissue ticket API.');
+      showCustomToast('error', 'Error calling the reissue ticket API.');
     } finally {
       setIsSubmitting(false);
     }

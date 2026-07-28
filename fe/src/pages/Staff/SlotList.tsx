@@ -27,7 +27,7 @@ function getStatusLabel(status: string | number): SlotStatus {
 const STATUS_STYLE: Record<SlotStatus, { bg: string; border: string; text: string; dot: string; cardText: string }> = {
   Available:   { bg: 'rgba(16,185,129,0.18)',  border: 'rgba(16,185,129,0.55)', text: '#10b981', dot: '#10b981', cardText: '#0d1a14' },
   Occupied:    { bg: 'rgba(239,68,68,0.18)',   border: 'rgba(239,68,68,0.55)',  text: '#f87171', dot: '#ef4444', cardText: '#1a0a0a' },
-  Reserved:    { bg: 'rgba(168,85,247,0.18)',  border: 'rgba(168,85,247,0.55)', text: '#c084fc', dot: '#a855f7', cardText: '#130d1a' },
+  Reserved:    { bg: 'rgba(234, 179, 8, 0.18)',  border: 'rgba(234, 179, 8, 0.55)', text: '#facc15', dot: '#eab308', cardText: '#1a1600' },
   Maintenance: { bg: 'rgba(100,116,139,0.22)', border: 'rgba(100,116,139,0.5)', text: '#94a3b8', dot: '#64748b', cardText: '#1a1a1a' },
 };
 

@@ -76,10 +76,10 @@ function GateStatusBanner({ kind, message }: { kind: 'success' | 'error' | 'info
 
   return (
     <div
-      className="fixed top-8 left-1/2 -translate-x-1/2 z-[100]"
+      className="fixed top-8 inset-x-0 flex justify-center z-[100] pointer-events-none"
       style={{ animation: 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
     >
-      <div className={`w-80 min-h-[4.5rem] rounded-2xl border p-4 shadow-xl flex items-center gap-3.5 ${tone}`}>
+      <div className={`w-80 min-h-[4.5rem] rounded-2xl border p-4 shadow-xl flex items-center gap-3.5 pointer-events-auto ${tone}`}>
         <Icon size={26} className={`shrink-0 ${kind === 'success' ? 'text-emerald-500' : kind === 'error' ? 'text-red-500' : 'text-blue-500'}`} />
         <span className="text-sm font-bold leading-snug text-left">{message}</span>
       </div>
