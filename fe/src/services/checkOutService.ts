@@ -24,6 +24,7 @@ export interface FeeBreakdownDto {
 
 export interface CheckOutSearchResult {
   sessionId: string;
+  sessionCode: string;
   licensePlate: string;
   slotNumber: string;
   floorName: string;
@@ -82,6 +83,7 @@ export interface OcrCheckOutRequest {
 
 export interface OcrCheckOutResult {
   sessionId: string;
+  sessionCode: string;
   entryLicensePlate: string;
   exitLicensePlate: string;
   isMatch: boolean;

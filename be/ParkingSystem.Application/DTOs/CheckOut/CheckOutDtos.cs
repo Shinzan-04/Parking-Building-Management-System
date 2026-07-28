@@ -8,6 +8,7 @@ namespace ParkingSystem.Application.DTOs.CheckOut;
 public class CheckOutSearchResult
 {
     public Guid SessionId { get; set; }
+    public string SessionCode { get; set; } = string.Empty;
     public string LicensePlate { get; set; } = string.Empty;
     public string SlotNumber { get; set; } = string.Empty;
     public string FloorName { get; set; } = string.Empty;
@@ -186,6 +187,7 @@ public class OcrCheckOutRequest
 public class OcrCheckOutResult
 {
     public Guid SessionId { get; set; }
+    public string SessionCode { get; set; } = string.Empty;
     public string EntryLicensePlate { get; set; } = string.Empty;
     public string ExitLicensePlate { get; set; } = string.Empty;
     public bool IsMatch { get; set; }

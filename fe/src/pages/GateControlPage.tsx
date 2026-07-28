@@ -733,10 +733,10 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4">
                       <div>
                         <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session ID</p>
-                        <p className="text-sm font-bold admin-text font-mono">{exitSessionData.sessionId.slice(0, 8).toUpperCase()}</p>
+                        <p className="text-sm font-bold admin-text font-mono">{exitSessionData.sessionCode}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session Type</p>
+                        <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Vehicle Type</p>
                         <p className="text-sm font-bold admin-text capitalize">{exitSessionData.vehicleTypeName}</p>
                       </div>
                       <div>
@@ -769,7 +769,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         <p className="text-sm font-bold admin-text-faint">---</p>
                       </div>
                       <div>
-                        <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session Type</p>
+                        <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Vehicle Type</p>
                         <p className="text-sm font-bold admin-text-faint">---</p>
                       </div>
                       <div>
@@ -799,37 +799,48 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 {/* History Log Block */}
                 <div className="glass-card rounded-[1.5rem] p-6">
                   <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-4">HISTORY LOG</h3>
-                  {exitSessionData?.feeBreakdown?.surchargeLogs && exitSessionData.feeBreakdown.surchargeLogs.length > 0 ? (
-                    <div className="space-y-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
-                      {exitSessionData.feeBreakdown.surchargeLogs.map((log, index) => {
-                        const lowerName = log.name.toLowerCase();
-                        const isEarly = lowerName.includes('early') || lowerName.includes('đến sớm');
-                        const isOverdue = lowerName.includes('late') || lowerName.includes('overdue');
-                        
-                        let textColorClass = 'admin-text';
-                        if (isEarly) textColorClass = 'text-[#b45309] dark:text-orange-500';
-                        else if (isOverdue) textColorClass = 'text-[#FF4C4C]';
+                  {(() => {
+                    const filteredLogs = exitSessionData?.feeBreakdown?.surchargeLogs?.filter(log => {
+                      const lowerName = log.name.toLowerCase();
+                      return lowerName.includes('overdue') || lowerName.includes('late') || lowerName.includes('early') || lowerName.includes('đến sớm');
+                    }) || [];
 
-                        return (
-                          <div key={index} className="flex justify-between items-start pb-3 border-b border-dashed admin-border last:border-0">
-                            <div>
-                              <div className={`text-xs font-bold mb-1 ${textColorClass}`}>{log.name}</div>
-                              <div className="text-[9px] admin-text-faint font-medium">
-                                {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    if (filteredLogs.length > 0) {
+                      return (
+                        <div className="space-y-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
+                          {filteredLogs.map((log, index) => {
+                            const lowerName = log.name.toLowerCase();
+                            const isEarly = lowerName.includes('early') || lowerName.includes('đến sớm');
+                            const isOverdue = lowerName.includes('late') || lowerName.includes('overdue');
+                            
+                            let textColorClass = 'admin-text';
+                            if (isEarly) textColorClass = 'text-[#b45309] dark:text-orange-500';
+                            else if (isOverdue) textColorClass = 'text-[#FF4C4C]';
+
+                            return (
+                              <div key={index} className="flex justify-between items-start pb-3 border-b border-dashed admin-border last:border-0">
+                                <div>
+                                  <div className={`text-xs font-bold mb-1 ${textColorClass}`}>{log.name}</div>
+                                  <div className="text-[9px] admin-text-faint font-medium">
+                                    {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                </div>
+                                <div className="text-xs font-black admin-text">
+                                  + {log.amount.toLocaleString('vi-VN')} ₫
+                                </div>
                               </div>
-                            </div>
-                            <div className="text-xs font-black admin-text">
-                              + {log.amount.toLocaleString('vi-VN')} ₫
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="border admin-border admin-bg-surface rounded-xl py-10 flex items-center justify-center">
-                      <span className="text-xs font-medium admin-text-faint">No history logs available</span>
-                    </div>
-                  )}
+                            );
+                          })}
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="border admin-border admin-bg-surface rounded-xl py-10 flex items-center justify-center">
+                          <span className="text-xs font-medium admin-text-faint">No history logs available</span>
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
 
@@ -916,19 +927,28 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   </div>
 
                   <div className="space-y-4 mb-8">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-bold admin-text-muted">Base Fee</span>
-                      <span className="font-bold admin-text-muted">
-                        {exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.penaltyFee || 0) - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-bold admin-text-muted">Overtime Fee</span>
-                      <span className="font-bold admin-text-muted">
-                        {exitSessionData ? ((exitSessionData.feeBreakdown?.dayPassTotal || 0) + (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
-                      </span>
-                    </div>
-                    {exitSessionData?.penaltyFee && exitSessionData.penaltyFee > 0 && (
+                    {(() => {
+                      const baseFeeVal = exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.penaltyFee || 0) - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)) : 0;
+                      const dynamicFeeVal = exitSessionData ? ((exitSessionData.feeBreakdown?.dayPassTotal || 0) + (exitSessionData.feeBreakdown?.nightPassTotal || 0)) : 0;
+                      const isReservation = baseFeeVal > 0;
+                      return (
+                        <>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="font-bold admin-text-muted">Base Fee</span>
+                            <span className="font-bold admin-text-muted">
+                              {baseFeeVal.toLocaleString('en-US')} VND
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="font-bold admin-text-muted">{isReservation ? 'Overtime Fee' : 'Parking Fee'}</span>
+                            <span className="font-bold admin-text-muted">
+                              {dynamicFeeVal.toLocaleString('en-US')} VND
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                    {!!exitSessionData?.penaltyFee && exitSessionData.penaltyFee > 0 && (
                       <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-[#FF4C4C]">Penalty Fee (Exception)</span>
                         <span className="font-bold text-[#FF4C4C]">

@@ -149,6 +149,7 @@ public class CheckOutService : ICheckOutService
         return new CheckOutSearchResult
         {
             SessionId = session.Id,
+            SessionCode = session.SessionCode,
             LicensePlate = session.LicensePlate,
             SlotNumber = session.ParkingSlot.SlotNumber,
             FloorName = session.ParkingSlot.Floor?.Name ?? string.Empty,
@@ -632,6 +633,7 @@ public class CheckOutService : ICheckOutService
         return new OcrCheckOutResult
         {
             SessionId = session.Id,
+            SessionCode = session.SessionCode,
             EntryLicensePlate = session.LicensePlate,
             ExitLicensePlate = exitPlate,
             IsMatch = isMatch,
@@ -694,6 +696,7 @@ public class CheckOutService : ICheckOutService
         return new CheckOutSearchResult
         {
             SessionId = session.Id,
+            SessionCode = session.SessionCode,
             LicensePlate = session.LicensePlate,
             SlotNumber = session.ParkingSlot.SlotNumber,
             FloorName = session.ParkingSlot.Floor?.Name ?? string.Empty,
