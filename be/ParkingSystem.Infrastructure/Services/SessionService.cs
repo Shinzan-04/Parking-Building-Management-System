@@ -111,9 +111,14 @@ public class SessionService : ISessionService
         // Đếm tổng trước phân trang
         var totalCount = await query.CountAsync();
 
-        // Sắp xếp: xe vào sớm nhất lên đầu (đang gửi lâu nhất)
+        // Sắp xếp:
+        // - Đã hoàn thành (Completed): ưu tiên xe vừa ra (ExitTime mới nhất)
+        // - Khác: ưu tiên xe vừa vào (EntryTime mới nhất)
+        query = filter.Status == SessionStatus.Completed 
+            ? query.OrderByDescending(s => s.ExitTime)
+            : query.OrderByDescending(s => s.EntryTime);
+
         var dbItems = await query
-            .OrderByDescending(s => s.EntryTime)
             .Skip((filter.Page - 1) * filter.PageSize)
             .Take(filter.PageSize)
             .ToListAsync();
@@ -129,7 +134,12 @@ public class SessionService : ISessionService
             TotalActive = await _context.ParkingSessions
                 .CountAsync(s => s.Status == SessionStatus.Active && !s.IsDeleted),
             TotalOverdue = await _context.ParkingSessions
-                .CountAsync(s => s.Status == SessionStatus.Overdue && !s.IsDeleted),
+                .CountAsync(s => (s.Status == SessionStatus.Overdue || 
+                                 (s.Status == SessionStatus.Active && 
+                                  ((s.CheckInMethod == CheckInMethod.Booking && s.ReservationId != null && s.Reservation!.EndTime < now) ||
+                                   (s.CheckInMethod != CheckInMethod.Booking && s.GracePeriodEndTime.HasValue && s.GracePeriodEndTime.Value < now) ||
+                                   (s.CheckInMethod != CheckInMethod.Booking && !s.GracePeriodEndTime.HasValue && s.EntryTime < now.AddHours(-24))))) 
+                                 && !s.IsDeleted),
             TotalCompletedToday = await _context.ParkingSessions
                 .CountAsync(s => s.Status == SessionStatus.Completed 
                               && s.ExitTime >= todayStart && !s.IsDeleted),
@@ -250,7 +260,11 @@ public class SessionService : ISessionService
             SessionCode = s.SessionCode,
             LicensePlate = s.LicensePlate,
             CheckInMethod = s.CheckInMethod,
-            Status = s.Status,
+            Status = s.Status == SessionStatus.Active && 
+                     ((s.CheckInMethod == CheckInMethod.Booking && s.Reservation != null && now > s.Reservation.EndTime) || 
+                      (s.CheckInMethod != CheckInMethod.Booking && s.GracePeriodEndTime.HasValue && now > s.GracePeriodEndTime.Value) || 
+                      (s.CheckInMethod != CheckInMethod.Booking && !s.GracePeriodEndTime.HasValue && duration.TotalHours >= 24)) 
+                     ? SessionStatus.Overdue : s.Status,
             IssueType = s.IssueType,
             SlotNumber = s.ParkingSlot?.SlotNumber ?? "",
             FloorName = s.ParkingSlot?.Floor?.Name ?? "",

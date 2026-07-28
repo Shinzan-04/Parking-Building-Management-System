@@ -321,7 +321,9 @@ function FloorSection({ floor, slots, token, filterStatus, search }: FloorSectio
           </div>
           <div style={{ textAlign: 'left' }}>
             <div style={{ color: 'var(--admin-text-primary)', fontWeight: 700, fontSize: 15 }}>
-              {floor.name}
+              {floor.name.toString().toLowerCase().includes('floor') || floor.name.toString().toLowerCase().includes('tầng') 
+                ? floor.name 
+                : `Floor ${floor.name}`}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
               <span style={{ fontSize: 11, color: STATUS_STYLE.Available.text }}>

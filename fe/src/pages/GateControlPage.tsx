@@ -25,10 +25,27 @@ import { getAllSlots } from '../services/parkingService';
 import type { ParkingSlotDetail } from '../services/parkingService';
 import { searchCheckOut, searchCheckOutByQr, confirmCheckOut, ocrCheckOut } from '../services/checkOutService';
 import type { CheckOutSearchResult } from '../services/checkOutService';
-import { MapPin, X } from 'lucide-react';
+import { MapPin, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { createPayOSPayment, verifyPayment } from '../services/paymentService';
 import { QRCodeSVG } from 'qrcode.react';
 type VehicleType = 'car' | 'motor';
+
+type SlotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
+
+function getStatusLabel(status: string | number): SlotStatus {
+  if (status === 'Available' || status === 0) return 'Available';
+  if (status === 'Reserved' || status === 2) return 'Reserved';
+  if (status === 'Occupied' || status === 3) return 'Occupied';
+  if (status === 'Maintenance' || status === 4) return 'Maintenance';
+  return 'Available';
+}
+
+const STATUS_STYLE: Record<SlotStatus, { bg: string; border: string; text: string; dot: string }> = {
+  Available: { bg: 'rgba(16,185,129,0.18)', border: 'rgba(16,185,129,0.55)', text: '#10b981', dot: '#10b981' },
+  Occupied: { bg: 'rgba(239,68,68,0.18)', border: 'rgba(239,68,68,0.55)', text: '#f87171', dot: '#ef4444' },
+  Reserved: { bg: 'rgba(234, 179, 8, 0.18)', border: 'rgba(234, 179, 8, 0.55)', text: '#facc15', dot: '#eab308' },
+  Maintenance: { bg: 'rgba(100,116,139,0.22)', border: 'rgba(100,116,139,0.5)', text: '#94a3b8', dot: '#64748b' },
+};
 
 
 type ExceptionAction = 'manual-open' | 'incident' | 'lost-ticket';
@@ -200,6 +217,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [collapsedFloors, setCollapsedFloors] = useState<Record<string, boolean>>({});
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [selectedSlotNumber, setSelectedSlotNumber] = useState<string | null>(null);
   const [checkInResultData, setCheckInResultData] = useState<CheckInResult | null>(null);
@@ -213,7 +231,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
     if (user?.assignedBuildingId && token) {
       setLoadingSlots(true);
       getAllSlots(user.assignedBuildingId)
-        .then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0)))
+        .then(res => setSlots(res))
         .catch(() => { })
         .finally(() => setLoadingSlots(false));
     }
@@ -292,7 +310,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       setSelectedSlotId(null);
       setSelectedSlotNumber(null);
       if (user?.assignedBuildingId) {
-        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => { });
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res)).catch(() => { });
       }
       entryInputRef.current?.focus();
     } catch (err) {
@@ -357,7 +375,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       exitInputRef.current?.focus();
 
       if (user.assignedBuildingId) {
-        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => { });
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res)).catch(() => { });
       }
     } catch (err: any) {
       showNotification('error', err.message || 'Error confirming payment.');
@@ -390,7 +408,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [payOsOrderCode, exitSessionData]);
 
   const handleGeneratePayOsQr = async () => {
@@ -647,11 +665,10 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         setIsLostTicketMode(!isLostTicketMode);
                         if (!isLostTicketMode) setExitQrCode('');
                       }}
-                      className={`text-[9px] font-bold uppercase tracking-widest border px-3 py-1.5 rounded-lg transition-colors ${
-                        isLostTicketMode 
-                          ? 'bg-[#FF4C4C]/10 border-[#FF4C4C]/30 text-[#FF4C4C]' 
-                          : 'admin-bg-surface admin-border admin-text hover:bg-[#FF4C4C]/5 hover:text-[#FF4C4C] hover:border-[#FF4C4C]/30'
-                      }`}
+                      className={`text-[9px] font-bold uppercase tracking-widest border px-3 py-1.5 rounded-lg transition-colors ${isLostTicketMode
+                        ? 'bg-[#FF4C4C]/10 border-[#FF4C4C]/30 text-[#FF4C4C]'
+                        : 'admin-bg-surface admin-border admin-text hover:bg-[#FF4C4C]/5 hover:text-[#FF4C4C] hover:border-[#FF4C4C]/30'
+                        }`}
                     >
                       {isLostTicketMode ? 'LOST TICKET MODE: ON' : 'LOST TICKET'}
                     </button>
@@ -781,7 +798,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                             const lowerName = log.name.toLowerCase();
                             const isEarly = lowerName.includes('early') || lowerName.includes('đến sớm');
                             const isOverdue = lowerName.includes('late') || lowerName.includes('overdue');
-                            
+
                             let textColorClass = 'admin-text';
                             if (isEarly) textColorClass = 'text-[#b45309] dark:text-orange-500';
                             else if (isOverdue) textColorClass = 'text-[#FF4C4C]';
@@ -966,11 +983,10 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       <button
                         type="button"
                         onClick={() => setIsCashReceived(!isCashReceived)}
-                        className={`w-full h-12 mt-2 mb-2 rounded-xl border flex items-center justify-center gap-2 text-sm font-bold transition-all ${
-                          isCashReceived
-                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-stone-50 dark:bg-white/5 border admin-border admin-text-muted hover:admin-bg-surface/10'
-                        }`}
+                        className={`w-full h-12 mt-2 mb-2 rounded-xl border flex items-center justify-center gap-2 text-sm font-bold transition-all ${isCashReceived
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-stone-50 dark:bg-white/5 border admin-border admin-text-muted hover:admin-bg-surface/10'
+                          }`}
                       >
                         {isCashReceived ? <CheckCircle2 className="w-5 h-5" /> : <div className="w-5 h-5 rounded-full border-2 border-current opacity-50" />}
                         {isCashReceived ? 'Cash Received Confirmed' : 'Mark as Cash Received'}
@@ -988,9 +1004,9 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       type="button"
                       onClick={() => handleCollectAndOpen(isPayOsPaid ? 1 : 0)}
                       disabled={
-                        !exitSessionData || 
-                        payOsLoading || 
-                        !!payOsQrCode || 
+                        !exitSessionData ||
+                        payOsLoading ||
+                        !!payOsQrCode ||
                         (!isPayOsPaid && exitSessionData.estimatedFee > 0 && !isCashReceived)
                       }
                       className="w-full flex items-center justify-center gap-2 h-14 rounded-xl bg-[#FF4C4C] hover:bg-[#E13B3B] disabled:opacity-40 text-sm font-bold text-white transition-colors shadow-sm"
@@ -1024,8 +1040,8 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
           <div className="admin-bg-surface rounded-2xl w-[900px] max-w-[90vw] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border admin-border">
             <div className="p-5 border-b flex justify-between items-center admin-bg-base">
               <div>
-                <h3 className="text-xl font-bold admin-text">Available Slots Map</h3>
-                <p className="text-xs admin-text-muted mt-1">Manually select a slot (only showing available slots)</p>
+                <h3 className="text-xl font-bold admin-text">Slots Map</h3>
+                <p className="text-xs admin-text-muted mt-1">Manually select an available slot</p>
               </div>
               <button
                 onClick={() => setShowMap(false)}
@@ -1034,34 +1050,162 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 <X size={20} className="admin-text-muted" />
               </button>
             </div>
+
             <div className="p-6 overflow-auto admin-bg-base flex-1">
               {loadingSlots ? (
                 <div className="py-12 text-center text-sm font-bold admin-text-faint">Loading map...</div>
               ) : (
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-                  {slots.map(s => {
-                    const isSelected = s.id === selectedSlotId;
+                <div className="flex flex-col gap-6">
+                  {Object.entries(
+                    slots.reduce((acc, slot) => {
+                      const floor = slot.floorName || 'Unknown Floor';
+                      if (!acc[floor]) acc[floor] = [];
+                      acc[floor].push(slot);
+                      return acc;
+                    }, {} as Record<string, typeof slots>)
+                  ).map(([floorName, floorSlots]) => {
+                    const floorCounts = {
+                      available: floorSlots.filter(s => getStatusLabel(s.status) === 'Available').length,
+                      occupied: floorSlots.filter(s => getStatusLabel(s.status) === 'Occupied').length,
+                      reserved: floorSlots.filter(s => getStatusLabel(s.status) === 'Reserved').length,
+                      maintenance: floorSlots.filter(s => getStatusLabel(s.status) === 'Maintenance').length,
+                    };
+                    const isCollapsed = !!collapsedFloors[floorName];
+                    const toggleCollapse = () => setCollapsedFloors(prev => ({ ...prev, [floorName]: !isCollapsed }));
+
                     return (
-                      <button
-                        key={s.id}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedSlotId(null);
-                            setSelectedSlotNumber(null);
-                          } else {
-                            setSelectedSlotId(s.id);
-                            setSelectedSlotNumber(s.slotNumber);
-                            setShowMap(false);
-                          }
-                        }}
-                        className={`h-12 flex flex-col items-center justify-center rounded-xl border text-[10px] font-bold transition-all ${isSelected
-                          ? 'bg-[#FF4C4C] border-[#FF4C4C] text-[#fff] shadow-md'
-                          : 'admin-bg-base admin-border admin-text-muted hover:border-[#FF4C4C] hover:text-[#FF4C4C]'
-                          }`}
-                      >
-                        <Car size={12} className="mb-0.5" />
-                        {s.slotNumber}
-                      </button>
+                      <div key={floorName} className="admin-bg-surface/50 border admin-border rounded-xl p-5">
+                        <div
+                          className="flex items-center justify-between mb-4 border-b admin-border pb-3 cursor-pointer select-none group"
+                          onClick={toggleCollapse}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[#FF4C4C]/10 flex items-center justify-center group-hover:bg-[#FF4C4C]/20 transition-colors">
+                              <span className="text-[#FF4C4C] font-black text-sm">P</span>
+                            </div>
+                            <h4 className="font-bold admin-text text-lg">
+                              {floorName.toString().toLowerCase().includes('floor') || floorName.toString().toLowerCase().includes('tầng')
+                                ? floorName
+                                : `Floor ${floorName}`}
+                            </h4>
+                            <div className="flex items-center gap-4 ml-4">
+                              {(['Available', 'Occupied', 'Reserved', 'Maintenance'] as SlotStatus[]).map(status => {
+                                const count = floorCounts[status.toLowerCase() as keyof typeof floorCounts];
+                                return (
+                                  <div key={status} className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: STATUS_STYLE[status].dot }} />
+                                    <span className="text-[11px] font-bold text-stone-500 dark:text-stone-400">{status}</span>
+                                    <span className="text-[11px] font-bold text-stone-400 dark:text-stone-500">{count}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold admin-text-faint">{floorSlots.length} slots</span>
+                            <div className="text-stone-400 group-hover:text-stone-600 dark:group-hover:text-stone-300 transition-colors">
+                              {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                            </div>
+                          </div>
+                        </div>
+
+                        {!isCollapsed && (
+                          <div className="flex flex-wrap gap-2.5 animate-fade-in">
+                            {floorSlots.map(s => {
+                              const isSelected = s.id === selectedSlotId;
+                              const statusKey = getStatusLabel(s.status);
+                              const style = STATUS_STYLE[statusKey];
+                              const isAvailable = statusKey === 'Available';
+
+                              return (
+                                <button
+                                  key={s.id}
+                                  disabled={!isAvailable && !isSelected}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedSlotId(null);
+                                      setSelectedSlotNumber(null);
+                                    } else if (isAvailable) {
+                                      setSelectedSlotId(s.id);
+                                      setSelectedSlotNumber(s.slotNumber);
+                                      setShowMap(false);
+                                    }
+                                  }}
+                                  style={{
+                                    width: 100,
+                                    minHeight: 72,
+                                    borderRadius: 10,
+                                    border: isSelected ? '1.5px solid #ef4444' : `1.5px solid ${style.border}`,
+                                    background: isSelected ? 'rgba(239,68,68,0.18)' : style.bg,
+                                    padding: '7px 8px 6px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: 3,
+                                    position: 'relative',
+                                    boxSizing: 'border-box',
+                                    textAlign: 'left',
+                                    transition: 'all 0.15s',
+                                    cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                    opacity: isAvailable || isSelected ? 1 : 0.6
+                                  }}
+                                  onMouseEnter={e => {
+                                    if (isAvailable) {
+                                      (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+                                      (e.currentTarget as HTMLButtonElement).style.boxShadow = isSelected ? '0 6px 20px rgba(239,68,68,0.3)' : `0 6px 20px ${style.dot}66`;
+                                    }
+                                  }}
+                                  onMouseLeave={e => {
+                                    if (isAvailable) {
+                                      (e.currentTarget as HTMLButtonElement).style.transform = '';
+                                      (e.currentTarget as HTMLButtonElement).style.boxShadow = '';
+                                    }
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <span className={isSelected ? 'text-[#ef4444]' : 'text-stone-700 dark:text-stone-300'} style={{ opacity: 0.85, display: 'flex' }}>
+                                      {s.vehicleTypeName?.toLowerCase().includes('motor') ? <Bike size={12} /> : <Car size={12} />}
+                                    </span>
+                                    <span style={{
+                                      fontFamily: 'monospace',
+                                      fontWeight: 700,
+                                      fontSize: 12,
+                                      color: isSelected ? '#ef4444' : '#0d1a14',
+                                      letterSpacing: '0.02em',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      flex: 1,
+                                    }} className="dark:text-white">
+                                      {s.slotNumber}
+                                    </span>
+                                  </div>
+
+                                  <div className="dark:text-white/70" style={{
+                                    fontSize: 10,
+                                    color: '#0d1a14',
+                                    opacity: 0.75,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                  }}>
+                                    {s.vehicleTypeName ?? '---'}
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                                    <span style={{
+                                      display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                                      background: isSelected ? '#ef4444' : style.dot, flexShrink: 0,
+                                    }} />
+                                    <span style={{ fontSize: 10, color: isSelected ? '#ef4444' : style.text, fontWeight: 600 }}>
+                                      {isSelected ? 'Selected' : statusKey}
+                                    </span>
+                                  </div>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -1087,21 +1231,21 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
               -webkit-mask-repeat: no-repeat;
             }
           `}</style>
-          
+
           <div className="relative w-full max-w-[320px] animate-fade-in-up flex flex-col items-center">
-            
+
             <div className="w-full flex flex-col drop-shadow-[0_15px_30px_rgba(0,0,0,0.2)]">
-              
+
               {/* TOP TICKET */}
               <div className="ticket-mask w-full pt-10 pb-8 px-6 flex flex-col items-center relative z-10 bg-white">
-                
+
                 {/* Red Border */}
                 <div className="absolute inset-[8px] border-[2.5px] border-[#ef4444] rounded-[10px] pointer-events-none"></div>
 
                 <div className="z-10 flex flex-col items-center w-full justify-center px-4">
                   <h3 className="text-[#ef4444] font-black text-[3.25rem] uppercase tracking-tighter leading-none mb-1">Park</h3>
                   <h3 className="text-[#ef4444] font-black text-[3.25rem] uppercase tracking-widest leading-none mb-8">Ticket</h3>
-                  
+
                   <div className="w-full flex justify-between items-center mb-6">
                     <div className="flex flex-col">
                       <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest">Plate</span>
@@ -1128,15 +1272,15 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
               {/* BOTTOM TICKET */}
               <div className="ticket-mask w-full pt-6 pb-8 px-6 flex flex-col items-center relative z-10 bg-white">
-                
+
                 {/* Red Border */}
                 <div className="absolute inset-[8px] border-[2.5px] border-[#ef4444] rounded-[10px] pointer-events-none"></div>
 
                 <div className="z-10 flex flex-row w-full justify-between items-center h-full px-2 mt-2">
                   {checkInResultData.sessionQrCodeBase64 && (
-                    <img 
-                      src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`} 
-                      alt="Session QR" 
+                    <img
+                      src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
+                      alt="Session QR"
                       className="w-[160px] h-[160px] object-contain"
                     />
                   )}
@@ -1149,7 +1293,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
                 <div className="z-10 mt-3 text-center px-4 w-full">
                   <span className="text-[8.5px] font-bold text-[#ef4444]/40 uppercase tracking-widest leading-snug block">
-                    Please keep this ticket<br/>for checkout
+                    Please keep this ticket<br />for checkout
                   </span>
                 </div>
               </div>
@@ -1163,7 +1307,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
               <Printer size={16} />
               Print & Close
             </button>
-            
+
           </div>
         </div>
       )}
