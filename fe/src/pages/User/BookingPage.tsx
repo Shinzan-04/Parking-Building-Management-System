@@ -1645,7 +1645,7 @@ function ConfirmationPopup({
       iconBg: 'bg-blue-50 border border-blue-200',
       headerBg: 'bg-blue-50/30',
       title: 'Reservation Successful!',
-      subtitle: 'Present this QR code to the staff upon entry',
+      subtitle: 'Your reservation has been confirmed',
     },
   }[phase];
 
@@ -1890,31 +1890,6 @@ function ConfirmationPopup({
                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Payment Successful</span>
               </div>
 
-              {/* QR Code */}
-              <div className="relative">
-                <div className="absolute inset-0 rounded-2xl bg-[#FF4C4C]/5 blur-lg" />
-                <div className="relative bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-2xl p-4 shadow-xl flex items-center justify-center min-w-[212px] min-h-[212px] transition-colors">
-                  <QRCodeSVG
-                    value={qrData}
-                    size={180}
-                    level="M"
-                    bgColor="#ffffff"
-                    fgColor="#1c1917"
-                    imageSettings={{
-                      src: '',
-                      height: 0,
-                      width: 0,
-                      excavate: false,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Booking ref */}
-              <div className="text-center">
-                <p className="text-[10px] text-stone-400 font-bold mb-1 uppercase tracking-widest">Booking Code</p>
-                <p className="text-lg font-black text-[#FF4C4C] tracking-widest">{displayBookingRef}</p>
-              </div>
 
               {/* Info summary */}
               <div className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden transition-colors">
@@ -1923,7 +1898,7 @@ function ConfirmationPopup({
                   { label: 'License Plate', value: state.licensePlate },
                   { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
                   { label: 'Entry Time', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
-                  { label: 'Est. Exit Time', value: `${exitInfoCalc.date} ${exitInfoCalc.time}` },
+                  { label: 'Exit Time', value: `${exitInfoCalc.date} ${exitInfoCalc.time}` },
                 ].map(({ label, value }, i, arr) => (
                   <div
                     key={label}
@@ -1935,10 +1910,6 @@ function ConfirmationPopup({
                   </div>
                 ))}
               </div>
-
-              <p className="text-xs text-stone-400 font-medium text-center px-4 leading-relaxed">
-                Present this QR code to the staff at the parking lot to confirm your reservation.
-              </p>
             </div>
           )}
         </div>

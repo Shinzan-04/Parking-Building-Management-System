@@ -28,7 +28,7 @@ import type { CheckOutSearchResult } from '../services/checkOutService';
 import { MapPin, X } from 'lucide-react';
 import { createPayOSPayment, verifyPayment } from '../services/paymentService';
 import { QRCodeSVG } from 'qrcode.react';
-type VehicleType = 'car' | 'motor' | 'ev';
+type VehicleType = 'car' | 'motor';
 
 
 type ExceptionAction = 'manual-open' | 'incident' | 'lost-ticket';
@@ -36,7 +36,6 @@ type ExceptionAction = 'manual-open' | 'incident' | 'lost-ticket';
 const VEHICLE_TYPES: { type: VehicleType; label: string; key: string }[] = [
   { type: 'car', label: 'Car', key: '1' },
   { type: 'motor', label: 'Motor', key: '2' },
-  { type: 'ev', label: 'EV', key: '3' },
 ];
 
 const EXCEPTION_COPY: Record<
@@ -454,7 +453,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
         return;
       }
 
-      if (activeElement === entryInputRef.current && ['1', '2', '3'].includes(event.key)) {
+      if (activeElement === entryInputRef.current && ['1', '2'].includes(event.key)) {
         const selectedVehicle = VEHICLE_TYPES.find((vehicle) => vehicle.key === event.key);
         if (selectedVehicle) {
           setEntryVehicleType(selectedVehicle.type);
@@ -575,9 +574,9 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   {/* Vehicle Type */}
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-[10px] font-bold admin-text-muted uppercase tracking-wider">Vehicle type</label>
-                    <span className="text-[10px] admin-text-faint font-bold">Keyboard: 1 / 2 / 3</span>
+                    <span className="text-[10px] admin-text-faint font-bold">Keyboard: 1 / 2</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="grid grid-cols-2 gap-3 mb-6">
                     {VEHICLE_TYPES.map((vehicle) => {
                       const selected = entryVehicleType === vehicle.type;
                       return (
@@ -628,36 +627,6 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   <p className="mt-3 text-center text-[10px] admin-text-faint font-bold tracking-widest uppercase">Shortcut: F1</p>
                 </div>
 
-                {/* Exception Block */}
-                <div className="glass-card rounded-[1.5rem] p-6">
-                  <h4 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-4">Gate Exception Override Tools</h4>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openExceptionModal('manual-open')}
-                      className="inline-flex items-center justify-start rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-3 text-xs font-bold text-amber-500 transition-colors text-left"
-                    >
-                      <DoorOpen className="mr-3 h-4 w-4" aria-hidden="true" />
-                      Manual Gate Open
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openExceptionModal('incident')}
-                      className="inline-flex items-center justify-start rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-4 py-3 text-xs font-bold text-red-500 transition-colors text-left"
-                    >
-                      <AlertTriangle className="mr-3 h-4 w-4" aria-hidden="true" />
-                      Report Incident
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openExceptionModal('lost-ticket')}
-                      className="inline-flex items-center justify-start rounded-xl border admin-border admin-bg-surface hover:admin-bg-surface/10 px-4 py-3 text-xs font-bold admin-text-muted transition-colors text-left"
-                    >
-                      <TicketX className="mr-3 h-4 w-4" aria-hidden="true" />
-                      Lost Ticket Handling
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -1029,13 +998,6 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       <CheckCircle2 className="w-5 h-5" />
                       {exitSessionData?.estimatedFee === 0 ? 'Process & Release' : (isPayOsPaid ? 'Process & Release (PayOS)' : 'Process & Release (Cash)')}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => openExceptionModal('manual-open')}
-                      className="w-full h-14 rounded-xl border admin-border admin-bg-surface hover:admin-bg-surface/10 text-xs font-bold admin-text-muted uppercase tracking-widest transition-colors"
-                    >
-                      MANUAL OVERRIDE
-                    </button>
                   </div>
                 </div>
               </div>
@@ -1183,6 +1145,12 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     <span className="text-3xl font-black text-[#ef4444] tracking-tighter leading-none">{checkInResultData.slotNumber}</span>
                     <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest mt-2">ID: {checkInResultData.sessionCode}</span>
                   </div>
+                </div>
+
+                <div className="z-10 mt-3 text-center px-4 w-full">
+                  <span className="text-[8.5px] font-bold text-[#ef4444]/40 uppercase tracking-widest leading-snug block">
+                    Please keep this ticket<br/>for checkout
+                  </span>
                 </div>
               </div>
             </div>
