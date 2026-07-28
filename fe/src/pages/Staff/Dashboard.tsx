@@ -326,8 +326,12 @@ export default function StaffDashboard() {
                       <span className="text-sm font-mono font-semibold" style={{ color: 'var(--admin-text-primary)' }}>{s.licensePlate}</span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="text-xs" style={{ color: 'var(--admin-text-muted)' }}>{s.floorName}</p>
-                      <p className="text-[10px]" style={{ color: 'var(--admin-text-faint)' }}>{s.slotNumber}</p>
+                      <p className="text-xs" style={{ color: 'var(--admin-text-muted)' }}>
+                        {s.floorName.toString().toLowerCase().includes('floor') || s.floorName.toString().toLowerCase().includes('tầng') ? s.floorName : `Floor ${s.floorName}`}
+                      </p>
+                      <p className="text-[10px]" style={{ color: 'var(--admin-text-faint)' }}>
+                        {s.slotNumber.toString().toLowerCase().includes('slot') ? s.slotNumber : `Slot ${s.slotNumber}`}
+                      </p>
                     </td>
                     <td className="px-4 py-3.5">
                       <div className="flex flex-col gap-0.5 text-sm" style={{ color: 'var(--admin-text-muted)' }}>
