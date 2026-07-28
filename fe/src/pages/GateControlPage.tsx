@@ -28,14 +28,14 @@ import type { CheckOutSearchResult } from '../services/checkOutService';
 import { MapPin, X } from 'lucide-react';
 import { createPayOSPayment, verifyPayment } from '../services/paymentService';
 import { QRCodeSVG } from 'qrcode.react';
-type VehicleType = 'car' | 'motorbike' | 'ev';
+type VehicleType = 'car' | 'motor' | 'ev';
 
 
 type ExceptionAction = 'manual-open' | 'incident' | 'lost-ticket';
 
 const VEHICLE_TYPES: { type: VehicleType; label: string; key: string }[] = [
   { type: 'car', label: 'Car', key: '1' },
-  { type: 'motorbike', label: 'Motorbike', key: '2' },
+  { type: 'motor', label: 'Motor', key: '2' },
   { type: 'ev', label: 'EV', key: '3' },
 ];
 
@@ -349,7 +349,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
         sessionId: exitSessionData.sessionId,
         staffId: user.userId,
         paymentMethod: method, // Default to Cash (0)
-        paymentAmount: exitSessionData.estimatedFee,
+        paymentAmount: exitSessionData.amountDue ?? exitSessionData.estimatedFee,
       });
 
       showNotification('success', `Payment successful: ${result.totalFee.toLocaleString('en-US')} VND. Barrier opened!`);
@@ -399,7 +399,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
     setPayOsLoading(true);
     try {
       const res = await createPayOSPayment({
-        amount: exitSessionData.estimatedFee,
+        amount: exitSessionData.amountDue ?? exitSessionData.estimatedFee,
         description: `Fee ${exitSessionData.licensePlate}`,
         parkingSessionId: exitSessionData.sessionId,
       });
@@ -917,32 +917,34 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
                 {/* Payment Block */}
                 <div className="glass-card rounded-[1.5rem] p-6 flex flex-col flex-1">
-                  <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-6">AMOUNT DUE</h3>
+                  <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-6">BALANCE DUE</h3>
 
                   <div className="text-5xl font-black admin-text-faint mb-8 tracking-tighter flex items-start gap-1">
                     <span className={exitSessionData ? "admin-text" : ""}>
-                      {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('en-US') : '0'}
+                      {exitSessionData ? (exitSessionData.amountDue ?? exitSessionData.estimatedFee).toLocaleString('en-US') : '0'}
                     </span>
                     <span className="text-3xl admin-text-faint mt-1">VND</span>
                   </div>
 
                   <div className="space-y-4 mb-8">
                     {(() => {
-                      const baseFeeVal = exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.penaltyFee || 0) - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)) : 0;
-                      const dynamicFeeVal = exitSessionData ? ((exitSessionData.feeBreakdown?.dayPassTotal || 0) + (exitSessionData.feeBreakdown?.nightPassTotal || 0)) : 0;
+                      const baseFeeVal = exitSessionData?.prePaidAmount || 0;
+                      const dynamicFeeVal = exitSessionData ? ((exitSessionData.estimatedFee || 0) - (exitSessionData.penaltyFee || 0) - baseFeeVal) : 0;
                       const isReservation = baseFeeVal > 0;
                       return (
                         <>
-                          <div className="flex justify-between items-center text-sm">
-                            <span className="font-bold admin-text-muted">Base Fee</span>
-                            <span className="font-bold admin-text-muted">
-                              {baseFeeVal.toLocaleString('en-US')} VND
-                            </span>
-                          </div>
+                          {isReservation && (
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="font-bold admin-text-muted">Base Fee</span>
+                              <span className="font-bold admin-text-muted">
+                                {baseFeeVal.toLocaleString('en-US')} VND
+                              </span>
+                            </div>
+                          )}
                           <div className="flex justify-between items-center text-sm">
                             <span className="font-bold admin-text-muted">{isReservation ? 'Overtime Fee' : 'Parking Fee'}</span>
                             <span className="font-bold admin-text-muted">
-                              {dynamicFeeVal.toLocaleString('en-US')} VND
+                              {Math.max(0, dynamicFeeVal).toLocaleString('en-US')} VND
                             </span>
                           </div>
                         </>
@@ -956,12 +958,6 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         </span>
                       </div>
                     )}
-                    <div className="flex justify-between items-center pt-5 border-t admin-border">
-                      <span className="font-black admin-text uppercase tracking-widest text-[11px]">BALANCE DUE</span>
-                      <span className="font-black admin-text text-lg">
-                        {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('en-US') : '0'} VND
-                      </span>
-                    </div>
                   </div>
 
                   <div className="mt-auto space-y-3">

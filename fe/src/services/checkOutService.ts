@@ -42,6 +42,9 @@ export interface CheckOutSearchResult {
   message: string;
   isPlateMismatch?: boolean;
   penaltyFee?: number;
+  prePaidAmount?: number;
+  amountDue?: number;
+  autoPaidSuccess?: boolean;
 }
 
 export interface CheckOutConfirmRequest {
