@@ -763,7 +763,7 @@ function CancelModal({
         </div>
 
         <div className="px-3 py-2.5 rounded-xl text-xs bg-amber-400/8 border border-amber-400/15 text-amber-400">
-          Your cancellation request will be reviewed by an Admin. Any refund will be processed within 1–3 business days.
+          Your cancellation request will be reviewed by an Admin. <strong>Note: According to our policy, only 70% of the ticket amount will be refunded.</strong> Any approved refund will be processed within 1–3 business days.
         </div>
 
         <div>
