@@ -278,7 +278,7 @@ function FloorSection({ floor, slots, token, filterStatus, search }: FloorSectio
   const [collapsed, setCollapsed] = useState(false);
 
   const filtered = slots
-    .sort((a, b) => a.slotNumber.localeCompare(b.slotNumber, undefined, { numeric: true, sensitivity: 'base' }))
+    .sort((a, b) => (a.slotNumber ?? '').localeCompare(b.slotNumber ?? '', undefined, { numeric: true, sensitivity: 'base' }))
     .filter(s => {
       const st = getStatusLabel(s.status);
       if (filterStatus && st !== filterStatus) return false;
