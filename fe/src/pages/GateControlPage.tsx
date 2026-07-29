@@ -1072,6 +1072,13 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     };
                     const isCollapsed = !!collapsedFloors[floorName];
                     const toggleCollapse = () => setCollapsedFloors(prev => ({ ...prev, [floorName]: !isCollapsed }));
+                    
+                    const sortedFloorSlots = [...floorSlots].sort((a, b) => a.slotNumber.localeCompare(b.slotNumber, undefined, { numeric: true, sensitivity: 'base' }));
+                    const COLS = 8;
+                    const rows: typeof slots[] = [];
+                    for (let i = 0; i < sortedFloorSlots.length; i += COLS) {
+                      rows.push(sortedFloorSlots.slice(i, i + COLS));
+                    }
 
                     return (
                       <div key={floorName} className="admin-bg-surface/50 border admin-border rounded-xl p-5">
@@ -1110,8 +1117,56 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         </div>
 
                         {!isCollapsed && (
-                          <div className="flex flex-wrap gap-2.5 animate-fade-in">
-                            {floorSlots.map(s => {
+                          <div className="animate-fade-in overflow-hidden pb-2">
+                            <div className="w-full">
+                              {/* Column Headers */}
+                              <div
+                                style={{
+                                  display: 'grid',
+                                  gap: 8,
+                                  marginBottom: 6,
+                                  gridTemplateColumns: `24px repeat(${Math.min(COLS, sortedFloorSlots.length)}, minmax(0, 1fr))`,
+                                }}
+                              >
+                                <div />
+                                {Array.from({ length: Math.min(COLS, sortedFloorSlots.length) }, (_, c) => (
+                                  <div
+                                    key={c}
+                                    style={{
+                                      textAlign: 'center',
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: 'var(--admin-text-faint)',
+                                    }}
+                                  >
+                                    {String.fromCharCode(65 + c)}
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Rows */}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {rows.map((row, rowIdx) => (
+                                  <div
+                                    key={rowIdx}
+                                    style={{
+                                      display: 'grid',
+                                      gap: 8,
+                                      alignItems: 'center',
+                                      gridTemplateColumns: `24px repeat(${COLS}, minmax(0, 1fr))`,
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        textAlign: 'center',
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        color: 'var(--admin-text-faint)',
+                                      }}
+                                    >
+                                      {rowIdx + 1}
+                                    </div>
+                                    {row.map(s => {
                               const isSelected = s.id === selectedSlotId;
                               const statusKey = getStatusLabel(s.status);
                               const style = STATUS_STYLE[statusKey];
@@ -1132,18 +1187,21 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                                     }
                                   }}
                                   style={{
-                                    width: 100,
-                                    minHeight: 72,
-                                    borderRadius: 10,
+                                    width: '100%',
+                                    minWidth: 0,
+                                    minHeight: 64,
+                                    borderRadius: 8,
                                     border: isSelected ? '1.5px solid #ef4444' : `1.5px solid ${style.border}`,
                                     background: isSelected ? 'rgba(239,68,68,0.18)' : style.bg,
-                                    padding: '7px 8px 6px',
+                                    padding: '5px 4px',
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    gap: 3,
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 2,
                                     position: 'relative',
                                     boxSizing: 'border-box',
-                                    textAlign: 'left',
+                                    textAlign: 'center',
                                     transition: 'all 0.15s',
                                     cursor: isAvailable ? 'pointer' : 'not-allowed',
                                     opacity: isAvailable || isSelected ? 1 : 0.6
@@ -1161,48 +1219,55 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                                     }
                                   }}
                                 >
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    <span className={isSelected ? 'text-[#ef4444]' : 'text-stone-700 dark:text-stone-300'} style={{ opacity: 0.85, display: 'flex' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, width: '100%' }}>
+                                    <span className={isSelected ? 'text-[#ef4444]' : 'text-stone-700 dark:text-stone-300'} style={{ opacity: 0.85, display: 'flex', transform: 'scale(1.1)' }}>
                                       {s.vehicleTypeName?.toLowerCase().includes('motor') ? <Bike size={12} /> : <Car size={12} />}
                                     </span>
                                     <span style={{
                                       fontFamily: 'monospace',
-                                      fontWeight: 700,
+                                      fontWeight: 800,
                                       fontSize: 12,
                                       color: isSelected ? '#ef4444' : '#0d1a14',
-                                      letterSpacing: '0.02em',
+                                      letterSpacing: '0.01em',
                                       overflow: 'hidden',
                                       textOverflow: 'ellipsis',
                                       whiteSpace: 'nowrap',
-                                      flex: 1,
+                                      textAlign: 'center',
                                     }} className="dark:text-white">
                                       {s.slotNumber}
                                     </span>
                                   </div>
 
                                   <div className="dark:text-white/70" style={{
-                                    fontSize: 10,
+                                    fontSize: 9,
+                                    fontWeight: 600,
                                     color: '#0d1a14',
                                     opacity: 0.75,
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap',
+                                    textAlign: 'center',
+                                    width: '100%',
                                   }}>
                                     {s.vehicleTypeName ?? '---'}
                                   </div>
 
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 1, width: '100%' }}>
                                     <span style={{
                                       display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
                                       background: isSelected ? '#ef4444' : style.dot, flexShrink: 0,
                                     }} />
-                                    <span style={{ fontSize: 10, color: isSelected ? '#ef4444' : style.text, fontWeight: 600 }}>
+                                    <span style={{ fontSize: 9, color: isSelected ? '#ef4444' : style.text, fontWeight: 700 }}>
                                       {isSelected ? 'Selected' : statusKey}
                                     </span>
                                   </div>
                                 </button>
                               )
                             })}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>

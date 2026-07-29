@@ -165,7 +165,8 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
     <Tooltip content={tooltipContent}>
       <div
         style={{
-          width: 90,
+          width: '100%',
+          minWidth: 90,
           minHeight: 72,
           borderRadius: 10,
           border: `1.5px solid ${isOverdue ? '#ef4444' : style.border}`,
@@ -175,9 +176,12 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
           transition: 'transform 0.15s, box-shadow 0.15s',
           display: 'flex',
           flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
           gap: 3,
           position: 'relative',
           boxSizing: 'border-box',
+          textAlign: 'center',
         }}
         onMouseEnter={e => {
           (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
@@ -189,36 +193,39 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
         }}
       >
         {/* Header: vehicle icon + slot code */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: style.cardText, opacity: 0.85, display: 'flex' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%' }}>
+          <span style={{ color: style.cardText, opacity: 0.85, display: 'flex', transform: 'scale(1.2)' }}>
             <VehicleIcon name={slot.vehicleTypeName} />
           </span>
           <span style={{
             fontFamily: 'monospace',
-            fontWeight: 700,
-            fontSize: 11,
+            fontWeight: 800,
+            fontSize: 14,
             color: style.cardText,
             letterSpacing: '0.02em',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            flex: 1,
+            textAlign: 'center',
           }}>
             {slot.slotNumber ?? slot.id.slice(0, 8)}
           </span>
           {isOverdue && (
-            <AlertTriangle size={9} style={{ color: '#f87171', flexShrink: 0 }} />
+            <AlertTriangle size={12} style={{ color: '#f87171', flexShrink: 0 }} />
           )}
         </div>
 
-        {/* Vehicle type (nhỏ) */}
+        {/* Vehicle type */}
         <div style={{
-          fontSize: 9,
+          fontSize: 11,
+          fontWeight: 600,
           color: style.cardText,
           opacity: 0.75,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          textAlign: 'center',
+          width: '100%',
         }}>
           {slot.vehicleTypeName ?? '—'}
         </div>
@@ -227,27 +234,27 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
         {licensePlate ? (
           <div style={{
             fontFamily: 'monospace',
-            fontSize: 9,
-            fontWeight: 700,
+            fontSize: 12,
+            fontWeight: 800,
             color: isOverdue ? '#b91c1c' : style.cardText,
             background: 'rgba(0,0,0,0.08)',
-            borderRadius: 4,
-            padding: '1px 5px',
-            alignSelf: 'flex-start',
+            borderRadius: 6,
+            padding: '2px 8px',
             maxWidth: '100%',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            textAlign: 'center',
           }}>
             {licensePlate}
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 2, width: '100%' }}>
             <span style={{
-              display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+              display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
               background: style.dot, flexShrink: 0,
             }} />
-            <span style={{ fontSize: 9, color: style.cardText, opacity: 0.85, fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: style.cardText, opacity: 0.9, fontWeight: 700 }}>
               {STATUS_LABEL_VI[statusKey]}
             </span>
           </div>
@@ -269,16 +276,24 @@ interface FloorSectionProps {
 function FloorSection({ floor, slots, token, filterStatus, search }: FloorSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
 
-  const filtered = slots.filter(s => {
-    const st = getStatusLabel(s.status);
-    if (filterStatus && st !== filterStatus) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!(s.slotNumber ?? '').toLowerCase().includes(q) &&
-          !(s.vehicleTypeName ?? '').toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+  const filtered = slots
+    .sort((a, b) => a.slotNumber.localeCompare(b.slotNumber, undefined, { numeric: true, sensitivity: 'base' }))
+    .filter(s => {
+      const st = getStatusLabel(s.status);
+      if (filterStatus && st !== filterStatus) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        if (!(s.slotNumber ?? '').toLowerCase().includes(q) &&
+            !(s.vehicleTypeName ?? '').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+
+  const COLS = 8;
+  const rows: ParkingSlotSummary[][] = [];
+  for (let i = 0; i < filtered.length; i += COLS) {
+    rows.push(filtered.slice(i, i + COLS));
+  }
 
   const counts = {
     available:   slots.filter(s => getStatusLabel(s.status) === 'Available').length,
@@ -368,14 +383,62 @@ function FloorSection({ floor, slots, token, filterStatus, search }: FloorSectio
               No matching slots found
             </p>
           ) : (
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 10,
-            }}>
-              {filtered.map(slot => (
-                <SlotCard key={slot.id} slot={slot} floorName={floor.name} token={token} />
-              ))}
+            <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+              <div style={{ minWidth: 'max-content' }}>
+                {/* Column Headers */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gap: 10,
+                    marginBottom: 8,
+                    gridTemplateColumns: `30px repeat(${Math.min(COLS, filtered.length)}, minmax(0, 1fr))`,
+                  }}
+                >
+                  <div />
+                  {Array.from({ length: Math.min(COLS, filtered.length) }, (_, c) => (
+                    <div
+                      key={c}
+                      style={{
+                        textAlign: 'center',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: 'var(--admin-text-faint)',
+                      }}
+                    >
+                      {String.fromCharCode(65 + c)}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Rows */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {rows.map((row, rowIdx) => (
+                    <div
+                      key={rowIdx}
+                      style={{
+                        display: 'grid',
+                        gap: 10,
+                        alignItems: 'center',
+                        gridTemplateColumns: `30px repeat(${COLS}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: 'var(--admin-text-faint)',
+                        }}
+                      >
+                        {rowIdx + 1}
+                      </div>
+                      {row.map(slot => (
+                        <SlotCard key={slot.id} slot={slot} floorName={floor.name} token={token} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
