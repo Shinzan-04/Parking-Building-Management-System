@@ -583,8 +583,12 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       ref={entryInputRef}
                       type="text"
                       value={entryLicensePlate}
-                      onChange={(event) => setEntryLicensePlate(event.target.value.toUpperCase())}
-                      placeholder="Enter License Plate"
+                      onChange={(event) => {
+                        const val = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                        setEntryLicensePlate(val);
+                      }}
+                      placeholder="e.g 51A12345"
+                      maxLength={12}
                       className="h-14 w-full rounded-xl border admin-border admin-bg-surface pl-12 pr-4 text-lg font-black tracking-widest admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10 shadow-sm"
                     />
                   </div>
@@ -689,9 +693,13 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         ref={exitInputRef}
                         type="text"
                         value={exitLicensePlate}
-                        onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
-                        placeholder="Enter License Plate"
-                        className="h-14 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-sm font-medium admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10 uppercase"
+                        onChange={(event) => {
+                          const val = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                          setExitLicensePlate(val);
+                        }}
+                        placeholder="e.g 51A12345"
+                        maxLength={12}
+                        className="h-14 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-sm font-medium admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10"
                       />
                       <button
                         type="button"

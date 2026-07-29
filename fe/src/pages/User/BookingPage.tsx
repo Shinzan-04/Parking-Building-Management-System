@@ -258,7 +258,7 @@ function StepLicensePlate({
     false;
   const VehicleIcon = isMotorbike ? Bike : Car;
   const vehicleLabel = selectedVehicle?.name || 'Car';
-  const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
+  const placeholder = isMotorbike ? 'e.g 59T112345' : 'e.g 51A12345';
 
   const filteredVehicles = useMemo(() => {
     return myVehicles.filter(v => v.vehicleTypeId === state.vehicleType);
@@ -414,9 +414,10 @@ function StepLicensePlate({
                     type="text"
                     placeholder={placeholder}
                     value={state.licensePlate}
-                    onChange={(e) =>
-                      setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                      setState((s) => ({ ...s, licensePlate: val }));
+                    }}
                     maxLength={12}
                     className="w-full bg-gray-50 dark:bg-white/5 border-2 border-gray-200/80 dark:border-white/10 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-800 dark:text-white text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 dark:placeholder-stone-600 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
                   />
@@ -889,10 +890,10 @@ function StepSelectFloor({
                 }));
                 onNext();
               } else {
-                alert('No parking spots available according to Smart Suggest.');
+                alert('No parking spots available according to Select Optimal Slot.');
               }
             } catch (err: any) {
-              alert('Smart Suggest error: ' + err.message);
+              alert('Select Optimal Slot error: ' + err.message);
             } finally {
               setLoadingAi(false);
             }
@@ -901,7 +902,7 @@ function StepSelectFloor({
           className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
         >
           {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          {loadingAi ? 'Smart Thinking...' : 'Smart Suggest'}
+          {loadingAi ? 'Finding Optimal Slot...' : 'Select Optimal Slot'}
         </button>
       </div>
 
@@ -2311,7 +2312,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
   };
 
   const selectedFloorObj = floors.find(f => f.id === state.floor);
-  const floorLabel = selectedFloorObj?.name ?? 'Not selected';
+  const floorLabel = selectedFloorObj ? `Floor ${selectedFloorObj.name}` : 'Not selected';
 
   const renderStep = () => {
     switch (step) {

@@ -11,7 +11,7 @@ const showCustomToast = (kind: 'success' | 'error', message: string) => {
         ? 'border-emerald-100 bg-white text-emerald-700 shadow-emerald-500/10'
         : 'border-red-100 bg-white text-red-700 shadow-red-500/10';
     const Icon = kind === 'success' ? CheckCircle2 : AlertTriangle;
-    
+
     return (
       <div
         className={`w-80 min-h-[4.5rem] rounded-2xl border p-4 shadow-xl flex items-center gap-3.5 pointer-events-auto ${tone}`}
@@ -33,11 +33,11 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
 export default function StaffExceptions() {
   const { token } = useAuth();
-  
+
   const [searchPlate, setSearchPlate] = useState('');
   const [session, setSession] = useState<SessionDto | null>(null);
   const [loading, setLoading] = useState(false);
-  
+
   const [penaltyFee, setPenaltyFee] = useState<number>(50000);
   const [reason, setReason] = useState('Customer reported lost ticket');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -53,12 +53,12 @@ export default function StaffExceptions() {
     setLoading(true);
     setSession(null);
     setNewSessionCode(null);
-    
+
     try {
       const res = await fetch(`${BASE_URL}/api/Sessions/find-by-plate?plate=${encodeURIComponent(searchPlate)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (!res.ok) {
         if (res.status === 404) {
           showCustomToast('error', `No vehicle with license plate '${searchPlate}' found in the parking lot.`);
@@ -80,7 +80,7 @@ export default function StaffExceptions() {
 
   const handleReissueTicket = async () => {
     if (!session) return;
-    
+
     setIsSubmitting(true);
     try {
       const res = await fetch(`${BASE_URL}/api/Sessions/${session.id}/reissue`, {
@@ -94,7 +94,7 @@ export default function StaffExceptions() {
           reason
         })
       });
-      
+
       if (!res.ok) {
         const err = await res.json();
         showCustomToast('error', err.message || 'Error reissuing ticket.');
@@ -136,11 +136,15 @@ export default function StaffExceptions() {
             <input
               type="text"
               value={searchPlate}
-              onChange={(e) => setSearchPlate(e.target.value.toUpperCase())}
-              placeholder="Enter license plate (e.g. 29A-123.45)"
-              className="block w-full pl-10 pr-3 py-3 border rounded-xl leading-5 bg-transparent focus:outline-none focus:ring-2 focus:ring-[#FF4C4C] focus:border-[#FF4C4C] sm:text-sm uppercase font-mono font-bold"
-              style={{ 
-                color: 'var(--admin-text-primary)', 
+              onChange={(e) => {
+                const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                setSearchPlate(val);
+              }}
+              placeholder="e.g 51A12345"
+              maxLength={12}
+              className="block w-full pl-10 pr-3 py-3 border rounded-xl leading-5 bg-transparent focus:outline-none focus:ring-2 focus:ring-[#FF4C4C] focus:border-[#FF4C4C] sm:text-sm font-mono font-bold"
+              style={{
+                color: 'var(--admin-text-primary)',
                 borderColor: 'var(--admin-border)',
                 backgroundColor: 'var(--admin-bg-base)'
               }}
@@ -230,13 +234,13 @@ export default function StaffExceptions() {
                 </p>
 
                 <button
-                   onClick={() => {
-                     setSession(null);
-                     setNewSessionCode(null);
-                     setSearchPlate('');
-                   }}
-                   className="mt-4 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                   style={{ color: 'var(--admin-text-primary)', borderColor: 'var(--admin-border)' }}
+                  onClick={() => {
+                    setSession(null);
+                    setNewSessionCode(null);
+                    setSearchPlate('');
+                  }}
+                  className="mt-4 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  style={{ color: 'var(--admin-text-primary)', borderColor: 'var(--admin-border)' }}
                 >
                   Process Another Vehicle
                 </button>
