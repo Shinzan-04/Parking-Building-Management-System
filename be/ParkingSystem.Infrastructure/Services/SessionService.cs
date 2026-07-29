@@ -165,19 +165,19 @@ public class SessionService : ISessionService
 
         var summary = new SessionSummary
         {
-            TotalActive = await _context.ParkingSessions
+            TotalActive = await baseSummaryQuery
                 .CountAsync(s => s.Status == SessionStatus.Active && !s.IsDeleted),
-            TotalOverdue = await _context.ParkingSessions
+            TotalOverdue = await baseSummaryQuery
                 .CountAsync(s => (s.Status == SessionStatus.Overdue || 
                                  (s.Status == SessionStatus.Active && 
                                   ((s.CheckInMethod == CheckInMethod.Booking && s.ReservationId != null && s.Reservation!.EndTime < now) ||
                                    (s.CheckInMethod != CheckInMethod.Booking && s.GracePeriodEndTime.HasValue && s.GracePeriodEndTime.Value < now) ||
                                    (s.CheckInMethod != CheckInMethod.Booking && !s.GracePeriodEndTime.HasValue && s.EntryTime < now.AddHours(-24))))) 
                                  && !s.IsDeleted),
-            TotalCompletedToday = await _context.ParkingSessions
+            TotalCompletedToday = await baseSummaryQuery
                 .CountAsync(s => s.Status == SessionStatus.Completed 
                               && s.ExitTime >= todayStart && !s.IsDeleted),
-            TotalRevenueToday = await _context.ParkingSessions
+            TotalRevenueToday = await baseSummaryQuery
                 .Where(s => s.Status == SessionStatus.Completed 
                          && s.ExitTime >= todayStart && !s.IsDeleted)
                 .SumAsync(s => s.TotalFee)
