@@ -60,7 +60,23 @@ public class SessionService : ISessionService
         
         // Lọc theo trạng thái
         if (filter.Status.HasValue)
-            query = query.Where(s => s.Status == filter.Status.Value);
+        {
+            if (filter.Status.Value == SessionStatus.Overdue)
+            {
+                var nowTime = DateTime.UtcNow;
+                query = query.Where(s => 
+                    s.Status == SessionStatus.Overdue || 
+                    (s.Status == SessionStatus.Active && 
+                     ((s.CheckInMethod == CheckInMethod.Booking && s.ReservationId != null && s.Reservation!.EndTime < nowTime) ||
+                      (s.CheckInMethod != CheckInMethod.Booking && s.GracePeriodEndTime.HasValue && s.GracePeriodEndTime.Value < nowTime) ||
+                      (s.CheckInMethod != CheckInMethod.Booking && !s.GracePeriodEndTime.HasValue && s.EntryTime < nowTime.AddHours(-24))))
+                );
+            }
+            else
+            {
+                query = query.Where(s => s.Status == filter.Status.Value);
+            }
+        }
 
         // Lọc ngầm định theo Tòa nhà của Staff (nếu có)
         if (filter.StaffId.HasValue)

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Car, Banknote, TrendingUp, Clock, CheckCircle2, AlertTriangle, Loader2, RefreshCw, MapPin, ChevronDown } from 'lucide-react';
+import { Car, Banknote, TrendingUp, Clock, CheckCircle2, AlertTriangle, Loader2, RefreshCw, MapPin, ChevronDown, ChevronRight } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import { getBuildings, getParkingSlots, getParkingSlotsByBuilding, isSlotOccupied } from '../../services/buildingsService';
@@ -112,6 +113,7 @@ function BuildingDropdown({ value, onChange, options }: any) {
 export default function ManagerDashboard() {
   const { token, user } = useAuth();
   const { theme } = useTheme();
+  const navigate = useNavigate();
   const axisTickColor = theme === 'dark' ? '#ffffff66' : '#0A0A0C99';
 
   const today = new Date().toLocaleDateString('vi-VN', {
@@ -313,13 +315,20 @@ export default function ManagerDashboard() {
         </div>
       )}
 
+      {/* Overdue alert */}
       {overdueCount > 0 && (
-        <div className="flex items-center gap-3 px-5 py-3.5 bg-red-400/10 border border-red-400/20 rounded-xl">
-          <AlertTriangle size={16} className="text-red-400 shrink-0 animate-pulse" />
-          <p className="text-sm text-red-400 font-medium">
-            <span className="font-bold">{overdueCount}</span> vehicles overdue — needs immediate attention
-          </p>
-        </div>
+        <button 
+          onClick={() => navigate('/manager/sessions?status=Overdue')}
+          className="w-full flex items-center justify-between px-5 py-3.5 bg-red-400/10 border border-red-400/20 rounded-xl hover:bg-red-400/20 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={16} className="text-red-400 shrink-0 animate-pulse" />
+            <p className="text-sm text-red-400 font-medium">
+              <span className="font-bold">{overdueCount}</span> vehicles overdue — needs immediate attention
+            </p>
+          </div>
+          <ChevronRight size={16} className="text-red-400 opacity-70" />
+        </button>
       )}
 
       {/* KPI stats */}

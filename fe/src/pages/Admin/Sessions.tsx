@@ -14,6 +14,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   ClipboardList, Search, RefreshCw, ChevronLeft,
   ChevronRight, Eye, Clock, CheckCircle2, AlertTriangle,
@@ -216,7 +217,9 @@ export default function AdminSessions() {
 
   // Filters
   const [search,     setSearch]     = useState('');
-  const [statusFilter, setStatusFilter] = useState<SessionStatus | ''>('');
+  const [searchParams] = useSearchParams();
+  const initStatus = (searchParams.get('status') as SessionStatus | '') || '';
+  const [statusFilter, setStatusFilter] = useState<SessionStatus | ''>(initStatus);
   const today = toLocalDateStr(new Date());
   const [fromDate, setFromDate]     = useState(() => toLocalDateStr(new Date(Date.now() - 7 * 86400_000)));
   const [toDate,   setToDate]       = useState(today);

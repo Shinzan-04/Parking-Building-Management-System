@@ -44,6 +44,8 @@ public class GracePeriodNotifierService : BackgroundService
 
                 foreach (var session in sessionsToWarn)
                 {
+                    if (!session.GracePeriodEndTime.HasValue) continue;
+
                     try 
                     {
                         // Tính thử xem nếu quá hạn 1 phút thì phí có tăng không (có vượt qua Block hiện tại không)
