@@ -106,10 +106,15 @@ export default function StaffDashboard() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Lắng nghe sự kiện Realtime (SignalR) được phát từ useNotification
+  /**
+   * Kỹ thuật Real-time (SignalR).
+   * Lắng nghe sự kiện 'dashboardUpdate' và 'slotUpdate' được bắn ra từ Hook useNotification (kết nối WebSocket).
+   * Khi có xe Check-in hoặc Check-out ở cổng, Backend báo về -> Client lập tức gọi loadData(true) ngầm 
+   * để cập nhật lại biểu đồ và danh sách xe mà không cần tải lại (F5) trang.
+   */
   useEffect(() => {
     const handleUpdate = () => {
-      // Refresh ngầm
+      // Gọi API refresh data ngầm (silent mode = true, không hiện cục xoay lớn giữa màn hình)
       loadData(true);
     };
 

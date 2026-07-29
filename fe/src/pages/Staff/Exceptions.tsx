@@ -43,6 +43,10 @@ export default function StaffExceptions() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newSessionCode, setNewSessionCode] = useState<string | null>(null);
 
+  /**
+   * Tra cứu thông tin xe đang đỗ trong bãi dựa vào Biển số (License Plate).
+   * Dùng khi khách hàng báo mất vé hoặc không quét được mã QR ở cổng ra.
+   */
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchPlate.trim()) {
@@ -55,6 +59,7 @@ export default function StaffExceptions() {
     setNewSessionCode(null);
 
     try {
+      // Gọi API tìm Session theo biển số (Chỉ lấy xe đang có trong bãi)
       const res = await fetch(`${BASE_URL}/api/Sessions/find-by-plate?plate=${encodeURIComponent(searchPlate)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -70,7 +75,7 @@ export default function StaffExceptions() {
       }
 
       const data = await res.json();
-      setSession(data);
+      setSession(data); // Lưu thông tin xe (giờ vào, vị trí đỗ, ảnh camera) để hiển thị
     } catch (err) {
       showCustomToast('error', 'Unable to connect to the server.');
     } finally {
@@ -78,11 +83,16 @@ export default function StaffExceptions() {
     }
   };
 
+  /**
+   * Xử lý ngoại lệ: Ghi nhận Phí phạt (Penalty Fee) vào đơn đỗ xe hiện tại.
+   * Khi khách ra cổng và thanh toán, Backend sẽ tự động cộng thêm penaltyFee vào tổng phí.
+   */
   const handleReissueTicket = async () => {
     if (!session) return;
 
     setIsSubmitting(true);
     try {
+      // Gửi khoản phí phạt và lý do (VD: Làm mất thẻ/vé) lên Backend
       const res = await fetch(`${BASE_URL}/api/Sessions/${session.id}/reissue`, {
         method: 'POST',
         headers: {

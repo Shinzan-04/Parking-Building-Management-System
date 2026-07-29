@@ -1413,10 +1413,16 @@ function ConfirmationPopup({
     }
   };
 
+  /**
+   * Xử lý luồng thanh toán và tạo đơn Đặt chỗ
+   * Được gọi khi người dùng nhấn nút Confirm & Pay ở bước cuối cùng
+   */
   const handlePayAndBook = async () => {
     try {
       setSubmitting(true);
       setError(null);
+      
+      // Kiểm tra đăng nhập
       const token = localStorage.getItem('sp_token') || '';
       if (!token) {
         throw new Error('Please log in to make a reservation.');
@@ -1439,16 +1445,17 @@ function ConfirmationPopup({
       const [exH, exM] = exTime.split(':').map(Number);
       exit.setHours(exH, exM, 0, 0);
 
-      // Resolve vehicleId
+      // Bước 1: Xử lý thông tin Xe (Vehicle)
       let vehicleIdToUse: string;
+      // Tìm xem biển số user nhập có trong danh sách xe đã lưu không
       const matchedVehicle = myVehicles.find(
         (v) => v.plateNumber === state.licensePlate && v.vehicleTypeId === state.vehicleType
       );
 
       if (matchedVehicle) {
-        vehicleIdToUse = matchedVehicle.id;
+        vehicleIdToUse = matchedVehicle.id; // Lấy ID xe cũ
       } else {
-        // Auto-create vehicle for the user silently
+        // Nếu user nhập biển số mới, tự động gọi hàm lưu xe mới này vào hồ sơ ngầm
         const newVehicle = await createVehicle({
           plateNumber: state.licensePlate,
           vehicleTypeId: state.vehicleType!
@@ -1456,20 +1463,24 @@ function ConfirmationPopup({
         vehicleIdToUse = newVehicle.id;
       }
 
+      // Bước 2: Chuẩn bị dữ liệu gửi lên API Đặt chỗ
       const payload = {
         vehicleId: vehicleIdToUse,
-        parkingSlotId: state.slotId!,
+        parkingSlotId: state.slotId!, // Vị trí đỗ đã chọn
         buildingId: lot.id,
         startTime: entry.toISOString(),
         endTime: exit.toISOString(),
-        bookingMethod: state.bookingMethod,
-        paymentMethod: paymentMethod === 'PayOS' ? 4 : 0
+        bookingMethod: state.bookingMethod, // 0: Manual, 1: AI Suggested
+        paymentMethod: paymentMethod === 'PayOS' ? 4 : 0 // 0: Wallet, 4: PayOS
       };
 
+      // Bước 3: Gọi API Backend để tạo vé đặt chỗ
       const res = await createReservation(payload);
       setCreatedReservation(res);
 
+      // Bước 4: Xử lý hiển thị sau khi gọi API thành công tùy theo Cổng thanh toán
       if (paymentMethod === 'PayOS') {
+        // 4.1 Thanh toán PayOS: Gọi API tạo phiên thanh toán PayOS để lấy Link/QR Code
         const paymentPayload = {
           amount: total,
           description: `Thanh toan don dat cho`,
@@ -1501,7 +1512,9 @@ function ConfirmationPopup({
         setSubmitting(false);
         setPhase('checkout');
       } else {
-        // Wallet thanh toán xong rồi (vì backend đã trừ ví)
+        // 4.2 Thanh toán Wallet: 
+        // Backend đã trừ tiền thẳng trong CSDL và trả về OK
+        // Ta chỉ cần sinh mã QR vé xe từ thông tin trả về
         const realQrData = JSON.stringify({
           ref: res.bookingCode,
           lot: lot.name,
@@ -1522,22 +1535,26 @@ function ConfirmationPopup({
 
     } catch (err: any) {
       console.error(err);
+      // Bắt lỗi đặc thù: Nếu Wallet không đủ tiền, Backend sẽ ném lỗi có code INSUFFICIENT_BALANCE
       if (err.code === 'INSUFFICIENT_BALANCE' && err.requiredAmount) {
         const fmt = (n: number) => n.toLocaleString('vi-VN') + ' ₫';
+        // Hiển thị thông báo chi tiết số tiền còn thiếu để gợi ý user nạp thêm
         setError(
           `Insufficient wallet balance. You need to deposit ${fmt(err.requiredAmount)} more ` +
           `(Total fee: ${fmt(err.totalFee ?? 0)} — Current balance: ${fmt(err.currentBalance ?? 0)}). ` +
           `Please top up your wallet before booking.`
         );
       } else {
+        // Lỗi chung (ví dụ: mất mạng, hoặc chỗ đỗ vừa bị người khác đặt mất)
         setError(err.message || 'Reservation failed. Please check your information.');
       }
       setSubmitting(false);
     }
   };
 
-  // ── Polling: kiểm tra trạng thái thanh toán sau khi mở tab PayOS ──
+  // ── Polling: Liên tục kiểm tra trạng thái thanh toán (Dành riêng cho PayOS) ──
   useEffect(() => {
+    // Chỉ chạy khi đang ở bước thanh toán PayOS và có mã đơn hàng
     if (phase !== 'checkout' || pendingOrderCode == null) return;
 
     const token = localStorage.getItem('sp_token') || '';
@@ -1545,10 +1562,12 @@ function ConfirmationPopup({
     let seconds = 0;
     setPollSeconds(0);
 
+    // Dùng setInterval để chạy lặp lại mỗi 3 giây
     const interval = setInterval(async () => {
       seconds += 3;
       setPollSeconds(seconds);
 
+      // Nếu người dùng treo máy quá 10 phút, báo Timeout và dừng gọi API
       if (seconds > 600) {
         clearInterval(interval);
         setError('Timed out (10 minutes). Please try again.');
@@ -1558,16 +1577,19 @@ function ConfirmationPopup({
       }
 
       try {
+        // Gọi API lên Backend hỏi xem Đơn hàng PayOS này đã được thanh toán chưa
         const result = await verifyPayment(pendingOrderCode);
         if (cancelled) return;
 
         if (result.isPaid) {
+          // Trả tiền THÀNH CÔNG: Dừng vòng lặp, tự động chuyển UI sang màn hình vé (mã QR)
           clearInterval(interval);
           try { payosTabRef.current?.close(); } catch { }
           payosTabRef.current = null;
           setPendingOrderCode(null);
           setPhase('qr');
         } else if (result.status === 'Failed') {
+          // Trả tiền THẤT BẠI: Dừng vòng lặp, báo lỗi và quay lại trang chọn thanh toán
           clearInterval(interval);
           try { payosTabRef.current?.close(); } catch { }
           payosTabRef.current = null;
@@ -1576,10 +1598,11 @@ function ConfirmationPopup({
           setPhase('payment');
         }
       } catch {
-        // bỏ qua lỗi mạng tạm thời
+        // Bỏ qua nếu có lỗi mạng chập chờn tạm thời, vòng lặp sau sẽ gọi lại bình thường
       }
     }, 3000);
 
+    // Cleanup: Chạy khi Component bị hủy (người dùng rời khỏi trang)
     return () => {
       cancelled = true;
       clearInterval(interval);

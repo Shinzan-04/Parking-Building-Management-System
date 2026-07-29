@@ -223,15 +223,22 @@ export default function StaffReservations() {
 
   // ─── Approve ──────────────────────────────────────────────────────────────
 
+  /**
+   * Duyệt (Approve) một yêu cầu đặt chỗ.
+   * Gửi API lên Backend xác nhận vé hợp lệ. Trạng thái vé sẽ chuyển thành Confirmed.
+   */
   const handleApprove = async () => {
     if (!approveTarget || !token) return;
     setApproving(true);
     setApproveError('');
     try {
+      // payload chứa cờ isAccepted = true báo cho Backend biết là đồng ý
       const payload: ReviewReservationRequest = { isAccepted: true };
       await reviewReservation(approveTarget.id, payload);
+      
+      // Load lại danh sách ngầm (không hiển thị màn hình loading lớn)
       await loadData(true);
-      setApproveTarget(null);
+      setApproveTarget(null); // Đóng modal
       toast.success('Reservation approved successfully.');
     } catch (e) {
       setApproveError(e instanceof Error ? e.message : 'Approval failed.');
@@ -242,17 +249,24 @@ export default function StaffReservations() {
 
   // ─── Reject ───────────────────────────────────────────────────────────────
 
+  /**
+   * Từ chối (Reject) một yêu cầu đặt chỗ.
+   * Yêu cầu bắt buộc phải nhập lý do (rejectReason) để giải thích cho khách hàng.
+   */
   const handleReject = async () => {
     if (!rejectTarget || !token) return;
     if (!rejectReason.trim()) { setRejectError('Please enter a rejection reason.'); return; }
+    
     setRejecting(true);
     setRejectError('');
     try {
+      // payload có isAccepted = false và đính kèm lý do từ chối
       const payload: ReviewReservationRequest = { isAccepted: false, reason: rejectReason.trim() };
       await reviewReservation(rejectTarget.id, payload);
+      
       await loadData(true);
       setRejectTarget(null);
-      setRejectReason('');
+      setRejectReason(''); // Xóa trắng text lý do sau khi thành công
       toast.success('Reservation rejected successfully.');
     } catch (e) {
       setRejectError(e instanceof Error ? e.message : 'Rejection failed.');
@@ -263,6 +277,10 @@ export default function StaffReservations() {
 
   // ─── Reassign ─────────────────────────────────────────────────────────────
 
+  /**
+   * Đổi chỗ (Reassign Slot) cho khách hàng.
+   * Dùng khi vị trí khách đã đặt bị sự cố hoặc có xe khác lấn chiếm thực tế.
+   */
   const handleReassign = async () => {
     if (!reassignTarget || !token || !selectedSlotId) {
       setReassignError('Please select a new slot.');
@@ -271,7 +289,9 @@ export default function StaffReservations() {
     setReassigning(true);
     setReassignError('');
     try {
+      // Gọi API cập nhật vé sang một vị trí mới hoàn toàn (selectedSlotId)
       await reassignSlot(reassignTarget.id, selectedSlotId);
+      
       await loadData(true);
       setReassignTarget(null);
       setSelectedSlotId('');
