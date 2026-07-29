@@ -74,6 +74,21 @@ public class ParkingSlotsController : ControllerBase
         return slot == null ? NotFound() : Ok(slot);
     }
 
+    [HttpPatch("bulk-update-vehicle-type")]
+    [Authorize(Roles = "Admin,Manager")]
+    public async Task<IActionResult> BulkUpdateVehicleType([FromBody] BulkUpdateSlotVehicleTypeRequest request)
+    {
+        try
+        {
+            var result = await _slotService.BulkUpdateVehicleTypeAsync(request);
+            return result ? NoContent() : BadRequest(new { message = "Lỗi khi cập nhật loại xe cho slot." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> Delete(Guid id)
