@@ -218,6 +218,32 @@ public class ParkingSlotService : IParkingSlotService
         };
     }
 
+    public async Task<bool> BulkUpdateVehicleTypeAsync(BulkUpdateSlotVehicleTypeRequest request)
+    {
+        if (request.SlotIds == null || !request.SlotIds.Any())
+            return false;
+
+        var slots = await _repository.FindAsync(s => request.SlotIds.Contains(s.Id));
+        if (!slots.Any())
+            return false;
+
+        var unmodifiableSlots = slots.Where(s => s.Status == SlotStatus.Occupied || s.Status == SlotStatus.Reserved || s.Status == SlotStatus.TemporaryHeld).ToList();
+        if (unmodifiableSlots.Any())
+        {
+            var slotNumbers = string.Join(", ", unmodifiableSlots.Select(s => s.SlotNumber));
+            throw new Exception($"Không thể sửa đổi loại xe. Các slot sau đang có xe đỗ hoặc đã được đặt trước: {slotNumbers}");
+        }
+
+        foreach (var slot in slots)
+        {
+            slot.VehicleTypeId = request.VehicleTypeId;
+            slot.UpdatedAt = DateTime.UtcNow;
+            await _repository.UpdateAsync(slot);
+        }
+
+        return true;
+    }
+
     private static ParkingSlotResponse MapToResponse(ParkingSlot s) => new()
     {
         Id = s.Id,

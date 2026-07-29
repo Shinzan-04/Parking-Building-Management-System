@@ -123,6 +123,12 @@ export const updateSlotStatus = (
 export const deleteSlot = (slotId: string): Promise<void> =>
   apiClient(`/api/parkingslots/${slotId}`, { method: 'DELETE' });
 
+export const bulkUpdateSlotVehicleType = (slotIds: string[], vehicleTypeId: string): Promise<void> =>
+  apiClient(`/api/parkingslots/bulk-update-vehicle-type`, {
+    method: 'PATCH',
+    body: JSON.stringify({ slotIds, vehicleTypeId }),
+  });
+
 /** Gợi ý slot AI cho loại xe */
 export const getRecommendedSlots = (vehicleTypeId: string, top = 5): Promise<{
   totalRecommendations: number;

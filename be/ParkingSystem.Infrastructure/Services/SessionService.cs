@@ -78,14 +78,24 @@ public class SessionService : ISessionService
             }
         }
 
-        // Lọc ngầm định theo Tòa nhà của Staff (nếu có)
+        // Xác định BuildingId để filter
+        Guid? summaryBuildingId = filter.BuildingId;
+        
+        // Nếu là Staff/Manager, BẮT BUỘC dùng tòa nhà được phân công (nếu có)
         if (filter.StaffId.HasValue)
         {
             var staff = await _context.Users.FindAsync(filter.StaffId.Value);
             if (staff != null && staff.AssignedBuildingId.HasValue)
             {
-                query = query.Where(s => s.ParkingSlot.Floor.BuildingId == staff.AssignedBuildingId.Value);
+                summaryBuildingId = staff.AssignedBuildingId.Value;
             }
+        }
+
+        // Lọc ngầm định theo Tòa nhà của Staff (nếu có)
+        // và lọc theo BuildingId từ filter
+        if (summaryBuildingId.HasValue)
+        {
+            query = query.Where(s => s.ParkingSlot.Floor.BuildingId == summaryBuildingId.Value);
         }
 
         // Tìm theo biển số (gần đúng — LIKE '%keyword%')
@@ -94,10 +104,6 @@ public class SessionService : ISessionService
             var plate = filter.LicensePlate.Trim().ToUpper();
             query = query.Where(s => s.LicensePlate.ToUpper().Contains(plate));
         }
-
-        // Lọc theo tòa nhà
-        if (filter.BuildingId.HasValue)
-            query = query.Where(s => s.ParkingSlot.Floor.BuildingId == filter.BuildingId.Value);
 
         // Lọc theo tầng
         if (filter.FloorId.HasValue)
@@ -141,17 +147,13 @@ public class SessionService : ISessionService
 
         var items = dbItems.Select(s => MapToDto(s)).ToList();
 
-        // Thống kê nhanh
+        // Thống kê nhanh theo múi giờ Việt Nam (UTC+7)
         var now = DateTime.UtcNow;
-        var todayStart = now.Date;
+        var nowVn = now.AddHours(7);
+        var todayStartVn = nowVn.Date;
+        var todayStart = todayStartVn.AddHours(-7); // Đổi ngược lại ra UTC tương ứng 00:00 VN
         
-        // Xác định BuildingId để filter Summary
-        Guid? summaryBuildingId = filter.BuildingId;
-        if (filter.StaffId.HasValue && !summaryBuildingId.HasValue)
-        {
-            var staff = await _context.Users.FindAsync(filter.StaffId.Value);
-            if (staff != null) summaryBuildingId = staff.AssignedBuildingId;
-        }
+        // Xác định BuildingId để filter Summary (đã xử lý ở trên)
 
         var baseSummaryQuery = _context.ParkingSessions
             .Include(s => s.ParkingSlot)

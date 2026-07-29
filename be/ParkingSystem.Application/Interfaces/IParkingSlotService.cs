@@ -14,6 +14,7 @@ public interface IParkingSlotService
     Task<bool> DeleteAsync(Guid id);
     Task<IEnumerable<ParkingSlotResponse>> GetAvailabilityByFloorAsync(Guid floorId, DateTime startTime, DateTime endTime);
     Task<CurrentVehicleResponse?> GetCurrentVehicleAsync(Guid slotId);
+    Task<bool> BulkUpdateVehicleTypeAsync(BulkUpdateSlotVehicleTypeRequest request);
 }
 
 public class CurrentVehicleResponse
