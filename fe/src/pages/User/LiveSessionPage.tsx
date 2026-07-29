@@ -260,7 +260,9 @@ export default function LiveSessionPage() {
               </div>
               <div>
                 <div className="text-[9px] text-orange-500 font-bold uppercase tracking-widest mb-1">Parking Spot</div>
-                <div className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white capitalize">{session.floorName.replace('Tầng', 'Floor')} — Slot {session.slotNumber}</div>
+                <div className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white capitalize">
+                  {session.floorName?.toString().toLowerCase().includes('floor') || session.floorName?.toString().toLowerCase().includes('tầng') ? session.floorName.replace('Tầng', 'Floor') : `Floor ${session.floorName}`} &mdash; Slot {session.slotNumber?.replace(`${session.floorName}-`, '').replace('Slot ', '')}
+                </div>
               </div>
             </div>
 

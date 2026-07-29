@@ -180,7 +180,7 @@ export default function StaffExceptions() {
                   <MapPin size={15} /> Location
                 </span>
                 <span className="font-medium" style={{ color: 'var(--admin-text-primary)' }}>
-                  {session.floorName} - {session.slotNumber}
+                  {session.floorName?.toString().toLowerCase().includes('floor') || session.floorName?.toString().toLowerCase().includes('tầng') ? session.floorName : `Floor ${session.floorName}`} / Slot {session.slotNumber?.replace(`${session.floorName}-`, '').replace('Slot ', '')}
                 </span>
               </div>
 

@@ -330,7 +330,7 @@ export default function StaffDashboard() {
                         {s.floorName.toString().toLowerCase().includes('floor') || s.floorName.toString().toLowerCase().includes('tầng') ? s.floorName : `Floor ${s.floorName}`}
                       </p>
                       <p className="text-[11px]" style={{ color: 'var(--admin-text-muted)' }}>
-                        {s.slotNumber.toString().toLowerCase().includes('slot') ? s.slotNumber : `Slot ${s.slotNumber}`}
+                        Slot {s.slotNumber.replace(`${s.floorName}-`, '').replace('Slot ', '')}
                       </p>
                     </td>
                     <td className="px-4 py-3.5">
