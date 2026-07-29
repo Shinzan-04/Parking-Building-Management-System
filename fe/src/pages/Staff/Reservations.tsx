@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import toast from 'react-hot-toast';
 import {
   CalendarCheck, Check, X, Loader2, RefreshCw,
   AlertTriangle, Clock, MapPin, FileText,
@@ -33,16 +34,16 @@ const STATUS_STYLE: Record<string, string> = {
   PendingReview: 'bg-amber-400/10 text-amber-400',
   Confirmed: 'bg-[#FF4C4C]/10 text-[#FF4C4C]',
   CheckedIn: 'bg-emerald-500/10 text-emerald-500',
-  Cancelled: 'bg-white/10 text-white/50',
-  Completed: 'bg-white/10 text-white/40',
+  Cancelled: 'bg-[var(--admin-bg-card-hover)] admin-text-faint',
+  Completed: 'bg-[var(--admin-bg-card-hover)] admin-text-muted',
   Rejected:  'bg-red-400/10 text-red-400',
-  NoShow: 'bg-white/10 text-white/50',
+  NoShow: 'bg-[var(--admin-bg-card-hover)] admin-text-faint',
   PaymentFailed: 'bg-red-400/10 text-red-400',
 };
 
 function StatusBadge({ status }: { status: string }) {
   const label = RESERVATION_STATUS_LABELS[status] ?? status;
-  const style = STATUS_STYLE[status] ?? 'bg-white/10 text-white/50';
+  const style = STATUS_STYLE[status] ?? 'bg-[var(--admin-bg-card-hover)] admin-text-faint';
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${style}`}>
       <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -66,7 +67,7 @@ function ReservationCard({
   const isConfirmed = status === 'Confirmed' || status === 'Paid';
 
   return (
-    <div className="glass-card p-5 rounded-2xl space-y-4 hover:border-white/20 transition-all">
+    <div className="glass-card p-5 rounded-2xl space-y-4 hover:border-[var(--admin-border)] transition-all">
       {/* Top row */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -74,8 +75,8 @@ function ReservationCard({
             <CalendarCheck size={18} className="text-[#FF4C4C]" />
           </div>
           <div>
-            <p className="font-bold font-mono text-white text-base">{r.licensePlate}</p>
-            <p className="text-xs text-white/40 mt-0.5">{r.bookingCode}</p>
+            <p className="font-bold font-mono admin-text text-base">{r.licensePlate}</p>
+            <p className="text-xs admin-text-muted mt-0.5">{r.bookingCode}</p>
           </div>
         </div>
         <StatusBadge status={status} />
@@ -84,28 +85,28 @@ function ReservationCard({
       {/* Info rows */}
       <div className="space-y-2.5">
         <div className="flex items-center gap-2.5 px-3 py-2 bg-white/[0.04] rounded-xl">
-          <MapPin size={13} className="text-white/40 shrink-0" />
-          <span className="text-xs text-white/70">Slot: <span className="font-semibold text-white">{r.slotNumber}</span></span>
+          <MapPin size={13} className="admin-text-muted shrink-0" />
+          <span className="text-xs admin-text/70">Slot: <span className="font-semibold admin-text">{r.slotNumber}</span></span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="flex items-start gap-2 px-3 py-2 bg-white/[0.04] rounded-xl">
             <Clock size={12} className="text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[10px] text-white/40 uppercase tracking-wider">Start</p>
-              <p className="text-xs text-white font-medium">{fmtDateTime(r.startTime)}</p>
+              <p className="text-[10px] admin-text-muted uppercase tracking-wider">Start</p>
+              <p className="text-xs admin-text font-medium">{fmtDateTime(r.startTime)}</p>
             </div>
           </div>
           <div className="flex items-start gap-2 px-3 py-2 bg-white/[0.04] rounded-xl">
             <Clock size={12} className="text-[#FF4C4C] shrink-0 mt-0.5" />
             <div>
-              <p className="text-[10px] text-white/40 uppercase tracking-wider">End</p>
-              <p className="text-xs text-white font-medium">{fmtDateTime(r.endTime)}</p>
+              <p className="text-[10px] admin-text-muted uppercase tracking-wider">End</p>
+              <p className="text-xs admin-text font-medium">{fmtDateTime(r.endTime)}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <p className="text-[10px] text-white/30 border-t border-white/5 pt-2">
+      <p className="text-[10px] admin-text/30 border-t border-white/5 pt-2">
         Requested at: {fmtDateTime(r.createdAt)}
       </p>
 
@@ -192,6 +193,13 @@ export default function StaffReservations() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Listen for realtime events (SignalR) dispatched from useNotification
+  useEffect(() => {
+    const handleUpdate = () => loadData(true);
+    window.addEventListener('dashboardUpdate', handleUpdate);
+    return () => window.removeEventListener('dashboardUpdate', handleUpdate);
+  }, [loadData]);
+
   const loadSlots = async () => {
     if (!token) return;
     setLoadingSlots(true);
@@ -224,8 +232,10 @@ export default function StaffReservations() {
       await reviewReservation(approveTarget.id, payload);
       await loadData(true);
       setApproveTarget(null);
+      toast.success('Reservation approved successfully.');
     } catch (e) {
       setApproveError(e instanceof Error ? e.message : 'Approval failed.');
+      toast.error(e instanceof Error ? e.message : 'Approval failed.');
       setApproving(false);
     }
   };
@@ -243,8 +253,10 @@ export default function StaffReservations() {
       await loadData(true);
       setRejectTarget(null);
       setRejectReason('');
+      toast.success('Reservation rejected successfully.');
     } catch (e) {
       setRejectError(e instanceof Error ? e.message : 'Rejection failed.');
+      toast.error(e instanceof Error ? e.message : 'Rejection failed.');
       setRejecting(false);
     }
   };
@@ -262,9 +274,11 @@ export default function StaffReservations() {
       await reassignSlot(reassignTarget.id, selectedSlotId);
       await loadData(true);
       setReassignTarget(null);
+      setSelectedSlotId('');
+      toast.success('Slot reassigned successfully.');
     } catch (e) {
       setReassignError(e instanceof Error ? e.message : 'Reassignment failed.');
-    } finally {
+      toast.error(e instanceof Error ? e.message : 'Reassignment failed.');
       setReassigning(false);
     }
   };
@@ -283,7 +297,7 @@ export default function StaffReservations() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-white/40">Loading reservations...</p>
+        <p className="text-sm admin-text-muted">Loading reservations...</p>
       </div>
     );
   }
@@ -294,15 +308,15 @@ export default function StaffReservations() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-white">Reservation Management</h2>
-          <p className="text-sm text-white/40 mt-0.5">
+          <h2 className="text-2xl font-bold admin-text">Reservation Management</h2>
+          <p className="text-sm admin-text-muted mt-0.5">
             Review requests and assist with slot changes
           </p>
         </div>
         <button
           onClick={() => loadData(true)}
           disabled={refreshing}
-          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white"
+          className="p-2.5 rounded-xl bg-[var(--admin-bg-card)] hover:bg-[var(--admin-bg-card-hover)] transition-colors admin-text-faint hover:admin-text"
         >
           <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
         </button>
@@ -316,11 +330,11 @@ export default function StaffReservations() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-2 border-b border-white/10 pb-4">
+      <div className="flex gap-2 border-b border-[var(--admin-border)] pb-4">
         <button
           onClick={() => setActiveTab('pending')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'pending' ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]' : 'text-white/50 hover:bg-white/5'
+            activeTab === 'pending' ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]' : 'admin-text-faint hover:bg-[var(--admin-bg-card)]'
           }`}
         >
           <CalendarCheck size={16} /> Pending
@@ -331,12 +345,12 @@ export default function StaffReservations() {
         <button
           onClick={() => setActiveTab('active')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'active' ? 'bg-blue-400/10 text-blue-400' : 'text-white/50 hover:bg-white/5'
+            activeTab === 'active' ? 'bg-blue-400/10 text-blue-400' : 'admin-text-faint hover:bg-[var(--admin-bg-card)]'
           }`}
         >
           <CheckCircle2 size={16} /> Approved / Active
           {activeList.length > 0 && (
-            <span className="ml-1 bg-white/20 text-white px-1.5 py-0.5 rounded-md text-[10px]">{activeList.length}</span>
+            <span className="ml-1 bg-white/20 admin-text px-1.5 py-0.5 rounded-md text-[10px]">{activeList.length}</span>
           )}
         </button>
       </div>
@@ -344,7 +358,7 @@ export default function StaffReservations() {
       {/* List */}
       <div>
         {displayList.length === 0 ? (
-          <div className="glass-card rounded-2xl flex flex-col items-center justify-center py-16 gap-3 text-white/30">
+          <div className="glass-card rounded-2xl flex flex-col items-center justify-center py-16 gap-3 admin-text/30">
             <ClipboardList size={28} />
             <p className="text-sm">No data in this section</p>
           </div>
@@ -372,18 +386,18 @@ export default function StaffReservations() {
                 <CheckCircle2 size={20} className="text-[#FF4C4C]" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Confirm Approval</h3>
-                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Reservation will be accepted</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:admin-text">Confirm Approval</h3>
+                <p className="text-xs text-gray-400 dark:admin-text-muted mt-0.5">Reservation will be accepted</p>
               </div>
             </div>
 
-            <p className="text-sm text-gray-700 dark:text-white/70">
+            <p className="text-sm text-gray-700 dark:admin-text/70">
               Approve reservation request for license plate{' '}
-              <span className="font-bold font-mono text-gray-800 dark:text-white">{approveTarget.licensePlate}</span>{' '}
-              at slot <span className="font-semibold text-gray-800 dark:text-white">{approveTarget.slotNumber}</span>?
+              <span className="font-bold font-mono text-gray-800 dark:admin-text">{approveTarget.licensePlate}</span>{' '}
+              at slot <span className="font-semibold text-gray-800 dark:admin-text">{approveTarget.slotNumber}</span>?
             </p>
 
-            <div className="text-xs text-gray-400 dark:text-white/40 space-y-1 px-3 py-2.5 bg-gray-50 dark:bg-white/5 rounded-xl">
+            <div className="text-xs text-gray-400 dark:admin-text-muted space-y-1 px-3 py-2.5 bg-gray-50 dark:bg-[var(--admin-bg-card)] rounded-xl">
               <p>📅 From: {fmtDateTime(approveTarget.startTime)}</p>
               <p>📅 To: {fmtDateTime(approveTarget.endTime)}</p>
             </div>
@@ -397,7 +411,7 @@ export default function StaffReservations() {
             <div className="flex gap-3">
               <button
                 onClick={() => setApproveTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:admin-text-muted bg-gray-50 dark:bg-[var(--admin-bg-card)] hover:bg-gray-100 dark:hover:bg-[var(--admin-bg-card-hover)] transition-colors"
               >
                 Cancel
               </button>
@@ -423,13 +437,13 @@ export default function StaffReservations() {
                 <XCircle size={20} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Reject Reservation</h3>
-                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">License Plate: {rejectTarget.licensePlate}</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:admin-text">Reject Reservation</h3>
+                <p className="text-xs text-gray-400 dark:admin-text-muted mt-0.5">License Plate: {rejectTarget.licensePlate}</p>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
+              <label className="block text-xs font-medium text-gray-500 dark:admin-text-faint mb-1.5">
                 <FileText size={11} className="inline mr-1" />
                 Reason for rejection <span className="text-red-400">*</span>
               </label>
@@ -438,7 +452,7 @@ export default function StaffReservations() {
                 placeholder="Enter the reason for rejecting this request..."
                 value={rejectReason}
                 onChange={e => setRejectReason(e.target.value)}
-                className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-red-400/50 transition-colors resize-none"
+                className="w-full bg-gray-50 dark:bg-[var(--admin-bg-card)] border border-gray-200 dark:border-[var(--admin-border)] rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:admin-text placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-red-400/50 transition-colors resize-none"
               />
             </div>
 
@@ -451,14 +465,14 @@ export default function StaffReservations() {
             <div className="flex gap-3">
               <button
                 onClick={() => setRejectTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:admin-text-muted bg-gray-50 dark:bg-[var(--admin-bg-card)] hover:bg-gray-100 dark:hover:bg-[var(--admin-bg-card-hover)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReject}
                 disabled={rejecting}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold admin-text bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
               >
                 {rejecting && <Loader2 size={14} className="animate-spin" />}
                 Confirm Rejection
@@ -477,29 +491,29 @@ export default function StaffReservations() {
                 <RefreshCcw size={20} className="text-blue-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-gray-800 dark:text-white">Reassign Slot</h3>
-                <p className="text-xs text-gray-400 dark:text-white/40 mt-0.5">Handle occupied slot issues</p>
+                <h3 className="text-base font-semibold text-gray-800 dark:admin-text">Reassign Slot</h3>
+                <p className="text-xs text-gray-400 dark:admin-text-muted mt-0.5">Handle occupied slot issues</p>
               </div>
             </div>
 
-            <div className="bg-gray-50 dark:bg-white/5 p-3 rounded-xl border border-gray-200 dark:border-white/10 text-sm text-gray-600 dark:text-white/70">
-              <p>License Plate: <span className="font-bold text-gray-800 dark:text-white">{reassignTarget.licensePlate}</span></p>
+            <div className="bg-gray-50 dark:bg-[var(--admin-bg-card)] p-3 rounded-xl border border-gray-200 dark:border-[var(--admin-border)] text-sm text-gray-600 dark:admin-text/70">
+              <p>License Plate: <span className="font-bold text-gray-800 dark:admin-text">{reassignTarget.licensePlate}</span></p>
               <p>Current slot: <span className="font-semibold text-red-400">{reassignTarget.slotNumber}</span> (Occupied/Issue)</p>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-gray-500 dark:text-white/50 mb-1.5">
+              <label className="block text-xs font-medium text-gray-500 dark:admin-text-faint mb-1.5">
                 <LayoutGrid size={11} className="inline mr-1" />
                 Select a new slot (available) <span className="text-red-400">*</span>
               </label>
               
               {loadingSlots ? (
-                <div className="text-xs text-gray-400 dark:text-white/40 flex items-center gap-2 py-2"><Loader2 size={12} className="animate-spin" /> Loading...</div>
+                <div className="text-xs text-gray-400 dark:admin-text-muted flex items-center gap-2 py-2"><Loader2 size={12} className="animate-spin" /> Loading...</div>
               ) : (
                 <select
                   value={selectedSlotId}
                   onChange={e => setSelectedSlotId(e.target.value)}
-                  className="w-full bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-blue-400/50 transition-colors"
+                  className="w-full bg-white dark:bg-[var(--admin-bg-card)] border border-gray-200 dark:border-[var(--admin-border)] rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:admin-text focus:outline-none focus:border-blue-400/50 transition-colors"
                 >
                   <option value="" disabled className="dark:bg-stone-900">-- Please select an available slot --</option>
                   {availableSlots.map(s => (
@@ -520,14 +534,14 @@ export default function StaffReservations() {
             <div className="flex gap-3">
               <button
                 onClick={() => setReassignTarget(null)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:text-white/60 bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-500 dark:admin-text-muted bg-gray-50 dark:bg-[var(--admin-bg-card)] hover:bg-gray-100 dark:hover:bg-[var(--admin-bg-card-hover)] transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleReassign}
                 disabled={reassigning || !selectedSlotId}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold admin-text bg-blue-500 hover:bg-blue-600 transition-colors disabled:opacity-50"
               >
                 {reassigning && <Loader2 size={14} className="animate-spin" />}
                 Confirm Reassignment

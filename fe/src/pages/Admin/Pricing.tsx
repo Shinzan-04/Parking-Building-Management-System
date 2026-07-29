@@ -462,9 +462,9 @@ export default function AdminPricing() {
                     onChange={e => setForm(f => ({ ...f, vehicleTypeId: e.target.value }))}
                     className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                   >
-                    <option value="">-- Select vehicle type --</option>
+                    <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>-- Select vehicle type --</option>
                     {vehicleTypes.map(vt => (
-                      <option key={vt.id} value={vt.id}>{vt.name}</option>
+                      <option key={vt.id} value={vt.id} style={{ color: '#000', backgroundColor: '#fff' }}>{vt.name}</option>
                     ))}
                   </select>
                 </div>

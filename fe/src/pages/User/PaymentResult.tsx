@@ -44,7 +44,7 @@ export default function PaymentResult() {
     return (
       <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center p-4">
         <Loader2 className="w-10 h-10 text-[#FF4C4C] animate-spin mb-4" />
-        <p className="text-stone-500 font-medium">Đang xử lý kết quả thanh toán...</p>
+        <p className="text-stone-500 font-medium">Processing payment result...</p>
       </div>
     );
   }
@@ -57,9 +57,9 @@ export default function PaymentResult() {
             <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-6">
               <CheckCircle2 className="w-8 h-8 text-emerald-500" />
             </div>
-            <h1 className="text-2xl font-black text-stone-800 mb-2">Thanh toán thành công!</h1>
+            <h1 className="text-2xl font-black text-stone-800 mb-2">Payment Successful!</h1>
             <p className="text-sm text-stone-500 mb-8">
-              Chỗ đỗ xe của bạn đã được đặt. Vui lòng đưa mã QR này cho nhân viên khi vào bãi.
+              Your parking spot has been booked. Please show this QR code to staff when entering the parking lot.
             </p>
 
             {qrData && (
@@ -81,7 +81,7 @@ export default function PaymentResult() {
               onClick={() => navigate('/')}
               className="w-full bg-stone-900 text-white font-bold py-3.5 rounded-xl hover:bg-stone-800 transition-colors"
             >
-              Về Trang Chủ
+              Back to Home
             </button>
           </>
         )}
@@ -92,20 +92,20 @@ export default function PaymentResult() {
               <XCircle className="w-8 h-8 text-[#FF4C4C]" />
             </div>
             <h1 className="text-2xl font-black text-stone-800 mb-2">
-              {status === 'cancelled' ? 'Đã hủy thanh toán' : 'Thanh toán thất bại'}
+              {status === 'cancelled' ? 'Payment Cancelled' : 'Payment Failed'}
             </h1>
             <p className="text-sm text-stone-500 mb-8">
               {status === 'cancelled'
-                ? 'Bạn đã hủy quá trình thanh toán.'
-                : 'Đã có lỗi xảy ra trong quá trình thanh toán.'}
-              {' '}Bạn có thể thử đặt lại chỗ.
+                ? 'You cancelled the payment process.'
+                : 'An error occurred during payment.'}
+              {' '}You can try booking again.
             </p>
 
             <button
               onClick={() => navigate('/')}
               className="w-full flex items-center justify-center gap-2 bg-stone-100 text-stone-700 font-bold py-3.5 rounded-xl hover:bg-stone-200 transition-colors"
             >
-              <ArrowLeft className="w-5 h-5" /> Về Trang Chủ
+              <ArrowLeft className="w-5 h-5" /> Back to Home
             </button>
           </>
         )}

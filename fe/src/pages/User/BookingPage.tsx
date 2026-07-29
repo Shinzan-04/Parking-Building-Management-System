@@ -258,7 +258,7 @@ function StepLicensePlate({
     false;
   const VehicleIcon = isMotorbike ? Bike : Car;
   const vehicleLabel = selectedVehicle?.name || 'Car';
-  const placeholder = isMotorbike ? '59T1-12345' : '51A-12345';
+  const placeholder = isMotorbike ? 'e.g 59T112345' : 'e.g 51A12345';
 
   const filteredVehicles = useMemo(() => {
     return myVehicles.filter(v => v.vehicleTypeId === state.vehicleType);
@@ -295,7 +295,7 @@ function StepLicensePlate({
       {loadingMyVehicles && myVehicles.length === 0 && (
         <div className="flex flex-col items-center justify-center py-10 gap-2">
           <Loader2 size={24} className="text-[#FF4C4C] animate-spin" />
-          <p className="text-xs text-stone-400 font-semibold">Đang tải danh sách xe...</p>
+          <p className="text-xs text-stone-400 font-semibold">Loading your vehicles...</p>
         </div>
       )}
 
@@ -364,9 +364,9 @@ function StepLicensePlate({
                               {v.plateNumber}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
-                              <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">{v.vehicleTypeName || 'Phương tiện'}</p>
+                              <p className="text-[10px] text-stone-500 font-bold uppercase tracking-wider">{v.vehicleTypeName || 'Vehicle'}</p>
                               {v.isPrimary && (
-                                <span className="bg-amber-500/10 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">Mặc định</span>
+                                <span className="bg-amber-500/10 text-amber-600 text-[9px] font-bold px-1.5 py-0.5 rounded-sm">Default</span>
                               )}
                             </div>
                           </div>
@@ -378,12 +378,12 @@ function StepLicensePlate({
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <p className="text-sm text-stone-500">Bạn chưa có xe nào được lưu.</p>
+                  <p className="text-sm text-stone-500">You don't have any saved vehicles yet.</p>
                   <button
                     onClick={() => setState((s) => ({ ...s, plateInputType: 'manual' }))}
                     className="text-sm font-bold text-[#FF4C4C] mt-2 hover:underline"
                   >
-                    Chuyển sang nhập thủ công
+                    Switch to manual entry
                   </button>
                 </div>
               )}
@@ -414,9 +414,10 @@ function StepLicensePlate({
                     type="text"
                     placeholder={placeholder}
                     value={state.licensePlate}
-                    onChange={(e) =>
-                      setState((s) => ({ ...s, licensePlate: e.target.value.toUpperCase() }))
-                    }
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                      setState((s) => ({ ...s, licensePlate: val }));
+                    }}
                     maxLength={12}
                     className="w-full bg-gray-50 dark:bg-white/5 border-2 border-gray-200/80 dark:border-white/10 focus:border-[#FF4C4C] rounded-2xl px-6 py-4 text-stone-800 dark:text-white text-2xl font-black text-center tracking-[0.25em] placeholder-stone-300 dark:placeholder-stone-600 outline-none transition-all duration-200 shadow-sm focus:shadow-md focus:shadow-[#FF4C4C]/5"
                   />
@@ -869,7 +870,14 @@ function StepSelectFloor({
             try {
               setLoadingAi(true);
               const token = localStorage.getItem('sp_token') || '';
-              const suggestions = await getAiSuggestions(state.vehicleType!, lotId, 1);
+              let startTimeStr = undefined;
+              if (state.entryDate && state.entryTime) {
+                const [h, m] = state.entryTime.split(':').map(Number);
+                const entry = new Date(state.entryDate);
+                entry.setHours(h, m, 0, 0);
+                startTimeStr = entry.toISOString();
+              }
+              const suggestions = await getAiSuggestions(state.vehicleType!, lotId, 1, startTimeStr);
               if (suggestions.length > 0) {
                 const best = suggestions[0];
                 setState(s => ({
@@ -882,10 +890,10 @@ function StepSelectFloor({
                 }));
                 onNext();
               } else {
-                alert('No parking spots available according to Smart Suggest.');
+                alert('No parking spots available according to Select Optimal Slot.');
               }
             } catch (err: any) {
-              alert('Smart Suggest error: ' + err.message);
+              alert('Select Optimal Slot error: ' + err.message);
             } finally {
               setLoadingAi(false);
             }
@@ -894,7 +902,7 @@ function StepSelectFloor({
           className="flex items-center gap-1.5 bg-[#FF4C4C]/10 hover:bg-[#FF4C4C]/20 text-[#FF4C4C] px-3 py-2 rounded-xl border border-[#FF4C4C]/20 transition-all text-xs font-bold disabled:opacity-50"
         >
           {loadingAi ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
-          {loadingAi ? 'Smart Thinking...' : 'Smart Suggest'}
+          {loadingAi ? 'Finding Optimal Slot...' : 'Select Optimal Slot'}
         </button>
       </div>
 
@@ -926,7 +934,7 @@ function StepSelectFloor({
               </div>
               <div className="text-center">
                 <p className={`font-bold text-sm ${selected ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-stone-200'}`}>
-                  {floor.name}
+                  Floor {floor.name}
                 </p>
                 <p className="text-xs text-stone-400 mt-0.5">
                   {(() => {
@@ -989,8 +997,10 @@ function StepSelectSlot({
     false;
   const VehicleIcon = isMotorbike ? Bike : Car;
 
-  // Hiển thị tất cả các slot, không lọc theo loại xe hay trạng thái
-  const filteredSlots = slots;
+  // Hiển thị tất cả các slot, được sắp xếp thứ tự theo tên ô đỗ (slotNumber) để dàn layout đẹp
+  const filteredSlots = [...slots].sort((a, b) => {
+    return a.slotNumber.localeCompare(b.slotNumber, undefined, { numeric: true, sensitivity: 'base' });
+  });
 
   // Lấy icon động dựa theo vehicleTypeId của từng slot
   const getSlotIcon = (slot: ParkingSlotDetail) => {
@@ -1397,7 +1407,7 @@ function ConfirmationPopup({
       const res = await depositWallet({ amount: depositAmount });
       window.open(res.checkoutUrl, '_blank', 'noopener');
     } catch (err: any) {
-      setError(err.message || 'Lỗi khi tạo giao dịch nạp tiền.');
+      setError(err.message || 'Error creating deposit transaction.');
     } finally {
       setSubmitting(false);
     }
@@ -1515,9 +1525,9 @@ function ConfirmationPopup({
       if (err.code === 'INSUFFICIENT_BALANCE' && err.requiredAmount) {
         const fmt = (n: number) => n.toLocaleString('vi-VN') + ' ₫';
         setError(
-          `Số dư ví không đủ. Cần nạp thêm ${fmt(err.requiredAmount)} ` +
-          `(Tổng phí: ${fmt(err.totalFee ?? 0)} — Số dư hiện tại: ${fmt(err.currentBalance ?? 0)}). ` +
-          `Vui lòng nạp tiền vào ví trước khi đặt chỗ.`
+          `Insufficient wallet balance. You need to deposit ${fmt(err.requiredAmount)} more ` +
+          `(Total fee: ${fmt(err.totalFee ?? 0)} — Current balance: ${fmt(err.currentBalance ?? 0)}). ` +
+          `Please top up your wallet before booking.`
         );
       } else {
         setError(err.message || 'Reservation failed. Please check your information.');
@@ -1541,7 +1551,7 @@ function ConfirmationPopup({
 
       if (seconds > 600) {
         clearInterval(interval);
-        setError('Hết thời gian chờ (10 phút). Vui lòng thử lại.');
+        setError('Timed out (10 minutes). Please try again.');
         setPhase('payment');
         setPendingOrderCode(null);
         return;
@@ -1562,7 +1572,7 @@ function ConfirmationPopup({
           try { payosTabRef.current?.close(); } catch { }
           payosTabRef.current = null;
           setPendingOrderCode(null);
-          setError('Thanh toán thất bại. Vui lòng thử lại.');
+          setError('Payment failed. Please try again.');
           setPhase('payment');
         }
       } catch {
@@ -1636,7 +1646,7 @@ function ConfirmationPopup({
       iconBg: 'bg-blue-50 border border-blue-200',
       headerBg: 'bg-blue-50/30',
       title: 'Reservation Successful!',
-      subtitle: 'Present this QR code to the staff upon entry',
+      subtitle: 'Your reservation has been confirmed',
     },
   }[phase];
 
@@ -1824,7 +1834,7 @@ function ConfirmationPopup({
               ) : (
                 <div className="flex justify-center">
                   <div className="w-[220px] h-[220px] bg-gray-100 rounded-xl flex items-center justify-center text-gray-400 border border-dashed">
-                    <span className="text-xs">Không thể tải mã QR</span>
+                    <span className="text-xs">Unable to load QR code</span>
                   </div>
                 </div>
               )}
@@ -1881,31 +1891,6 @@ function ConfirmationPopup({
                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">Payment Successful</span>
               </div>
 
-              {/* QR Code */}
-              <div className="relative">
-                <div className="absolute inset-0 rounded-2xl bg-[#FF4C4C]/5 blur-lg" />
-                <div className="relative bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-2xl p-4 shadow-xl flex items-center justify-center min-w-[212px] min-h-[212px] transition-colors">
-                  <QRCodeSVG
-                    value={qrData}
-                    size={180}
-                    level="M"
-                    bgColor="#ffffff"
-                    fgColor="#1c1917"
-                    imageSettings={{
-                      src: '',
-                      height: 0,
-                      width: 0,
-                      excavate: false,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Booking ref */}
-              <div className="text-center">
-                <p className="text-[10px] text-stone-400 font-bold mb-1 uppercase tracking-widest">Booking Code</p>
-                <p className="text-lg font-black text-[#FF4C4C] tracking-widest">{displayBookingRef}</p>
-              </div>
 
               {/* Info summary */}
               <div className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden transition-colors">
@@ -1914,7 +1899,7 @@ function ConfirmationPopup({
                   { label: 'License Plate', value: state.licensePlate },
                   { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
                   { label: 'Entry Time', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
-                  { label: 'Est. Exit Time', value: `${exitInfoCalc.date} ${exitInfoCalc.time}` },
+                  { label: 'Exit Time', value: `${exitInfoCalc.date} ${exitInfoCalc.time}` },
                 ].map(({ label, value }, i, arr) => (
                   <div
                     key={label}
@@ -1926,10 +1911,6 @@ function ConfirmationPopup({
                   </div>
                 ))}
               </div>
-
-              <p className="text-xs text-stone-400 font-medium text-center px-4 leading-relaxed">
-                Present this QR code to the staff at the parking lot to confirm your reservation.
-              </p>
             </div>
           )}
         </div>
@@ -2242,13 +2223,22 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
         setLoadingSlots(true);
         let data: ParkingSlotDetail[];
 
-        if (state.entryDate && state.entryTime && state.exitDate && state.exitTime) {
+        if (state.entryDate && state.entryTime) {
           const [h, m] = state.entryTime.split(':').map(Number);
           const entry = new Date(state.entryDate);
           entry.setHours(h, m, 0, 0);
 
-          const exit = new Date(state.exitDate);
-          const [exH, exM] = state.exitTime.split(':').map(Number);
+          let exTime = state.exitTime;
+          let exDate = state.exitDate;
+
+          if (!exTime || !exDate) {
+            const exitFallback = new Date(entry.getTime() + (state.duration || 0) * 60 * 60 * 1000);
+            exTime = `${String(exitFallback.getHours()).padStart(2, '0')}:${String(exitFallback.getMinutes()).padStart(2, '0')}`;
+            exDate = getLocalDateStr(exitFallback);
+          }
+
+          const exit = new Date(exDate);
+          const [exH, exM] = exTime.split(':').map(Number);
           exit.setHours(exH, exM, 0, 0);
 
           // Dùng API mới tính toán overlap
@@ -2295,7 +2285,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
         entry.setHours(h, m, 0, 0);
 
         if (entry <= now) {
-          toast.error('Thời gian chọn đã trôi qua. Vui lòng chọn thời gian khác mới hơn.');
+          toast.error('The selected time has already passed. Please choose a later time.');
           return;
         }
       }
@@ -2322,7 +2312,7 @@ function BookingWizardInner({ lot, onClose }: BookingWizardProps) {
   };
 
   const selectedFloorObj = floors.find(f => f.id === state.floor);
-  const floorLabel = selectedFloorObj?.name ?? 'Not selected';
+  const floorLabel = selectedFloorObj ? `Floor ${selectedFloorObj.name}` : 'Not selected';
 
   const renderStep = () => {
     switch (step) {

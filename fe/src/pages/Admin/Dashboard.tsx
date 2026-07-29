@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Building2, Car, Banknote, TrendingUp, Clock,
-  CheckCircle2, AlertTriangle, Loader2, RefreshCw,
+  CheckCircle2, AlertTriangle, Loader2, RefreshCw, ChevronDown, ChevronRight
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { getBuildings } from '../../services/buildingsService';
 import { searchSessions } from '../../services/sessionsService';
 import type { SessionDto } from '../../services/sessionsService';
@@ -25,9 +27,34 @@ function getLast7Days() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
+    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
     return {
-      label: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()],
+      label: `${weekday} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
       date: toUTCDateStr(d),
+    };
+  });
+}
+
+function getLast30Days() {
+  return Array.from({ length: 30 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (29 - i));
+    return {
+      label: `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`,
+      date: toUTCDateStr(d),
+    };
+  });
+}
+
+function getLast12Months() {
+  return Array.from({ length: 12 }, (_, i) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (11 - i));
+    d.setDate(1);
+    return {
+      label: d.toLocaleString('en-US', { month: 'short', year: '2-digit' }),
+      date: toUTCDateStr(d),
+      yearMonth: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     };
   });
 }
@@ -39,8 +66,8 @@ function RevenueTooltip({ active, payload, label }: {
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-[var(--admin-bg-surface)] border border-white/10 rounded-xl px-4 py-2.5 text-sm shadow-xl">
-      <p className="text-white/60 mb-1">{label}</p>
+    <div className="bg-[var(--admin-bg-surface)] border border-[var(--admin-border)] rounded-xl px-4 py-2.5 text-sm shadow-xl">
+      <p className="admin-text-muted mb-1">{label}</p>
       <p className="text-amber-500 font-semibold">{vnd(payload[0].value)} VND</p>
     </div>
   );
@@ -48,8 +75,48 @@ function RevenueTooltip({ active, payload, label }: {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
+function BuildingDropdown({ value, onChange, options }: any) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedLabel = options.find((o: any) => o.id === value)?.name || 'All Buildings';
+  
+  return (
+    <div className="relative min-w-[160px]" tabIndex={0} onBlur={() => setIsOpen(false)}>
+      <div 
+        className="input-field rounded-xl cursor-pointer flex items-center justify-between gap-3 select-none"
+        style={{ paddingBlock: '0.625rem' }}
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <span className="truncate">{selectedLabel}</span>
+        <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </div>
+      {isOpen && (
+        <div className="absolute top-full right-0 mt-2 w-[220px] bg-[var(--admin-bg-surface)] border border-[var(--admin-border)] rounded-2xl shadow-xl overflow-hidden z-50 py-1">
+          <div 
+            className={`px-4 py-2.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${!value ? 'admin-text font-bold' : 'admin-text-muted'}`}
+            onMouseDown={() => { onChange(''); setIsOpen(false); }}
+          >
+            All Buildings
+          </div>
+          {options.map((opt: any) => (
+            <div 
+              key={opt.id}
+              className={`px-4 py-2.5 cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors ${value === opt.id ? 'admin-text font-bold' : 'admin-text-muted'}`}
+              onMouseDown={() => { onChange(opt.id); setIsOpen(false); }}
+            >
+              {opt.name}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { token } = useAuth();
+  const { theme } = useTheme();
+  const navigate = useNavigate();
+  const axisTickColor = theme === 'dark' ? '#ffffff66' : '#0A0A0C99';
 
   const today = new Date().toLocaleDateString('vi-VN', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
@@ -64,12 +131,16 @@ export default function Dashboard() {
   const [occupancyPct,  setOccupancyPct]  = useState(0);
 
   // Charts & table
-  const [revenueData,    setRevenueData]    = useState<{ label: string; revenue: number }[]>([]);
+  const [revenueData,    setRevenueData]    = useState<{ day: string; revenue: number }[]>([]);
   const [recentSessions, setRecentSessions] = useState<SessionDto[]>([]);
+  const [timeRange,      setTimeRange]      = useState<'7d' | '30d' | '12m'>('7d');
 
   const [loading,    setLoading]    = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [apiError,   setApiError]   = useState('');
+  
+  const [buildingsList, setBuildingsList] = useState<{id: string, name: string, totalCapacity: number}[]>([]);
+  const [selectedBuildingId, setSelectedBuildingId] = useState<string>('');
 
   const loadData = useCallback(async (silent = false) => {
     if (!token) return;
@@ -78,36 +149,58 @@ export default function Dashboard() {
     setApiError('');
 
     try {
-      const last7 = getLast7Days();
-      const weekAgo = last7[0].date;
-      const todayStr = last7[6].date;
+      let dateRangeItems: any[];
+      let fromStr: string;
+      let toStr: string;
 
-      const sessionParams = {
-        status: 'Completed' as const,
-        fromDate: `${weekAgo}T00:00:00Z`,
-        toDate:   `${todayStr}T23:59:59Z`,
+      if (timeRange === '7d') {
+        dateRangeItems = getLast7Days();
+        fromStr = dateRangeItems[0].date;
+        toStr = dateRangeItems[6].date;
+      } else if (timeRange === '30d') {
+        dateRangeItems = getLast30Days();
+        fromStr = dateRangeItems[0].date;
+        toStr = dateRangeItems[29].date;
+      } else {
+        dateRangeItems = getLast12Months();
+        const startOf12Months = new Date(dateRangeItems[0].date);
+        fromStr = toUTCDateStr(startOf12Months);
+        const now = new Date();
+        now.setMonth(now.getMonth() + 1);
+        now.setDate(0);
+        toStr = toUTCDateStr(now);
+      }
+      
+      const sessionParams: any = {
+        status: 'Completed',
+        fromDate: `${fromStr}T00:00:00Z`,
+        toDate:   `${toStr}T23:59:59Z`,
         pageSize: 200,
       };
+      if (selectedBuildingId) sessionParams.buildingId = selectedBuildingId;
 
       // All in parallel
-      const [firstPage, buildings] = await Promise.all([
+      const [firstPage, bList] = await Promise.all([
         searchSessions({ ...sessionParams, page: 1 }),
         getBuildings(),
       ]);
+      
+      setBuildingsList(bList);
 
       // Fetch remaining pages if any
-      const allItems = [...firstPage.items];
+      const allCompleted = [...firstPage.items];
       if (firstPage.totalPages > 1) {
         const rest = await Promise.all(
           Array.from({ length: firstPage.totalPages - 1 }, (_, i) =>
             searchSessions({ ...sessionParams, page: i + 2 })
           )
         );
-        rest.forEach(r => allItems.push(...r.items));
+        rest.forEach(r => allCompleted.push(...r.items));
       }
 
       const { summary } = firstPage;
-      const totalCap = buildings.reduce((s, b) => s + b.totalCapacity, 0);
+      const filteredBuildings = selectedBuildingId ? bList.filter(b => b.id === selectedBuildingId) : bList;
+      const totalCap = filteredBuildings.reduce((s, b) => s + b.totalCapacity, 0);
 
       setTotalSpots(totalCap);
       setActiveCount(summary.totalActive);
@@ -116,27 +209,41 @@ export default function Dashboard() {
       setTodayCompleted(summary.totalCompletedToday);
       setOccupancyPct(totalCap > 0 ? Math.round((summary.totalActive / totalCap) * 100) : 0);
 
-      // Revenue chart — grouped by exit date
+      // Revenue chart
       const rev: Record<string, number> = {};
-      last7.forEach(d => { rev[d.date] = 0; });
-      allItems.forEach(s => {
+      dateRangeItems.forEach(d => { rev[timeRange === '12m' ? d.yearMonth : d.date] = 0; });
+      allCompleted.forEach(s => {
         if (!s.exitTime) return;
-        const dk = s.exitTime.split('T')[0];
+        const exitDate = new Date(s.exitTime);
+        const dk = timeRange === '12m' 
+          ? `${exitDate.getFullYear()}-${String(exitDate.getMonth() + 1).padStart(2, '0')}`
+          : s.exitTime.split('T')[0];
         if (dk in rev) rev[dk] += s.totalFee;
       });
-      setRevenueData(last7.map(d => ({ label: d.label, revenue: rev[d.date] ?? 0 })));
+      setRevenueData(dateRangeItems.map(d => ({ 
+        day: d.label, 
+        revenue: rev[timeRange === '12m' ? d.yearMonth : d.date] ?? 0 
+      })));
 
-      // Transaction table: 8 most recent sessions (including Active from summary)
-      setRecentSessions(allItems.slice(0, 8));
+      // Transaction table: 8 most recent sessions
+      setRecentSessions(allCompleted.slice(0, 8));
     } catch (err) {
       setApiError(err instanceof Error ? err.message : 'Unable to load data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token]);
+  }, [token, selectedBuildingId, timeRange]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const isFirstLoad = useRef(true);
+  useEffect(() => {
+    if (isFirstLoad.current) {
+      loadData(false);
+      isFirstLoad.current = false;
+    } else {
+      loadData(true);
+    }
+  }, [loadData]);
 
   const maxRevenue = Math.max(...revenueData.map(d => d.revenue), 1);
 
@@ -144,7 +251,7 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Loader2 size={28} className="text-[#FF4C4C] animate-spin" />
-        <p className="text-sm text-white/40">Loading data...</p>
+        <p className="text-sm admin-text-muted">Loading data...</p>
       </div>
     );
   }
@@ -155,13 +262,20 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-white">Overview</h2>
-          <p className="text-sm text-white/40 capitalize mt-0.5">{today}</p>
+          <h2 className="text-2xl font-bold admin-text">Overview</h2>
+          <p className="text-sm admin-text-muted capitalize mt-0.5">{today}</p>
         </div>
-        <button onClick={() => loadData(true)} disabled={refreshing}
-          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/50 hover:text-white">
-          <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
-        </button>
+        <div className="flex items-center gap-3">
+          <BuildingDropdown 
+            value={selectedBuildingId} 
+            onChange={setSelectedBuildingId} 
+            options={buildingsList} 
+          />
+          <button onClick={() => loadData(true)} disabled={refreshing}
+            className="p-2.5 rounded-xl admin-bg-card hover:opacity-80 transition-colors admin-text-faint hover:admin-text">
+            <RefreshCw size={15} className={refreshing ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       {apiError && (
@@ -173,12 +287,18 @@ export default function Dashboard() {
 
       {/* Overdue alert */}
       {overdueCount > 0 && (
-        <div className="flex items-center gap-3 px-5 py-3.5 bg-red-400/10 border border-red-400/20 rounded-xl">
-          <AlertTriangle size={16} className="text-red-400 shrink-0 animate-pulse" />
-          <p className="text-sm text-red-400 font-medium">
-            <span className="font-bold">{overdueCount}</span> vehicles overdue — needs immediate attention
-          </p>
-        </div>
+        <button 
+          onClick={() => navigate('/admin/sessions?status=Overdue')}
+          className="w-full flex items-center justify-between px-5 py-3.5 bg-red-400/10 border border-red-400/20 rounded-xl hover:bg-red-400/20 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            <AlertTriangle size={16} className="text-red-400 shrink-0 animate-pulse" />
+            <p className="text-sm text-red-400 font-medium">
+              <span className="font-bold">{overdueCount}</span> vehicles overdue — needs immediate attention
+            </p>
+          </div>
+          <ChevronRight size={16} className="text-red-400 opacity-70" />
+        </button>
       )}
 
       {/* Stats cards */}
@@ -191,38 +311,57 @@ export default function Dashboard() {
         ].map(stat => {
           const Icon = stat.icon;
           return (
-            <div key={stat.label} className="glass-card p-5 rounded-2xl">
+            <div key={stat.label} className="admin-card p-5 rounded-2xl">
               <div className="flex items-start justify-between mb-4">
                 <div className={`p-2.5 rounded-xl bg-gradient-to-br ${stat.bg}`}>
                   <Icon size={20} style={{ color: stat.color }} />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-white">{stat.value}</p>
-              <p className="text-sm text-white/50 mt-1">{stat.label}</p>
-              <p className="text-xs text-white/30 mt-0.5">{stat.unit}</p>
+              <p className="text-2xl font-bold admin-text">{stat.value}</p>
+              <p className="text-sm admin-text-faint mt-1">{stat.label}</p>
+              <p className="text-xs admin-text/30 mt-0.5">{stat.unit}</p>
             </div>
           );
         })}
       </div>
 
       {/* Revenue chart */}
-      <div className="glass-card p-6 rounded-2xl">
-        <div className="flex items-center justify-between mb-5">
+      <div className="admin-card p-6 rounded-2xl">
+        <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
           <div>
-            <h3 className="text-base font-semibold text-white">Revenue — Last 7 Days</h3>
-            <p className="text-xs text-white/40 mt-0.5">
+            <h3 className="text-base font-semibold admin-text">Revenue</h3>
+            <p className="text-xs admin-text-muted mt-0.5">
               Total: {vnd(revenueData.reduce((s, d) => s + d.revenue, 0))} VND
             </p>
           </div>
-          <span className="text-xs text-white/40 bg-white/5 px-3 py-1 rounded-full">Last 7 days</span>
+          <div className="flex gap-2">
+            <button 
+              onClick={() => setTimeRange('7d')}
+              className={`text-xs px-3 py-1.5 rounded-full transition-colors ${timeRange === '7d' ? 'admin-bg-card admin-text font-bold border border-[var(--admin-border)]' : 'admin-text-faint hover:admin-bg-card'}`}
+            >
+              7 Days
+            </button>
+            <button 
+              onClick={() => setTimeRange('30d')}
+              className={`text-xs px-3 py-1.5 rounded-full transition-colors ${timeRange === '30d' ? 'admin-bg-card admin-text font-bold border border-[var(--admin-border)]' : 'admin-text-faint hover:admin-bg-card'}`}
+            >
+              Month
+            </button>
+            <button 
+              onClick={() => setTimeRange('12m')}
+              className={`text-xs px-3 py-1.5 rounded-full transition-colors ${timeRange === '12m' ? 'admin-bg-card admin-text font-bold border border-[var(--admin-border)]' : 'admin-text-faint hover:admin-bg-card'}`}
+            >
+              Year
+            </button>
+          </div>
         </div>
         <ResponsiveContainer width="100%" height={220}>
           <BarChart data={revenueData} barSize={28}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" vertical={false} />
-            <XAxis dataKey="label" tick={{ fill: '#ffffff66', fontSize: 12 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false}
+            <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#ffffff0d' : '#0000000d'} vertical={false} />
+            <XAxis dataKey="day" tick={{ fill: axisTickColor, fontSize: 12 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: axisTickColor, fontSize: 11 }} axisLine={false} tickLine={false}
               tickFormatter={v => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(1)}M` : v >= 1_000 ? `${(v / 1_000).toFixed(0)}k` : String(v)} />
-            <Tooltip content={<RevenueTooltip />} cursor={{ fill: '#ffffff05' }} />
+            <Tooltip content={<RevenueTooltip />} cursor={{ fill: theme === 'dark' ? '#ffffff05' : '#00000005' }} />
             <Bar dataKey="revenue" radius={[6, 6, 0, 0]}>
               {revenueData.map((entry, i) => (
                 <Cell key={i} fill={entry.revenue === maxRevenue && entry.revenue > 0 ? '#FF4C4C' : '#FF4C4C55'} />
@@ -233,14 +372,14 @@ export default function Dashboard() {
       </div>
 
       {/* Recent transactions */}
-      <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-white">Recent Transactions</h3>
-          <span className="text-xs text-white/30">{recentSessions.length} sessions</span>
+      <div className="admin-card rounded-2xl overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--admin-border)] flex items-center justify-between">
+          <h3 className="text-base font-semibold admin-text">Recent Transactions</h3>
+          <span className="text-xs admin-text/30">{recentSessions.length} sessions</span>
         </div>
 
         {recentSessions.length === 0 ? (
-          <div className="flex items-center justify-center py-12 text-white/30 text-sm">
+          <div className="flex items-center justify-center py-12 admin-text/30 text-sm">
             No data in the last 7 days
           </div>
         ) : (
@@ -249,7 +388,7 @@ export default function Dashboard() {
               <thead>
                 <tr className="border-b border-white/5">
                   {['License Plate', 'Building', 'Entry Time', 'Exit Time', 'Duration', 'Fee', 'Status'].map(h => (
-                    <th key={h} className="text-left text-xs font-medium text-white/40 px-4 py-3 first:pl-6">{h}</th>
+                    <th key={h} className="text-left text-xs font-medium admin-text-muted px-4 py-3 first:pl-6">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -257,36 +396,36 @@ export default function Dashboard() {
                 {recentSessions.map(s => (
                   <tr key={s.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors">
                     <td className="px-6 py-3.5">
-                      <span className="text-sm font-mono font-semibold text-white">{s.licensePlate}</span>
+                      <span className="text-sm font-mono font-semibold admin-text">{s.licensePlate}</span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="text-xs text-white/60">{s.buildingName}</p>
-                      <p className="text-[10px] text-white/30">{s.floorName} · {s.slotNumber}</p>
+                      <p className="text-xs admin-text-muted">{s.buildingName}</p>
+                      <p className="text-[10px] admin-text/30">{s.floorName} · {s.slotNumber}</p>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5 text-sm text-white/70">
-                        <Clock size={12} className="text-white/30" />
+                      <div className="flex items-center gap-1.5 text-sm admin-text/70">
+                        <Clock size={12} className="admin-text/30" />
                         {new Date(s.entryTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="text-sm text-white/70">
+                      <span className="text-sm admin-text/70">
                         {s.exitTime
                           ? new Date(s.exitTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
                           : '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="text-sm text-white/70">{s.duration || '—'}</span>
+                      <span className="text-sm admin-text/70">{s.duration || '—'}</span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="text-sm font-medium text-white">
+                      <span className="text-sm font-medium admin-text">
                         {s.totalFee > 0 ? `${vnd(s.totalFee)} VND` : '—'}
                       </span>
                     </td>
                     <td className="px-4 py-3.5">
                       {s.status === 'Completed' ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/5 text-white/50">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium admin-bg-card admin-text-faint">
                           <CheckCircle2 size={11} />
                           Exited
                         </span>

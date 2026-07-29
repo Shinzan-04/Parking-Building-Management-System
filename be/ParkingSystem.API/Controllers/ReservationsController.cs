@@ -123,11 +123,11 @@ public class ReservationsController : ControllerBase
     // --- API GỢI Ý VỊ TRÍ BỞI AI ---
 
     [HttpGet("ai-suggest")]
-    public async Task<IActionResult> GetAISuggestions([FromQuery] Guid vehicleTypeId, [FromQuery] Guid? buildingId, [FromQuery] int topN = 5)
+    public async Task<IActionResult> GetAISuggestions([FromQuery] Guid vehicleTypeId, [FromQuery] Guid? buildingId, [FromQuery] int topN = 5, [FromQuery] DateTime? startTime = null)
     {
         try
         {
-            var suggestions = await _slotAssignmentService.GetRecommendedSlotsAsync(vehicleTypeId, buildingId, topN);
+            var suggestions = await _slotAssignmentService.GetRecommendedSlotsAsync(vehicleTypeId, buildingId, topN, startTime);
             return Ok(suggestions);
         }
         catch (Exception ex)
@@ -140,25 +140,25 @@ public class ReservationsController : ControllerBase
 
     [HttpGet("pending")]
     [Authorize(Roles = "Staff,Manager,Admin")]
-    public async Task<IActionResult> GetPendingReservations()
+    public async Task<IActionResult> GetPendingReservations([FromQuery] Guid? buildingId)
     {
         var staffIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(staffIdClaim)) return Unauthorized();
 
         var staffId = Guid.Parse(staffIdClaim);
-        var result = await _reservationService.GetPendingReservationsAsync(staffId);
+        var result = await _reservationService.GetPendingReservationsAsync(staffId, buildingId);
         return Ok(result);
     }
 
     [HttpGet("all-active")]
     [Authorize(Roles = "Staff,Manager,Admin")]
-    public async Task<IActionResult> GetAllActiveReservations()
+    public async Task<IActionResult> GetAllActiveReservations([FromQuery] Guid? buildingId)
     {
         var staffIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(staffIdClaim)) return Unauthorized();
 
         var staffId = Guid.Parse(staffIdClaim);
-        var result = await _reservationService.GetAllActiveReservationsAsync(staffId);
+        var result = await _reservationService.GetAllActiveReservationsAsync(staffId, buildingId);
         return Ok(result);
     }
 

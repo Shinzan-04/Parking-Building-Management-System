@@ -12,11 +12,11 @@ import { apiClient } from './apiClient';
 export type SlotStatus = 'Available' | 'TemporaryHeld' | 'Reserved' | 'Occupied' | 'Maintenance';
 
 export const SLOT_STATUS_LABELS: Record<SlotStatus, string> = {
-  Available:   'Còn trống',
-  TemporaryHeld: 'Đang giữ chỗ',
-  Occupied:    'Đang sử dụng',
-  Reserved:    'Đã đặt trước',
-  Maintenance: 'Bảo trì',
+  Available:   'Available',
+  TemporaryHeld: 'On Hold',
+  Occupied:    'Occupied',
+  Reserved:    'Reserved',
+  Maintenance: 'Maintenance',
 };
 
 export const SLOT_STATUS_COLORS: Record<SlotStatus, { bg: string; text: string; dot: string }> = {
@@ -122,6 +122,12 @@ export const updateSlotStatus = (
 /** Xoá slot */
 export const deleteSlot = (slotId: string): Promise<void> =>
   apiClient(`/api/parkingslots/${slotId}`, { method: 'DELETE' });
+
+export const bulkUpdateSlotVehicleType = (slotIds: string[], vehicleTypeId: string): Promise<void> =>
+  apiClient(`/api/parkingslots/bulk-update-vehicle-type`, {
+    method: 'PATCH',
+    body: JSON.stringify({ slotIds, vehicleTypeId }),
+  });
 
 /** Gợi ý slot AI cho loại xe */
 export const getRecommendedSlots = (vehicleTypeId: string, top = 5): Promise<{

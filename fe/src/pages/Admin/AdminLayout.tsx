@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Car, Users, BarChart3, Settings,
@@ -14,12 +14,11 @@ const navItems = [
   { to: '/admin/parking-lots', label: 'Parking Lots', icon: MapPin,          end: false },
   { to: '/admin/vehicles',     label: 'Vehicles',     icon: Car,             end: false },
   { to: '/admin/users',        label: 'Users',        icon: Users,           end: false },
+  { to: '/admin/reports',       label: 'Reports',      icon: BarChart3,       end: false },
   { to: '/admin/pricing',       label: 'Pricing',      icon: DollarSign,      end: false },
   { to: '/admin/sessions',      label: 'Parking Sessions', icon: ClipboardList, end: false },
   { to: '/admin/reservations',  label: 'Reservations', icon: CalendarCheck,   end: false },
   { to: '/admin/vehicle-types', label: 'Vehicle Types', icon: Car,             end: false },
-  { to: '/admin/reports',       label: 'Reports',      icon: BarChart3,       end: false },
-  { to: '/admin/refunds',       label: 'Refunds',      icon: Banknote,        end: false },
   { to: '/admin/monthly-pass',  label: 'Monthly Pass', icon: Ticket,          end: false },
   { to: '/admin/audit-logs',    label: 'Audit Logs',   icon: History,        end: false },
   { to: '/admin/settings',      label: 'Settings',     icon: Settings,        end: false },
@@ -43,6 +42,11 @@ export default function AdminLayout() {
   const W = collapsed ? 'w-[68px]' : 'w-64';
   const ML = collapsed ? 'ml-[68px]' : 'ml-64';
 
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-width', collapsed ? '68px' : '256px');
+    return () => { document.documentElement.style.removeProperty('--sidebar-width'); };
+  }, [collapsed]);
+
   return (
     <div
       className="admin-portal flex min-h-screen"
@@ -61,7 +65,7 @@ export default function AdminLayout() {
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30 shrink-0 overflow-hidden hover:scale-105 transition-transform duration-200">
-            <Car size={18} className={`text-white ${driving ? 'animate-car-drive' : ''}`} />
+            <Car size={18} className={`admin-text ${driving ? 'animate-car-drive' : ''}`} />
           </div>
           {!collapsed && (
             <div className="ml-3 overflow-hidden">
@@ -115,7 +119,7 @@ export default function AdminLayout() {
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl mb-1"
               style={{ backgroundColor: 'var(--admin-bg-card)' }}
             >
-              <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-sm shrink-0">
+              <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center admin-text font-bold text-sm shrink-0">
                 {initials}
               </div>
               <div className="flex-1 min-w-0">

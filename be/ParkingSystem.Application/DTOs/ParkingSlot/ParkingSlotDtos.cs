@@ -14,6 +14,12 @@ public class UpdateParkingSlotStatusRequest
     public SlotStatus Status { get; set; }
 }
 
+public class BulkUpdateSlotVehicleTypeRequest
+{
+    public List<Guid> SlotIds { get; set; } = new();
+    public Guid VehicleTypeId { get; set; }
+}
+
 public class ParkingSlotResponse
 {
     public Guid Id { get; set; }

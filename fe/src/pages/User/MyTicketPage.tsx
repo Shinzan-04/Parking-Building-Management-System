@@ -9,7 +9,7 @@ import {
   RESERVATION_STATUS_LABELS,
 } from '../../services/reservationsService';
 import type { ReservationResponse } from '../../services/reservationsService';
-import { QRCodeSVG } from 'qrcode.react';
+import toast from 'react-hot-toast';
 import FloatingSessionBanner from '../../components/FloatingSessionBanner';
 import {
   ArrowLeft,
@@ -17,7 +17,6 @@ import {
   Clock,
   MapPin,
   Car,
-  QrCode,
   Trash2,
   ChevronDown,
   LogOut,
@@ -28,6 +27,7 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from 'lucide-react';
 
 export default function MyTicketPage() {
@@ -44,12 +44,12 @@ export default function MyTicketPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  // State cho Modal hiển thị QR Code
-  const [selectedTicketForQr, setSelectedTicketForQr] = useState<ReservationResponse | null>(null);
   
   // State cho hủy đặt chỗ
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [submittingCancel, setSubmittingCancel] = useState(false);
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [ticketToCancel, setTicketToCancel] = useState<string | null>(null);
 
   // Load danh sách vé
   const fetchTickets = async () => {
@@ -113,21 +113,27 @@ export default function MyTicketPage() {
     navigate('/auth');
   };
 
-  const handleCancelBooking = async (id: string) => {
-    if (!token) return;
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+  const handleCancelBooking = (id: string) => {
+    setTicketToCancel(id);
+    setCancelModalOpen(true);
+  };
+
+  const confirmCancelBooking = async () => {
+    if (!token || !ticketToCancel) return;
     
     try {
       setSubmittingCancel(true);
-      setCancellingId(id);
-      await cancelReservation(id);
-      alert('Booking cancelled successfully.');
+      setCancellingId(ticketToCancel);
+      await cancelReservation(ticketToCancel);
+      toast.success('Booking cancelled successfully.');
       await fetchTickets(); // reload list
     } catch (err: any) {
-      alert(err.message || 'Failed to cancel booking.');
+      toast.error(err.message || 'Failed to cancel booking.');
     } finally {
       setSubmittingCancel(false);
       setCancellingId(null);
+      setCancelModalOpen(false);
+      setTicketToCancel(null);
     }
   };
 
@@ -169,19 +175,6 @@ export default function MyTicketPage() {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
-  // Trả về cấu trúc JSON String cho QR Code để GateControl quét được đầy đủ
-  const getQrCodeJson = (ticket: ReservationResponse) => {
-    return JSON.stringify({
-      ref: ticket.bookingCode,
-      lot: 'ParkSmart Building',
-      plate: ticket.licensePlate,
-      vehicle: 'car',
-      slot: ticket.slotNumber || 'Auto-assigned',
-      date: ticket.startTime.split('T')[0],
-      entry: ticket.startTime.split('T')[1]?.substring(0, 5) || '',
-      duration: getDurationHours(ticket.startTime, ticket.endTime),
-    });
-  };
 
   // Helper cho style của Status Badge
   const getStatusBadgeStyle = (status: any) => {
@@ -316,7 +309,7 @@ export default function MyTicketPage() {
                     {/* Facility name */}
                     <h3 className="text-base font-extrabold text-stone-900 dark:text-white mb-4 flex items-center gap-1.5 transition-colors duration-300">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C]" />
-                      ParkSmart Building
+                      {ticket.buildingName || 'ParkSmart Building'}
                     </h3>
 
                     {/* Ticket Details */}
@@ -328,7 +321,7 @@ export default function MyTicketPage() {
                       <div className="flex justify-between">
                         <span>Slot</span>
                         <span className="font-bold text-[#FF4C4C] bg-[#FF4C4C]/5 px-2 py-0.5 rounded">
-                          {ticket.slotNumber || 'Auto-assigned'}
+                          {ticket.floorName ? `Floor ${ticket.floorName} › ` : ''}{ticket.slotNumber || 'Auto-assigned'}
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -348,16 +341,6 @@ export default function MyTicketPage() {
 
                   {/* Actions buttons */}
                   <div className="flex items-center gap-2">
-                    {/* Nút xem QR Code */}
-                    {['Paid', 'PendingReview', 'Confirmed', 'CheckedIn'].includes(status) && (
-                      <button
-                        onClick={() => setSelectedTicketForQr(ticket)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold py-3 rounded-2xl text-xs uppercase tracking-wider shadow-sm transition-all"
-                      >
-                        <QrCode size={14} />
-                        QR Code Ticket
-                      </button>
-                    )}
                     
                     {/* Nút thông báo chưa thanh toán */}
                     {status === 'PaymentPending' && (
@@ -428,86 +411,43 @@ export default function MyTicketPage() {
         )}
       </main>
 
-      {/* ── QR CODE DISPLAY MODAL ── */}
-      {selectedTicketForQr && (
+      {/* ── CANCEL CONFIRMATION MODAL ── */}
+      {cancelModalOpen && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm">
           <div className="w-full max-w-sm bg-white dark:bg-[#18181B] border border-gray-200 dark:border-white/10 rounded-3xl shadow-2xl overflow-hidden animate-fade-in-up transition-colors duration-300">
-            
-            {/* Header */}
-            <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between transition-colors duration-300">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#FF4C4C]/10 border border-[#FF4C4C]/30 flex items-center justify-center text-[#FF4C4C]">
-                  <QrCode size={16} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-stone-850 dark:text-white transition-colors duration-300">QR Code</h3>
-                  <p className="text-[10px] text-stone-400 dark:text-stone-500 font-medium transition-colors duration-300">Use to scan and confirm at the entrance gate</p>
-                </div>
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-red-50 dark:bg-red-500/10 flex items-center justify-center mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-500" />
               </div>
-              <button
-                onClick={() => setSelectedTicketForQr(null)}
-                className="p-1.5 rounded-xl text-stone-450 hover:text-stone-700 hover:bg-gray-100 dark:hover:text-white dark:hover:bg-white/10 transition-all"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* QR SVG */}
-            <div className="p-6 flex flex-col items-center gap-5">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-3xl bg-[#FF4C4C]/5 blur-lg" />
-                <div className="relative bg-white border border-gray-200 rounded-2xl p-4 shadow-xl flex items-center justify-center min-w-[212px] min-h-[212px]">
-                  <QRCodeSVG
-                    value={getQrCodeJson(selectedTicketForQr)}
-                    size={180}
-                    level="M"
-                    bgColor="#ffffff"
-                    fgColor="#1c1917"
-                    imageSettings={{
-                      src: '',
-                      height: 0,
-                      width: 0,
-                      excavate: false,
-                    }}
-                  />
-                </div>
+              <h3 className="text-xl font-bold text-stone-900 dark:text-white mb-2">Cancel Booking?</h3>
+              <p className="text-sm text-stone-500 dark:text-stone-400 mb-6 leading-relaxed">
+                Are you sure you want to cancel this booking? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setCancelModalOpen(false);
+                    setTicketToCancel(null);
+                  }}
+                  className="flex-1 py-3 px-4 rounded-xl border border-gray-200 dark:border-white/10 text-stone-700 dark:text-stone-300 font-bold hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+                >
+                  Keep It
+                </button>
+                <button
+                  onClick={confirmCancelBooking}
+                  disabled={submittingCancel}
+                  className="flex-1 py-3 px-4 rounded-xl bg-red-500 text-white font-bold hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  {submittingCancel ? <Loader2 size={18} className="animate-spin" /> : null}
+                  Yes, Cancel
+                </button>
               </div>
-
-              {/* Booking Code Display */}
-              <div className="text-center">
-                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-widest block">Booking Code</span>
-                <span className="text-lg font-black text-[#FF4C4C] tracking-widest uppercase">{selectedTicketForQr.bookingCode}</span>
-              </div>
-
-              {/* Muted Specs summary */}
-              <div className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl overflow-hidden text-xs font-semibold text-stone-500 dark:text-stone-400 transition-colors duration-300">
-                <div className="flex justify-between px-4 py-2.5 border-b border-gray-150 dark:border-white/10 transition-colors duration-300">
-                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">License plate</span>
-                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{selectedTicketForQr.licensePlate}</span>
-                </div>
-                <div className="flex justify-between px-4 py-2.5 border-b border-gray-150 dark:border-white/10 transition-colors duration-300">
-                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Slot</span>
-                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{selectedTicketForQr.slotNumber || 'Auto-assigned'}</span>
-                </div>
-                <div className="flex justify-between px-4 py-2.5">
-                  <span className="text-stone-400 dark:text-stone-500 transition-colors duration-300">Entry time</span>
-                  <span className="text-stone-800 dark:text-white transition-colors duration-300">{formatTimeDisplay(selectedTicketForQr.startTime)} • {formatDateDisplay(selectedTicketForQr.startTime)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal footer */}
-            <div className="px-6 py-4 border-t border-gray-100 dark:border-white/10 bg-gray-50/50 dark:bg-white/5 transition-colors duration-300">
-              <button
-                onClick={() => setSelectedTicketForQr(null)}
-                className="w-full bg-stone-900 hover:bg-stone-800 dark:bg-white dark:hover:bg-gray-200 dark:text-stone-900 text-white font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5"
-              >
-                Close
-              </button>
             </div>
           </div>
         </div>
       )}
+
+
       <FloatingSessionBanner />
     </div>
   );

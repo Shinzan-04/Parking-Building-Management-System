@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import toast from 'react-hot-toast';
-import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon, ChevronDown, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon, ChevronDown, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import NotificationBell from '../../components/NotificationBell';
@@ -58,6 +58,12 @@ export default function StaffLayout() {
 
   useEffect(() => { refreshPendingChatCount(); }, [refreshPendingChatCount]);
 
+  // Sync sidebar width CSS variable for global toaster offset
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-width', isCollapsed ? '68px' : '256px');
+    return () => { document.documentElement.style.removeProperty('--sidebar-width'); };
+  }, [isCollapsed]);
+
   // Refresh badge instantly when ChatDashboard takes over/closes a session locally
   useEffect(() => {
     const handler = () => refreshPendingChatCount();
@@ -108,6 +114,23 @@ export default function StaffLayout() {
         className={`fixed top-0 left-0 h-screen flex flex-col z-30 border-r transition-all duration-300 ${isCollapsed ? 'w-[68px]' : 'w-64'}`}
         style={{ backgroundColor: 'var(--admin-bg-surface)', borderColor: 'var(--admin-border)' }}
       >
+        {/* Toggle Arrow */}
+        <button
+          onClick={() => setIsCollapsed(c => !c)}
+          className="absolute top-1/2 -translate-y-1/2 w-4 h-12 rounded-r-md flex items-center justify-center border-y border-r shadow-sm transition-colors duration-200 z-50 hover:bg-gray-100 dark:hover:bg-gray-800 group"
+          style={{ 
+            right: '-16px',
+            backgroundColor: 'var(--admin-bg-surface)', 
+            borderColor: 'var(--admin-border)',
+            color: 'var(--admin-text-muted)'
+          }}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {/* Cover the sidebar's right border to make it seamless */}
+          <div className="absolute top-0 bottom-0 -left-[2px] w-[3px]" style={{ backgroundColor: 'var(--admin-bg-surface)' }} />
+          <ChevronRight size={14} className={`relative z-10 transition-transform duration-300 group-hover:scale-110 ${isCollapsed ? '' : 'rotate-180'}`} />
+        </button>
+
         {/* Logo — click to toggle */}
         <div
           className="px-3 py-4 border-b flex items-center cursor-pointer select-none"
@@ -116,7 +139,7 @@ export default function StaffLayout() {
           title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <div className="w-9 h-9 rounded-xl bg-[#FF4C4C] flex items-center justify-center shadow-lg shadow-[#FF4C4C]/30 shrink-0 overflow-hidden hover:scale-105 transition-transform duration-200">
-            <Car size={18} className={`text-white ${driving ? 'animate-car-drive' : ''}`} />
+            <Car size={18} className={`admin-text ${driving ? 'animate-car-drive' : ''}`} />
           </div>
           {!isCollapsed && (
             <div className="ml-3 overflow-hidden">
@@ -202,7 +225,7 @@ export default function StaffLayout() {
                     {!isCollapsed && <span className="truncate">{item.label}</span>}
                     {item.to === '/staff/chat' && pendingChatCount > 0 && (
                       <span
-                        className={`shrink-0 flex items-center justify-center rounded-full bg-[#FF4C4C] text-white text-[10px] font-bold ${isCollapsed ? 'absolute -top-1 -right-1 w-4 h-4' : 'ml-auto min-w-[18px] h-[18px] px-1'}`}
+                        className={`shrink-0 flex items-center justify-center rounded-full bg-[#FF4C4C] admin-text text-[10px] font-bold ${isCollapsed ? 'absolute -top-1 -right-1 w-4 h-4' : 'ml-auto min-w-[18px] h-[18px] px-1'}`}
                       >
                         {pendingChatCount > 9 ? '9+' : pendingChatCount}
                       </span>
@@ -221,7 +244,7 @@ export default function StaffLayout() {
             style={{ backgroundColor: 'var(--admin-bg-card)' }}
             title={isCollapsed ? user?.fullName ?? 'Staff' : undefined}
           >
-            <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center text-white font-bold text-sm shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#FF4C4C] flex items-center justify-center admin-text font-bold text-sm shrink-0">
               {initials}
             </div>
             {!isCollapsed && (

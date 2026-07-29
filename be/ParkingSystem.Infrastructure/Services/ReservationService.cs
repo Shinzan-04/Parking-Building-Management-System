@@ -177,9 +177,10 @@ public class ReservationService : IReservationService
             var bookingCode = await GenerateBookingCodeAsync();
 
             // Cập nhật trạng thái Slot → TemporaryHeld
-            // CHỈ đổi khi slot đang Available. Nếu slot đã Reserved/Occupied (do booking khác ngày),
-            // KHÔNG ghi đè để tránh phá hủy trạng thái của booking đang hoạt động.
-            var shouldUpdateSlotStatus = slot.Status == SlotStatus.Available;
+            // CHỈ đổi khi slot đang Available VÀ booking bắt đầu trong vòng 30 phút nữa.
+            // Nếu booking cho tương lai (ví dụ: ngày mai), KHÔNG ghi đè để slot hôm nay vẫn có thể được dùng.
+            var isImmediate = request.StartTime <= DateTime.UtcNow.AddMinutes(30);
+            var shouldUpdateSlotStatus = slot.Status == SlotStatus.Available && isImmediate;
             if (shouldUpdateSlotStatus)
             {
                 slot.Status = SlotStatus.TemporaryHeld;
@@ -573,6 +574,8 @@ public class ReservationService : IReservationService
     {
         var reservations = await _context.Reservations
             .Include(r => r.ParkingSlot)
+            .ThenInclude(ps => ps.Floor)
+            .ThenInclude(f => f.Building)
             .Where(r => r.DriverId == driverId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
@@ -640,17 +643,23 @@ public class ReservationService : IReservationService
 
     // --- For Staff ---
 
-    public async Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync(Guid staffId)
+    public async Task<IEnumerable<ReservationResponse>> GetPendingReservationsAsync(Guid staffId, Guid? buildingId = null)
     {
         var staff = await _context.Users.FindAsync(staffId);
 
         var query = _context.Reservations
             .Include(r => r.ParkingSlot)
             .ThenInclude(ps => ps.Floor)
-            .Where(r => r.Status == ReservationStatus.PendingReview); // Chỉ hiện những cái đã thanh toán
+            .ThenInclude(f => f.Building)
+            .Where(r => r.Status == ReservationStatus.PendingReview);
 
-        if (staff != null && staff.AssignedBuildingId.HasValue)
+        if (buildingId.HasValue)
         {
+            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == buildingId.Value);
+        }
+        else if (staff != null && staff.AssignedBuildingId.HasValue && staff.Role != ParkingSystem.Domain.Enums.Role.Admin && staff.Role != ParkingSystem.Domain.Enums.Role.Manager)
+        {
+            // Only strict filter for Staff role. Admins and Managers can see all if buildingId is not specified.
             var assignedBuildingId = staff.AssignedBuildingId.Value;
             query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == assignedBuildingId);
         }
@@ -662,7 +671,7 @@ public class ReservationService : IReservationService
         return reservations.Select(r => MapToResponse(r, r.ParkingSlot));
     }
 
-    public async Task<IEnumerable<ReservationResponse>> GetAllActiveReservationsAsync(Guid staffId)
+    public async Task<IEnumerable<ReservationResponse>> GetAllActiveReservationsAsync(Guid staffId, Guid? buildingId = null)
     {
         var staff = await _context.Users.FindAsync(staffId);
 
@@ -670,9 +679,14 @@ public class ReservationService : IReservationService
         var query = _context.Reservations
             .Include(r => r.ParkingSlot)
             .ThenInclude(ps => ps.Floor)
+            .ThenInclude(f => f.Building)
             .Where(r => validStatuses.Contains(r.Status));
 
-        if (staff != null && staff.AssignedBuildingId.HasValue)
+        if (buildingId.HasValue)
+        {
+            query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == buildingId.Value);
+        }
+        else if (staff != null && staff.AssignedBuildingId.HasValue && staff.Role != ParkingSystem.Domain.Enums.Role.Admin && staff.Role != ParkingSystem.Domain.Enums.Role.Manager)
         {
             var assignedBuildingId = staff.AssignedBuildingId.Value;
             query = query.Where(r => r.ParkingSlot.Floor != null && r.ParkingSlot.Floor.BuildingId == assignedBuildingId);
@@ -703,8 +717,8 @@ public class ReservationService : IReservationService
         {
             reservation.Status = ReservationStatus.Confirmed;
 
-            // Đổi slot sang Reserved
-            if (slot != null)
+            // Đổi slot sang Reserved (chỉ đổi nếu booking sắp diễn ra)
+            if (slot != null && reservation.StartTime <= DateTime.UtcNow.AddMinutes(30))
             {
                 slot.Status = SlotStatus.Reserved;
                 slot.UpdatedAt = DateTime.UtcNow;
@@ -825,16 +839,18 @@ public class ReservationService : IReservationService
         reservation.UpdatedAt = DateTime.UtcNow;
         LogState(reservation, "Reassigned", $"Staff {staffId} đổi ô đỗ từ {oldSlotId} sang {newSlotId}");
 
-        // Khóa ô mới
-        newSlot.Status = SlotStatus.Reserved;
-        newSlot.UpdatedAt = DateTime.UtcNow;
-
-        // Nhả ô cũ
-        var oldSlot = await _context.ParkingSlots.FindAsync(oldSlotId);
-        if (oldSlot != null && oldSlot.Status == SlotStatus.Reserved)
+        // Cập nhật trạng thái vật lý của ô mới/cũ nếu booking sắp diễn ra
+        if (reservation.StartTime <= DateTime.UtcNow.AddMinutes(30))
         {
-            oldSlot.Status = SlotStatus.Available;
-            oldSlot.UpdatedAt = DateTime.UtcNow;
+            newSlot.Status = SlotStatus.Reserved;
+            newSlot.UpdatedAt = DateTime.UtcNow;
+
+            var oldSlot = await _context.ParkingSlots.FindAsync(oldSlotId);
+            if (oldSlot != null && (oldSlot.Status == SlotStatus.Reserved || oldSlot.Status == SlotStatus.TemporaryHeld))
+            {
+                oldSlot.Status = SlotStatus.Available;
+                oldSlot.UpdatedAt = DateTime.UtcNow;
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -863,6 +879,8 @@ public class ReservationService : IReservationService
             DriverId = r.DriverId,
             ParkingSlotId = r.ParkingSlotId,
             SlotNumber = slot?.SlotNumber ?? "",
+            FloorName = slot?.Floor?.Name ?? "",
+            BuildingName = slot?.Floor?.Building?.Name ?? "",
             BookingCode = r.BookingCode,
             QrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(r.BookingCode),
             LicensePlate = r.LicensePlate,

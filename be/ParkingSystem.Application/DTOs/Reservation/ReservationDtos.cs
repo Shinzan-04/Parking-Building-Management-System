@@ -42,6 +42,8 @@ public class ReservationResponse
     public Guid DriverId { get; set; }
     public Guid ParkingSlotId { get; set; }
     public string SlotNumber { get; set; } = string.Empty;
+    public string FloorName { get; set; } = string.Empty;
+    public string BuildingName { get; set; } = string.Empty;
     public string BookingCode { get; set; } = string.Empty;
     public string QrCodeBase64 { get; set; } = string.Empty;
     public string LicensePlate { get; set; } = string.Empty;

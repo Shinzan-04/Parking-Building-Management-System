@@ -130,8 +130,8 @@ export const findSessionByPlate = (plate: string): Promise<SessionDto | null> =>
   apiClient(`/api/sessions/find-by-plate?plate=${encodeURIComponent(plate)}`);
 
 /** Lấy Live Session (phiên đang đỗ) của User/Driver */
-export const getMyActiveSession = (): Promise<MyActiveSessionResponse | null> =>
-  apiClient(`/api/sessions/my-active`);
+export const getMyActiveSession = (): Promise<MyActiveSessionResponse[]> =>
+  apiClient('/api/Sessions/my-active');
 
 /** [DEV ONLY] Tua thời gian để kiểm tra phí */
 export const devFastForwardTime = (minutes: number): Promise<{ message: string }> =>

@@ -7,6 +7,12 @@
 .env
 # README
 *.md
+# draw.io diagram files and their backup/temp variants
+*.drawio
+*.drawio.bkp
+*.drawio.dtmp
+.$*.drawio.bkp
+.$*.drawio.dtmp
 # Application Configuration Files (sensitive data)
 *appsettings.json
 appsettings.*.json

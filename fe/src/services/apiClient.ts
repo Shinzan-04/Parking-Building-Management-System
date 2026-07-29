@@ -31,13 +31,14 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
 
   let res = await fetchWithToken(token);
 
-  if (res.status === 401) {
+  const isAuthEndpoint = path.toLowerCase().includes('/login') || path.toLowerCase().includes('/refresh');
+  const rawUser = localStorage.getItem(USER_KEY);
+
+  // Chỉ cố gắng refresh token nếu KHÔNG phải API auth và ĐÃ CÓ thông tin user
+  if (res.status === 401 && !isAuthEndpoint && rawUser) {
     if (!isRefreshing) {
       isRefreshing = true;
       try {
-        const rawUser = localStorage.getItem(USER_KEY);
-        if (!rawUser) throw new Error('No user data');
-        
         const user = JSON.parse(rawUser);
         if (!user.refreshToken) throw new Error('No refresh token');
 
@@ -69,7 +70,7 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(USER_KEY);
         window.dispatchEvent(new Event('auth:logout'));
-        throw err;
+        // Không throw err ở đây để request gốc có thể tiếp tục và ném lỗi 401
       } finally {
         isRefreshing = false;
       }
@@ -82,8 +83,14 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
       });
     }
 
-    // Sau khi có token mới (tự refresh hoặc chờ), gọi lại API gốc
-    res = await fetchWithToken(token);
+    // Sau khi có token mới (tự refresh hoặc chờ), gọi lại API gốc (chỉ khi có token mới)
+    if (token && token !== localStorage.getItem(TOKEN_KEY)) {
+       // Wait, the token from promise or refresh might be updated. 
+       // Just fetch again
+       res = await fetchWithToken(token);
+    } else if (token === localStorage.getItem(TOKEN_KEY) && token) {
+       res = await fetchWithToken(token);
+    }
   }
 
   // Nếu API gốc báo 204 No Content
@@ -92,7 +99,7 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
   const text = await res.text();
   if (!text.trim()) {
     if (res.ok) return undefined as T;
-    throw new Error(`Yêu cầu thất bại (${res.status}).`);
+    throw new Error(`Request failed (${res.status}).`);
   }
 
   let data: unknown;
@@ -103,7 +110,7 @@ export async function apiClient<T>(path: string, options?: RequestInit): Promise
   }
 
   if (!res.ok) {
-    throw new Error((data as { message?: string }).message ?? `Yêu cầu thất bại (${res.status}).`);
+    throw new Error((data as { message?: string }).message ?? `Request failed (${res.status}).`);
   }
 
   return data as T;

@@ -131,13 +131,16 @@ public class ParkingSlotService : IParkingSlotService
             }
             else if (!isImmediate)
             {
-                // Đặt cho tương lai VÀ không có ai đặt trùng → mở slot
+                // Đặt cho tương lai VÀ không có ai đặt trùng → mở slot (nhưng KHÔNG mở slot đang bảo trì)
                 // Dù vật lý slot đang Occupied (có xe đỗ hiện tại),
                 // nhưng đến ngày tương lai xe đó đã đi rồi → Available
-                res.Status = SlotStatus.Available;
+                if (res.Status != SlotStatus.Maintenance)
+                {
+                    res.Status = SlotStatus.Available;
+                }
             }
             // Nếu isImmediate VÀ không overlap → giữ nguyên status vật lý
-            // (nếu Occupied thì vẫn Occupied, Available thì vẫn Available)
+            // (nếu Occupied thì vẫn Occupied, Available thì vẫn Available, Maintenance thì vẫn Maintenance)
         }
 
         return responses;
@@ -152,15 +155,31 @@ public class ParkingSlotService : IParkingSlotService
 
         // 1. Kiểm tra xem có xe nào đang đỗ không (ParkingSession)
         // Xe đang đỗ có thể là Active hoặc Overdue
-        var activeSessions = await _sessionRepo.FindAsync(s => s.ParkingSlotId == slotId && (s.Status == SessionStatus.Active || s.Status == SessionStatus.Overdue));
+        var activeSessions = await _sessionRepo.FindAsync(s => s.ParkingSlotId == slotId && (s.Status == SessionStatus.Active || s.Status == SessionStatus.Overdue), "Reservation");
         var activeSession = activeSessions.FirstOrDefault();
         
         if (activeSession != null)
         {
+            bool isOverdue = activeSession.Status == SessionStatus.Overdue;
+            if (!isOverdue && activeSession.Status == SessionStatus.Active)
+            {
+                if (activeSession.CheckInMethod == CheckInMethod.Booking && activeSession.Reservation != null)
+                {
+                    isOverdue = activeSession.Reservation.EndTime < now;
+                }
+                else
+                {
+                    if (activeSession.GracePeriodEndTime.HasValue)
+                        isOverdue = activeSession.GracePeriodEndTime.Value < now;
+                    else
+                        isOverdue = activeSession.EntryTime < now.AddHours(-24);
+                }
+            }
+
             return new CurrentVehicleResponse
             {
                 LicensePlate = string.IsNullOrWhiteSpace(activeSession.LicensePlate) ? null : activeSession.LicensePlate,
-                Status = activeSession.Status == SessionStatus.Overdue ? "Overdue" : "Occupied",
+                Status = isOverdue ? "Overdue" : "Occupied",
                 ExpectedEndTime = activeSession.ExitTime // or null
             };
         }
@@ -197,6 +216,32 @@ public class ParkingSlotService : IParkingSlotService
             Status = "Available",
             ExpectedEndTime = null
         };
+    }
+
+    public async Task<bool> BulkUpdateVehicleTypeAsync(BulkUpdateSlotVehicleTypeRequest request)
+    {
+        if (request.SlotIds == null || !request.SlotIds.Any())
+            return false;
+
+        var slots = await _repository.FindAsync(s => request.SlotIds.Contains(s.Id));
+        if (!slots.Any())
+            return false;
+
+        var unmodifiableSlots = slots.Where(s => s.Status == SlotStatus.Occupied || s.Status == SlotStatus.Reserved || s.Status == SlotStatus.TemporaryHeld).ToList();
+        if (unmodifiableSlots.Any())
+        {
+            var slotNumbers = string.Join(", ", unmodifiableSlots.Select(s => s.SlotNumber));
+            throw new Exception($"Không thể sửa đổi loại xe. Các slot sau đang có xe đỗ hoặc đã được đặt trước: {slotNumbers}");
+        }
+
+        foreach (var slot in slots)
+        {
+            slot.VehicleTypeId = request.VehicleTypeId;
+            slot.UpdatedAt = DateTime.UtcNow;
+            await _repository.UpdateAsync(slot);
+        }
+
+        return true;
     }
 
     private static ParkingSlotResponse MapToResponse(ParkingSlot s) => new()

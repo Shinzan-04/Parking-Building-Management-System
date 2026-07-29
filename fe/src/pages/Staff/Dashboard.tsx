@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Car, MapPin, TrendingUp, Clock, CheckCircle2, AlertTriangle, Loader2, RefreshCw, Building2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Car, MapPin, TrendingUp, Clock, CheckCircle2, AlertTriangle, Loader2, RefreshCw, Building2, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getBuildings } from '../../services/buildingsService';
 import { searchSessions } from '../../services/sessionsService';
@@ -26,6 +26,7 @@ export default function StaffDashboard() {
   const [stats, setStats]               = useState<DashboardStats | null>(null);
   const [buildingName, setBuildingName] = useState<string>('');
   const [recentSessions, setRecentSessions] = useState<SessionDto[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
   const [todayRevenue, setTodayRevenue] = useState(0);
@@ -136,8 +137,9 @@ export default function StaffDashboard() {
     ? Math.round((stats.occupiedSlots / stats.totalSlots) * 1000) / 10
     : 0;
 
-  const totalPages = Math.ceil(recentSessions.length / itemsPerPage) || 1;
-  const displayedSessions = recentSessions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const filteredSessions = recentSessions.filter(s => s.licensePlate.toLowerCase().includes(searchQuery.toLowerCase()));
+  const totalPages = Math.ceil(filteredSessions.length / itemsPerPage) || 1;
+  const displayedSessions = filteredSessions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const kpiCards = [
     { label: 'Parked vehicles', value: stats?.occupiedSlots ?? 0, unit: 'vehicles', icon: Car, color: '#FF4C4C' },
@@ -182,14 +184,7 @@ export default function StaffDashboard() {
         </div>
       )}
 
-      {overdueCount > 0 && (
-        <div className="flex items-center gap-3 px-5 py-3.5 rounded-xl" style={{ backgroundColor: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.2)' }}>
-          <AlertTriangle size={16} className="text-red-400 shrink-0 animate-pulse" />
-          <p className="text-sm text-red-400 font-medium">
-            <span className="font-bold">{overdueCount}</span> overtime vehicles — action required
-          </p>
-        </div>
-      )}
+
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -279,16 +274,38 @@ export default function StaffDashboard() {
 
       {/* Recent sessions */}
       <div className="glass-card rounded-2xl overflow-hidden">
-        <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--admin-border)' }}>
-          <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
-            Recent Parking Sessions
-          </h3>
-          <span className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>
-            Total {recentSessions.length} sessions
-          </span>
+        <div className="px-6 py-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4" style={{ borderColor: 'var(--admin-border)' }}>
+          <div className="flex items-center gap-3">
+            <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
+              Recent Parking Sessions
+            </h3>
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--admin-bg-surface)', color: 'var(--admin-text-muted)' }}>
+              {filteredSessions.length} sessions
+            </span>
+          </div>
+          
+          {/* Filter Input */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--admin-text-faint)' }} />
+            <input
+              type="text"
+              placeholder="Filter by license plate..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="text-sm pl-9 pr-4 py-2 rounded-lg outline-none w-full sm:w-64 transition-all"
+              style={{
+                backgroundColor: 'var(--admin-bg-surface)',
+                color: 'var(--admin-text-primary)',
+                border: '1px solid var(--admin-border)'
+              }}
+            />
+          </div>
         </div>
 
-        {recentSessions.length === 0 ? (
+        {filteredSessions.length === 0 ? (
           <div className="flex items-center justify-center py-12 text-sm" style={{ color: 'var(--admin-text-faint)' }}>
             No data available
           </div>
@@ -309,21 +326,39 @@ export default function StaffDashboard() {
                       <span className="text-sm font-mono font-semibold" style={{ color: 'var(--admin-text-primary)' }}>{s.licensePlate}</span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="text-xs" style={{ color: 'var(--admin-text-muted)' }}>{s.floorName}</p>
-                      <p className="text-[10px]" style={{ color: 'var(--admin-text-faint)' }}>{s.slotNumber}</p>
+                      <p className="text-xs font-medium" style={{ color: 'var(--admin-text-primary)' }}>
+                        {s.floorName.toString().toLowerCase().includes('floor') || s.floorName.toString().toLowerCase().includes('tầng') ? s.floorName : `Floor ${s.floorName}`}
+                      </p>
+                      <p className="text-[11px]" style={{ color: 'var(--admin-text-muted)' }}>
+                        Slot {s.slotNumber.replace(`${s.floorName}-`, '').replace('Slot ', '')}
+                      </p>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--admin-text-muted)' }}>
-                        <Clock size={12} style={{ color: 'var(--admin-text-faint)' }} />
-                        {new Date(s.entryTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                      <div className="flex flex-col gap-0.5 text-sm" style={{ color: 'var(--admin-text-primary)' }}>
+                        <div className="flex items-center gap-1.5 font-medium">
+                          <Clock size={12} style={{ color: 'var(--admin-text-muted)' }} />
+                          {new Date(s.entryTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </div>
+                        <span className="text-[11px]" style={{ color: 'var(--admin-text-muted)' }}>
+                          {new Date(s.entryTime).toLocaleDateString('en-GB')}
+                        </span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <span className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>
-                        {s.exitTime
-                          ? new Date(s.exitTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
-                          : '—'}
-                      </span>
+                      <div className="flex flex-col gap-0.5 text-sm" style={{ color: 'var(--admin-text-primary)' }}>
+                        {s.exitTime ? (
+                          <>
+                            <span className="font-medium" style={{ color: 'var(--admin-text-primary)' }}>
+                              {new Date(s.exitTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                            </span>
+                            <span className="text-[11px]" style={{ color: 'var(--admin-text-muted)' }}>
+                              {new Date(s.exitTime).toLocaleDateString('en-GB')}
+                            </span>
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--admin-text-muted)' }}>-</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3.5">
                       <span className="text-sm font-medium" style={{ color: 'var(--admin-text-primary)' }}>
@@ -364,7 +399,7 @@ export default function StaffDashboard() {
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-[var(--admin-bg-card)]"
                 style={{ color: 'var(--admin-text-primary)' }}
               >
                 <ChevronLeft size={16} />
@@ -375,7 +410,7 @@ export default function StaffDashboard() {
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+                className="p-1.5 rounded-lg disabled:opacity-50 transition-colors hover:bg-black/5 dark:hover:bg-[var(--admin-bg-card)]"
                 style={{ color: 'var(--admin-text-primary)' }}
               >
                 <ChevronRight size={16} />

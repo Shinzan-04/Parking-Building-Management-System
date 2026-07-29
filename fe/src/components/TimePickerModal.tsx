@@ -232,7 +232,7 @@ export default function TimePickerModal({
 
     if (selectedHour < currentMinHour || (selectedHour === currentMinHour && selectedMinute < currentMinMinute)) {
       import('react-hot-toast').then(({ default: toast }) => {
-        toast.error('Thời gian bạn chọn không còn hợp lệ do đã trôi qua hoặc quá gần. Vui lòng chọn khung giờ mới.');
+        toast.error('The selected time is no longer valid because it has passed or is too soon. Please choose a new time.');
       });
       // Force UI refresh
       setCurrentTick(prev => prev + 1);

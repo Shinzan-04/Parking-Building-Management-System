@@ -17,7 +17,7 @@ import {
   getBuildingStaff, assignStaffToBuilding, unassignStaffFromBuilding,
 } from '../../services/buildingsService';
 import type { FloorResponse, ParkingSlotSummary, VehicleTypeResponse, StaffResponse } from '../../services/buildingsService';
-import { getSlotsByFloor, updateSlotStatus } from '../../services/parkingService';
+import { getSlotsByFloor, updateSlotStatus, bulkUpdateSlotVehicleType } from '../../services/parkingService';
 import type { ParkingSlotDetail } from '../../services/parkingService';
 import { getUsers, normalizeRole } from '../../services/usersService';
 import type { UserResponse } from '../../services/usersService';
@@ -43,10 +43,10 @@ const SLOT_STATUS_LABELS: Record<SlotStatus, string> = {
 };
 
 const SLOT_STATUS_COLORS: Record<SlotStatus, { bg: string; text: string }> = {
-  Available:   { bg: 'bg-[#FF4C4C]/10',   text: 'text-[#FF4C4C]' },
-  Occupied:    { bg: 'bg-amber-500/15',    text: 'text-amber-500' },
-  Reserved:    { bg: 'bg-amber-400/15',    text: 'text-amber-400' },
-  Maintenance: { bg: 'bg-red-400/15',      text: 'text-red-400' },
+  Available:   { bg: 'bg-emerald-500/10', text: 'text-emerald-400' },
+  Occupied:    { bg: 'bg-blue-500/15',    text: 'text-blue-400' },
+  Reserved:    { bg: 'bg-fuchsia-500/15', text: 'text-fuchsia-400' },
+  Maintenance: { bg: 'bg-zinc-500/15',    text: 'text-zinc-400' },
 };
 
 const statusConfig = {
@@ -93,7 +93,7 @@ function OccupancyBar({ used, total }: { used: number; total: number }) {
 }
 
 function SlotMap({
-  floors, slots, buildingId, selectedSlotId, onSelectSlot, onConfirm, onBulkRelease, loadingSlots, onStatusChange, vehicleTypes,
+  floors, slots, buildingId, selectedSlotId, onSelectSlot, onConfirm, onBulkRelease, onBulkUpdateVehicleType, loadingSlots, onStatusChange, vehicleTypes,
 }: {
   floors: FloorResponse[];
   slots: ParkingSlotSummary[];
@@ -102,6 +102,7 @@ function SlotMap({
   onSelectSlot: (id: string | null) => void;
   onConfirm?: (slotId: string, action: 'occupy' | 'release' | 'maintain', vehicleTypeId?: string) => void | Promise<void>;
   onBulkRelease?: (slotIds: string[], action?: 'maintain' | 'release') => Promise<void>;
+  onBulkUpdateVehicleType?: (slotIds: string[], vehicleTypeId: string) => Promise<void>;
   loadingSlots?: boolean;
   onStatusChange?: (slot: ParkingSlotSummary) => void;
   vehicleTypes?: VehicleTypeResponse[];
@@ -115,6 +116,7 @@ function SlotMap({
   const [selectedVehicleTypeId, setSelectedVehicleTypeId] = useState('');
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkSelected, setBulkSelected] = useState<Set<string>>(new Set());
+  const [bulkVehicleTypeId, setBulkVehicleTypeId] = useState('');
 
   useEffect(() => {
     if (buildingFloors.length && !buildingFloors.find(f => f.id === activeFloorId)) {
@@ -154,18 +156,19 @@ function SlotMap({
   const maintCount     = activeFloorSlots.filter(s => normalizeStatus(s.status) === 'Maintenance').length;
 
   const slotColorClass = (status: SlotStatus, isSelected: boolean, isBulkPicked: boolean) => {
-    if (isBulkPicked && status === 'Available')   return 'bg-red-500 border-red-400 text-white scale-105 z-10 shadow-md ring-2 ring-red-400/60';
-    if (isBulkPicked && status === 'Maintenance') return 'bg-green-500 border-green-400 text-white scale-105 z-10 shadow-md ring-2 ring-green-400/60';
-    if (isSelected) return 'bg-[#FF4C4C] border-[#FF4C4C] text-white scale-110 z-10 shadow-lg';
+    if (isBulkPicked && status === 'Available')   return 'bg-zinc-500 border-zinc-400 text-white scale-105 z-10 shadow-md ring-2 ring-zinc-400/60';
+    if (isBulkPicked && status === 'Maintenance') return 'bg-emerald-500 border-emerald-400 text-white scale-105 z-10 shadow-md ring-2 ring-emerald-400/60';
+    if (isSelected) return 'bg-white border-white text-black scale-110 z-10 shadow-lg';
+    
     switch (status) {
       case 'Available':   return bulkMode
-        ? 'bg-[#FF4C4C]/10 border-[#FF4C4C]/40 text-[#FF4C4C] hover:bg-red-500/20 cursor-pointer ring-1 ring-[#FF4C4C]/30'
-        : 'bg-[#FF4C4C]/10 border-[#FF4C4C]/40 text-[#FF4C4C] hover:bg-[#FF4C4C]/20 cursor-pointer';
-      case 'Occupied':    return 'bg-amber-400/20 border-amber-400/60 text-amber-500 cursor-default';
-      case 'Reserved':    return 'bg-amber-300/20 border-amber-300/60 text-amber-400 cursor-default';
+        ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer ring-1 ring-emerald-500/30'
+        : 'bg-emerald-500/10 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/20 cursor-pointer';
+      case 'Occupied':    return 'bg-blue-500/20 border-blue-500/60 text-blue-400 cursor-default';
+      case 'Reserved':    return 'bg-fuchsia-500/20 border-fuchsia-500/60 text-fuchsia-400 cursor-default';
       case 'Maintenance': return bulkMode
-        ? 'bg-red-500/20 border-red-500/70 text-red-500 hover:bg-green-500/20 hover:border-green-500/60 cursor-pointer ring-1 ring-red-400/40'
-        : 'bg-red-500/20 border-red-500/70 text-red-500 hover:bg-red-500/30 cursor-pointer';
+        ? 'bg-zinc-500/20 border-zinc-500/70 text-zinc-400 hover:bg-emerald-500/20 hover:border-emerald-500/60 cursor-pointer ring-1 ring-zinc-400/40'
+        : 'bg-zinc-500/20 border-zinc-500/70 text-zinc-400 hover:bg-zinc-500/30 cursor-pointer';
     }
   };
 
@@ -235,7 +238,10 @@ function SlotMap({
                         key={slot.id}
                         title={`${colLetter}${rowNum} · ${slot.slotNumber} · ${SLOT_STATUS_LABELS[slot.status as SlotStatus] ?? slot.status}${slot.vehicleTypeName ? ' · ' + slot.vehicleTypeName : ''}`}
                         onClick={() => {
-                          if (bulkMode && (isMaint || slot.status === 'Available')) {
+                          if (bulkMode) {
+                            if (slot.status === 'Occupied' || slot.status === 'Reserved' || slot.status === 'TemporaryHeld') {
+                              return;
+                            }
                             setBulkSelected(prev => {
                               const next = new Set(prev);
                               next.has(slot.id) ? next.delete(slot.id) : next.add(slot.id);
@@ -272,10 +278,10 @@ function SlotMap({
           <div className="flex items-center flex-wrap gap-x-4 gap-y-2 pt-2 border-t border-black/10 dark:border-white/5 text-xs text-gray-500 dark:text-white/40">
             {/* Stats — always visible */}
             {[
-              { label: 'Free',      count: availableCount, colorClass: 'bg-[#FF4C4C]/20 border-[#FF4C4C]/40' },
-              { label: 'Occupied',  count: occupiedCount,  colorClass: 'bg-amber-500/20 border-amber-500/40' },
-              { label: 'Reserved',  count: reservedCount,  colorClass: 'bg-amber-400/20 border-amber-400/40' },
-              { label: 'Maintenance', count: maintCount,   colorClass: 'bg-red-400/20 border-red-400/40' },
+              { label: 'Available', count: availableCount, colorClass: 'bg-emerald-500/20 border-emerald-500/40' },
+              { label: 'Occupied',  count: occupiedCount,  colorClass: 'bg-blue-500/20 border-blue-500/40' },
+              { label: 'Reserved',  count: reservedCount,  colorClass: 'bg-fuchsia-500/20 border-fuchsia-500/40' },
+              { label: 'Maintenance', count: maintCount,   colorClass: 'bg-zinc-500/20 border-zinc-500/40' },
             ].map(s => (
               <div key={s.label} className="flex items-center gap-1.5">
                 <span className={`w-3 h-3 rounded border ${s.colorClass}`} />
@@ -331,13 +337,42 @@ function SlotMap({
                       End ({pickedMaint.length})
                     </button>
                   )}
+                  {bulkSelected.size > 0 && onBulkUpdateVehicleType && (
+                    <div className="flex items-center gap-1 border-l border-black/10 dark:border-white/10 pl-2 ml-1">
+                      <select
+                        value={bulkVehicleTypeId}
+                        onChange={e => setBulkVehicleTypeId(e.target.value)}
+                        className="bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg px-2 py-1 text-xs text-gray-700 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
+                      >
+                        <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>-- Vehicle type --</option>
+                        {(vehicleTypes ?? []).map(vt => (
+                          <option key={vt.id} value={vt.id} style={{ color: '#000', backgroundColor: '#fff' }}>{vt.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        disabled={confirming || !bulkVehicleTypeId}
+                        onClick={async () => {
+                          setConfirming(true);
+                          const ids = Array.from(bulkSelected);
+                          await onBulkUpdateVehicleType(ids, bulkVehicleTypeId);
+                          setConfirming(false);
+                          setBulkSelected(new Set());
+                          setBulkVehicleTypeId('');
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#FF4C4C] text-white font-semibold hover:bg-[#ff3333] transition-colors disabled:opacity-50"
+                      >
+                        {confirming ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
+                        Assign
+                      </button>
+                    </div>
+                  )}
                   {bulkSelected.size > 0 && (
                     <button onClick={() => setBulkSelected(new Set())} className="underline underline-offset-2 text-gray-400 hover:text-gray-600 dark:text-white/30 dark:hover:text-white/50 transition-colors">
                       Deselect
                     </button>
                   )}
-                  <button onClick={() => setBulkSelected(new Set([...bulkMaintIds, ...bulkAvailIds]))} className="underline underline-offset-2 text-gray-400 hover:text-gray-600 dark:text-white/30 dark:hover:text-white/50 transition-colors">
-                    Select all
+                  <button onClick={() => setBulkSelected(new Set(floorSlots.filter(s => s.status !== 'Occupied' && s.status !== 'Reserved' && s.status !== 'TemporaryHeld').map(s => s.id)))} className="underline underline-offset-2 text-gray-400 hover:text-gray-600 dark:text-white/30 dark:hover:text-white/50 transition-colors">
+                    Select All
                   </button>
                   <button onClick={() => { setBulkMode(false); setBulkSelected(new Set()); }} className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:text-white/40 dark:hover:text-white/60 transition-all">
                     <X size={13} />
@@ -437,9 +472,9 @@ function SlotMap({
                 onChange={e => setSelectedVehicleTypeId(e.target.value)}
                 className="flex-1 bg-white border border-[#FF4C4C]/30 rounded-lg px-3 py-1.5 text-xs text-gray-700 focus:outline-none focus:border-[#FF4C4C]/60 transition-colors"
               >
-                <option value="">-- Select vehicle type --</option>
+                <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>-- Select vehicle type --</option>
                 {(vehicleTypes ?? []).map(vt => (
-                  <option key={vt.id} value={vt.id}>{vt.name}</option>
+                  <option key={vt.id} value={vt.id} style={{ color: '#000', backgroundColor: '#fff' }}>{vt.name}</option>
                 ))}
               </select>
               <button
@@ -1303,7 +1338,7 @@ export default function ParkingLots() {
                       disabled={allStaffList.filter(s => !s.assignedBuildingId).length === 0}
                       className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-xs text-gray-700 dark:text-white focus:outline-none focus:border-blue-400 transition-colors disabled:opacity-40"
                     >
-                      <option value="">
+                      <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>
                         {allStaffList.filter(s => !s.assignedBuildingId).length === 0
                           ? '-- No available staff --'
                           : '-- Select staff --'}
@@ -1311,7 +1346,7 @@ export default function ParkingLots() {
                       {allStaffList
                         .filter(s => !s.assignedBuildingId)
                         .map(s => (
-                          <option key={s.id} value={s.id}>{s.fullName} (@{s.username})</option>
+                          <option key={s.id} value={s.id} style={{ color: '#000', backgroundColor: '#fff' }}>{s.fullName} (@{s.username})</option>
                         ))}
                     </select>
                     <button
@@ -1485,7 +1520,26 @@ export default function ParkingLots() {
                           : `Ended maintenance for ${slotIds.length} slots!`;
                         showToast('success', msg);
                       } catch (e) {
-                        showToast('error', e instanceof Error ? e.message : 'Failed to update slot.');
+                        showToast('error', e instanceof Error ? e.message : 'Unable to update the slot.');
+                      }
+                    }}
+                    onBulkUpdateVehicleType={async (slotIds, vehicleTypeId) => {
+                      const activeToken = getActiveToken();
+                      if (!activeToken) { showToast('error', 'Session expired.'); return; }
+                      try {
+                        await bulkUpdateSlotVehicleType(slotIds, vehicleTypeId);
+                        const selectedVt = vehicleTypes.find(v => v.id === vehicleTypeId);
+                        const updatedSlots = allSlots.map(s =>
+                          slotIds.includes(s.id) ? {
+                            ...s,
+                            vehicleTypeId: selectedVt?.id,
+                            vehicleTypeName: selectedVt?.name,
+                          } : s
+                        );
+                        setAllSlots(updatedSlots);
+                        showToast('success', `Assigned vehicle type to ${slotIds.length} slots!`);
+                      } catch (e) {
+                        showToast('error', e instanceof Error ? e.message : 'Unable to update slots.');
                       }
                     }}
                   />
@@ -1585,9 +1639,9 @@ export default function ParkingLots() {
                         onChange={e => setForm(prev => ({ ...prev, status: e.target.value as ParkingLot['status'] }))}
                         className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                       >
-                        <option value="active">Active</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="full">Full</option>
+                        <option value="active" style={{ color: '#000', backgroundColor: '#fff' }}>Active</option>
+                        <option value="maintenance" style={{ color: '#000', backgroundColor: '#fff' }}>Maintenance</option>
+                        <option value="full" style={{ color: '#000', backgroundColor: '#fff' }}>Full</option>
                       </select>
                     </div>
                   )}
@@ -1701,9 +1755,9 @@ export default function ParkingLots() {
                                     onChange={e => { setEditFloorVehicleTypeId(e.target.value); setEditFloorError(''); }}
                                     className="w-full bg-white dark:bg-white/10 border border-gray-200 dark:border-white/20 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/50 transition-colors appearance-none"
                                   >
-                                    <option value="">-- Select vehicle type --</option>
+                                    <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>-- Select vehicle type --</option>
                                     {vehicleTypes.map(vt => (
-                                      <option key={vt.id} value={vt.id}>{vt.name}</option>
+                                      <option key={vt.id} value={vt.id} style={{ color: '#000', backgroundColor: '#fff' }}>{vt.name}</option>
                                     ))}
                                   </select>
                                 </div>
@@ -1817,9 +1871,9 @@ export default function ParkingLots() {
                           onChange={e => { setNewFloorVehicleTypeId(e.target.value); setFloorError(''); }}
                           className="flex-1 bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-2.5 py-2 text-xs text-gray-800 dark:text-white focus:outline-none focus:border-[#FF4C4C]/40 transition-colors appearance-none"
                         >
-                          <option value="">-- Select vehicle type --</option>
+                          <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>-- Select vehicle type --</option>
                           {vehicleTypes.map(vt => (
-                            <option key={vt.id} value={vt.id}>{vt.name}</option>
+                            <option key={vt.id} value={vt.id} style={{ color: '#000', backgroundColor: '#fff' }}>{vt.name}</option>
                           ))}
                         </select>
                         <button

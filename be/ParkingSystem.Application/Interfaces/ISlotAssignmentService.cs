@@ -8,22 +8,22 @@ public interface ISlotAssignmentService
     /// Gợi ý danh sách slot phù hợp nhất cho loại xe (sắp xếp theo AI scoring)
     /// Thuật toán ưu tiên: Trong ra ngoài → Gần lối vào → Tầng thấp → Gom cụm xe cùng loại
     /// </summary>
-    Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, int topN = 5);
+    Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, int topN = 5, DateTime? startTime = null);
 
     /// <summary>
     /// Gợi ý slot trong phạm vi 1 tòa nhà cụ thể
     /// </summary>
-    Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, Guid? buildingId, int topN = 5);
+    Task<List<SlotRecommendation>> GetRecommendedSlotsAsync(Guid vehicleTypeId, Guid? buildingId, int topN = 5, DateTime? startTime = null);
 
     /// <summary>
     /// Tự động chọn slot tốt nhất (slot đầu tiên trong danh sách gợi ý)
     /// </summary>
-    Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId);
+    Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId, DateTime? startTime = null);
 
     /// <summary>
     /// Tự động chọn slot tốt nhất trong phạm vi 1 tòa nhà
     /// </summary>
-    Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId, Guid? buildingId);
+    Task<SlotRecommendation?> GetBestSlotAsync(Guid vehicleTypeId, Guid? buildingId, DateTime? startTime = null);
 }
 
 /// <summary>

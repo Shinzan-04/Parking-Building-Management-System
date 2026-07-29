@@ -22,6 +22,8 @@ export interface ReservationResponse {
   bookingCode: string;
   qrCodeBase64: string;
   licensePlate: string;
+  floorName: string;
+  buildingName: string;
   startTime: string;
   endTime: string;
   status: ReservationStatus | number;
@@ -63,12 +65,13 @@ export interface AiSuggestionResponse {
   reason: string;
 }
 
-export const getAiSuggestions = (vehicleTypeId: string, buildingId?: string, topN: number = 5): Promise<AiSuggestionResponse[]> => {
+export const getAiSuggestions = (vehicleTypeId: string, buildingId?: string, topN: number = 5, startTime?: string): Promise<AiSuggestionResponse[]> => {
   const params = new URLSearchParams();
   params.append('vehicleTypeId', vehicleTypeId);
   if (buildingId) params.append('buildingId', buildingId);
   params.append('topN', topN.toString());
-  
+  if (startTime) params.append('startTime', startTime);
+
   // ai-suggest can be public or authenticated, assuming authenticated if token is provided
   return apiClient(`/api/reservations/ai-suggest?${params.toString()}`);
 }
@@ -94,12 +97,16 @@ export interface ReviewReservationRequest {
 }
 
 /** Lấy danh sách đặt chỗ đang Pending (Manager/Staff) */
-export const getPendingReservations = (): Promise<ReservationResponse[]> =>
-  apiClient('/api/reservations/pending');
+export const getPendingReservations = (buildingId?: string): Promise<ReservationResponse[]> => {
+  const url = buildingId ? `/api/reservations/pending?buildingId=${buildingId}` : '/api/reservations/pending';
+  return apiClient(url);
+}
 
 /** Lấy tất cả danh sách đặt chỗ đang Active/Pending (để hiển thị và đổi chỗ) */
-export const getAllActiveReservations = (): Promise<ReservationResponse[]> =>
-  apiClient('/api/reservations/all-active');
+export const getAllActiveReservations = (buildingId?: string): Promise<ReservationResponse[]> => {
+  const url = buildingId ? `/api/reservations/all-active?buildingId=${buildingId}` : '/api/reservations/all-active';
+  return apiClient(url);
+}
 
 /** Duyệt hoặc từ chối đặt chỗ */
 export const reviewReservation = (

@@ -22,6 +22,7 @@ import {
   Calendar, ArrowUpRight, TrendingUp, Clock,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { useTheme } from '../../hooks/useTheme';
 import { getBuildings } from '../../services/buildingsService';
 import { searchSessions } from '../../services/sessionsService';
 import type { SessionDto } from '../../services/sessionsService';
@@ -42,7 +43,8 @@ function getLast7Days() {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    return { label: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()], date: toLocalDateStr(d) };
+    const weekday = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+    return { label: `${weekday} ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`, date: toLocalDateStr(d) };
   });
 }
 
@@ -65,6 +67,10 @@ function ChartTooltip({ active, payload, label, color, formatter }: {
 
 export default function AdminReports() {
   const { token } = useAuth();
+  const { theme } = useTheme();
+  const axisTickColor = theme === 'dark' ? '#ffffff66' : '#0A0A0C99';
+  const gridStroke = theme === 'dark' ? '#ffffff0d' : '#0000000d';
+  const cursorFill = theme === 'dark' ? '#ffffff05' : '#00000005';
 
   // KPI
   const [totalUsers,    setTotalUsers]    = useState(0);
@@ -296,12 +302,12 @@ export default function AdminReports() {
           </div>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={revenueData} barSize={28}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" vertical={false} />
-              <XAxis dataKey="label" tick={{ fill: '#ffffff66', fontSize: 12 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false}
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: axisTickColor, fontSize: 12 }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: axisTickColor, fontSize: 11 }} axisLine={false} tickLine={false}
                 tickFormatter={v => v >= 1000000 ? `${(v/1000000).toFixed(1)}M` : v >= 1000 ? `${(v/1000).toFixed(0)}k` : String(v)} />
               <Tooltip content={<ChartTooltip color="#FF4C4C" formatter={v => `${vnd(v)}đ`} />}
-                cursor={{ fill: '#ffffff05' }} />
+                cursor={{ fill: cursorFill }} />
               <Bar dataKey="revenue" radius={[6,6,0,0]}>
                 {revenueData.map((entry, i) => (
                   <Cell key={i}
@@ -328,12 +334,12 @@ export default function AdminReports() {
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={vehicleData} layout="vertical" barSize={18}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#ffffff0d" horizontal={false} />
-                <XAxis type="number" tick={{ fill: '#ffffff66', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fill: '#ffffff88', fontSize: 12 }}
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} horizontal={false} />
+                <XAxis type="number" tick={{ fill: axisTickColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fill: theme === 'dark' ? '#ffffff88' : '#0A0A0Ccc', fontSize: 12 }}
                   axisLine={false} tickLine={false} width={80} />
                 <Tooltip content={<ChartTooltip color="#FF4C4C" formatter={v => `${v} sessions`} />}
-                  cursor={{ fill: '#ffffff05' }} />
+                  cursor={{ fill: cursorFill }} />
                 <Bar dataKey="count" fill="#FF4C4C" radius={[0,6,6,0]} />
               </BarChart>
             </ResponsiveContainer>

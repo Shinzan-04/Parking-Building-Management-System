@@ -92,9 +92,10 @@ function FormikField({
 
 // ─── Validation Schemas ───────────────────────────────────────────────────────
 
+// Schema xác thực (validation) cho form đăng nhập bằng Yup
 const loginSchema = Yup.object().shape({
-  username: Yup.string().required('Please enter your username'),
-  password: Yup.string().required('Please enter your password'),
+  username: Yup.string().required('Please enter your username'), // Bắt buộc phải nhập username
+  password: Yup.string().required('Please enter your password'), // Bắt buộc phải nhập mật khẩu
 });
 
 // Email is required at registration since the OTP flow needs to send a verification email
@@ -121,6 +122,7 @@ const registerSchema = Yup.object().shape({
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  // Lấy ra các hàm và biến state phục vụ Đăng nhập từ Custom Hook useAuth
   const { user, login, loading, error: apiError, loginWithGoogle } = useAuth();
 
   // Separate loading/error state for the OTP-sending step
@@ -140,9 +142,12 @@ export default function AuthPage() {
       return;
     }
 
+    // Hàm xử lý callback khi Google trả về kết quả đăng nhập trên popup
     function handleCredentialResponse(response: any) {
+      // response.credential chính là idToken do Google cấp
       const idToken = response?.credential;
       if (idToken) {
+        // Gửi idToken này xuống Backend của hệ thống để xác thực và tạo session
         loginWithGoogle(idToken)
           .then((authResponse) => navigate(getPostLoginPath(authResponse.role as AuthRole)))
           .catch(() => {});
@@ -176,21 +181,29 @@ export default function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [rememberMe, setRememberMe]   = useState(false);
 
-  // ─── Formik ───────────────────────────────────────────────────────────────
+  // ─── Formik: Quản lý trạng thái form và validate dữ liệu ─────────────────
   const formik = useFormik({
+    // 1. Khởi tạo các giá trị ban đầu cho form
     initialValues: {
       username: '', fullName: '', email: '',
       phoneNumber: '', password: '', confirmPassword: '',
     },
+    // 2. Chuyển đổi schema validate dựa trên mode (đăng nhập hay đăng ký)
     validationSchema: mode === 'login' ? loginSchema : registerSchema,
+    
+    // 3. Hàm được gọi khi người dùng nhấn Submit và form đã pass validate
     onSubmit: async (values, { setSubmitting }) => {
       if (mode === 'login') {
-        // ── Login ──────────────────────────────────────────────────────
+        // ── Xử lý luồng Đăng nhập (Login) ───────────────────────────────
         try {
+          // Gọi hàm login từ Hook useAuth, truyền lên username và password
           const authResponse = await login({ username: values.username, password: values.password });
+          
+          // Đăng nhập thành công -> Điều hướng dựa trên Role (Quyền) của người dùng
           navigate(getPostLoginPath(authResponse.role as AuthRole));
         } catch {
-          // error already handled by the useAuth hook into apiError
+          // Lỗi gọi API đã được bắt bên trong useAuth và lưu vào biến apiError
+          // Giao diện sẽ tự phản ứng với biến apiError để hiển thị thông báo
         }
       } else {
         // ── Register → send OTP → go to the verify page ─────────────────
@@ -532,13 +545,7 @@ export default function AuthPage() {
             </div>
           </div>
 
-          {/* Terms */}
-          <p className="text-center text-xs text-stone-400 font-medium mt-5 leading-relaxed">
-            By continuing, you agree to PARKING BUILDING's{' '}
-            <a href="#" className="text-[#FF4C4C] hover:underline font-semibold">Terms of Service</a>
-            {' '}and{' '}
-            <a href="#" className="text-[#FF4C4C] hover:underline font-semibold">Privacy Policy</a>
-          </p>
+
         </div>
       </div>
     </div>

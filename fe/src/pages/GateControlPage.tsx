@@ -13,6 +13,7 @@ import {
   Bike,
   Ticket,
   Loader,
+  Printer,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -24,16 +25,34 @@ import { getAllSlots } from '../services/parkingService';
 import type { ParkingSlotDetail } from '../services/parkingService';
 import { searchCheckOut, searchCheckOutByQr, confirmCheckOut, ocrCheckOut } from '../services/checkOutService';
 import type { CheckOutSearchResult } from '../services/checkOutService';
-import { MapPin, X } from 'lucide-react';
-type VehicleType = 'car' | 'motorbike' | 'ev';
+import { MapPin, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { createPayOSPayment, verifyPayment } from '../services/paymentService';
+import { QRCodeSVG } from 'qrcode.react';
+type VehicleType = 'car' | 'motor';
+
+type SlotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
+
+function getStatusLabel(status: string | number): SlotStatus {
+  if (status === 'Available' || status === 0) return 'Available';
+  if (status === 'Reserved' || status === 2) return 'Reserved';
+  if (status === 'Occupied' || status === 3) return 'Occupied';
+  if (status === 'Maintenance' || status === 4) return 'Maintenance';
+  return 'Available';
+}
+
+const STATUS_STYLE: Record<SlotStatus, { bg: string; border: string; text: string; dot: string }> = {
+  Available: { bg: 'rgba(16,185,129,0.18)', border: 'rgba(16,185,129,0.55)', text: '#10b981', dot: '#10b981' },
+  Occupied: { bg: 'rgba(239,68,68,0.18)', border: 'rgba(239,68,68,0.55)', text: '#f87171', dot: '#ef4444' },
+  Reserved: { bg: 'rgba(234, 179, 8, 0.18)', border: 'rgba(234, 179, 8, 0.55)', text: '#facc15', dot: '#eab308' },
+  Maintenance: { bg: 'rgba(100,116,139,0.22)', border: 'rgba(100,116,139,0.5)', text: '#94a3b8', dot: '#64748b' },
+};
 
 
 type ExceptionAction = 'manual-open' | 'incident' | 'lost-ticket';
 
 const VEHICLE_TYPES: { type: VehicleType; label: string; key: string }[] = [
   { type: 'car', label: 'Car', key: '1' },
-  { type: 'motorbike', label: 'Motorbike', key: '2' },
-  { type: 'ev', label: 'EV', key: '3' },
+  { type: 'motor', label: 'Motor', key: '2' },
 ];
 
 const EXCEPTION_COPY: Record<
@@ -73,10 +92,10 @@ function GateStatusBanner({ kind, message }: { kind: 'success' | 'error' | 'info
 
   return (
     <div
-      className="fixed top-8 left-1/2 -translate-x-1/2 z-[100]"
+      className="fixed top-8 inset-x-0 flex justify-center z-[100] pointer-events-none"
       style={{ animation: 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}
     >
-      <div className={`w-80 min-h-[4.5rem] rounded-2xl border p-4 shadow-xl flex items-center gap-3.5 ${tone}`}>
+      <div className={`w-80 min-h-[4.5rem] rounded-2xl border p-4 shadow-xl flex items-center gap-3.5 pointer-events-auto ${tone}`}>
         <Icon size={26} className={`shrink-0 ${kind === 'success' ? 'text-emerald-500' : kind === 'error' ? 'text-red-500' : 'text-blue-500'}`} />
         <span className="text-sm font-bold leading-snug text-left">{message}</span>
       </div>
@@ -181,9 +200,24 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   const [exceptionAction, setExceptionAction] = useState<ExceptionAction | null>(null);
   const [vehicleTypeMap, setVehicleTypeMap] = useState<Record<string, string>>({});
 
+  const [payOsQrCode, setPayOsQrCode] = useState<string | null>(null);
+  const [payOsOrderCode, setPayOsOrderCode] = useState<number | null>(null);
+  const [payOsLoading, setPayOsLoading] = useState(false);
+  const [isPayOsPaid, setIsPayOsPaid] = useState<boolean>(false);
+  const [isCashReceived, setIsCashReceived] = useState<boolean>(false);
+  const [isLostTicketMode, setIsLostTicketMode] = useState<boolean>(false);
+
+  useEffect(() => {
+    setIsCashReceived(false);
+    setIsPayOsPaid(false);
+    setPayOsQrCode(null);
+    setPayOsOrderCode(null);
+  }, [exitSessionData?.sessionId]);
+
   const [slots, setSlots] = useState<ParkingSlotDetail[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [collapsedFloors, setCollapsedFloors] = useState<Record<string, boolean>>({});
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [selectedSlotNumber, setSelectedSlotNumber] = useState<string | null>(null);
   const [checkInResultData, setCheckInResultData] = useState<CheckInResult | null>(null);
@@ -197,7 +231,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
     if (user?.assignedBuildingId && token) {
       setLoadingSlots(true);
       getAllSlots(user.assignedBuildingId)
-        .then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0)))
+        .then(res => setSlots(res))
         .catch(() => { })
         .finally(() => setLoadingSlots(false));
     }
@@ -267,7 +301,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       });
 
       showNotification('success',
-        `✓ Check-in successful: ${result.licensePlate} → Bldg ${result.buildingName}, Flr ${result.floorName}, Slot ${result.slotNumber}`
+        `Check-in successful: ${result.licensePlate} — ${result.buildingName}, Floor ${result.floorName}, Slot ${result.slotNumber}`
       );
       setCheckInResultData(result);
       setEntryLicensePlate('');
@@ -276,7 +310,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       setSelectedSlotId(null);
       setSelectedSlotNumber(null);
       if (user?.assignedBuildingId) {
-        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => { });
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res)).catch(() => { });
       }
       entryInputRef.current?.focus();
     } catch (err) {
@@ -285,7 +319,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   };
 
   const handleSearchExit = async () => {
-    if (!exitQrCode.trim()) {
+    if (!isLostTicketMode && !exitQrCode.trim()) {
       showNotification('error', 'Please scan or enter the QR Code first.');
       return;
     }
@@ -297,7 +331,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
     setExitLoading(true);
     try {
-      const result = await searchCheckOutByQr(exitQrCode, exitLicensePlate, user?.assignedBuildingId);
+      const result = await searchCheckOutByQr(exitQrCode, exitLicensePlate, user?.assignedBuildingId, isLostTicketMode);
       setExitSessionData(result);
       if (result.isPlateMismatch) {
         showNotification('error', 'WARNING: Scanned license plate does NOT match the ticket!');
@@ -317,7 +351,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
     showNotification('success', `Scanned QR Code: ${qrCode}`);
   };
 
-  const handleCollectAndOpen = async () => {
+  const handleCollectAndOpen = async (method: number = 0) => {
     if (!exitSessionData) {
       showNotification('error', 'No active session found for this vehicle.');
       return;
@@ -331,8 +365,8 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       const result = await confirmCheckOut({
         sessionId: exitSessionData.sessionId,
         staffId: user.userId,
-        paymentMethod: 0, // Cash
-        paymentAmount: exitSessionData.estimatedFee,
+        paymentMethod: method, // Default to Cash (0)
+        paymentAmount: exitSessionData.amountDue ?? exitSessionData.estimatedFee,
       });
 
       showNotification('success', `Payment successful: ${result.totalFee.toLocaleString('en-US')} VND. Barrier opened!`);
@@ -341,7 +375,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
       exitInputRef.current?.focus();
 
       if (user.assignedBuildingId) {
-        getAllSlots(user.assignedBuildingId).then(res => setSlots(res.filter(s => s.status === 'Available' || (s.status as unknown as number) === 0))).catch(() => { });
+        getAllSlots(user.assignedBuildingId).then(res => setSlots(res)).catch(() => { });
       }
     } catch (err: any) {
       showNotification('error', err.message || 'Error confirming payment.');
@@ -351,6 +385,52 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
   const openExceptionModal = (action: ExceptionAction) => {
     setExceptionAction(action);
     setExceptionModalOpen(true);
+  };
+
+  useEffect(() => {
+    let intervalId: number;
+    if (payOsOrderCode && exitSessionData) {
+      intervalId = window.setInterval(async () => {
+        try {
+          const status = await verifyPayment(payOsOrderCode);
+          if (status.isPaid) {
+            clearInterval(intervalId);
+            showNotification('success', 'Customer has paid via Bank transfer successfully!');
+            setPayOsQrCode(null);
+            setPayOsOrderCode(null);
+            setIsPayOsPaid(true);
+          }
+        } catch (err) {
+          // ignore error while polling
+        }
+      }, 3000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [payOsOrderCode, exitSessionData]);
+
+  const handleGeneratePayOsQr = async () => {
+    if (!exitSessionData) return;
+    setPayOsLoading(true);
+    try {
+      const res = await createPayOSPayment({
+        amount: exitSessionData.amountDue ?? exitSessionData.estimatedFee,
+        description: `Fee ${exitSessionData.licensePlate}`,
+        parkingSessionId: exitSessionData.sessionId,
+      });
+      if (res.qrCode) {
+        setPayOsQrCode(res.qrCode);
+        setPayOsOrderCode(res.orderCode);
+      } else {
+        showNotification('error', 'PayOS did not return QR Code.');
+      }
+    } catch (err: any) {
+      showNotification('error', err.message || 'Failed to generate PayOS QR');
+    } finally {
+      setPayOsLoading(false);
+    }
   };
 
   const handleEntryCameraResult = async (result: ScanPlateResponse, imageBase64: string) => {
@@ -391,7 +471,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
         return;
       }
 
-      if (activeElement === entryInputRef.current && ['1', '2', '3'].includes(event.key)) {
+      if (activeElement === entryInputRef.current && ['1', '2'].includes(event.key)) {
         const selectedVehicle = VEHICLE_TYPES.find((vehicle) => vehicle.key === event.key);
         if (selectedVehicle) {
           setEntryVehicleType(selectedVehicle.type);
@@ -481,7 +561,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 {/* Manual Entry Block */}
                 <div className="glass-card rounded-[1.5rem] p-6 flex flex-col">
                   <div className="flex items-center gap-2 mb-6 pb-4 border-b admin-border">
-                    <span className="font-mono font-bold text-lg admin-text">{`>_`}</span>
+                    <span className="font-mono font-bold text-lg admin-text">{`>`}</span>
                     <h3 className="text-sm font-bold admin-text uppercase tracking-widest">MANUAL ENTRY</h3>
                   </div>
 
@@ -503,8 +583,12 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                       ref={entryInputRef}
                       type="text"
                       value={entryLicensePlate}
-                      onChange={(event) => setEntryLicensePlate(event.target.value.toUpperCase())}
-                      placeholder="Enter License Plate"
+                      onChange={(event) => {
+                        const val = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                        setEntryLicensePlate(val);
+                      }}
+                      placeholder="e.g 51A12345"
+                      maxLength={12}
                       className="h-14 w-full rounded-xl border admin-border admin-bg-surface pl-12 pr-4 text-lg font-black tracking-widest admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10 shadow-sm"
                     />
                   </div>
@@ -512,9 +596,9 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   {/* Vehicle Type */}
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-[10px] font-bold admin-text-muted uppercase tracking-wider">Vehicle type</label>
-                    <span className="text-[10px] admin-text-faint font-bold">Keyboard: 1 / 2 / 3</span>
+                    <span className="text-[10px] admin-text-faint font-bold">Keyboard: 1 / 2</span>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 mb-6">
+                  <div className="grid grid-cols-2 gap-3 mb-6">
                     {VEHICLE_TYPES.map((vehicle) => {
                       const selected = entryVehicleType === vehicle.type;
                       return (
@@ -565,36 +649,6 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   <p className="mt-3 text-center text-[10px] admin-text-faint font-bold tracking-widest uppercase">Shortcut: F1</p>
                 </div>
 
-                {/* Exception Block */}
-                <div className="glass-card rounded-[1.5rem] p-6">
-                  <h4 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-4">Gate Exception Override Tools</h4>
-                  <div className="flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openExceptionModal('manual-open')}
-                      className="inline-flex items-center justify-start rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-3 text-xs font-bold text-amber-500 transition-colors text-left"
-                    >
-                      <DoorOpen className="mr-3 h-4 w-4" aria-hidden="true" />
-                      Manual Gate Open
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openExceptionModal('incident')}
-                      className="inline-flex items-center justify-start rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-4 py-3 text-xs font-bold text-red-500 transition-colors text-left"
-                    >
-                      <AlertTriangle className="mr-3 h-4 w-4" aria-hidden="true" />
-                      Report Incident
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openExceptionModal('lost-ticket')}
-                      className="inline-flex items-center justify-start rounded-xl border admin-border admin-bg-surface hover:admin-bg-surface/10 px-4 py-3 text-xs font-bold admin-text-muted transition-colors text-left"
-                    >
-                      <TicketX className="mr-3 h-4 w-4" aria-hidden="true" />
-                      Lost Ticket Handling
-                    </button>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -609,7 +663,19 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 <div className="glass-card rounded-[1.5rem] p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-[11px] font-bold admin-text-faint uppercase tracking-widest">MANUAL ENTRY & SEARCH</h3>
-                    <span className="text-[9px] font-bold admin-text-faint uppercase tracking-widest admin-bg-surface border admin-border px-2 py-1 rounded-md">ENABLE MANUAL ENTRY</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsLostTicketMode(!isLostTicketMode);
+                        if (!isLostTicketMode) setExitQrCode('');
+                      }}
+                      className={`text-[9px] font-bold uppercase tracking-widest border px-3 py-1.5 rounded-lg transition-colors ${isLostTicketMode
+                        ? 'bg-[#FF4C4C]/10 border-[#FF4C4C]/30 text-[#FF4C4C]'
+                        : 'admin-bg-surface admin-border admin-text hover:bg-[#FF4C4C]/5 hover:text-[#FF4C4C] hover:border-[#FF4C4C]/30'
+                        }`}
+                    >
+                      {isLostTicketMode ? 'LOST TICKET MODE: ON' : 'LOST TICKET'}
+                    </button>
                   </div>
                   <div className="flex flex-col gap-3">
                     <div className="flex gap-3">
@@ -617,8 +683,9 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         type="text"
                         value={exitQrCode}
                         onChange={(event) => setExitQrCode(event.target.value)}
-                        placeholder="QR Code / Session ID"
-                        className="h-14 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-sm font-medium admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10"
+                        placeholder={isLostTicketMode ? "QR bypassed in Lost Ticket Mode" : "QR Code / Session ID"}
+                        disabled={isLostTicketMode}
+                        className="h-14 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-sm font-medium admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
                     <div className="flex gap-3">
@@ -626,14 +693,18 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         ref={exitInputRef}
                         type="text"
                         value={exitLicensePlate}
-                        onChange={(event) => setExitLicensePlate(event.target.value.toUpperCase())}
-                        placeholder="Enter License Plate"
-                        className="h-14 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-sm font-medium admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10 uppercase"
+                        onChange={(event) => {
+                          const val = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                          setExitLicensePlate(val);
+                        }}
+                        placeholder="e.g 51A12345"
+                        maxLength={12}
+                        className="h-14 min-w-0 flex-1 rounded-xl border admin-border admin-bg-surface px-6 text-sm font-medium admin-text outline-none transition-all focus:border-[#FF4C4C] focus:ring-4 focus:ring-[#FF4C4C]/10"
                       />
                       <button
                         type="button"
                         onClick={handleSearchExit}
-                        disabled={exitLoading || !exitQrCode.trim() || !exitLicensePlate.trim()}
+                        disabled={exitLoading || (!isLostTicketMode && !exitQrCode.trim()) || !exitLicensePlate.trim()}
                         className="h-14 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 text-sm font-bold text-[#fff] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center min-w-[120px]"
                       >
                         {exitLoading ? <Loader className="w-5 h-5 animate-spin" /> : 'Search'}
@@ -656,10 +727,10 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4">
                       <div>
                         <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session ID</p>
-                        <p className="text-sm font-bold admin-text font-mono">{exitSessionData.sessionId.slice(0, 8).toUpperCase()}</p>
+                        <p className="text-sm font-bold admin-text font-mono">{exitSessionData.sessionCode}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session Type</p>
+                        <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Vehicle Type</p>
                         <p className="text-sm font-bold admin-text capitalize">{exitSessionData.vehicleTypeName}</p>
                       </div>
                       <div>
@@ -692,7 +763,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         <p className="text-sm font-bold admin-text-faint">---</p>
                       </div>
                       <div>
-                        <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session Type</p>
+                        <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Vehicle Type</p>
                         <p className="text-sm font-bold admin-text-faint">---</p>
                       </div>
                       <div>
@@ -722,37 +793,48 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 {/* History Log Block */}
                 <div className="glass-card rounded-[1.5rem] p-6">
                   <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-4">HISTORY LOG</h3>
-                  {exitSessionData?.feeBreakdown?.surchargeLogs && exitSessionData.feeBreakdown.surchargeLogs.length > 0 ? (
-                    <div className="space-y-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
-                      {exitSessionData.feeBreakdown.surchargeLogs.map((log, index) => {
-                        const lowerName = log.name.toLowerCase();
-                        const isEarly = lowerName.includes('early') || lowerName.includes('đến sớm');
-                        const isOverdue = lowerName.includes('late') || lowerName.includes('overdue');
-                        
-                        let textColorClass = 'admin-text';
-                        if (isEarly) textColorClass = 'text-[#b45309] dark:text-orange-500';
-                        else if (isOverdue) textColorClass = 'text-[#FF4C4C]';
+                  {(() => {
+                    const filteredLogs = exitSessionData?.feeBreakdown?.surchargeLogs?.filter(log => {
+                      const lowerName = log.name.toLowerCase();
+                      return lowerName.includes('overdue') || lowerName.includes('late') || lowerName.includes('early') || lowerName.includes('đến sớm');
+                    }) || [];
 
-                        return (
-                          <div key={index} className="flex justify-between items-start pb-3 border-b border-dashed admin-border last:border-0">
-                            <div>
-                              <div className={`text-xs font-bold mb-1 ${textColorClass}`}>{log.name}</div>
-                              <div className="text-[9px] admin-text-faint font-medium">
-                                {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                    if (filteredLogs.length > 0) {
+                      return (
+                        <div className="space-y-4 max-h-[180px] overflow-y-auto pr-2 scrollbar-thin">
+                          {filteredLogs.map((log, index) => {
+                            const lowerName = log.name.toLowerCase();
+                            const isEarly = lowerName.includes('early') || lowerName.includes('đến sớm');
+                            const isOverdue = lowerName.includes('late') || lowerName.includes('overdue');
+
+                            let textColorClass = 'admin-text';
+                            if (isEarly) textColorClass = 'text-[#b45309] dark:text-orange-500';
+                            else if (isOverdue) textColorClass = 'text-[#FF4C4C]';
+
+                            return (
+                              <div key={index} className="flex justify-between items-start pb-3 border-b border-dashed admin-border last:border-0">
+                                <div>
+                                  <div className={`text-xs font-bold mb-1 ${textColorClass}`}>{log.name}</div>
+                                  <div className="text-[9px] admin-text-faint font-medium">
+                                    {new Date(log.timestamp).toLocaleDateString('vi-VN')} {new Date(log.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                </div>
+                                <div className="text-xs font-black admin-text">
+                                  + {log.amount.toLocaleString('vi-VN')} ₫
+                                </div>
                               </div>
-                            </div>
-                            <div className="text-xs font-black admin-text">
-                              + {log.amount.toLocaleString('vi-VN')} ₫
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <div className="border admin-border admin-bg-surface rounded-xl py-10 flex items-center justify-center">
-                      <span className="text-xs font-medium admin-text-faint">No history logs available</span>
-                    </div>
-                  )}
+                            );
+                          })}
+                        </div>
+                      );
+                    } else {
+                      return (
+                        <div className="border admin-border admin-bg-surface rounded-xl py-10 flex items-center justify-center">
+                          <span className="text-xs font-medium admin-text-faint">No history logs available</span>
+                        </div>
+                      );
+                    }
+                  })()}
                 </div>
               </div>
 
@@ -829,29 +911,40 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
                 {/* Payment Block */}
                 <div className="glass-card rounded-[1.5rem] p-6 flex flex-col flex-1">
-                  <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-6">AMOUNT DUE</h3>
+                  <h3 className="text-[11px] font-bold admin-text-muted uppercase tracking-widest mb-6">BALANCE DUE</h3>
 
                   <div className="text-5xl font-black admin-text-faint mb-8 tracking-tighter flex items-start gap-1">
                     <span className={exitSessionData ? "admin-text" : ""}>
-                      {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('en-US') : '0'}
+                      {exitSessionData ? (exitSessionData.amountDue ?? exitSessionData.estimatedFee).toLocaleString('en-US') : '0'}
                     </span>
                     <span className="text-3xl admin-text-faint mt-1">VND</span>
                   </div>
 
                   <div className="space-y-4 mb-8">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-bold admin-text-muted">Base Fee</span>
-                      <span className="font-bold admin-text-muted">
-                        {exitSessionData ? (exitSessionData.estimatedFee - (exitSessionData.penaltyFee || 0) - (exitSessionData.feeBreakdown?.dayPassTotal || 0) - (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-bold admin-text-muted">Overtime Fee</span>
-                      <span className="font-bold admin-text-muted">
-                        {exitSessionData ? ((exitSessionData.feeBreakdown?.dayPassTotal || 0) + (exitSessionData.feeBreakdown?.nightPassTotal || 0)).toLocaleString('en-US') : '0'} VND
-                      </span>
-                    </div>
-                    {exitSessionData?.penaltyFee && exitSessionData.penaltyFee > 0 && (
+                    {(() => {
+                      const baseFeeVal = exitSessionData?.prePaidAmount || 0;
+                      const dynamicFeeVal = exitSessionData ? ((exitSessionData.estimatedFee || 0) - (exitSessionData.penaltyFee || 0) - baseFeeVal) : 0;
+                      const isReservation = baseFeeVal > 0;
+                      return (
+                        <>
+                          {isReservation && (
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="font-bold admin-text-muted">Base Fee</span>
+                              <span className="font-bold admin-text-muted">
+                                {baseFeeVal.toLocaleString('en-US')} VND
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between items-center text-sm">
+                            <span className="font-bold admin-text-muted">{isReservation ? 'Overtime Fee' : 'Parking Fee'}</span>
+                            <span className="font-bold admin-text-muted">
+                              {Math.max(0, dynamicFeeVal).toLocaleString('en-US')} VND
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                    {!!exitSessionData?.penaltyFee && exitSessionData.penaltyFee > 0 && (
                       <div className="flex justify-between items-center text-sm">
                         <span className="font-bold text-[#FF4C4C]">Penalty Fee (Exception)</span>
                         <span className="font-bold text-[#FF4C4C]">
@@ -859,30 +952,75 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         </span>
                       </div>
                     )}
-                    <div className="flex justify-between items-center pt-5 border-t admin-border">
-                      <span className="font-black admin-text uppercase tracking-widest text-[11px]">BALANCE DUE</span>
-                      <span className="font-black admin-text text-lg">
-                        {exitSessionData ? exitSessionData.estimatedFee.toLocaleString('en-US') : '0'} VND
-                      </span>
-                    </div>
                   </div>
 
                   <div className="mt-auto space-y-3">
+                    {payOsQrCode && (
+                      <div className="flex flex-col items-center justify-center p-4 border admin-border rounded-xl mb-4 bg-white dark:bg-[#18181B]">
+                        <p className="text-[10px] font-bold text-[#FF4C4C] mb-3 uppercase tracking-widest text-center">Scan to Pay via Bank</p>
+                        <div className="bg-white p-2 rounded-xl">
+                          <QRCodeSVG value={payOsQrCode} size={160} level="M" includeMargin={true} />
+                        </div>
+                        <p className="text-xs text-center mt-3 font-medium admin-text-muted">Waiting for payment...</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPayOsQrCode(null);
+                            setPayOsOrderCode(null);
+                          }}
+                          className="mt-3 text-[10px] font-bold text-red-500 hover:underline tracking-widest uppercase"
+                        >
+                          Cancel QR
+                        </button>
+                      </div>
+                    )}
+
+                    {!payOsQrCode && !isPayOsPaid && (
+                      <button
+                        type="button"
+                        onClick={handleGeneratePayOsQr}
+                        disabled={!exitSessionData || exitSessionData.estimatedFee <= 0 || payOsLoading}
+                        className="w-full h-14 flex items-center justify-center gap-2 rounded-xl border admin-border admin-bg-surface hover:admin-bg-surface/10 disabled:opacity-40 text-sm font-bold text-[#FF4C4C] transition-colors shadow-sm"
+                      >
+                        {payOsLoading ? <Loader className="w-5 h-5 animate-spin" /> : <QrCode className="w-5 h-5" />}
+                        Generate QR (PayOS)
+                      </button>
+                    )}
+
+                    {!payOsQrCode && !isPayOsPaid && exitSessionData && exitSessionData.estimatedFee > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setIsCashReceived(!isCashReceived)}
+                        className={`w-full h-12 mt-2 mb-2 rounded-xl border flex items-center justify-center gap-2 text-sm font-bold transition-all ${isCashReceived
+                          ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-stone-50 dark:bg-white/5 border admin-border admin-text-muted hover:admin-bg-surface/10'
+                          }`}
+                      >
+                        {isCashReceived ? <CheckCircle2 className="w-5 h-5" /> : <div className="w-5 h-5 rounded-full border-2 border-current opacity-50" />}
+                        {isCashReceived ? 'Cash Received Confirmed' : 'Mark as Cash Received'}
+                      </button>
+                    )}
+
+                    {isPayOsPaid && (
+                      <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 rounded-xl p-3 mb-2 text-center text-xs font-bold flex flex-col items-center justify-center gap-1">
+                        <CheckCircle2 className="w-5 h-5" />
+                        <span>Payment Received via PayOS</span>
+                      </div>
+                    )}
+
                     <button
                       type="button"
-                      onClick={handleCollectAndOpen}
-                      disabled={!exitSessionData}
+                      onClick={() => handleCollectAndOpen(isPayOsPaid ? 1 : 0)}
+                      disabled={
+                        !exitSessionData ||
+                        payOsLoading ||
+                        !!payOsQrCode ||
+                        (!isPayOsPaid && exitSessionData.estimatedFee > 0 && !isCashReceived)
+                      }
                       className="w-full flex items-center justify-center gap-2 h-14 rounded-xl bg-[#FF4C4C] hover:bg-[#E13B3B] disabled:opacity-40 text-sm font-bold text-white transition-colors shadow-sm"
                     >
                       <CheckCircle2 className="w-5 h-5" />
-                      Process & Release
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openExceptionModal('manual-open')}
-                      className="w-full h-14 rounded-xl border admin-border admin-bg-surface hover:admin-bg-surface/10 text-xs font-bold admin-text-muted uppercase tracking-widest transition-colors"
-                    >
-                      MANUAL OVERRIDE
+                      {exitSessionData?.estimatedFee === 0 ? 'Process & Release' : (isPayOsPaid ? 'Process & Release (PayOS)' : 'Process & Release (Cash)')}
                     </button>
                   </div>
                 </div>
@@ -910,8 +1048,8 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
           <div className="admin-bg-surface rounded-2xl w-[900px] max-w-[90vw] max-h-[90vh] flex flex-col shadow-2xl overflow-hidden border admin-border">
             <div className="p-5 border-b flex justify-between items-center admin-bg-base">
               <div>
-                <h3 className="text-xl font-bold admin-text">Available Slots Map</h3>
-                <p className="text-xs admin-text-muted mt-1">Manually select a slot (only showing available slots)</p>
+                <h3 className="text-xl font-bold admin-text">Slots Map</h3>
+                <p className="text-xs admin-text-muted mt-1">Manually select an available slot</p>
               </div>
               <button
                 onClick={() => setShowMap(false)}
@@ -920,34 +1058,227 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                 <X size={20} className="admin-text-muted" />
               </button>
             </div>
+
             <div className="p-6 overflow-auto admin-bg-base flex-1">
               {loadingSlots ? (
                 <div className="py-12 text-center text-sm font-bold admin-text-faint">Loading map...</div>
               ) : (
-                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-                  {slots.map(s => {
-                    const isSelected = s.id === selectedSlotId;
+                <div className="flex flex-col gap-6">
+                  {Object.entries(
+                    slots.reduce((acc, slot) => {
+                      const floor = slot.floorName || 'Unknown Floor';
+                      if (!acc[floor]) acc[floor] = [];
+                      acc[floor].push(slot);
+                      return acc;
+                    }, {} as Record<string, typeof slots>)
+                  ).map(([floorName, floorSlots]) => {
+                    const floorCounts = {
+                      available: floorSlots.filter(s => getStatusLabel(s.status) === 'Available').length,
+                      occupied: floorSlots.filter(s => getStatusLabel(s.status) === 'Occupied').length,
+                      reserved: floorSlots.filter(s => getStatusLabel(s.status) === 'Reserved').length,
+                      maintenance: floorSlots.filter(s => getStatusLabel(s.status) === 'Maintenance').length,
+                    };
+                    const isCollapsed = !!collapsedFloors[floorName];
+                    const toggleCollapse = () => setCollapsedFloors(prev => ({ ...prev, [floorName]: !isCollapsed }));
+                    
+                    const sortedFloorSlots = [...floorSlots].sort((a, b) => a.slotNumber.localeCompare(b.slotNumber, undefined, { numeric: true, sensitivity: 'base' }));
+                    const COLS = 8;
+                    const rows: typeof slots[] = [];
+                    for (let i = 0; i < sortedFloorSlots.length; i += COLS) {
+                      rows.push(sortedFloorSlots.slice(i, i + COLS));
+                    }
+
                     return (
-                      <button
-                        key={s.id}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedSlotId(null);
-                            setSelectedSlotNumber(null);
-                          } else {
-                            setSelectedSlotId(s.id);
-                            setSelectedSlotNumber(s.slotNumber);
-                            setShowMap(false);
-                          }
-                        }}
-                        className={`h-12 flex flex-col items-center justify-center rounded-xl border text-[10px] font-bold transition-all ${isSelected
-                          ? 'bg-[#FF4C4C] border-[#FF4C4C] text-[#fff] shadow-md'
-                          : 'admin-bg-base admin-border admin-text-muted hover:border-[#FF4C4C] hover:text-[#FF4C4C]'
-                          }`}
-                      >
-                        <Car size={12} className="mb-0.5" />
-                        {s.slotNumber}
-                      </button>
+                      <div key={floorName} className="admin-bg-surface/50 border admin-border rounded-xl p-5">
+                        <div
+                          className="flex items-center justify-between mb-4 border-b admin-border pb-3 cursor-pointer select-none group"
+                          onClick={toggleCollapse}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[#FF4C4C]/10 flex items-center justify-center group-hover:bg-[#FF4C4C]/20 transition-colors">
+                              <span className="text-[#FF4C4C] font-black text-sm">P</span>
+                            </div>
+                            <h4 className="font-bold admin-text text-lg">
+                              {floorName.toString().toLowerCase().includes('floor') || floorName.toString().toLowerCase().includes('tầng')
+                                ? floorName
+                                : `Floor ${floorName}`}
+                            </h4>
+                            <div className="flex items-center gap-4 ml-4">
+                              {(['Available', 'Occupied', 'Reserved', 'Maintenance'] as SlotStatus[]).map(status => {
+                                const count = floorCounts[status.toLowerCase() as keyof typeof floorCounts];
+                                return (
+                                  <div key={status} className="flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: STATUS_STYLE[status].dot }} />
+                                    <span className="text-[11px] font-bold text-stone-500 dark:text-stone-400">{status}</span>
+                                    <span className="text-[11px] font-bold text-stone-400 dark:text-stone-500">{count}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-bold admin-text-faint">{floorSlots.length} slots</span>
+                            <div className="text-stone-400 group-hover:text-stone-600 dark:group-hover:text-stone-300 transition-colors">
+                              {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                            </div>
+                          </div>
+                        </div>
+
+                        {!isCollapsed && (
+                          <div className="animate-fade-in overflow-hidden pb-2">
+                            <div className="w-full">
+                              {/* Column Headers */}
+                              <div
+                                style={{
+                                  display: 'grid',
+                                  gap: 8,
+                                  marginBottom: 6,
+                                  gridTemplateColumns: `24px repeat(${Math.min(COLS, sortedFloorSlots.length)}, minmax(0, 1fr))`,
+                                }}
+                              >
+                                <div />
+                                {Array.from({ length: Math.min(COLS, sortedFloorSlots.length) }, (_, c) => (
+                                  <div
+                                    key={c}
+                                    style={{
+                                      textAlign: 'center',
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: 'var(--admin-text-faint)',
+                                    }}
+                                  >
+                                    {String.fromCharCode(65 + c)}
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Rows */}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {rows.map((row, rowIdx) => (
+                                  <div
+                                    key={rowIdx}
+                                    style={{
+                                      display: 'grid',
+                                      gap: 8,
+                                      alignItems: 'center',
+                                      gridTemplateColumns: `24px repeat(${COLS}, minmax(0, 1fr))`,
+                                    }}
+                                  >
+                                    <div
+                                      style={{
+                                        textAlign: 'center',
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        color: 'var(--admin-text-faint)',
+                                      }}
+                                    >
+                                      {rowIdx + 1}
+                                    </div>
+                                    {row.map(s => {
+                              const isSelected = s.id === selectedSlotId;
+                              const statusKey = getStatusLabel(s.status);
+                              const style = STATUS_STYLE[statusKey];
+                              const isAvailable = statusKey === 'Available';
+
+                              return (
+                                <button
+                                  key={s.id}
+                                  disabled={!isAvailable && !isSelected}
+                                  onClick={() => {
+                                    if (isSelected) {
+                                      setSelectedSlotId(null);
+                                      setSelectedSlotNumber(null);
+                                    } else if (isAvailable) {
+                                      setSelectedSlotId(s.id);
+                                      setSelectedSlotNumber(s.slotNumber);
+                                      setShowMap(false);
+                                    }
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    minWidth: 0,
+                                    minHeight: 64,
+                                    borderRadius: 8,
+                                    border: isSelected ? '1.5px solid #ef4444' : `1.5px solid ${style.border}`,
+                                    background: isSelected ? 'rgba(239,68,68,0.18)' : style.bg,
+                                    padding: '5px 4px',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 2,
+                                    position: 'relative',
+                                    boxSizing: 'border-box',
+                                    textAlign: 'center',
+                                    transition: 'all 0.15s',
+                                    cursor: isAvailable ? 'pointer' : 'not-allowed',
+                                    opacity: isAvailable || isSelected ? 1 : 0.6
+                                  }}
+                                  onMouseEnter={e => {
+                                    if (isAvailable) {
+                                      (e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)';
+                                      (e.currentTarget as HTMLButtonElement).style.boxShadow = isSelected ? '0 6px 20px rgba(239,68,68,0.3)' : `0 6px 20px ${style.dot}66`;
+                                    }
+                                  }}
+                                  onMouseLeave={e => {
+                                    if (isAvailable) {
+                                      (e.currentTarget as HTMLButtonElement).style.transform = '';
+                                      (e.currentTarget as HTMLButtonElement).style.boxShadow = '';
+                                    }
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, width: '100%' }}>
+                                    <span className={isSelected ? 'text-[#ef4444]' : 'text-stone-700 dark:text-stone-300'} style={{ opacity: 0.85, display: 'flex', transform: 'scale(1.1)' }}>
+                                      {s.vehicleTypeName?.toLowerCase().includes('motor') ? <Bike size={12} /> : <Car size={12} />}
+                                    </span>
+                                    <span style={{
+                                      fontFamily: 'monospace',
+                                      fontWeight: 800,
+                                      fontSize: 12,
+                                      color: isSelected ? '#ef4444' : '#0d1a14',
+                                      letterSpacing: '0.01em',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      textAlign: 'center',
+                                    }} className="dark:text-white">
+                                      {s.slotNumber}
+                                    </span>
+                                  </div>
+
+                                  <div className="dark:text-white/70" style={{
+                                    fontSize: 9,
+                                    fontWeight: 600,
+                                    color: '#0d1a14',
+                                    opacity: 0.75,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    textAlign: 'center',
+                                    width: '100%',
+                                  }}>
+                                    {s.vehicleTypeName ?? '---'}
+                                  </div>
+
+                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 1, width: '100%' }}>
+                                    <span style={{
+                                      display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                                      background: isSelected ? '#ef4444' : style.dot, flexShrink: 0,
+                                    }} />
+                                    <span style={{ fontSize: 9, color: isSelected ? '#ef4444' : style.text, fontWeight: 700 }}>
+                                      {isSelected ? 'Selected' : statusKey}
+                                    </span>
+                                  </div>
+                                </button>
+                              )
+                            })}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     )
                   })}
                 </div>
@@ -959,41 +1290,97 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
 
       {/* Check-in Result Modal (Ticket / QR) */}
       {checkInResultData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="admin-bg-surface rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden border admin-border">
-            <div className="p-6 flex flex-col items-center">
-              <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle2 className="w-8 h-8 text-emerald-600" />
-              </div>
-              <h3 className="text-xl font-bold admin-text mb-1">E-Ticket</h3>
-              <p className="text-xs admin-text-muted font-medium mb-6">Session ID: <span className="font-mono text-[#FF4C4C] font-bold">{checkInResultData.sessionCode}</span></p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 backdrop-blur-sm p-4">
+          <style>{`
+            .ticket-mask {
+              --r: 20px;
+              -webkit-mask-image: 
+                radial-gradient(circle at 0 0, transparent calc(var(--r) - 0.5px), black var(--r)),
+                radial-gradient(circle at 100% 0, transparent calc(var(--r) - 0.5px), black var(--r)),
+                radial-gradient(circle at 0 100%, transparent calc(var(--r) - 0.5px), black var(--r)),
+                radial-gradient(circle at 100% 100%, transparent calc(var(--r) - 0.5px), black var(--r));
+              -webkit-mask-size: 51% 51%;
+              -webkit-mask-position: top left, top right, bottom left, bottom right;
+              -webkit-mask-repeat: no-repeat;
+            }
+          `}</style>
 
-              {checkInResultData.sessionQrCodeBase64 && (
-                <div className="admin-bg-surface rounded-2xl p-4 inline-block border admin-border mb-6 shadow-sm">
-                  <img
-                    src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
-                    alt="Session QR"
-                    className="w-48 h-48 mx-auto object-contain"
-                  />
+          <div className="relative w-full max-w-[320px] animate-fade-in-up flex flex-col items-center">
+
+            <div className="w-full flex flex-col drop-shadow-[0_15px_30px_rgba(0,0,0,0.2)]">
+
+              {/* TOP TICKET */}
+              <div className="ticket-mask w-full pt-10 pb-8 px-6 flex flex-col items-center relative z-10 bg-white">
+
+                {/* Red Border */}
+                <div className="absolute inset-[8px] border-[2.5px] border-[#ef4444] rounded-[10px] pointer-events-none"></div>
+
+                <div className="z-10 flex flex-col items-center w-full justify-center px-4">
+                  <h3 className="text-[#ef4444] font-black text-[3.25rem] uppercase tracking-tighter leading-none mb-1">Park</h3>
+                  <h3 className="text-[#ef4444] font-black text-[3.25rem] uppercase tracking-widest leading-none mb-8">Ticket</h3>
+
+                  <div className="w-full flex justify-between items-center mb-6">
+                    <div className="flex flex-col">
+                      <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest">Plate</span>
+                      <span className="text-xl font-black text-stone-800">{checkInResultData.licensePlate}</span>
+                    </div>
+                    <div className="flex flex-col text-right">
+                      <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest">Type</span>
+                      <span className="text-lg font-bold text-stone-700">{checkInResultData.vehicleTypeName}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center w-full">
+                    <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest">Location</span>
+                    <span className="text-2xl font-black text-stone-800">Floor {checkInResultData.floorName}</span>
+                    <span className="text-sm font-bold text-stone-600">{checkInResultData.buildingName}</span>
+                  </div>
                 </div>
-              )}
+              </div>
 
-              <div className="w-full space-y-3 admin-bg-base p-4 rounded-xl border admin-border">
-                <p className="text-sm flex justify-between"><span className="admin-text-muted">License Plate:</span> <span className="font-bold admin-text font-mono text-lg">{checkInResultData.licensePlate}</span></p>
-                <p className="text-sm flex justify-between"><span className="admin-text-muted">Vehicle Type:</span> <span className="font-bold admin-text">{checkInResultData.vehicleTypeName}</span></p>
-                <p className="text-sm flex justify-between"><span className="admin-text-muted">Location:</span> <span className="font-bold text-[#FF4C4C]">Floor {checkInResultData.floorName}, Slot {checkInResultData.slotNumber}</span></p>
-                <p className="text-sm flex justify-between"><span className="admin-text-muted">Building:</span> <span className="font-bold admin-text">{checkInResultData.buildingName}</span></p>
+              {/* DIVIDER */}
+              <div className="w-full h-0 relative flex justify-center items-center z-20">
+                <div className="w-full border-t-[5px] border-dotted border-[#ef4444]/40 mx-[24px]"></div>
+              </div>
+
+              {/* BOTTOM TICKET */}
+              <div className="ticket-mask w-full pt-6 pb-8 px-6 flex flex-col items-center relative z-10 bg-white">
+
+                {/* Red Border */}
+                <div className="absolute inset-[8px] border-[2.5px] border-[#ef4444] rounded-[10px] pointer-events-none"></div>
+
+                <div className="z-10 flex flex-row w-full justify-between items-center h-full px-2 mt-2">
+                  {checkInResultData.sessionQrCodeBase64 && (
+                    <img
+                      src={`data:image/png;base64,${checkInResultData.sessionQrCodeBase64}`}
+                      alt="Session QR"
+                      className="w-[160px] h-[160px] object-contain"
+                    />
+                  )}
+                  <div className="flex flex-col text-right">
+                    <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest mb-0.5">Slot</span>
+                    <span className="text-3xl font-black text-[#ef4444] tracking-tighter leading-none">{checkInResultData.slotNumber}</span>
+                    <span className="text-[9px] font-bold text-[#ef4444]/60 uppercase tracking-widest mt-2">ID: {checkInResultData.sessionCode}</span>
+                  </div>
+                </div>
+
+                <div className="z-10 mt-3 text-center px-4 w-full">
+                  <span className="text-[8.5px] font-bold text-[#ef4444]/40 uppercase tracking-widest leading-snug block">
+                    Please keep this ticket<br />for checkout
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="p-4 border-t flex justify-end gap-3 admin-bg-base">
-              <button
-                onClick={() => setCheckInResultData(null)}
-                className="h-10 px-6 rounded-xl font-bold text-sm bg-[#FF4C4C] hover:bg-[#E13B3B] text-white transition-colors w-full"
-              >
-                Print & Close
-              </button>
-            </div>
+            {/* Print & Close Button */}
+            <button
+              onClick={() => setCheckInResultData(null)}
+              className="mt-8 px-8 py-3.5 rounded-full font-black text-sm bg-white hover:bg-stone-100 text-[#ef4444] shadow-xl transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+            >
+              <Printer size={16} />
+              Print & Close
+            </button>
+
           </div>
         </div>
       )}

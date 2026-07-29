@@ -207,7 +207,7 @@ export default function ForgotPasswordPage() {
   // ── Bước 1: Gửi OTP tới email ──────────────────────────────────────────────
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) { setError('Vui lòng nhập địa chỉ email.'); return; }
+    if (!email.trim()) { setError('Please enter your email address.'); return; }
     setLoading(true); clearError();
     try {
       const { sendOtpApi } = await import('../services/authService');
@@ -216,7 +216,7 @@ export default function ForgotPasswordPage() {
       setResendKey((k) => k + 1);
       setStep('enter_otp');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gửi OTP thất bại. Vui lòng thử lại.');
+      setError(err instanceof Error ? err.message : 'Failed to send OTP. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -233,7 +233,7 @@ export default function ForgotPasswordPage() {
       setCanResend(false);
       setResendKey((k) => k + 1);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gửi lại OTP thất bại.');
+      setError(err instanceof Error ? err.message : 'Failed to resend OTP.');
     } finally {
       setLoading(false);
     }
@@ -243,7 +243,7 @@ export default function ForgotPasswordPage() {
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = otp.join('');
-    if (code.length < OTP_LENGTH) { setError('Vui lòng nhập đủ 6 chữ số OTP.'); return; }
+    if (code.length < OTP_LENGTH) { setError('Please enter all 6 digits of the OTP.'); return; }
     // Chuyển sang bước đặt mật khẩu mới (không cần gọi API ở đây,
     // OTP sẽ được xác thực khi gọi resetPasswordApi cùng với mật khẩu mới)
     clearError();
@@ -253,8 +253,8 @@ export default function ForgotPasswordPage() {
   // ── Bước 3: Đặt mật khẩu mới ───────────────────────────────────────────────
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPw.length < 6)    { setError('Mật khẩu mới phải có ít nhất 6 ký tự.'); return; }
-    if (newPw !== confirmPw) { setError('Mật khẩu xác nhận không khớp.'); return; }
+    if (newPw.length < 6)    { setError('New password must be at least 6 characters.'); return; }
+    if (newPw !== confirmPw) { setError('Passwords do not match.'); return; }
 
     setLoading(true); clearError();
     try {
@@ -263,7 +263,7 @@ export default function ForgotPasswordPage() {
       setStep('done');
       setTimeout(() => navigate('/auth', { replace: true }), 2500);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Đặt lại mật khẩu thất bại. Mã OTP có thể đã hết hạn.');
+      setError(err instanceof Error ? err.message : 'Failed to reset password. The OTP code may have expired.');
       // Nếu OTP hết hạn → quay về bước nhập OTP
       if ((err as Error).message?.toLowerCase().includes('otp')) {
         setTimeout(() => setStep('enter_otp'), 1500);
@@ -276,23 +276,23 @@ export default function ForgotPasswordPage() {
   // ─── Tiêu đề theo từng bước ─────────────────────────────────────────────────
   const stepMeta: Record<Step, { title: string; sub: string; icon: React.ReactNode }> = {
     send_email:   {
-      title: 'Quên mật khẩu',
-      sub:   'Nhập email đã đăng ký để nhận mã OTP',
+      title: 'Forgot Password',
+      sub:   'Enter your registered email to receive an OTP code',
       icon:  <Mail className="w-12 h-12 text-[#FF4C4C]" />,
     },
     enter_otp:    {
-      title: 'Nhập mã xác thực',
-      sub:   `Mã 6 chữ số đã được gửi tới ${email}`,
+      title: 'Enter Verification Code',
+      sub:   `A 6-digit code has been sent to ${email}`,
       icon:  <KeyRound className="w-12 h-12 text-[#FF4C4C]" />,
     },
     new_password: {
-      title: 'Mật khẩu mới',
-      sub:   'Đặt mật khẩu mới cho tài khoản của bạn',
+      title: 'New Password',
+      sub:   'Set a new password for your account',
       icon:  <Lock className="w-12 h-12 text-[#FF4C4C]" />,
     },
     done: {
-      title: 'Hoàn tất!',
-      sub:   'Mật khẩu đã được đổi thành công.',
+      title: 'Done!',
+      sub:   'Your password has been changed successfully.',
       icon:  <CheckCircle2 className="w-12 h-12 text-[#FF4C4C]" />,
     },
   };
@@ -322,16 +322,16 @@ export default function ForgotPasswordPage() {
           </div>
 
           <h1 className="text-5xl font-extrabold mb-4 leading-tight text-stone-900">
-            Lấy lại
-            <span className="block text-[#FF4C4C] mt-2">quyền truy cập</span>
+            Regain
+            <span className="block text-[#FF4C4C] mt-2">access</span>
           </h1>
           <p className="text-stone-500 text-lg font-medium max-w-md leading-relaxed">
-            Chỉ cần email đã đăng ký, bạn có thể đặt lại mật khẩu trong <strong className="text-[#FF4C4C]">vài bước đơn giản</strong>.
+            With just your registered email, you can reset your password in <strong className="text-[#FF4C4C]">a few simple steps</strong>.
           </p>
 
           {/* Progress steps */}
           <div className="mt-12 flex items-center gap-3">
-            {(['Nhập email', 'Xác thực OTP', 'Mật khẩu mới', 'Hoàn tất'] as const).map((label, idx) => (
+            {(['Enter Email', 'Verify OTP', 'New Password', 'Done'] as const).map((label, idx) => (
               <div key={label} className="flex items-center gap-3">
                 <div className={`flex flex-col items-center gap-1 transition-all duration-300`}>
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300
@@ -361,7 +361,7 @@ export default function ForgotPasswordPage() {
                      hover:text-[#FF4C4C] hover:bg-gray-100 font-bold transition-all px-3.5 py-2 rounded-xl border border-gray-200/40 bg-white"
         >
           <ArrowLeft className="w-4 h-4" />
-          Quay lại đăng nhập
+          Back to Login
         </Link>
 
         <div className="w-full max-w-md">
@@ -396,7 +396,7 @@ export default function ForgotPasswordPage() {
               <form onSubmit={handleSendEmail} className="space-y-5">
                 <div>
                   <label htmlFor="forgot-email" className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">
-                    Địa chỉ Email
+                    Email Address
                   </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
@@ -414,7 +414,7 @@ export default function ForgotPasswordPage() {
                     />
                   </div>
                 </div>
-                <SubmitButton loading={loading} label="Gửi mã OTP" loadingLabel="Đang gửi…" />
+                <SubmitButton loading={loading} label="Send OTP Code" loadingLabel="Sending…" />
               </form>
             )}
 
@@ -429,7 +429,7 @@ export default function ForgotPasswordPage() {
                     hasError={!!error}
                   />
                   <p className="text-center text-xs text-stone-450 font-medium">
-                    Nhập thủ công hoặc dán (Ctrl+V) mã từ email
+                    Type manually or paste (Ctrl+V) the code from your email
                   </p>
                 </div>
 
@@ -437,7 +437,7 @@ export default function ForgotPasswordPage() {
                 <div className="flex flex-col items-center gap-2">
                   {!canResend ? (
                     <>
-                      <p className="text-xs text-stone-400 font-semibold">Gửi lại mã sau</p>
+                      <p className="text-xs text-stone-400 font-semibold">Resend code in</p>
                       <CountdownTimer
                         key={resendKey}
                         seconds={RESEND_DELAY}
@@ -453,27 +453,27 @@ export default function ForgotPasswordPage() {
                                  font-extrabold transition-colors disabled:opacity-50"
                     >
                       <RefreshCw className="w-4 h-4" />
-                      Gửi lại mã OTP
+                      Resend OTP Code
                     </button>
                   )}
                 </div>
 
                 <SubmitButton
                   loading={loading}
-                  label="Xác nhận mã OTP"
-                  loadingLabel="Đang kiểm tra…"
+                  label="Confirm OTP Code"
+                  loadingLabel="Checking…"
                   disabled={otp.join('').length < OTP_LENGTH}
                 />
 
                 {/* Đổi email */}
                 <p className="text-center text-xs text-stone-550 font-semibold">
-                  Email không đúng?{' '}
+                  Wrong email?{' '}
                   <button
                     type="button"
                     onClick={() => { setStep('send_email'); setOtp(Array(OTP_LENGTH).fill('')); clearError(); }}
                     className="text-[#FF4C4C] hover:underline font-extrabold"
                   >
-                    Thay đổi email
+                    Change email
                   </button>
                 </p>
               </form>
@@ -484,19 +484,19 @@ export default function ForgotPasswordPage() {
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <PasswordInput
                   id="new-password"
-                  label="Mật khẩu mới"
+                  label="New Password"
                   value={newPw}
                   onChange={(v) => { setNewPw(v); clearError(); }}
-                  placeholder="Tối thiểu 6 ký tự"
+                  placeholder="At least 6 characters"
                   show={showNewPw}
                   onToggle={() => setShowNewPw((v) => !v)}
                 />
                 <PasswordInput
                   id="confirm-password"
-                  label="Xác nhận mật khẩu"
+                  label="Confirm Password"
                   value={confirmPw}
                   onChange={(v) => { setConfirmPw(v); clearError(); }}
-                  placeholder="Nhập lại mật khẩu mới"
+                  placeholder="Re-enter your new password"
                   show={showConfPw}
                   onToggle={() => setShowConPw((v) => !v)}
                 />
@@ -514,12 +514,12 @@ export default function ForgotPasswordPage() {
                       ))}
                     </div>
                     <p className="text-xs text-stone-400 font-bold">
-                      {newPw.length < 4 ? 'Quá ngắn' : newPw.length < 7 ? 'Yếu' : newPw.length < 10 ? 'Trung bình' : 'Mạnh'}
+                      {newPw.length < 4 ? 'Too short' : newPw.length < 7 ? 'Weak' : newPw.length < 10 ? 'Medium' : 'Strong'}
                     </p>
                   </div>
                 )}
 
-                <SubmitButton loading={loading} label="Đặt lại mật khẩu" loadingLabel="Đang đặt lại…" />
+                <SubmitButton loading={loading} label="Reset Password" loadingLabel="Resetting…" />
               </form>
             )}
 
@@ -531,18 +531,18 @@ export default function ForgotPasswordPage() {
                   <CheckCircle2 className="w-10 h-10 text-white" />
                 </div>
                 <div className="text-center space-y-1">
-                  <p className="text-stone-900 font-bold text-lg">Đặt lại mật khẩu thành công!</p>
-                  <p className="text-stone-400 text-sm font-medium">Bạn có thể đăng nhập với mật khẩu mới.</p>
+                  <p className="text-stone-900 font-bold text-lg">Password reset successful!</p>
+                  <p className="text-stone-400 text-sm font-medium">You can now log in with your new password.</p>
                 </div>
-                <p className="text-xs text-stone-450 font-bold">Đang chuyển về trang đăng nhập…</p>
+                <p className="text-xs text-stone-450 font-bold">Redirecting to login…</p>
               </div>
             )}
 
             {/* Gợi ý spam (chỉ ở bước OTP) */}
             {step === 'enter_otp' && (
               <p className="mt-5 text-center text-xs text-stone-400 font-medium leading-relaxed">
-                Không nhận được email? Kiểm tra thư mục{' '}
-                <span className="text-[#FF4C4C] font-extrabold">Spam / Junk</span>.
+                Didn't receive the email? Check your{' '}
+                <span className="text-[#FF4C4C] font-extrabold">Spam / Junk</span> folder.
               </p>
             )}
           </div>

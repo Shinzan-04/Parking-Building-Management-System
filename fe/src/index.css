@@ -93,8 +93,9 @@
   }
 
   body {
-    @apply bg-[#0A0A0C] text-white font-sans antialiased overflow-x-hidden;
+    @apply font-sans antialiased overflow-x-hidden;
     background-color: var(--admin-bg-base);
+    color: var(--admin-text-primary);
   }
 
   select option {
@@ -131,6 +132,17 @@
 
   .blob {
     @apply absolute rounded-full blur-3xl pointer-events-none;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2 rounded-xl outline-none transition-all;
+    background-color: var(--admin-bg-card);
+    border: 1px solid var(--admin-border);
+    color: var(--admin-text-primary);
+  }
+  .input-field:focus {
+    border-color: var(--admin-accent);
+    box-shadow: 0 0 0 2px var(--admin-accent-bg);
   }
 
   /* Admin theme-aware classes */
@@ -348,9 +360,20 @@
   from {
     transform: translateY(-150%);
     opacity: 0;
-  }
+}
   to {
     transform: translateY(0);
     opacity: 1;
   }
+}
+
+/* Overdue slot pulse animation */
+@keyframes overdue-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0.8); }
+  70% { box-shadow: 0 0 0 14px rgba(255, 87, 34, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 87, 34, 0); }
+}
+
+.animate-overdue-pulse {
+  animation: overdue-pulse 1.2s infinite;
 }

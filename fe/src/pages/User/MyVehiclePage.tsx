@@ -65,7 +65,7 @@ export default function MyVehiclePage() {
       setVehicleTypes(typesData);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Không thể tải danh sách phương tiện.');
+      setError(err.message || 'Unable to load your vehicle list.');
     } finally {
       setLoading(false);
     }
@@ -117,11 +117,11 @@ export default function MyVehiclePage() {
     if (!token) return;
 
     if (!formPlateNumber.trim()) {
-      setModalError('Vui lòng nhập biển số xe.');
+      setModalError('Please enter a license plate number.');
       return;
     }
     if (!formVehicleTypeId) {
-      setModalError('Vui lòng chọn loại xe.');
+      setModalError('Please select a vehicle type.');
       return;
     }
 
@@ -149,7 +149,7 @@ export default function MyVehiclePage() {
       setIsModalOpen(false);
       await loadData(); // Reload list
     } catch (err: any) {
-      setModalError(err.message || 'Thao tác thất bại. Vui lòng kiểm tra lại.');
+      setModalError(err.message || 'Operation failed. Please check your input and try again.');
     } finally {
       setSubmitting(false);
     }
@@ -158,14 +158,14 @@ export default function MyVehiclePage() {
   // Xóa xe thông qua API
   const handleDelete = async (id: string, plate: string) => {
     if (!token) return;
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa phương tiện ${plate} này không?`)) return;
+    if (!window.confirm(`Are you sure you want to delete vehicle ${plate}?`)) return;
 
     try {
       setLoading(true);
       await deleteVehicle(id);
       await loadData();
     } catch (err: any) {
-      alert(err.message || 'Không thể xóa phương tiện này.');
+      alert(err.message || 'Unable to delete this vehicle.');
       setLoading(false);
     }
   };
@@ -178,7 +178,7 @@ export default function MyVehiclePage() {
       await setPrimaryVehicle(id);
       await loadData();
     } catch (err: any) {
-      alert(err.message || 'Không thể đặt phương tiện này làm mặc định.');
+      alert(err.message || 'Unable to set this vehicle as default.');
       setLoading(false);
     }
   };
@@ -202,10 +202,10 @@ export default function MyVehiclePage() {
               className="inline-flex items-center gap-2 bg-white/15 hover:bg-white/25 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all mb-6 focus:outline-none"
             >
               <ArrowLeft size={14} />
-              Quay lại trang chủ
+              Back to home
             </button>
-            <h1 className="text-3xl font-extrabold tracking-tight mb-2">Phương tiện của tôi</h1>
-            <p className="text-teal-50 text-sm font-medium">Quản lý danh sách các xe đã đăng ký gửi tại tòa nhà.</p>
+            <h1 className="text-3xl font-extrabold tracking-tight mb-2">My Vehicles</h1>
+            <p className="text-teal-50 text-sm font-medium">Manage the list of vehicles registered for parking at this building.</p>
           </div>
         </div>
 
@@ -213,9 +213,9 @@ export default function MyVehiclePage() {
         <div className="bg-white dark:bg-[#18181B] border border-gray-200/60 dark:border-white/10 rounded-[2.5rem] p-8 shadow-xl transition-colors duration-300">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-xl font-black text-stone-900 dark:text-white transition-colors duration-300">Danh sách xe</h2>
+              <h2 className="text-xl font-black text-stone-900 dark:text-white transition-colors duration-300">Vehicle List</h2>
               <p className="text-xs text-stone-400 font-bold mt-1 uppercase tracking-wider">
-                {vehicles.length} phương tiện đã đăng ký
+                {vehicles.length} vehicle(s) registered
               </p>
             </div>
             <button
@@ -223,14 +223,14 @@ export default function MyVehiclePage() {
               className="inline-flex items-center gap-2 bg-[#FF4C4C] hover:bg-[#E13B3B] text-white font-bold px-5 py-3 rounded-2xl text-xs uppercase tracking-wider shadow-sm shadow-[#FF4C4C]/15 transition-all"
             >
               <Plus size={16} />
-              Thêm phương tiện
+              Add Vehicle
             </button>
           </div>
 
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <Loader2 size={32} className="text-[#FF4C4C] animate-spin" />
-              <p className="text-xs text-stone-400 dark:text-stone-500 font-bold tracking-widest uppercase transition-colors duration-300">Đang tải danh sách phương tiện...</p>
+              <p className="text-xs text-stone-400 dark:text-stone-500 font-bold tracking-widest uppercase transition-colors duration-300">Loading your vehicles...</p>
             </div>
           ) : error ? (
             <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center text-red-600 font-bold text-sm">
@@ -242,15 +242,15 @@ export default function MyVehiclePage() {
               <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-white/5 flex items-center justify-center text-stone-400 dark:text-stone-500 mb-6 shadow-inner border border-gray-150 dark:border-white/10 transition-colors duration-300">
                 <Car size={28} />
               </div>
-              <h3 className="text-base font-bold text-stone-850 dark:text-white mb-2 transition-colors duration-300">Bạn chưa đăng ký xe nào</h3>
+              <h3 className="text-base font-bold text-stone-850 dark:text-white mb-2 transition-colors duration-300">You haven't registered any vehicles yet</h3>
               <p className="text-xs text-stone-400 dark:text-stone-500 leading-relaxed mb-6 font-semibold transition-colors duration-300">
-                Đăng ký biển số xe trước giúp bạn đặt chỗ (booking) và check-in/check-out nhanh chóng tại bốt giữ xe.
+                Registering your license plate in advance lets you book and check in/out quickly at the parking gate.
               </p>
               <button
                 onClick={openAddModal}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-3 rounded-2xl text-xs uppercase tracking-wider shadow-lg shadow-indigo-600/20 transition-all"
               >
-                Đăng ký xe đầu tiên
+                Register Your First Vehicle
               </button>
             </div>
           ) : (
@@ -279,13 +279,13 @@ export default function MyVehiclePage() {
                           {vehicle.isPrimary && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-black bg-emerald-50 text-emerald-600 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
                               <Star size={10} className="fill-current" />
-                              Mặc định
+                              Default
                             </span>
                           )}
                         </div>
 
                         <div className="text-xs font-semibold text-stone-450 dark:text-stone-500 transition-colors duration-300">
-                          Loại phương tiện: <strong className="text-stone-700 dark:text-stone-300 font-bold transition-colors duration-300">{vehicle.vehicleTypeName}</strong>
+                          Vehicle type: <strong className="text-stone-700 dark:text-stone-300 font-bold transition-colors duration-300">{vehicle.vehicleTypeName}</strong>
                         </div>
                       </div>
                     </div>
@@ -296,20 +296,20 @@ export default function MyVehiclePage() {
                           onClick={() => handleSetPrimary(vehicle.id)}
                           className="px-3.5 py-2 border border-gray-200 dark:border-white/10 hover:border-emerald-500 text-stone-500 dark:text-stone-400 hover:text-emerald-600 hover:bg-emerald-50/20 dark:hover:bg-emerald-500/10 rounded-xl text-xs font-bold transition-all focus:outline-none"
                         >
-                          Chọn làm mặc định
+                          Set as Default
                         </button>
                       )}
                       <button
                         onClick={() => openEditModal(vehicle)}
                         className="p-2 border border-gray-200 dark:border-white/10 hover:border-[#FF4C4C] text-stone-500 dark:text-stone-400 hover:text-[#FF4C4C] hover:bg-red-50/20 dark:hover:bg-[#FF4C4C]/10 rounded-xl transition-all focus:outline-none"
-                        title="Chỉnh sửa"
+                        title="Edit"
                       >
                         <Edit2 size={14} />
                       </button>
                       <button
                         onClick={() => handleDelete(vehicle.id, vehicle.plateNumber)}
                         className="p-2 border border-gray-200 dark:border-white/10 hover:border-red-500 text-stone-500 dark:text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-all focus:outline-none"
-                        title="Xóa phương tiện"
+                        title="Delete vehicle"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -330,7 +330,7 @@ export default function MyVehiclePage() {
             {/* Header */}
             <div className="px-6 pt-6 pb-4 border-b border-gray-100 dark:border-white/10 flex items-center justify-between transition-colors duration-300">
               <h3 className="text-lg font-black text-stone-900 dark:text-white transition-colors duration-300">
-                {editingVehicle ? 'Cập nhật phương tiện' : 'Đăng ký phương tiện mới'}
+                {editingVehicle ? 'Update Vehicle' : 'Register New Vehicle'}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
@@ -354,7 +354,7 @@ export default function MyVehiclePage() {
                 {/* VEHICLE TYPE */}
                 <div>
                   <label className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2 transition-colors duration-300">
-                    Loại xe *
+                    Vehicle Type *
                   </label>
                   <div className="relative">
                     <select
@@ -377,13 +377,17 @@ export default function MyVehiclePage() {
                 {/* LICENSE PLATE */}
                 <div>
                   <label className="block text-xs font-bold text-stone-500 dark:text-stone-400 uppercase tracking-wider mb-2 transition-colors duration-300">
-                    Biển số xe *
+                    License Plate *
                   </label>
                   <input
                     type="text"
                     value={formPlateNumber}
-                    onChange={(e) => setFormPlateNumber(e.target.value)}
-                    placeholder="Ví dụ: 29A-123.45"
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                      setFormPlateNumber(val);
+                    }}
+                    placeholder="e.g 51A12345"
+                    maxLength={12}
                     className="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-semibold outline-none focus:border-[#FF4C4C] dark:focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10 transition-all text-stone-850 dark:text-white placeholder:text-stone-300 dark:placeholder:text-stone-600"
                     required
                   />
@@ -398,7 +402,7 @@ export default function MyVehiclePage() {
                   onClick={() => setIsModalOpen(false)}
                   className="px-5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 hover:bg-gray-100 dark:hover:bg-white/10 text-stone-500 dark:text-stone-400 dark:hover:text-white text-xs font-bold transition-all focus:outline-none"
                 >
-                  Hủy
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -408,10 +412,10 @@ export default function MyVehiclePage() {
                   {submitting ? (
                     <>
                       <Loader2 size={12} className="animate-spin" />
-                      Đang xử lý...
+                      Processing...
                     </>
                   ) : (
-                    editingVehicle ? 'Cập nhật' : 'Thêm xe'
+                    editingVehicle ? 'Update' : 'Add Vehicle'
                   )}
                 </button>
               </div>

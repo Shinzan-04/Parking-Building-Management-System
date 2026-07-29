@@ -8,7 +8,7 @@ export interface BuildingResponse {
   totalCapacity: number;
   availableSpots?: number;
   floorCount: number;
-  approvalMode: number;
+  approvalMode: number | string;
   createdAt: string;
 }
 

@@ -27,15 +27,15 @@ function getStatusLabel(status: string | number): SlotStatus {
 const STATUS_STYLE: Record<SlotStatus, { bg: string; border: string; text: string; dot: string; cardText: string }> = {
   Available:   { bg: 'rgba(16,185,129,0.18)',  border: 'rgba(16,185,129,0.55)', text: '#10b981', dot: '#10b981', cardText: '#0d1a14' },
   Occupied:    { bg: 'rgba(239,68,68,0.18)',   border: 'rgba(239,68,68,0.55)',  text: '#f87171', dot: '#ef4444', cardText: '#1a0a0a' },
-  Reserved:    { bg: 'rgba(168,85,247,0.18)',  border: 'rgba(168,85,247,0.55)', text: '#c084fc', dot: '#a855f7', cardText: '#130d1a' },
+  Reserved:    { bg: 'rgba(234, 179, 8, 0.18)',  border: 'rgba(234, 179, 8, 0.55)', text: '#facc15', dot: '#eab308', cardText: '#1a1600' },
   Maintenance: { bg: 'rgba(100,116,139,0.22)', border: 'rgba(100,116,139,0.5)', text: '#94a3b8', dot: '#64748b', cardText: '#1a1a1a' },
 };
 
 const STATUS_LABEL_VI: Record<SlotStatus, string> = {
-  Available:   'Trống',
-  Occupied:    'Có xe',
-  Reserved:    'Đã đặt',
-  Maintenance: 'Bảo trì',
+  Available:   'Available',
+  Occupied:    'Occupied',
+  Reserved:    'Reserved',
+  Maintenance: 'Maintenance',
 };
 
 // Icon loại xe nhỏ gọn
@@ -128,11 +128,11 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
         {slot.slotNumber ?? slot.id.slice(0, 8)}
       </div>
       <div style={{ color: '#94a3b8' }}>
-        <span style={{ color: '#64748b' }}>Tầng: </span>
+        <span style={{ color: '#64748b' }}>Floor: </span>
         <span style={{ color: '#e2e8f0' }}>{floorName}</span>
       </div>
       <div style={{ color: '#94a3b8' }}>
-        <span style={{ color: '#64748b' }}>Loại xe: </span>
+        <span style={{ color: '#64748b' }}>Vehicle Type: </span>
         <span style={{ color: '#e2e8f0' }}>{slot.vehicleTypeName ?? '—'}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
@@ -164,8 +164,10 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
   return (
     <Tooltip content={tooltipContent}>
       <div
+        className={isOverdue ? 'animate-overdue-pulse' : ''}
         style={{
-          width: 90,
+          width: '100%',
+          minWidth: 90,
           minHeight: 72,
           borderRadius: 10,
           border: `1.5px solid ${isOverdue ? '#ef4444' : style.border}`,
@@ -175,9 +177,12 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
           transition: 'transform 0.15s, box-shadow 0.15s',
           display: 'flex',
           flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
           gap: 3,
           position: 'relative',
           boxSizing: 'border-box',
+          textAlign: 'center',
         }}
         onMouseEnter={e => {
           (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)';
@@ -189,36 +194,39 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
         }}
       >
         {/* Header: vehicle icon + slot code */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ color: style.cardText, opacity: 0.85, display: 'flex' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%' }}>
+          <span style={{ color: style.cardText, opacity: 0.85, display: 'flex', transform: 'scale(1.2)' }}>
             <VehicleIcon name={slot.vehicleTypeName} />
           </span>
           <span style={{
             fontFamily: 'monospace',
-            fontWeight: 700,
-            fontSize: 11,
+            fontWeight: 800,
+            fontSize: 14,
             color: style.cardText,
             letterSpacing: '0.02em',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            flex: 1,
+            textAlign: 'center',
           }}>
             {slot.slotNumber ?? slot.id.slice(0, 8)}
           </span>
           {isOverdue && (
-            <AlertTriangle size={9} style={{ color: '#f87171', flexShrink: 0 }} />
+            <AlertTriangle size={12} style={{ color: '#f87171', flexShrink: 0 }} />
           )}
         </div>
 
-        {/* Vehicle type (nhỏ) */}
+        {/* Vehicle type */}
         <div style={{
-          fontSize: 9,
+          fontSize: 11,
+          fontWeight: 600,
           color: style.cardText,
           opacity: 0.75,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',
+          textAlign: 'center',
+          width: '100%',
         }}>
           {slot.vehicleTypeName ?? '—'}
         </div>
@@ -227,27 +235,27 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
         {licensePlate ? (
           <div style={{
             fontFamily: 'monospace',
-            fontSize: 9,
-            fontWeight: 700,
+            fontSize: 12,
+            fontWeight: 800,
             color: isOverdue ? '#b91c1c' : style.cardText,
             background: 'rgba(0,0,0,0.08)',
-            borderRadius: 4,
-            padding: '1px 5px',
-            alignSelf: 'flex-start',
+            borderRadius: 6,
+            padding: '2px 8px',
             maxWidth: '100%',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
+            textAlign: 'center',
           }}>
             {licensePlate}
           </div>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 2, width: '100%' }}>
             <span style={{
-              display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+              display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
               background: style.dot, flexShrink: 0,
             }} />
-            <span style={{ fontSize: 9, color: style.cardText, opacity: 0.85, fontWeight: 600 }}>
+            <span style={{ fontSize: 11, color: style.cardText, opacity: 0.9, fontWeight: 700 }}>
               {STATUS_LABEL_VI[statusKey]}
             </span>
           </div>
@@ -269,16 +277,24 @@ interface FloorSectionProps {
 function FloorSection({ floor, slots, token, filterStatus, search }: FloorSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
 
-  const filtered = slots.filter(s => {
-    const st = getStatusLabel(s.status);
-    if (filterStatus && st !== filterStatus) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      if (!(s.slotNumber ?? '').toLowerCase().includes(q) &&
-          !(s.vehicleTypeName ?? '').toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+  const filtered = slots
+    .sort((a, b) => (a.slotNumber ?? '').localeCompare(b.slotNumber ?? '', undefined, { numeric: true, sensitivity: 'base' }))
+    .filter(s => {
+      const st = getStatusLabel(s.status);
+      if (filterStatus && st !== filterStatus) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        if (!(s.slotNumber ?? '').toLowerCase().includes(q) &&
+            !(s.vehicleTypeName ?? '').toLowerCase().includes(q)) return false;
+      }
+      return true;
+    });
+
+  const COLS = 8;
+  const rows: ParkingSlotSummary[][] = [];
+  for (let i = 0; i < filtered.length; i += COLS) {
+    rows.push(filtered.slice(i, i + COLS));
+  }
 
   const counts = {
     available:   slots.filter(s => getStatusLabel(s.status) === 'Available').length,
@@ -321,24 +337,26 @@ function FloorSection({ floor, slots, token, filterStatus, search }: FloorSectio
           </div>
           <div style={{ textAlign: 'left' }}>
             <div style={{ color: 'var(--admin-text-primary)', fontWeight: 700, fontSize: 15 }}>
-              {floor.name}
+              {floor.name.toString().toLowerCase().includes('floor') || floor.name.toString().toLowerCase().includes('tầng') 
+                ? floor.name 
+                : `Floor ${floor.name}`}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
               <span style={{ fontSize: 11, color: STATUS_STYLE.Available.text }}>
-                ● {counts.available} trống
+                ● {counts.available} available
               </span>
               <span style={{ fontSize: 11, color: STATUS_STYLE.Occupied.text }}>
-                ● {counts.occupied} có xe
+                ● {counts.occupied} occupied
               </span>
               {counts.reserved > 0 && (
                 <span style={{ fontSize: 11, color: STATUS_STYLE.Reserved.text }}>
-                  ● {counts.reserved} đặt
+                  ● {counts.reserved} reserved
                 </span>
               )}
               {counts.maintenance > 0 && (
                 <span style={{ fontSize: 11, color: STATUS_STYLE.Maintenance.text }}>
                   <Wrench size={9} style={{ display: 'inline', marginRight: 2 }} />
-                  {counts.maintenance} bảo trì
+                  {counts.maintenance} maintenance
                 </span>
               )}
             </div>
@@ -349,7 +367,7 @@ function FloorSection({ floor, slots, token, filterStatus, search }: FloorSectio
             fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20,
             background: 'rgba(255,255,255,0.06)', color: 'var(--admin-text-muted)',
           }}>
-            {slots.length} ô
+            {slots.length} slots
           </span>
           {collapsed
             ? <ChevronDown size={16} style={{ color: 'var(--admin-text-faint)' }} />
@@ -363,17 +381,65 @@ function FloorSection({ floor, slots, token, filterStatus, search }: FloorSectio
         <div style={{ padding: '16px 20px 20px' }}>
           {filtered.length === 0 ? (
             <p style={{ color: 'var(--admin-text-faint)', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
-              Không tìm thấy ô phù hợp
+              No matching slots found
             </p>
           ) : (
-            <div style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 10,
-            }}>
-              {filtered.map(slot => (
-                <SlotCard key={slot.id} slot={slot} floorName={floor.name} token={token} />
-              ))}
+            <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+              <div style={{ minWidth: 'max-content' }}>
+                {/* Column Headers */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gap: 10,
+                    marginBottom: 8,
+                    gridTemplateColumns: `30px repeat(${Math.min(COLS, filtered.length)}, minmax(0, 1fr))`,
+                  }}
+                >
+                  <div />
+                  {Array.from({ length: Math.min(COLS, filtered.length) }, (_, c) => (
+                    <div
+                      key={c}
+                      style={{
+                        textAlign: 'center',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: 'var(--admin-text-faint)',
+                      }}
+                    >
+                      {String.fromCharCode(65 + c)}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Rows */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {rows.map((row, rowIdx) => (
+                    <div
+                      key={rowIdx}
+                      style={{
+                        display: 'grid',
+                        gap: 10,
+                        alignItems: 'center',
+                        gridTemplateColumns: `30px repeat(${COLS}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          textAlign: 'center',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: 'var(--admin-text-faint)',
+                        }}
+                      >
+                        {rowIdx + 1}
+                      </div>
+                      {row.map(slot => (
+                        <SlotCard key={slot.id} slot={slot} floorName={floor.name} token={token} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -415,7 +481,7 @@ export default function StaffSlotList() {
         setBuildingName(b.name ?? '');
       }
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Không thể tải dữ liệu.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load data.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -450,7 +516,7 @@ export default function StaffSlotList() {
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 240, gap: 12 }}>
       <Loader2 size={28} style={{ color: '#FF4C4C', animation: 'spin 1s linear infinite' }} />
-      <p style={{ color: 'var(--admin-text-faint)', fontSize: 13 }}>Đang tải sơ đồ bãi xe...</p>
+      <p style={{ color: 'var(--admin-text-faint)', fontSize: 13 }}>Loading parking map...</p>
     </div>
   );
 
@@ -458,7 +524,7 @@ export default function StaffSlotList() {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 240, gap: 12 }}>
       <Building2 size={36} style={{ color: 'var(--admin-text-faint)' }} />
       <p style={{ color: 'var(--admin-text-muted)', fontSize: 13, fontWeight: 500 }}>
-        Tài khoản chưa được phân công tòa nhà. Liên hệ quản lý.
+        Your account has not been assigned to a building. Please contact a manager.
       </p>
     </div>
   );
@@ -471,7 +537,7 @@ export default function StaffSlotList() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--admin-text-primary)' }}>
-              Sơ đồ bãi xe
+              Parking Map
             </h2>
             {buildingName && (
               <span style={{
@@ -484,7 +550,7 @@ export default function StaffSlotList() {
             )}
           </div>
           <p style={{ margin: 0, fontSize: 12, color: 'var(--admin-text-faint)' }}>
-            {slots.length} ô • {floors.length} tầng
+            {slots.length} slots • {floors.length} floors
           </p>
         </div>
         <button
@@ -495,7 +561,7 @@ export default function StaffSlotList() {
             background: 'var(--admin-bg-card)', color: 'var(--admin-text-muted)',
             cursor: 'pointer', display: 'flex', alignItems: 'center',
           }}
-          title="Làm mới"
+          title="Refresh"
         >
           <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
         </button>
@@ -528,10 +594,10 @@ export default function StaffSlotList() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           {(
             [
-              { key: 'Available',   label: 'Trống',   count: totals.available,   color: STATUS_STYLE.Available.dot },
-              { key: 'Occupied',    label: 'Có xe',   count: totals.occupied,    color: STATUS_STYLE.Occupied.dot },
-              { key: 'Reserved',    label: 'Đặt trước', count: totals.reserved,  color: STATUS_STYLE.Reserved.dot },
-              { key: 'Maintenance', label: 'Bảo trì', count: totals.maintenance, color: STATUS_STYLE.Maintenance.dot },
+              { key: 'Available',   label: 'Available',   count: totals.available,   color: STATUS_STYLE.Available.dot },
+              { key: 'Occupied',    label: 'Occupied',   count: totals.occupied,    color: STATUS_STYLE.Occupied.dot },
+              { key: 'Reserved',    label: 'Reserved', count: totals.reserved,  color: STATUS_STYLE.Reserved.dot },
+              { key: 'Maintenance', label: 'Maintenance', count: totals.maintenance, color: STATUS_STYLE.Maintenance.dot },
             ] as { key: string; label: string; count: number; color: string }[]
           ).map(({ key, label, count, color }) => (
             <button
@@ -568,7 +634,7 @@ export default function StaffSlotList() {
                 border: 'none', cursor: 'pointer', textDecoration: 'underline',
               }}
             >
-              Bỏ lọc
+              Clear filter
             </button>
           )}
         </div>
@@ -581,7 +647,7 @@ export default function StaffSlotList() {
           }} />
           <input
             type="text"
-            placeholder="Tìm ô slot, biển số..."
+            placeholder="Search slot, license plate..."
             value={search}
             onChange={e => setSearch(e.target.value)}
             style={{
@@ -598,7 +664,7 @@ export default function StaffSlotList() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {sortedFloors.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--admin-text-faint)', fontSize: 13 }}>
-            Chưa có tầng nào được cấu hình.
+            No floors have been configured yet.
           </div>
         ) : sortedFloors.map(floor => {
           const floorSlots = slots.filter(s => s.floorId === floor.id);
@@ -617,7 +683,7 @@ export default function StaffSlotList() {
 
       {/* ── Footer ── */}
       <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--admin-text-faint)', paddingBottom: 8 }}>
-        Hover vào ô để xem chi tiết đầy đủ · Nhấn vào nhãn để lọc theo trạng thái
+        Hover over a slot for full details · Click a label to filter by status
       </div>
     </div>
   );

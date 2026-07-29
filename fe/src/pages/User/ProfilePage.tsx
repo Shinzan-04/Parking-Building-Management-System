@@ -258,7 +258,7 @@ export default function ProfilePage() {
                         value={formik.values.fullName}
                         onChange={formik.handleChange}
                         onBlur={formik.handleBlur}
-                        placeholder="Nguyễn Văn A"
+                        placeholder="John Smith"
                         disabled={!isEditing}
                         className={`w-full pl-11 pr-4 py-3.5 rounded-2xl bg-gray-50 dark:bg-white/5 border dark:border-white/10 text-sm outline-none transition-all duration-200 ${!isEditing ? 'opacity-70 cursor-not-allowed' : ''}
                           ${formik.touched.fullName && formik.errors.fullName

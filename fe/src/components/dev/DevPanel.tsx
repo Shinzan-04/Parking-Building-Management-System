@@ -22,7 +22,7 @@ export default function DevPanel({ onActionSuccess }: DevPanelProps = {}) {
       if (onActionSuccess) onActionSuccess();
       else window.location.reload();
     } catch (err: any) {
-      alert('Lỗi tua thời gian: ' + err.message);
+      alert('Error fast-forwarding time: ' + err.message);
     }
   };
 
@@ -33,7 +33,7 @@ export default function DevPanel({ onActionSuccess }: DevPanelProps = {}) {
       if (onActionSuccess) onActionSuccess();
       else window.location.reload();
     } catch (err: any) {
-      alert('Lỗi khôi phục thời gian: ' + err.message);
+      alert('Error resetting time: ' + err.message);
     }
   };
 
@@ -64,19 +64,19 @@ export default function DevPanel({ onActionSuccess }: DevPanelProps = {}) {
                 <button 
                   className="bg-[#fef3c7] text-[#92400e] text-xs font-bold py-2 rounded-lg hover:brightness-95 transition-all active:scale-95"
                   onClick={() => handleDevFastForward(1)}
-                >+ 1 Phút</button>
-                <button 
+                >+ 1 Min</button>
+                <button
                   className="bg-[#f1f5f9] text-[#334155] text-xs font-bold py-2 rounded-lg hover:brightness-95 transition-all active:scale-95"
                   onClick={() => handleDevFastForward(15)}
-                >+ 15 Phút</button>
-                <button 
+                >+ 15 Min</button>
+                <button
                   className="bg-[#e0f2fe] text-[#0369a1] text-xs font-bold py-2 rounded-lg hover:brightness-95 transition-all active:scale-95"
                   onClick={() => handleDevFastForward(60)}
-                >+ 1 Giờ</button>
-                <button 
+                >+ 1 Hour</button>
+                <button
                   className="bg-[#fee2e2] text-[#b91c1c] text-xs font-bold py-2 rounded-lg hover:brightness-95 transition-all active:scale-95"
                   onClick={() => handleDevFastForward(240)}
-                >+ 4 Giờ</button>
+                >+ 4 Hours</button>
             </div>
             <button 
                 className="w-full mt-2 bg-[#f87171] hover:bg-[#ef4444] text-white font-bold py-3 rounded-lg transition-all active:scale-95 shadow-lg shadow-red-500/20"

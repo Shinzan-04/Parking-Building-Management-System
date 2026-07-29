@@ -32,24 +32,39 @@ public class LicensePlateRecognizer : ILicensePlateRecognizer
 
     public async Task<LprResult> RecognizeFrameAsync(string base64Image, string? trackId = null)
     {
-        // 1. Kiểm tra cache nếu có trackId
+        // ==========================================
+        // BƯỚC 1: CACHING & TRACKING
+        // Mục đích: Nếu camera đang quay một xe (cùng trackId), 
+        // không cần chạy OCR lại nếu đã có kết quả chuẩn trước đó, giúp giảm tải CPU/GPU.
+        // ==========================================
         if (!string.IsNullOrEmpty(trackId))
         {
             var cached = _cacheService.GetCachedPlate(trackId);
             if (cached != null) return cached;
         }
 
-        // 2. YOLO Detect
+        // ==========================================
+        // BƯỚC 2: NHẬN DIỆN VÙNG BIỂN SỐ (YOLO)
+        // Dùng YOLO để tìm bounding box chứa biển số trong toàn bộ khung hình camera.
+        // Trả về toạ độ hình chữ nhật (box).
+        // ==========================================
         var box = await _yoloDetector.DetectBestPlateAsync(base64Image);
         if (box == null)
         {
             return new LprResult { IsDetected = false, Message = "Không phát hiện biển số." };
         }
 
-        // 3. OpenCV Tiền xử lý
+        // ==========================================
+        // BƯỚC 3: TIỀN XỬ LÝ ẢNH (OPENCV)
+        // Cắt đúng vùng biển số ra (Crop), cân bằng sáng, tăng độ tương phản,
+        // binarize (chuyển trắng đen) để chữ nổi bật lên, giúp OCR đọc dễ hơn.
+        // ==========================================
         var (preprocessedImage, croppedBase64) = await _openCvPreprocessor.CropAndPreprocessAsync(base64Image, box);
 
-        // 4. PaddleOCR
+        // ==========================================
+        // BƯỚC 4: ĐỌC KÝ TỰ (PADDLE OCR)
+        // Trích xuất text từ vùng ảnh đã được OpenCV xử lý.
+        // ==========================================
         var (rawText, confidence) = await _ocrReader.ReadTextAsync(preprocessedImage);
 
         if (string.IsNullOrWhiteSpace(rawText))
@@ -63,7 +78,11 @@ public class LicensePlateRecognizer : ILicensePlateRecognizer
             };
         }
 
-        // 5. Post Processing
+        // ==========================================
+        // BƯỚC 5: HẬU XỬ LÝ KẾT QUẢ (POST PROCESSING)
+        // Chuẩn hoá biển số: loại bỏ các ký tự đặc biệt, sửa các lỗi OCR phổ biến 
+        // (ví dụ: chữ 'O' nhầm thành số '0', 'Z' nhầm thành '2' tuỳ theo vị trí format biển VN).
+        // ==========================================
         string cleanedPlate = _postProcessor.CleanAndFormatPlate(rawText);
 
         var result = new LprResult
@@ -77,7 +96,11 @@ public class LicensePlateRecognizer : ILicensePlateRecognizer
             Message = $"OCR: {confidence:P0} - {cleanedPlate}"
         };
 
-        // 6. Lưu vào cache nếu đủ tự tin
+        // ==========================================
+        // BƯỚC 6: LƯU CACHE (NẾU ĐỦ TỰ TIN)
+        // Nếu độ tự tin >= ngưỡng cho phép, lưu lại để các frame tiếp theo có cùng trackId
+        // chỉ cần lấy từ cache ra xài, không cần chạy qua AI (tiết kiệm 99% thời gian xử lý frame).
+        // ==========================================
         if (!string.IsNullOrEmpty(trackId) && !result.NeedManualReview)
         {
             _cacheService.SetCachedPlate(trackId, result, TimeSpan.FromSeconds(5));
@@ -86,6 +109,14 @@ public class LicensePlateRecognizer : ILicensePlateRecognizer
         return result;
     }
 
+    /// <summary>
+    /// ==========================================
+    /// BƯỚC BỔ SUNG: MULTI-FRAME VOTING
+    /// Mục đích: Để tăng tối đa độ chính xác, thay vì chụp 1 ảnh, camera gửi 1 chùm ảnh (3-5 frames).
+    /// Hàm này chạy OCR cho toàn bộ ảnh, sau đó dùng thuật toán biểu quyết (Voting) 
+    /// để chốt lại kết quả xuất hiện nhiều nhất.
+    /// ==========================================
+    /// </summary>
     public async Task<LprResult> RecognizeBatchAsync(List<string> base64Images)
     {
         if (base64Images == null || !base64Images.Any())
@@ -108,7 +139,7 @@ public class LicensePlateRecognizer : ILicensePlateRecognizer
             _votingService.AddFrameResult(batchTrackId, r.LicensePlate); // Dùng cleaned plate để vote
         }
 
-        // Thực hiện Voting
+        // Thực hiện Voting: Lấy biển số xuất hiện nhiều nhất
         string votedPlate = _votingService.GetVotedPlate(batchTrackId);
         _votingService.ClearTrack(batchTrackId);
 

@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import { useAuth } from '../../hooks/useAuth';
 import { getBuildings, getFloorsByBuilding } from '../../services/buildingsService';
 import type { BuildingResponse, FloorResponse } from '../../services/buildingsService';
-import { getSlotsByFloor, SLOT_STATUS_COLORS, SLOT_STATUS_LABELS, SLOT_STATUS_FROM_ENUM } from '../../services/parkingService';
+import { getSlotsByFloor, getAvailableSlotsByFloor, SLOT_STATUS_COLORS, SLOT_STATUS_LABELS, SLOT_STATUS_FROM_ENUM } from '../../services/parkingService';
 import type { ParkingSlotDetail, SlotStatus } from '../../services/parkingService';
 import { getVehicleTypes } from '../../services/vehicleTypesService';
 import type { VehicleTypeResponse } from '../../services/vehicleTypesService';
@@ -106,27 +106,31 @@ interface ParkingLot {
   features: string[];
 }
 
-// ---------- Hàm sinh toạ độ nhất quán ở Hà Nội ----------
-function getBuildingCoordinates(buildingId: string, address: string): { lat: number; lng: number } {
+// ---------- Hàm sinh toạ độ nhất quán (Mock) ----------
+function getBuildingCoordinates(buildingId: string, address: string, name: string): { lat: number; lng: number } {
+  // Ưu tiên hardcode toạ độ thật cho 3 toạ nhà bạn đang test
+  if (name.includes('Tòa nhà C')) return { lat: 10.7618, lng: 106.7032 }; // Gần 35 Hoàng Diệu, Q4, HCM
+  if (name.includes('Tòa nhà B')) return { lat: 10.8016, lng: 106.7118 }; // Bình Thạnh, HCM
+  if (name.includes('Tòa nhà A')) return { lat: 10.7769, lng: 106.7009 }; // Khu vực trung tâm Q1, HCM
+
   let hash = 0;
   const str = buildingId + address;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  // Hanoi coordinates: lat 21.0285, lng 105.8542
-  // Thêm offset nhất quán trong khoảng [-0.015, 0.015] để các toạ độ không bị trùng và tập trung gần khu trung tâm
+  // Mặc định sinh ngẫu nhiên quanh Hồ Chí Minh: lat 10.7626, lng 106.6601
   const latOffset = ((Math.abs(hash) % 300) / 10000) - 0.015;
   const lngOffset = ((Math.abs(hash >> 3) % 300) / 10000) - 0.015;
 
   return {
-    lat: 21.0285 + latOffset,
-    lng: 105.8542 + lngOffset,
+    lat: 10.7626 + latOffset,
+    lng: 106.6601 + lngOffset,
   };
 }
 
 // ---------- Ánh xạ dữ liệu BuildingResponse sang ParkingLot ----------
 function mapBuildingToParkingLot(b: BuildingResponse): ParkingLot {
-  const coords = getBuildingCoordinates(b.id, b.address);
+  const coords = getBuildingCoordinates(b.id, b.address, b.name);
   // Sử dụng số lượng slot trống thật từ backend, nếu không có fallback về 0
   const available = b.availableSpots || 0;
   return {
@@ -247,15 +251,43 @@ export default function FindParkingPage() {
   const [routeInfo, setRouteInfo] = useState<{ distKm: string; mins: number } | null>(null);
 
   const handleGetDirections = useCallback(async (toLat: number, toLng: number) => {
-    if (!userLocation) {
-      alert('Please enable location service first for directions!');
-      return;
+    let currentLoc = userLocation;
+
+    if (!currentLoc) {
+      if (!navigator.geolocation) {
+        alert('Trình duyệt không hỗ trợ định vị.');
+        return;
+      }
+      try {
+        currentLoc = await new Promise<{lat: number, lng: number}>((resolve, reject) => {
+          setLocatingUser(true);
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+              setUserLocation(coords);
+              setLocatingUser(false);
+              resolve(coords);
+            },
+            (err) => {
+              setLocatingUser(false);
+              reject(err);
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+          );
+        });
+      } catch (err: any) {
+        alert('Vui lòng cấp quyền truy cập vị trí để xem đường đi!');
+        return;
+      }
     }
+
+    if (!currentLoc) return;
+
     setIsLoadingRoute(true);
     setRouteCoords(null);
     setRouteInfo(null);
     try {
-      const url = `https://router.project-osrm.org/route/v1/driving/${userLocation.lng},${userLocation.lat};${toLng},${toLat}?overview=full&geometries=geojson`;
+      const url = `https://router.project-osrm.org/route/v1/driving/${currentLoc.lng},${currentLoc.lat};${toLng},${toLat}?overview=full&geometries=geojson`;
       const res = await fetch(url);
       const data = await res.json();
       if (data.code !== 'Ok' || !data.routes?.length) throw new Error();
@@ -269,9 +301,12 @@ export default function FindParkingPage() {
         distKm: distM < 1000 ? `${Math.round(distM)} m` : `${(distM / 1000).toFixed(1)} km`,
         mins: Math.ceil(durS / 60),
       });
-      mapInstance?.flyTo([toLat, toLng], 16, { duration: 1 });
+      if (mapInstance) {
+        const bounds = L.latLngBounds([currentLoc.lat, currentLoc.lng], [toLat, toLng]);
+        mapInstance.flyToBounds(bounds, { padding: [80, 80], duration: 1.5 });
+      }
     } catch {
-      alert('Failed to calculate route. Check your connection.');
+      alert('Không thể tải đường đi. Vui lòng kiểm tra kết nối mạng.');
     } finally {
       setIsLoadingRoute(false);
     }
@@ -280,6 +315,9 @@ export default function FindParkingPage() {
   const handleCancelRoute = useCallback(() => {
     setRouteCoords(null);
     setRouteInfo(null);
+    setUserLocation(null);
+    setFlyToUser(false);
+    setSortBy('relevance');
   }, []);
 
   // ── API Buildings state ──
@@ -323,9 +361,12 @@ export default function FindParkingPage() {
           const sorted = floors.sort((a, b) => a.floorIndex - b.floorIndex);
           setBuildingFloors(sorted);
 
-          // Fetch slots for all floors to count them
+          // Fetch slots for all floors to count them (using +4h availability)
+          const now = new Date();
+          const later = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+          
           const slotsArrays = await Promise.all(
-            sorted.map((f) => getSlotsByFloor(f.id).catch(() => []))
+            sorted.map((f) => getAvailableSlotsByFloor(f.id, now.toISOString(), later.toISOString()).catch(() => []))
           );
           setAllBuildingSlots(slotsArrays.flat());
         })
@@ -342,7 +383,10 @@ export default function FindParkingPage() {
   useEffect(() => {
     if (selectedFloorId) {
       setIsLoadingSlots(true);
-      getSlotsByFloor(selectedFloorId)
+      const now = new Date();
+      const later = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+      
+      getAvailableSlotsByFloor(selectedFloorId, now.toISOString(), later.toISOString())
         .then((slots) => {
           setFloorSlots(slots.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber)));
         })
@@ -400,8 +444,10 @@ export default function FindParkingPage() {
 
   const initials = user?.fullName?.slice(0, 2)?.toUpperCase() ?? 'PD';
 
-  // Filter & sort dựa trên danh sách tòa nhà lấy từ API
   const filtered = buildingsList.filter((lot) => {
+    // Luôn hiển thị toà nhà đang được chọn (để không bị mất marker khi tìm đường)
+    if (selectedLot?.id === lot.id) return true;
+
     const matchType =
       vehicleFilter === 'all' || lot.vehicleTypes.includes(vehicleFilter);
     const matchSearch =
@@ -570,7 +616,7 @@ export default function FindParkingPage() {
         <div className="flex-1 relative overflow-hidden">
           {/* Leaflet Map */}
           <MapContainer
-            center={[21.0285, 105.8542]}
+            center={[10.7626, 106.6601]}
             zoom={13}
             className="w-full h-full"
             style={{ background: '#F3F3F5' }}
@@ -712,7 +758,7 @@ export default function FindParkingPage() {
               <button
                 onClick={handleLocateMe}
                 disabled={locatingUser}
-                title="Tìm bãi đỗ gần tôi"
+                title="Find parking near me"
                 className={`w-9 h-9 rounded-xl border flex items-center justify-center shadow-md transition-all duration-300 ${userLocation
                   ? 'bg-blue-600 border-blue-500 text-white hover:bg-blue-500'
                   : 'bg-white dark:bg-[#18181B] border-gray-200 dark:border-white/10 text-stone-600 dark:text-stone-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-blue-500 hover:border-blue-200 dark:hover:border-blue-500/50'
@@ -931,7 +977,7 @@ export default function FindParkingPage() {
                               </div>
                               <div className="text-center">
                                 <p className={`font-bold text-xs ${isSelected ? 'text-[#FF4C4C]' : 'text-stone-800 dark:text-stone-200'}`}>
-                                  {floor.name}
+                                  Floor {floor.name}
                                 </p>
                                 <p className="text-[10px] text-stone-400 mt-0.5">
                                   {(() => {

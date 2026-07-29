@@ -4,50 +4,75 @@ import { useAuth } from '../../hooks/useAuth';
 import toast from 'react-hot-toast';
 import type { SessionDto } from '../../services/sessionsService';
 
+const showCustomToast = (kind: 'success' | 'error', message: string) => {
+  toast.custom((t) => {
+    const tone =
+      kind === 'success'
+        ? 'border-emerald-100 bg-white text-emerald-700 shadow-emerald-500/10'
+        : 'border-red-100 bg-white text-red-700 shadow-red-500/10';
+    const Icon = kind === 'success' ? CheckCircle2 : AlertTriangle;
+
+    return (
+      <div
+        className={`w-80 min-h-[4.5rem] rounded-2xl border p-4 shadow-xl flex items-center gap-3.5 pointer-events-auto ${tone}`}
+        style={{
+          animation: t.visible ? 'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards' : 'none',
+          opacity: t.visible ? 1 : 0,
+          transition: 'opacity 0.4s'
+        }}
+      >
+        <Icon size={26} className={`shrink-0 ${kind === 'success' ? 'text-emerald-500' : 'text-red-500'}`} />
+        <span className="text-sm font-bold leading-snug text-left">{message}</span>
+      </div>
+    );
+  }, { duration: 3000, position: 'top-center' });
+};
+
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
 
 export default function StaffExceptions() {
   const { token } = useAuth();
-  
+
   const [searchPlate, setSearchPlate] = useState('');
   const [session, setSession] = useState<SessionDto | null>(null);
   const [loading, setLoading] = useState(false);
-  
+
   const [penaltyFee, setPenaltyFee] = useState<number>(50000);
-  const [reason, setReason] = useState('Khách báo mất vé');
+  const [reason, setReason] = useState('Customer reported lost ticket');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newSessionCode, setNewSessionCode] = useState<string | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchPlate.trim()) {
-      toast.error('Vui lòng nhập biển số xe cần tìm');
+      showCustomToast('error', 'Please enter a license plate to search');
       return;
     }
 
     setLoading(true);
     setSession(null);
     setNewSessionCode(null);
-    
+
     try {
       const res = await fetch(`${BASE_URL}/api/Sessions/find-by-plate?plate=${encodeURIComponent(searchPlate)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (!res.ok) {
         if (res.status === 404) {
-          toast.error(`Không tìm thấy xe biển số '${searchPlate}' đang trong bãi.`);
+          showCustomToast('error', `No vehicle with license plate '${searchPlate}' found in the parking lot.`);
         } else {
           const err = await res.json();
-          toast.error(err.message || 'Lỗi khi tìm kiếm session.');
+          showCustomToast('error', err.message || 'Error searching for session.');
         }
         return;
       }
-      
+
       const data = await res.json();
       setSession(data);
     } catch (err) {
-      toast.error('Không thể kết nối đến máy chủ.');
+      showCustomToast('error', 'Unable to connect to the server.');
     } finally {
       setLoading(false);
     }
@@ -55,7 +80,7 @@ export default function StaffExceptions() {
 
   const handleReissueTicket = async () => {
     if (!session) return;
-    
+
     setIsSubmitting(true);
     try {
       const res = await fetch(`${BASE_URL}/api/Sessions/${session.id}/reissue`, {
@@ -69,18 +94,18 @@ export default function StaffExceptions() {
           reason
         })
       });
-      
+
       if (!res.ok) {
         const err = await res.json();
-        toast.error(err.message || 'Lỗi khi cấp lại vé.');
+        showCustomToast('error', err.message || 'Error reissuing ticket.');
         return;
       }
-      
+
       const result = await res.json();
       setNewSessionCode(result.sessionCode);
-      toast.success('Cấp lại vé thành công!');
+      showCustomToast('success', 'Ticket reissued successfully!');
     } catch (err) {
-      toast.error('Lỗi khi gọi API cấp lại vé.');
+      showCustomToast('error', 'Error calling the reissue ticket API.');
     } finally {
       setIsSubmitting(false);
     }
@@ -97,7 +122,7 @@ export default function StaffExceptions() {
           Exception Handling
         </h2>
         <p className="text-sm mt-1" style={{ color: 'var(--admin-text-faint)' }}>
-          Tra cứu xe đang gửi và cấp lại vé (QR) cho trường hợp mất vé/mất thẻ.
+          Look up a parked vehicle and reissue a ticket (QR) for a lost ticket/card.
         </p>
       </div>
 
@@ -111,11 +136,15 @@ export default function StaffExceptions() {
             <input
               type="text"
               value={searchPlate}
-              onChange={(e) => setSearchPlate(e.target.value.toUpperCase())}
-              placeholder="Nhập biển số xe (VD: 29A-123.45)"
-              className="block w-full pl-10 pr-3 py-3 border rounded-xl leading-5 bg-transparent focus:outline-none focus:ring-2 focus:ring-[#FF4C4C] focus:border-[#FF4C4C] sm:text-sm uppercase font-mono font-bold"
-              style={{ 
-                color: 'var(--admin-text-primary)', 
+              onChange={(e) => {
+                const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                setSearchPlate(val);
+              }}
+              placeholder="e.g 51A12345"
+              maxLength={12}
+              className="block w-full pl-10 pr-3 py-3 border rounded-xl leading-5 bg-transparent focus:outline-none focus:ring-2 focus:ring-[#FF4C4C] focus:border-[#FF4C4C] sm:text-sm font-mono font-bold"
+              style={{
+                color: 'var(--admin-text-primary)',
                 borderColor: 'var(--admin-border)',
                 backgroundColor: 'var(--admin-bg-base)'
               }}
@@ -127,7 +156,7 @@ export default function StaffExceptions() {
             className="flex items-center justify-center gap-2 px-6 py-3 border border-transparent text-sm font-medium rounded-xl text-white bg-[#FF4C4C] hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 transition-colors"
           >
             {loading ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <Search size={18} />}
-            Tìm Xe
+            Find Vehicle
           </button>
         </form>
       </div>
@@ -139,52 +168,49 @@ export default function StaffExceptions() {
           <div className="glass-card p-6 rounded-2xl space-y-4">
             <h3 className="text-lg font-bold border-b pb-3 mb-4 flex items-center gap-2" style={{ color: 'var(--admin-text-primary)', borderColor: 'var(--admin-border)' }}>
               <Car size={18} className="text-[#FF4C4C]" />
-              Thông tin xe đang gửi
+              Parked Vehicle Information
             </h3>
-            
+
             <div className="space-y-3">
               <div className="flex justify-between items-center py-2 border-b" style={{ borderColor: 'var(--admin-border)' }}>
                 <span className="text-sm flex items-center gap-2" style={{ color: 'var(--admin-text-muted)' }}>
-                  <Car size={15} /> Biển số
+                  <Car size={15} /> License Plate
                 </span>
                 <span className="font-mono font-bold text-lg" style={{ color: 'var(--admin-text-primary)' }}>{session.licensePlate}</span>
               </div>
-              
+
               <div className="flex justify-between items-center py-2 border-b" style={{ borderColor: 'var(--admin-border)' }}>
                 <span className="text-sm flex items-center gap-2" style={{ color: 'var(--admin-text-muted)' }}>
-                  <MapPin size={15} /> Vị trí
+                  <MapPin size={15} /> Location
                 </span>
                 <span className="font-medium" style={{ color: 'var(--admin-text-primary)' }}>
-                  {session.floorName} - {session.slotNumber}
+                  {session.floorName?.toString().toLowerCase().includes('floor') || session.floorName?.toString().toLowerCase().includes('tầng') ? session.floorName : `Floor ${session.floorName}`} / Slot {session.slotNumber?.replace(`${session.floorName}-`, '').replace('Slot ', '')}
                 </span>
               </div>
-              
+
               <div className="flex justify-between items-center py-2 border-b" style={{ borderColor: 'var(--admin-border)' }}>
                 <span className="text-sm flex items-center gap-2" style={{ color: 'var(--admin-text-muted)' }}>
-                  <Clock size={15} /> Thời gian vào
+                  <Clock size={15} /> Entry Time
                 </span>
                 <span className="font-medium" style={{ color: 'var(--admin-text-primary)' }}>
                   {new Date(session.entryTime).toLocaleString('vi-VN')}
                 </span>
               </div>
-              
-              <div className="flex justify-between items-center py-2 border-b" style={{ borderColor: 'var(--admin-border)' }}>
-                <span className="text-sm flex items-center gap-2" style={{ color: 'var(--admin-text-muted)' }}>
-                  <Ticket size={15} /> Mã vé hiện tại
+
+
+
+              <div className="pt-2">
+                <span className="text-sm flex items-center gap-2 mb-2" style={{ color: 'var(--admin-text-muted)' }}>
+                  Check-in Photo
                 </span>
-                <span className="font-mono text-sm" style={{ color: 'var(--admin-text-faint)' }}>
-                  {session.sessionCode}
-                </span>
-              </div>
-              
-              {session.entryImageUrl && (
-                <div className="pt-2">
-                  <span className="text-sm flex items-center gap-2 mb-2" style={{ color: 'var(--admin-text-muted)' }}>
-                    Ảnh check-in
-                  </span>
+                {session.entryImageUrl ? (
                   <img src={session.entryImageUrl} alt="Check-in" className="w-full h-auto rounded-lg object-cover border border-dashed" style={{ borderColor: 'var(--admin-border)' }} />
-                </div>
-              )}
+                ) : (
+                  <div className="w-full h-32 rounded-lg border-2 border-dashed flex items-center justify-center text-sm" style={{ borderColor: 'var(--admin-border)', color: 'var(--admin-text-faint)', backgroundColor: 'var(--admin-bg-base)' }}>
+                    No check-in photo available
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -192,7 +218,7 @@ export default function StaffExceptions() {
           <div className="glass-card p-6 rounded-2xl flex flex-col">
             <h3 className="text-lg font-bold border-b pb-3 mb-4 flex items-center gap-2" style={{ color: 'var(--admin-text-primary)', borderColor: 'var(--admin-border)' }}>
               <AlertTriangle size={18} className="text-yellow-500" />
-              Nghiệp vụ: Cấp lại vé
+              Action: Reissue Ticket
             </h3>
 
             {newSessionCode ? (
@@ -200,30 +226,30 @@ export default function StaffExceptions() {
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-2">
                   <CheckCircle2 size={32} className="text-green-500" />
                 </div>
-                <h4 className="text-xl font-bold" style={{ color: 'var(--admin-text-primary)' }}>Thành công!</h4>
+                <h4 className="text-xl font-bold" style={{ color: 'var(--admin-text-primary)' }}>Success!</h4>
                 <p className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>
-                  Đã ghi nhận phí phạt mất vé cho xe <strong>{session.licensePlate}</strong>.
+                  The lost-ticket penalty fee has been recorded for vehicle <strong>{session.licensePlate}</strong>.
                   <br /><br />
-                  Hệ thống vẫn giữ nguyên mã vé cũ. Khách hàng có thể dùng mã vé cũ (hoặc biển số) để Checkout.
+                  The system keeps the original ticket code. The customer can use the original ticket code (or license plate) to check out.
                 </p>
-                
+
                 <button
-                   onClick={() => {
-                     setSession(null);
-                     setNewSessionCode(null);
-                     setSearchPlate('');
-                   }}
-                   className="mt-4 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-                   style={{ color: 'var(--admin-text-primary)', borderColor: 'var(--admin-border)' }}
+                  onClick={() => {
+                    setSession(null);
+                    setNewSessionCode(null);
+                    setSearchPlate('');
+                  }}
+                  className="mt-4 px-4 py-2 border rounded-lg text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+                  style={{ color: 'var(--admin-text-primary)', borderColor: 'var(--admin-border)' }}
                 >
-                  Xử lý xe khác
+                  Process Another Vehicle
                 </button>
               </div>
             ) : (
               <div className="flex-1 flex flex-col space-y-4">
                 <div className="space-y-1">
                   <label className="text-sm font-medium" style={{ color: 'var(--admin-text-primary)' }}>
-                    Mức phí phạt (VND)
+                    Penalty Fee (VND)
                   </label>
                   <input
                     type="number"
@@ -232,34 +258,34 @@ export default function StaffExceptions() {
                     min={0}
                     step={1000}
                     className="block w-full px-3 py-2 border rounded-xl leading-5 bg-transparent focus:outline-none focus:ring-2 focus:ring-[#FF4C4C] focus:border-[#FF4C4C] sm:text-sm"
-                    style={{ 
-                      color: 'var(--admin-text-primary)', 
+                    style={{
+                      color: 'var(--admin-text-primary)',
                       borderColor: 'var(--admin-border)',
                       backgroundColor: 'var(--admin-bg-base)'
                     }}
                   />
                   <p className="text-xs mt-1" style={{ color: 'var(--admin-text-faint)' }}>
-                    Gợi ý: Thu phí làm lại thẻ {vnd(penaltyFee)}.
+                    Suggested: charge a replacement card fee of {vnd(penaltyFee)}.
                   </p>
                 </div>
-                
+
                 <div className="space-y-1">
                   <label className="text-sm font-medium" style={{ color: 'var(--admin-text-primary)' }}>
-                    Lý do / Ghi chú
+                    Reason / Notes
                   </label>
                   <textarea
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     rows={3}
                     className="block w-full px-3 py-2 border rounded-xl leading-5 bg-transparent focus:outline-none focus:ring-2 focus:ring-[#FF4C4C] focus:border-[#FF4C4C] sm:text-sm"
-                    style={{ 
-                      color: 'var(--admin-text-primary)', 
+                    style={{
+                      color: 'var(--admin-text-primary)',
                       borderColor: 'var(--admin-border)',
                       backgroundColor: 'var(--admin-bg-base)'
                     }}
                   />
                 </div>
-                
+
                 <div className="mt-auto pt-6">
                   <button
                     onClick={handleReissueTicket}
@@ -267,10 +293,10 @@ export default function StaffExceptions() {
                     className="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-medium text-white bg-yellow-500 hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 disabled:opacity-50 transition-colors"
                   >
                     {isSubmitting ? <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" /> : <Ticket size={18} />}
-                    Xác nhận xử lý ngoại lệ
+                    Confirm Exception Handling
                   </button>
                   <p className="text-xs text-center mt-3" style={{ color: 'var(--admin-text-faint)' }}>
-                    Lưu ý: Hành động này sẽ cộng thêm phí phạt vào hệ thống khi khách hàng ra bãi. Mã vé cũ (Session Code) vẫn được giữ nguyên.
+                    Note: This action will add the penalty fee to the system when the customer exits. The original ticket code (Session Code) remains unchanged.
                   </p>
                 </div>
               </div>

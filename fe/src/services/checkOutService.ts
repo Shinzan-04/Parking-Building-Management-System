@@ -24,6 +24,7 @@ export interface FeeBreakdownDto {
 
 export interface CheckOutSearchResult {
   sessionId: string;
+  sessionCode: string;
   licensePlate: string;
   slotNumber: string;
   floorName: string;
@@ -41,6 +42,9 @@ export interface CheckOutSearchResult {
   message: string;
   isPlateMismatch?: boolean;
   penaltyFee?: number;
+  prePaidAmount?: number;
+  amountDue?: number;
+  autoPaidSuccess?: boolean;
 }
 
 export interface CheckOutConfirmRequest {
@@ -82,6 +86,7 @@ export interface OcrCheckOutRequest {
 
 export interface OcrCheckOutResult {
   sessionId: string;
+  sessionCode: string;
   entryLicensePlate: string;
   exitLicensePlate: string;
   isMatch: boolean;
@@ -115,10 +120,13 @@ export const searchCheckOut = (licensePlate: string, buildingId?: string): Promi
 };
 
 /** Tìm kiếm xe đang gửi trong bãi theo mã QR */
-export const searchCheckOutByQr = (qrCode: string, licensePlate: string, buildingId?: string): Promise<CheckOutSearchResult> => {
+export const searchCheckOutByQr = (qrCode: string, licensePlate: string, buildingId?: string, isLostTicket?: boolean): Promise<CheckOutSearchResult> => {
   let url = `/api/CheckOut/search?qrCode=${encodeURIComponent(qrCode)}&licensePlate=${encodeURIComponent(licensePlate)}`;
   if (buildingId) {
     url += `&buildingId=${encodeURIComponent(buildingId)}`;
+  }
+  if (isLostTicket) {
+    url += `&isLostTicket=true`;
   }
   return apiClient(url);
 };

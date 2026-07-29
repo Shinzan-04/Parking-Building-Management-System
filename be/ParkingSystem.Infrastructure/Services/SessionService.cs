@@ -60,16 +60,42 @@ public class SessionService : ISessionService
         
         // Lọc theo trạng thái
         if (filter.Status.HasValue)
-            query = query.Where(s => s.Status == filter.Status.Value);
+        {
+            if (filter.Status.Value == SessionStatus.Overdue)
+            {
+                var nowTime = DateTime.UtcNow;
+                query = query.Where(s => 
+                    s.Status == SessionStatus.Overdue || 
+                    (s.Status == SessionStatus.Active && 
+                     ((s.CheckInMethod == CheckInMethod.Booking && s.ReservationId != null && s.Reservation!.EndTime < nowTime) ||
+                      (s.CheckInMethod != CheckInMethod.Booking && s.GracePeriodEndTime.HasValue && s.GracePeriodEndTime.Value < nowTime) ||
+                      (s.CheckInMethod != CheckInMethod.Booking && !s.GracePeriodEndTime.HasValue && s.EntryTime < nowTime.AddHours(-24))))
+                );
+            }
+            else
+            {
+                query = query.Where(s => s.Status == filter.Status.Value);
+            }
+        }
 
-        // Lọc ngầm định theo Tòa nhà của Staff (nếu có)
+        // Xác định BuildingId để filter
+        Guid? summaryBuildingId = filter.BuildingId;
+        
+        // Nếu là Staff/Manager, BẮT BUỘC dùng tòa nhà được phân công (nếu có)
         if (filter.StaffId.HasValue)
         {
             var staff = await _context.Users.FindAsync(filter.StaffId.Value);
             if (staff != null && staff.AssignedBuildingId.HasValue)
             {
-                query = query.Where(s => s.ParkingSlot.Floor.BuildingId == staff.AssignedBuildingId.Value);
+                summaryBuildingId = staff.AssignedBuildingId.Value;
             }
+        }
+
+        // Lọc ngầm định theo Tòa nhà của Staff (nếu có)
+        // và lọc theo BuildingId từ filter
+        if (summaryBuildingId.HasValue)
+        {
+            query = query.Where(s => s.ParkingSlot.Floor.BuildingId == summaryBuildingId.Value);
         }
 
         // Tìm theo biển số (gần đúng — LIKE '%keyword%')
@@ -78,10 +104,6 @@ public class SessionService : ISessionService
             var plate = filter.LicensePlate.Trim().ToUpper();
             query = query.Where(s => s.LicensePlate.ToUpper().Contains(plate));
         }
-
-        // Lọc theo tòa nhà
-        if (filter.BuildingId.HasValue)
-            query = query.Where(s => s.ParkingSlot.Floor.BuildingId == filter.BuildingId.Value);
 
         // Lọc theo tầng
         if (filter.FloorId.HasValue)
@@ -111,29 +133,53 @@ public class SessionService : ISessionService
         // Đếm tổng trước phân trang
         var totalCount = await query.CountAsync();
 
-        // Sắp xếp: xe vào sớm nhất lên đầu (đang gửi lâu nhất)
+        // Sắp xếp:
+        // - Đã hoàn thành (Completed): ưu tiên xe vừa ra (ExitTime mới nhất)
+        // - Khác: ưu tiên xe vừa vào (EntryTime mới nhất)
+        query = filter.Status == SessionStatus.Completed 
+            ? query.OrderByDescending(s => s.ExitTime)
+            : query.OrderByDescending(s => s.EntryTime);
+
         var dbItems = await query
-            .OrderByDescending(s => s.EntryTime)
             .Skip((filter.Page - 1) * filter.PageSize)
             .Take(filter.PageSize)
             .ToListAsync();
 
         var items = dbItems.Select(s => MapToDto(s)).ToList();
 
-        // Thống kê nhanh
+        // Thống kê nhanh theo múi giờ Việt Nam (UTC+7)
         var now = DateTime.UtcNow;
-        var todayStart = now.Date;
+        var nowVn = now.AddHours(7);
+        var todayStartVn = nowVn.Date;
+        var todayStart = todayStartVn.AddHours(-7); // Đổi ngược lại ra UTC tương ứng 00:00 VN
         
+        // Xác định BuildingId để filter Summary (đã xử lý ở trên)
+
+        var baseSummaryQuery = _context.ParkingSessions
+            .Include(s => s.ParkingSlot)
+            .ThenInclude(ps => ps.Floor)
+            .Where(s => !s.IsDeleted);
+
+        if (summaryBuildingId.HasValue)
+        {
+            baseSummaryQuery = baseSummaryQuery.Where(s => s.ParkingSlot != null && s.ParkingSlot.Floor != null && s.ParkingSlot.Floor.BuildingId == summaryBuildingId.Value);
+        }
+
         var summary = new SessionSummary
         {
-            TotalActive = await _context.ParkingSessions
+            TotalActive = await baseSummaryQuery
                 .CountAsync(s => s.Status == SessionStatus.Active && !s.IsDeleted),
-            TotalOverdue = await _context.ParkingSessions
-                .CountAsync(s => s.Status == SessionStatus.Overdue && !s.IsDeleted),
-            TotalCompletedToday = await _context.ParkingSessions
+            TotalOverdue = await baseSummaryQuery
+                .CountAsync(s => (s.Status == SessionStatus.Overdue || 
+                                 (s.Status == SessionStatus.Active && 
+                                  ((s.CheckInMethod == CheckInMethod.Booking && s.ReservationId != null && s.Reservation!.EndTime < now) ||
+                                   (s.CheckInMethod != CheckInMethod.Booking && s.GracePeriodEndTime.HasValue && s.GracePeriodEndTime.Value < now) ||
+                                   (s.CheckInMethod != CheckInMethod.Booking && !s.GracePeriodEndTime.HasValue && s.EntryTime < now.AddHours(-24))))) 
+                                 && !s.IsDeleted),
+            TotalCompletedToday = await baseSummaryQuery
                 .CountAsync(s => s.Status == SessionStatus.Completed 
                               && s.ExitTime >= todayStart && !s.IsDeleted),
-            TotalRevenueToday = await _context.ParkingSessions
+            TotalRevenueToday = await baseSummaryQuery
                 .Where(s => s.Status == SessionStatus.Completed 
                          && s.ExitTime >= todayStart && !s.IsDeleted)
                 .SumAsync(s => s.TotalFee)
@@ -172,7 +218,7 @@ public class SessionService : ISessionService
     /// <summary>
     /// Tìm nhanh session đang Active theo biển số xe
     /// </summary>
-    public async Task<SessionDto?> FindActiveByPlateAsync(string licensePlate)
+    public async Task<SessionDto?> FindActiveByPlateAsync(string licensePlate, Guid? staffId = null)
     {
         var plate = licensePlate.Trim().ToUpper();
 
@@ -186,6 +232,18 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(s => s.LicensePlate.ToUpper() == plate 
                                    && s.Status == SessionStatus.Active 
                                    && !s.IsDeleted);
+
+        if (session != null && staffId.HasValue && staffId.Value != Guid.Empty)
+        {
+            var staff = await _context.Users.FindAsync(staffId.Value);
+            if (staff != null && staff.AssignedBuildingId.HasValue)
+            {
+                if (session.ParkingSlot.Floor!.BuildingId != staff.AssignedBuildingId.Value)
+                {
+                    throw new InvalidOperationException("This vehicle is parked in another building. You do not have permission to access its information.");
+                }
+            }
+        }
 
         return session == null ? null : MapToDto(session);
     }
@@ -203,6 +261,15 @@ public class SessionService : ISessionService
 
         if (session == null)
             throw new KeyNotFoundException("Không tìm thấy phiên gửi xe hoặc xe đã thanh toán.");
+
+        var staff = await _context.Users.FindAsync(staffId);
+        if (staff != null && staff.AssignedBuildingId.HasValue)
+        {
+            if (session.ParkingSlot.Floor!.BuildingId != staff.AssignedBuildingId.Value)
+            {
+                throw new InvalidOperationException("This vehicle is parked in another building. You do not have permission to process exceptions for it.");
+            }
+        }
 
         var oldPenaltyFee = session.PenaltyFee;
 
@@ -250,7 +317,11 @@ public class SessionService : ISessionService
             SessionCode = s.SessionCode,
             LicensePlate = s.LicensePlate,
             CheckInMethod = s.CheckInMethod,
-            Status = s.Status,
+            Status = s.Status == SessionStatus.Active && 
+                     ((s.CheckInMethod == CheckInMethod.Booking && s.Reservation != null && now > s.Reservation.EndTime) || 
+                      (s.CheckInMethod != CheckInMethod.Booking && s.GracePeriodEndTime.HasValue && now > s.GracePeriodEndTime.Value) || 
+                      (s.CheckInMethod != CheckInMethod.Booking && !s.GracePeriodEndTime.HasValue && duration.TotalHours >= 24)) 
+                     ? SessionStatus.Overdue : s.Status,
             IssueType = s.IssueType,
             SlotNumber = s.ParkingSlot?.SlotNumber ?? "",
             FloorName = s.ParkingSlot?.Floor?.Name ?? "",
@@ -273,9 +344,9 @@ public class SessionService : ISessionService
     /// <summary>
     /// Lấy thông tin phiên đỗ xe hiện tại (Live Session) của user (Driver)
     /// </summary>
-    public async Task<MyActiveSessionResponse?> GetMyActiveSessionAsync(Guid driverId)
+    public async Task<List<MyActiveSessionResponse>> GetMyActiveSessionAsync(Guid driverId)
     {
-        var session = await _context.ParkingSessions
+        var sessions = await _context.ParkingSessions
             .Include(s => s.VehicleType)
             .Include(s => s.ParkingSlot)
                 .ThenInclude(ps => ps.Floor)
@@ -283,47 +354,52 @@ public class SessionService : ISessionService
             .Include(s => s.Reservation)
             .Where(s => s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted)
             .OrderByDescending(s => s.EntryTime)
-            .FirstOrDefaultAsync();
+            .ToListAsync();
 
-        if (session == null) return null;
+        var resultList = new List<MyActiveSessionResponse>();
 
-        // Tái sử dụng logic tính phí chính xác (Block Day/Night) từ CheckOutService
-        decimal currentFee = 0;
-        List<ParkingSystem.Application.DTOs.CheckOut.SurchargeLogItemDto>? surchargeLogs = null;
-        try
+        foreach (var session in sessions)
         {
-            var feeResult = await _checkOutService.CalculateFeeBySessionIdAsync(session.Id);
-            currentFee = feeResult.EstimatedFee;
-            surchargeLogs = feeResult.FeeBreakdown?.SurchargeLogs;
+            // Tái sử dụng logic tính phí chính xác (Block Day/Night) từ CheckOutService
+            decimal currentFee = 0;
+            List<ParkingSystem.Application.DTOs.CheckOut.SurchargeLogItemDto>? surchargeLogs = null;
+            try
+            {
+                var feeResult = await _checkOutService.CalculateFeeBySessionIdAsync(session.Id);
+                currentFee = feeResult.EstimatedFee;
+                surchargeLogs = feeResult.FeeBreakdown?.SurchargeLogs;
+            }
+            catch
+            {
+                currentFee = 0;
+            }
+
+            bool isPrepaid = session.CheckInMethod == CheckInMethod.Booking && session.Reservation != null;
+            DateTime? prepaidStartTime = isPrepaid ? session.Reservation!.StartTime : null;
+            DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : session.GracePeriodEndTime;
+
+            resultList.Add(new MyActiveSessionResponse
+            {
+                Id = session.Id,
+                SessionCode = session.SessionCode,
+                SessionQrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(session.SessionCode),
+                LicensePlate = session.LicensePlate,
+                VehicleTypeName = session.VehicleType?.Name ?? "",
+                EntryTime = session.EntryTime,
+                BuildingName = session.ParkingSlot?.Floor?.Building?.Name ?? "",
+                FloorName = session.ParkingSlot?.Floor?.Name ?? "",
+                SlotNumber = session.ParkingSlot?.SlotNumber ?? "",
+                PricePerHour = 0, // Dùng Block thay vì HourlyRate
+                CurrentFee = currentFee,
+                PrePaidAmount = session.PrePaidAmount,
+                IsPrepaid = isPrepaid,
+                PrepaidStartTime = prepaidStartTime,
+                PrepaidEndTime = prepaidEndTime,
+                SurchargeLogs = surchargeLogs
+            });
         }
-        catch
-        {
-            currentFee = 0;
-        }
 
-        bool isPrepaid = session.CheckInMethod == CheckInMethod.Booking && session.Reservation != null;
-        DateTime? prepaidStartTime = isPrepaid ? session.Reservation!.StartTime : null;
-        DateTime? prepaidEndTime = isPrepaid ? session.Reservation!.EndTime : session.GracePeriodEndTime;
-
-        return new MyActiveSessionResponse
-        {
-            Id = session.Id,
-            SessionCode = session.SessionCode,
-            SessionQrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(session.SessionCode),
-            LicensePlate = session.LicensePlate,
-            VehicleTypeName = session.VehicleType?.Name ?? "",
-            EntryTime = session.EntryTime,
-            BuildingName = session.ParkingSlot?.Floor?.Building?.Name ?? "",
-            FloorName = session.ParkingSlot?.Floor?.Name ?? "",
-            SlotNumber = session.ParkingSlot?.SlotNumber ?? "",
-            PricePerHour = 0, // Dùng Block thay vì HourlyRate
-            CurrentFee = currentFee,
-            PrePaidAmount = session.PrePaidAmount,
-            IsPrepaid = isPrepaid,
-            PrepaidStartTime = prepaidStartTime,
-            PrepaidEndTime = prepaidEndTime,
-            SurchargeLogs = surchargeLogs
-        };
+        return resultList;
     }
 
     /// <summary>
