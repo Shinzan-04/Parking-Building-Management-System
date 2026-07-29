@@ -22,7 +22,7 @@ public interface ISessionService
     /// <summary>
     /// Tìm session đang Active theo biển số xe (tra cứu nhanh)
     /// </summary>
-    Task<SessionDto?> FindActiveByPlateAsync(string licensePlate);
+    Task<SessionDto?> FindActiveByPlateAsync(string licensePlate, Guid? staffId = null);
 
     /// <summary>
     /// Cấp lại vé (Ngoại lệ mất vé), gán PenaltyFee

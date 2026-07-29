@@ -216,7 +216,7 @@ public class SessionService : ISessionService
     /// <summary>
     /// Tìm nhanh session đang Active theo biển số xe
     /// </summary>
-    public async Task<SessionDto?> FindActiveByPlateAsync(string licensePlate)
+    public async Task<SessionDto?> FindActiveByPlateAsync(string licensePlate, Guid? staffId = null)
     {
         var plate = licensePlate.Trim().ToUpper();
 
@@ -230,6 +230,18 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(s => s.LicensePlate.ToUpper() == plate 
                                    && s.Status == SessionStatus.Active 
                                    && !s.IsDeleted);
+
+        if (session != null && staffId.HasValue && staffId.Value != Guid.Empty)
+        {
+            var staff = await _context.Users.FindAsync(staffId.Value);
+            if (staff != null && staff.AssignedBuildingId.HasValue)
+            {
+                if (session.ParkingSlot.Floor!.BuildingId != staff.AssignedBuildingId.Value)
+                {
+                    throw new InvalidOperationException("This vehicle is parked in another building. You do not have permission to access its information.");
+                }
+            }
+        }
 
         return session == null ? null : MapToDto(session);
     }
@@ -247,6 +259,15 @@ public class SessionService : ISessionService
 
         if (session == null)
             throw new KeyNotFoundException("Không tìm thấy phiên gửi xe hoặc xe đã thanh toán.");
+
+        var staff = await _context.Users.FindAsync(staffId);
+        if (staff != null && staff.AssignedBuildingId.HasValue)
+        {
+            if (session.ParkingSlot.Floor!.BuildingId != staff.AssignedBuildingId.Value)
+            {
+                throw new InvalidOperationException("This vehicle is parked in another building. You do not have permission to process exceptions for it.");
+            }
+        }
 
         var oldPenaltyFee = session.PenaltyFee;
 

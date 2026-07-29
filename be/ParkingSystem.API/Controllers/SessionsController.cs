@@ -104,7 +104,14 @@ public class SessionsController : ControllerBase
 
         try
         {
-            var result = await _sessionService.FindActiveByPlateAsync(plate);
+            Guid? staffId = null;
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!string.IsNullOrEmpty(userIdClaim) && Guid.TryParse(userIdClaim, out var parsedId))
+            {
+                staffId = parsedId;
+            }
+
+            var result = await _sessionService.FindActiveByPlateAsync(plate, staffId);
             
             if (result == null)
                 return NotFound(new { message = $"Không tìm thấy xe biển số '{plate}' đang gửi trong bãi." });
