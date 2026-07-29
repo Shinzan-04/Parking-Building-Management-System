@@ -23,13 +23,18 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    // Both LPR and QR now use manual capture from standard video stream
+    /**
+     * Khởi tạo Camera bằng Web API nguyên bản (Native Web API).
+     * Không sử dụng bất kỳ thư viện bên thứ 3 nào cho việc mở luồng camera.
+     */
     const initCamera = async () => {
       try {
+        // Xin quyền truy cập Camera từ trình duyệt. Ưu tiên camera sau (environment).
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
         });
 
+        // Gắn luồng video stream (dữ liệu trực tiếp từ camera) vào thẻ <video> để hiển thị cho người dùng
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           streamRef.current = stream;
@@ -48,6 +53,10 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
     };
   }, [mode]);
 
+  /**
+   * Xử lý khi người dùng bấm nút "Chụp" (Capture).
+   * Lấy khung hình từ Video -> Vẽ lên Canvas -> Chuyển thành Base64 (Biển số) hoặc File Blob (QR Code).
+   */
   const captureAndScan = async () => {
     if (!videoRef.current || !canvasRef.current) return;
 
@@ -55,17 +64,23 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
       setLoading(true);
       setError(null);
 
-      // Draw video frame to canvas
+      // 1. Lấy context (bút vẽ 2D) từ thẻ Canvas
       const context = canvasRef.current.getContext('2d');
       if (!context) throw new Error('Could not get canvas context');
 
+      // 2. Cài đặt kích thước Canvas bằng đúng độ phân giải của Video
       canvasRef.current.width = videoRef.current.videoWidth;
       canvasRef.current.height = videoRef.current.videoHeight;
+      // 3. VẼ khung hình hiện hành của thẻ Video lên thẻ Canvas (Tương đương với việc "Chụp ảnh tĩnh")
       context.drawImage(videoRef.current, 0, 0);
 
       if (mode === 'lpr') {
-        // LPR MODE: Convert to base64 and call OCR API
+        // MODE LPR: QUÉT BIỂN SỐ XE
+        // 4. Chuyển đổi dữ liệu từ Canvas thành chuỗi ký tự Base64 (Chuẩn định dạng ảnh web)
+        // split(',')[1] để loại bỏ phần prefix "data:image/jpeg;base64,"
         const imageBase64 = canvasRef.current.toDataURL('image/jpeg').split(',')[1];
+        
+        // 5. Gửi chuỗi ảnh Base64 lên Server Backend (OCR API) để nhận diện chữ viết trong biển số
         const result = await scanPlate(imageBase64);
 
         if (result) {
@@ -75,7 +90,8 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
         }
         setLoading(false);
       } else {
-        // QR MODE: Convert to File and use Html5Qrcode.scanFile
+        // MODE QR: QUÉT MÃ QR CODE
+        // Với QR, ta cần convert Canvas thành File dạng nhị phân (Blob) để thư viện đọc
         canvasRef.current.toBlob(async (blob) => {
           if (!blob) {
             setError('Failed to capture image');
@@ -84,6 +100,7 @@ export default function CameraCapture({ onSuccess, onCancel, token, inline, clas
           }
           const file = new File([blob], 'qr.jpg', { type: 'image/jpeg' });
           try {
+            // Sử dụng thư viện html5-qrcode để tìm và đọc nội dung mã QR trực tiếp ngay trên Frontend (Client-side)
             const qrScanner = new Html5Qrcode("hidden-qr-reader");
             const result = await qrScanner.scanFileV2(file, false);
             if (onQrSuccess) {
