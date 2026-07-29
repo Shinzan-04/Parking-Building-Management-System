@@ -382,8 +382,12 @@ export default function MyVehiclePage() {
                   <input
                     type="text"
                     value={formPlateNumber}
-                    onChange={(e) => setFormPlateNumber(e.target.value)}
-                    placeholder="e.g. 29A-123.45"
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
+                      setFormPlateNumber(val);
+                    }}
+                    placeholder="e.g 51A12345"
+                    maxLength={12}
                     className="w-full px-4 py-3 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-semibold outline-none focus:border-[#FF4C4C] dark:focus:border-[#FF4C4C] focus:ring-2 focus:ring-[#FF4C4C]/10 transition-all text-stone-850 dark:text-white placeholder:text-stone-300 dark:placeholder:text-stone-600"
                     required
                   />
