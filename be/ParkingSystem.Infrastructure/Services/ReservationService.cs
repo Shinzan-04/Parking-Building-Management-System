@@ -574,6 +574,8 @@ public class ReservationService : IReservationService
     {
         var reservations = await _context.Reservations
             .Include(r => r.ParkingSlot)
+            .ThenInclude(ps => ps.Floor)
+            .ThenInclude(f => f.Building)
             .Where(r => r.DriverId == driverId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
@@ -648,6 +650,7 @@ public class ReservationService : IReservationService
         var query = _context.Reservations
             .Include(r => r.ParkingSlot)
             .ThenInclude(ps => ps.Floor)
+            .ThenInclude(f => f.Building)
             .Where(r => r.Status == ReservationStatus.PendingReview);
 
         if (buildingId.HasValue)
@@ -676,6 +679,7 @@ public class ReservationService : IReservationService
         var query = _context.Reservations
             .Include(r => r.ParkingSlot)
             .ThenInclude(ps => ps.Floor)
+            .ThenInclude(f => f.Building)
             .Where(r => validStatuses.Contains(r.Status));
 
         if (buildingId.HasValue)
@@ -875,6 +879,8 @@ public class ReservationService : IReservationService
             DriverId = r.DriverId,
             ParkingSlotId = r.ParkingSlotId,
             SlotNumber = slot?.SlotNumber ?? "",
+            FloorName = slot?.Floor?.Name ?? "",
+            BuildingName = slot?.Floor?.Building?.Name ?? "",
             BookingCode = r.BookingCode,
             QrCodeBase64 = _qrCodeService.GenerateQrCodeBase64(r.BookingCode),
             LicensePlate = r.LicensePlate,

@@ -22,6 +22,8 @@ export interface ReservationResponse {
   bookingCode: string;
   qrCodeBase64: string;
   licensePlate: string;
+  floorName: string;
+  buildingName: string;
   startTime: string;
   endTime: string;
   status: ReservationStatus | number;

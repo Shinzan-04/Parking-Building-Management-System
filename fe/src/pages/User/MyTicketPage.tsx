@@ -309,7 +309,7 @@ export default function MyTicketPage() {
                     {/* Facility name */}
                     <h3 className="text-base font-extrabold text-stone-900 dark:text-white mb-4 flex items-center gap-1.5 transition-colors duration-300">
                       <div className="w-1.5 h-1.5 rounded-full bg-[#FF4C4C]" />
-                      ParkSmart Building
+                      {ticket.buildingName || 'ParkSmart Building'}
                     </h3>
 
                     {/* Ticket Details */}
@@ -321,7 +321,7 @@ export default function MyTicketPage() {
                       <div className="flex justify-between">
                         <span>Slot</span>
                         <span className="font-bold text-[#FF4C4C] bg-[#FF4C4C]/5 px-2 py-0.5 rounded">
-                          {ticket.slotNumber || 'Auto-assigned'}
+                          {ticket.floorName ? `Floor ${ticket.floorName} › ` : ''}{ticket.slotNumber || 'Auto-assigned'}
                         </span>
                       </div>
                       <div className="flex justify-between">
