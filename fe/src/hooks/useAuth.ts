@@ -63,34 +63,43 @@ export function useAuth() {
 
   /**
    * Đăng nhập bằng username + password.
-   * Gọi POST /api/auth/login
+   * - Bật trạng thái loading để UI vô hiệu hóa nút Submit
+   * - Gọi API POST /api/auth/login
+   * - Lưu session và trả kết quả nếu thành công
+   * - Lưu lỗi vào state `error` nếu thất bại
    */
   const login = useCallback(async (payload: LoginRequest) => {
-    setLoading(true);
-    setError(null);
+    setLoading(true); // Bật trạng thái loading
+    setError(null);   // Xóa lỗi cũ
     try {
+      // Gọi API gửi request xuống backend
       const response = await loginApi(payload);
-      saveSession(response);
+      
+      // Đăng nhập thành công, lưu Access Token và dữ liệu User vào LocalStorage
+      saveSession(response); 
       return response;
     } catch (err) {
+      // Xử lý lỗi và hiển thị lên giao diện qua biến state `error`
       const msg = err instanceof Error ? err.message : 'Login failed.';
       setError(msg);
       throw err;
     } finally {
-      setLoading(false);
+      setLoading(false); // Tắt trạng thái loading
     }
   }, [saveSession]);
 
   /**
    * Đăng nhập bằng Google ID Token.
-   * Gọi POST /api/auth/google-login
+   * - Nhận idToken từ giao diện (sau khi user xác nhận trên popup Google)
+   * - Gọi POST /api/auth/google-login để Backend kiểm chứng token
+   * - Nếu hợp lệ, lưu session tương tự như login thường
    */
   const loginWithGoogle = useCallback(async (idToken: string) => {
     setLoading(true);
     setError(null);
     try {
       const response = await googleLoginApi(idToken);
-      saveSession(response);
+      saveSession(response); // Lưu token hệ thống trả về
       return response;
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Google login failed.';
