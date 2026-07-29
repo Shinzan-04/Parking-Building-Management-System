@@ -164,6 +164,7 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
   return (
     <Tooltip content={tooltipContent}>
       <div
+        className={isOverdue ? 'animate-overdue-pulse' : ''}
         style={{
           width: '100%',
           minWidth: 90,

@@ -155,15 +155,31 @@ public class ParkingSlotService : IParkingSlotService
 
         // 1. Kiểm tra xem có xe nào đang đỗ không (ParkingSession)
         // Xe đang đỗ có thể là Active hoặc Overdue
-        var activeSessions = await _sessionRepo.FindAsync(s => s.ParkingSlotId == slotId && (s.Status == SessionStatus.Active || s.Status == SessionStatus.Overdue));
+        var activeSessions = await _sessionRepo.FindAsync(s => s.ParkingSlotId == slotId && (s.Status == SessionStatus.Active || s.Status == SessionStatus.Overdue), "Reservation");
         var activeSession = activeSessions.FirstOrDefault();
         
         if (activeSession != null)
         {
+            bool isOverdue = activeSession.Status == SessionStatus.Overdue;
+            if (!isOverdue && activeSession.Status == SessionStatus.Active)
+            {
+                if (activeSession.CheckInMethod == CheckInMethod.Booking && activeSession.Reservation != null)
+                {
+                    isOverdue = activeSession.Reservation.EndTime < now;
+                }
+                else
+                {
+                    if (activeSession.GracePeriodEndTime.HasValue)
+                        isOverdue = activeSession.GracePeriodEndTime.Value < now;
+                    else
+                        isOverdue = activeSession.EntryTime < now.AddHours(-24);
+                }
+            }
+
             return new CurrentVehicleResponse
             {
                 LicensePlate = string.IsNullOrWhiteSpace(activeSession.LicensePlate) ? null : activeSession.LicensePlate,
-                Status = activeSession.Status == SessionStatus.Overdue ? "Overdue" : "Occupied",
+                Status = isOverdue ? "Overdue" : "Occupied",
                 ExpectedEndTime = activeSession.ExitTime // or null
             };
         }
