@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as signalR from '@microsoft/signalr';
 import toast from 'react-hot-toast';
-import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon, ChevronDown, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, Car, MapPin, LogOut, MessageSquare, DoorOpen, CalendarCheck, Sun, Moon, ChevronDown, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { useTheme } from '../../hooks/useTheme';
 import NotificationBell from '../../components/NotificationBell';
@@ -114,6 +114,23 @@ export default function StaffLayout() {
         className={`fixed top-0 left-0 h-screen flex flex-col z-30 border-r transition-all duration-300 ${isCollapsed ? 'w-[68px]' : 'w-64'}`}
         style={{ backgroundColor: 'var(--admin-bg-surface)', borderColor: 'var(--admin-border)' }}
       >
+        {/* Toggle Arrow */}
+        <button
+          onClick={() => setIsCollapsed(c => !c)}
+          className="absolute top-1/2 -translate-y-1/2 w-4 h-12 rounded-r-md flex items-center justify-center border-y border-r shadow-sm transition-colors duration-200 z-50 hover:bg-gray-100 dark:hover:bg-gray-800 group"
+          style={{ 
+            right: '-16px',
+            backgroundColor: 'var(--admin-bg-surface)', 
+            borderColor: 'var(--admin-border)',
+            color: 'var(--admin-text-muted)'
+          }}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {/* Cover the sidebar's right border to make it seamless */}
+          <div className="absolute top-0 bottom-0 -left-[2px] w-[3px]" style={{ backgroundColor: 'var(--admin-bg-surface)' }} />
+          <ChevronRight size={14} className={`relative z-10 transition-transform duration-300 group-hover:scale-110 ${isCollapsed ? '' : 'rotate-180'}`} />
+        </button>
+
         {/* Logo — click to toggle */}
         <div
           className="px-3 py-4 border-b flex items-center cursor-pointer select-none"

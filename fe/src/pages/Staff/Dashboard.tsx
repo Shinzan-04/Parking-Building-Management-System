@@ -326,32 +326,32 @@ export default function StaffDashboard() {
                       <span className="text-sm font-mono font-semibold" style={{ color: 'var(--admin-text-primary)' }}>{s.licensePlate}</span>
                     </td>
                     <td className="px-4 py-3.5">
-                      <p className="text-xs" style={{ color: 'var(--admin-text-muted)' }}>
+                      <p className="text-xs font-medium" style={{ color: 'var(--admin-text-primary)' }}>
                         {s.floorName.toString().toLowerCase().includes('floor') || s.floorName.toString().toLowerCase().includes('tầng') ? s.floorName : `Floor ${s.floorName}`}
                       </p>
-                      <p className="text-[10px]" style={{ color: 'var(--admin-text-faint)' }}>
+                      <p className="text-[11px]" style={{ color: 'var(--admin-text-muted)' }}>
                         {s.slotNumber.toString().toLowerCase().includes('slot') ? s.slotNumber : `Slot ${s.slotNumber}`}
                       </p>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="flex flex-col gap-0.5 text-sm" style={{ color: 'var(--admin-text-muted)' }}>
-                        <div className="flex items-center gap-1.5">
-                          <Clock size={12} style={{ color: 'var(--admin-text-faint)' }} />
+                      <div className="flex flex-col gap-0.5 text-sm" style={{ color: 'var(--admin-text-primary)' }}>
+                        <div className="flex items-center gap-1.5 font-medium">
+                          <Clock size={12} style={{ color: 'var(--admin-text-muted)' }} />
                           {new Date(s.entryTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </div>
-                        <span className="text-[10px]" style={{ color: 'var(--admin-text-faint)' }}>
+                        <span className="text-[11px]" style={{ color: 'var(--admin-text-muted)' }}>
                           {new Date(s.entryTime).toLocaleDateString('en-GB')}
                         </span>
                       </div>
                     </td>
                     <td className="px-4 py-3.5">
-                      <div className="flex flex-col gap-0.5 text-sm" style={{ color: 'var(--admin-text-muted)' }}>
+                      <div className="flex flex-col gap-0.5 text-sm" style={{ color: 'var(--admin-text-primary)' }}>
                         {s.exitTime ? (
                           <>
-                            <span style={{ color: 'var(--admin-text-muted)' }}>
+                            <span className="font-medium" style={{ color: 'var(--admin-text-primary)' }}>
                               {new Date(s.exitTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}
                             </span>
-                            <span className="text-[10px]" style={{ color: 'var(--admin-text-faint)' }}>
+                            <span className="text-[11px]" style={{ color: 'var(--admin-text-muted)' }}>
                               {new Date(s.exitTime).toLocaleDateString('en-GB')}
                             </span>
                           </>
