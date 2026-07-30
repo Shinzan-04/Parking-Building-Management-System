@@ -555,7 +555,7 @@ export default function StaffReservations() {
                       if (!acc[floor]) acc[floor] = [];
                       acc[floor].push(slot);
                       return acc;
-                    }, {} as Record<string, typeof buildingSlots[0]>)
+                    }, {} as Record<string, ParkingSlotDetail[]>)
                   ).sort(([f1], [f2]) => f1.localeCompare(f2, undefined, { numeric: true }))
                     .map(([floor, slots]) => (
                       <div key={floor} className="space-y-3">
