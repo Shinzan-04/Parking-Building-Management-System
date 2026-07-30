@@ -113,10 +113,8 @@ public class ParkingSlotService : IParkingSlotService
             r => r.ParkingSlot.FloorId == floorId && activeStatuses.Contains(r.Status));
         
         // Lọc ra những Reservation có khung giờ trùng lắp (overlap) với thời gian đặt mới
-        var overlappingSlotIds = reservations
+        var overlappingReservations = reservations
             .Where(r => r.StartTime < endTime && r.EndTime > startTime)
-            .Select(r => r.ParkingSlotId)
-            .Distinct()
             .ToList();
 
         var responses = slots.Select(s => MapToResponse(s)).ToList();
@@ -124,10 +122,19 @@ public class ParkingSlotService : IParkingSlotService
 
         foreach(var res in responses)
         {
-            if (overlappingSlotIds.Contains(res.Id))
+            var overlaps = overlappingReservations.Where(r => r.ParkingSlotId == res.Id).ToList();
+            if (overlaps.Any())
             {
-                // Có Reservation trùng giờ → đánh dấu Reserved (không cho đặt)
-                res.Status = SlotStatus.Reserved; 
+                // Nếu có bất kỳ Reservation nào đang ở trạng thái CheckedIn (tức là xe đã vào đỗ)
+                // thì ưu tiên hiển thị trạng thái Occupied thay vì Reserved
+                if (overlaps.Any(r => r.Status == ReservationStatus.CheckedIn))
+                {
+                    res.Status = SlotStatus.Occupied;
+                }
+                else
+                {
+                    res.Status = SlotStatus.Reserved; 
+                }
             }
             else if (!isImmediate)
             {
