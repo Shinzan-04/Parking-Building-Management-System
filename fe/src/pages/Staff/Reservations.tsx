@@ -26,6 +26,13 @@ function fmtDateTime(iso: string) {
   });
 }
 
+const MAP_STATUS_STYLE: Record<string, { bg: string; border: string; text: string }> = {
+  Available: { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.4)', text: '#10b981' },
+  Occupied: { bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.4)', text: '#f87171' },
+  Reserved: { bg: 'rgba(234, 179, 8, 0.15)', border: 'rgba(234, 179, 8, 0.4)', text: '#facc15' },
+  Maintenance: { bg: 'rgba(100,116,139,0.15)', border: 'rgba(100,116,139,0.4)', text: '#94a3b8' },
+};
+
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const STATUS_STYLE: Record<string, string> = {
@@ -36,7 +43,7 @@ const STATUS_STYLE: Record<string, string> = {
   CheckedIn: 'bg-emerald-500/10 text-emerald-500',
   Cancelled: 'bg-[var(--admin-bg-card-hover)] admin-text-faint',
   Completed: 'bg-[var(--admin-bg-card-hover)] admin-text-muted',
-  Rejected:  'bg-red-400/10 text-red-400',
+  Rejected: 'bg-red-400/10 text-red-400',
   NoShow: 'bg-[var(--admin-bg-card-hover)] admin-text-faint',
   PaymentFailed: 'bg-red-400/10 text-red-400',
 };
@@ -59,7 +66,7 @@ function ReservationCard({
 }: {
   r: ReservationResponse;
   onApprove: (r: ReservationResponse) => void;
-  onReject:  (r: ReservationResponse) => void;
+  onReject: (r: ReservationResponse) => void;
   onReassign: (r: ReservationResponse) => void;
 }) {
   const status = normalizeReservationStatus(r.status);
@@ -86,7 +93,9 @@ function ReservationCard({
       <div className="space-y-2.5">
         <div className="flex items-center gap-2.5 px-3 py-2 bg-white/[0.04] rounded-xl">
           <MapPin size={13} className="admin-text-muted shrink-0" />
-          <span className="text-xs admin-text/70">Slot: <span className="font-semibold admin-text">{r.slotNumber}</span></span>
+          <span className="text-xs admin-text/70">Location: <span className="font-semibold admin-text">
+            {r.floorName?.toString().toLowerCase().includes('floor') || r.floorName?.toString().toLowerCase().includes('tầng') ? r.floorName.replace('Tầng', 'Floor') : `Floor ${r.floorName}`} &mdash; Slot {r.slotNumber?.replace(`${r.floorName}-`, '').replace('Slot ', '')}
+          </span></span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="flex items-start gap-2 px-3 py-2 bg-white/[0.04] rounded-xl">
@@ -151,7 +160,7 @@ export default function StaffReservations() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [apiError, setApiError] = useState('');
-  
+
   const [activeTab, setActiveTab] = useState<'pending' | 'active'>('pending');
 
   // Approve modal
@@ -169,7 +178,7 @@ export default function StaffReservations() {
   const [reassignTarget, setReassignTarget] = useState<ReservationResponse | null>(null);
   const [reassigning, setReassigning] = useState(false);
   const [reassignError, setReassignError] = useState('');
-  const [availableSlots, setAvailableSlots] = useState<ParkingSlotDetail[]>([]);
+  const [buildingSlots, setBuildingSlots] = useState<ParkingSlotDetail[]>([]);
   const [selectedSlotId, setSelectedSlotId] = useState<string>('');
   const [loadingSlots, setLoadingSlots] = useState(false);
 
@@ -205,7 +214,7 @@ export default function StaffReservations() {
     setLoadingSlots(true);
     try {
       const slots = await getAllSlots(user?.assignedBuildingId);
-      setAvailableSlots(slots.filter(s => s.status === 'Available'));
+      setBuildingSlots(slots);
     } catch (err) {
       setReassignError('Unable to load available slots.');
     } finally {
@@ -235,7 +244,7 @@ export default function StaffReservations() {
       // payload chứa cờ isAccepted = true báo cho Backend biết là đồng ý
       const payload: ReviewReservationRequest = { isAccepted: true };
       await reviewReservation(approveTarget.id, payload);
-      
+
       // Load lại danh sách ngầm (không hiển thị màn hình loading lớn)
       await loadData(true);
       setApproveTarget(null); // Đóng modal
@@ -256,14 +265,14 @@ export default function StaffReservations() {
   const handleReject = async () => {
     if (!rejectTarget || !token) return;
     if (!rejectReason.trim()) { setRejectError('Please enter a rejection reason.'); return; }
-    
+
     setRejecting(true);
     setRejectError('');
     try {
       // payload có isAccepted = false và đính kèm lý do từ chối
       const payload: ReviewReservationRequest = { isAccepted: false, reason: rejectReason.trim() };
       await reviewReservation(rejectTarget.id, payload);
-      
+
       await loadData(true);
       setRejectTarget(null);
       setRejectReason(''); // Xóa trắng text lý do sau khi thành công
@@ -291,7 +300,7 @@ export default function StaffReservations() {
     try {
       // Gọi API cập nhật vé sang một vị trí mới hoàn toàn (selectedSlotId)
       await reassignSlot(reassignTarget.id, selectedSlotId);
-      
+
       await loadData(true);
       setReassignTarget(null);
       setSelectedSlotId('');
@@ -353,9 +362,8 @@ export default function StaffReservations() {
       <div className="flex gap-2 border-b border-[var(--admin-border)] pb-4">
         <button
           onClick={() => setActiveTab('pending')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'pending' ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]' : 'admin-text-faint hover:bg-[var(--admin-bg-card)]'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'pending' ? 'bg-[#FF4C4C]/10 text-[#FF4C4C]' : 'admin-text-faint hover:bg-[var(--admin-bg-card)]'
+            }`}
         >
           <CalendarCheck size={16} /> Pending
           {pendingList.length > 0 && (
@@ -364,9 +372,8 @@ export default function StaffReservations() {
         </button>
         <button
           onClick={() => setActiveTab('active')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-            activeTab === 'active' ? 'bg-blue-400/10 text-blue-400' : 'admin-text-faint hover:bg-[var(--admin-bg-card)]'
-          }`}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${activeTab === 'active' ? 'bg-blue-400/10 text-blue-400' : 'admin-text-faint hover:bg-[var(--admin-bg-card)]'
+            }`}
         >
           <CheckCircle2 size={16} /> Approved / Active
           {activeList.length > 0 && (
@@ -446,7 +453,7 @@ export default function StaffReservations() {
             </div>
           </div>
         </div>
-      , document.body)}
+        , document.body)}
 
       {/* ══ REJECT MODAL ══ */}
       {rejectTarget && createPortal(
@@ -500,48 +507,97 @@ export default function StaffReservations() {
             </div>
           </div>
         </div>
-      , document.body)}
+        , document.body)}
 
       {/* ══ REASSIGN MODAL ══ */}
       {reassignTarget && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="border border-blue-400/20 rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-5 bg-white dark:bg-[#0E0E10]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-400/10 flex items-center justify-center shrink-0">
-                <RefreshCcw size={20} className="text-blue-400" />
+          <div className="border border-blue-400/20 rounded-2xl w-full max-w-5xl shadow-2xl p-6 flex flex-col max-h-[90vh] bg-white dark:bg-[#0E0E10]">
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-400/10 flex items-center justify-center shrink-0">
+                  <RefreshCcw size={20} className="text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800 dark:admin-text">Reassign Slot (Parking Map)</h3>
+                  <p className="text-xs text-gray-400 dark:admin-text-muted mt-0.5">Handle occupied slot issues by selecting a new available slot from the map.</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-semibold text-gray-800 dark:admin-text">Reassign Slot</h3>
-                <p className="text-xs text-gray-400 dark:admin-text-muted mt-0.5">Handle occupied slot issues</p>
-              </div>
+              <button onClick={() => setReassignTarget(null)} className="p-2 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+                <X size={18} className="text-gray-500 dark:admin-text-muted" />
+              </button>
             </div>
 
-            <div className="bg-gray-50 dark:bg-[var(--admin-bg-card)] p-3 rounded-xl border border-gray-200 dark:border-[var(--admin-border)] text-sm text-gray-600 dark:admin-text/70">
+            {/* Target Info */}
+            <div className="bg-gray-50 dark:bg-[var(--admin-bg-card)] p-3 mb-5 shrink-0 rounded-xl border border-gray-200 dark:border-[var(--admin-border)] flex items-center gap-6 text-sm text-gray-600 dark:admin-text/70">
               <p>License Plate: <span className="font-bold text-gray-800 dark:admin-text">{reassignTarget.licensePlate}</span></p>
-              <p>Current slot: <span className="font-semibold text-red-400">{reassignTarget.slotNumber}</span> (Occupied/Issue)</p>
+              <p>Current slot: <span className="font-semibold text-red-400">
+                {reassignTarget.floorName?.toString().toLowerCase().includes('floor') || reassignTarget.floorName?.toString().toLowerCase().includes('tầng') ? reassignTarget.floorName.replace('Tầng', 'Floor') : `Floor ${reassignTarget.floorName}`} &mdash; Slot {reassignTarget.slotNumber?.replace(`${reassignTarget.floorName}-`, '').replace('Slot ', '')}
+              </span> (Occupied/Issue)</p>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-500 dark:admin-text-faint mb-1.5">
+            {/* Map Area */}
+            <div className="flex-1 overflow-hidden flex flex-col mb-5">
+              <label className="block text-xs font-medium text-gray-500 dark:admin-text-faint mb-2 shrink-0">
                 <LayoutGrid size={11} className="inline mr-1" />
-                Select a new slot (available) <span className="text-red-400">*</span>
+                Select a new slot from the map (Only Available slots are selectable) <span className="text-red-400">*</span>
               </label>
-              
+
               {loadingSlots ? (
-                <div className="text-xs text-gray-400 dark:admin-text-muted flex items-center gap-2 py-2"><Loader2 size={12} className="animate-spin" /> Loading...</div>
+                <div className="text-xs text-gray-400 dark:admin-text-muted flex items-center justify-center gap-2 py-10 flex-1"><Loader2 size={16} className="animate-spin" /> Loading map...</div>
               ) : (
-                <select
-                  value={selectedSlotId}
-                  onChange={e => setSelectedSlotId(e.target.value)}
-                  className="w-full bg-white dark:bg-[var(--admin-bg-card)] border border-gray-200 dark:border-[var(--admin-border)] rounded-xl px-4 py-2.5 text-sm text-gray-800 dark:admin-text focus:outline-none focus:border-blue-400/50 transition-colors"
-                >
-                  <option value="" disabled className="dark:bg-stone-900">-- Please select an available slot --</option>
-                  {availableSlots.map(s => (
-                    <option key={s.id} value={s.id} className="dark:bg-stone-900">
-                      Slot {s.slotNumber} (Floor {s.floorName})
-                    </option>
-                  ))}
-                </select>
+                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-6">
+                  {Object.entries(
+                    buildingSlots.reduce((acc, slot) => {
+                      const floor = slot.floorName || 'Unknown';
+                      if (!acc[floor]) acc[floor] = [];
+                      acc[floor].push(slot);
+                      return acc;
+                    }, {} as Record<string, typeof buildingSlots[0]>)
+                  ).sort(([f1], [f2]) => f1.localeCompare(f2, undefined, { numeric: true }))
+                    .map(([floor, slots]) => (
+                      <div key={floor} className="space-y-3">
+                        <p className="text-[13px] uppercase tracking-wider font-bold text-gray-600 dark:admin-text sticky top-0 bg-white dark:bg-[#0E0E10] py-2 z-10 border-b border-gray-100 dark:border-white/5">
+                          {floor.toLowerCase().includes('floor') || floor.toLowerCase().includes('tầng') ? floor.replace('Tầng', 'Floor') : `Floor ${floor}`}
+                          <span className="text-xs font-normal text-gray-400 ml-2">({slots.filter(s => s.status === 'Available').length} available)</span>
+                        </p>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+                          {slots.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber, undefined, { numeric: true })).map(s => {
+                            const isSelected = selectedSlotId === s.id;
+                            const isAvailable = s.status === 'Available';
+                            const style = MAP_STATUS_STYLE[s.status] || MAP_STATUS_STYLE.Available;
+
+                            return (
+                              <button
+                                key={s.id}
+                                disabled={!isAvailable}
+                                onClick={() => setSelectedSlotId(s.id)}
+                                style={{
+                                  backgroundColor: isSelected ? '#3b82f6' : style.bg,
+                                  borderColor: isSelected ? '#3b82f6' : style.border,
+                                  color: isSelected ? '#ffffff' : 'var(--admin-text)',
+                                  opacity: !isAvailable ? 0.6 : 1,
+                                  cursor: !isAvailable ? 'not-allowed' : 'pointer'
+                                }}
+                                className="py-3 px-1 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-transform hover:scale-[1.03] active:scale-95"
+                              >
+                                <span className="text-xs font-bold font-mono">{s.slotNumber.replace(`${s.floorName}-`, '').replace('Slot ', '')}</span>
+                                <span className="text-[10px] flex items-center gap-1 font-medium" style={{ color: isSelected ? '#ffffff' : style.text }}>
+                                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSelected ? '#ffffff' : style.text }} />
+                                  {s.status}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  {buildingSlots.length === 0 && (
+                    <p className="text-xs text-gray-400 py-10 text-center">No slots found in this building.</p>
+                  )}
+                </div>
               )}
             </div>
 
@@ -569,7 +625,7 @@ export default function StaffReservations() {
             </div>
           </div>
         </div>
-      , document.body)}
+        , document.body)}
 
     </div>
   );

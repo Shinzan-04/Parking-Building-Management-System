@@ -470,13 +470,6 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
         handleCollectAndOpen();
         return;
       }
-
-      if (activeElement === entryInputRef.current && ['1', '2'].includes(event.key)) {
-        const selectedVehicle = VEHICLE_TYPES.find((vehicle) => vehicle.key === event.key);
-        if (selectedVehicle) {
-          setEntryVehicleType(selectedVehicle.type);
-        }
-      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -596,7 +589,6 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   {/* Vehicle Type */}
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-[10px] font-bold admin-text-muted uppercase tracking-wider">Vehicle type</label>
-                    <span className="text-[10px] admin-text-faint font-bold">Keyboard: 1 / 2</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 mb-6">
                     {VEHICLE_TYPES.map((vehicle) => {
