@@ -22,4 +22,7 @@ public class CurrentVehicleResponse
     public string? LicensePlate { get; set; }
     public string Status { get; set; } = string.Empty; // "Occupied", "Reserved", "Available"
     public DateTime? ExpectedEndTime { get; set; }
+    public Guid? DriverId { get; set; }
+    public string? DriverName { get; set; }
+    public string? PhoneNumber { get; set; }
 }

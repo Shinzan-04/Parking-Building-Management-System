@@ -102,6 +102,8 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
   const statusKey = getStatusLabel(slot.status);
   const style = STATUS_STYLE[statusKey];
   const [licensePlate, setLicensePlate] = useState<string | null>(null);
+  const [driverName, setDriverName] = useState<string | null>(null);
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null);
   const [isOverdue, setIsOverdue]       = useState(false);
 
   useEffect(() => {
@@ -111,11 +113,15 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
         .then(res => {
           if (!mounted || !res) return;
           if (res.licensePlate) setLicensePlate(res.licensePlate);
+          if (res.driverName) setDriverName(res.driverName);
+          if (res.phoneNumber) setPhoneNumber(res.phoneNumber);
           if (res.status === 'Overdue') setIsOverdue(true);
         })
         .catch(() => {});
     } else {
       setLicensePlate(null);
+      setDriverName(null);
+      setPhoneNumber(null);
       setIsOverdue(false);
     }
     return () => { mounted = false; };
@@ -156,6 +162,18 @@ function SlotCard({ slot, floorName, token }: SlotCardProps) {
       {licensePlate && (
         <div style={{ marginTop: 6, background: 'rgba(255,255,255,0.07)', borderRadius: 6, padding: '3px 8px', fontFamily: 'monospace', fontSize: 13, color: isOverdue ? '#f87171' : '#fff', display: 'inline-block' }}>
           {licensePlate}
+        </div>
+      )}
+      {driverName && (
+        <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <div style={{ color: '#94a3b8', fontSize: 11 }}>Driver: <span style={{ color: '#fff' }}>{driverName}</span></div>
+          {phoneNumber && (
+            <div style={{ marginTop: 2 }}>
+              <a href={`tel:${phoneNumber}`} style={{ color: '#3b82f6', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                📞 {phoneNumber}
+              </a>
+            </div>
+          )}
         </div>
       )}
     </div>

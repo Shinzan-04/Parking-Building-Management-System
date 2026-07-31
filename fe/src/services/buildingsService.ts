@@ -128,6 +128,9 @@ export interface CurrentVehicleResponse {
   licensePlate: string | null;
   status: string;
   expectedEndTime: string | null;
+  driverId?: string;
+  driverName?: string;
+  phoneNumber?: string;
 }
 
 export const getCurrentVehicle = (slotId: string): Promise<CurrentVehicleResponse> =>

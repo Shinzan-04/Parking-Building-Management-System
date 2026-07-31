@@ -162,7 +162,7 @@ public class ParkingSlotService : IParkingSlotService
 
         // 1. Kiểm tra xem có xe nào đang đỗ không (ParkingSession)
         // Xe đang đỗ có thể là Active hoặc Overdue
-        var activeSessions = await _sessionRepo.FindAsync(s => s.ParkingSlotId == slotId && (s.Status == SessionStatus.Active || s.Status == SessionStatus.Overdue), "Reservation");
+        var activeSessions = await _sessionRepo.FindAsync(s => s.ParkingSlotId == slotId && (s.Status == SessionStatus.Active || s.Status == SessionStatus.Overdue), "Reservation,Driver");
         var activeSession = activeSessions.FirstOrDefault();
         
         if (activeSession != null)
@@ -187,7 +187,10 @@ public class ParkingSlotService : IParkingSlotService
             {
                 LicensePlate = string.IsNullOrWhiteSpace(activeSession.LicensePlate) ? null : activeSession.LicensePlate,
                 Status = isOverdue ? "Overdue" : "Occupied",
-                ExpectedEndTime = activeSession.ExitTime // or null
+                ExpectedEndTime = activeSession.ExitTime, // or null
+                DriverId = activeSession.DriverId,
+                DriverName = activeSession.Driver?.FullName,
+                PhoneNumber = activeSession.Driver?.PhoneNumber
             };
         }
 
@@ -201,7 +204,7 @@ public class ParkingSlotService : IParkingSlotService
         };
 
         var reservations = await _reservationRepo.FindAsync(
-            r => r.ParkingSlotId == slotId && activeStatuses.Contains(r.Status));
+            r => r.ParkingSlotId == slotId && activeStatuses.Contains(r.Status), "Driver");
         
         // Lấy cái gần nhất
         var activeReservation = reservations.OrderBy(r => r.StartTime).FirstOrDefault();
@@ -212,7 +215,10 @@ public class ParkingSlotService : IParkingSlotService
             {
                 LicensePlate = string.IsNullOrWhiteSpace(activeReservation.LicensePlate) ? null : activeReservation.LicensePlate,
                 Status = "Reserved",
-                ExpectedEndTime = activeReservation.EndTime
+                ExpectedEndTime = activeReservation.EndTime,
+                DriverId = activeReservation.DriverId,
+                DriverName = activeReservation.Driver?.FullName,
+                PhoneNumber = activeReservation.Driver?.PhoneNumber
             };
         }
 
