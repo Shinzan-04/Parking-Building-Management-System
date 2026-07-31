@@ -9,6 +9,8 @@ export interface BuildingResponse {
   availableSpots?: number;
   floorCount: number;
   approvalMode: number | string;
+  latitude?: number;
+  longitude?: number;
   createdAt: string;
 }
 
@@ -16,12 +18,16 @@ export interface CreateBuildingRequest {
   name: string;
   address: string;
   totalCapacity: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface UpdateBuildingRequest {
   name: string;
   address: string;
   totalCapacity: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface FloorResponse {

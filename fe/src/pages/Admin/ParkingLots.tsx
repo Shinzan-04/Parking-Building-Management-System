@@ -31,6 +31,8 @@ interface ParkingLot {
   actualSlots: number;  // real active slots created across all floors
   usedSpots: number;
   status: 'active' | 'maintenance' | 'full';
+  latitude?: number;
+  longitude?: number;
 }
 
 type SlotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
@@ -50,18 +52,18 @@ const SLOT_STATUS_COLORS: Record<SlotStatus, { bg: string; text: string }> = {
 };
 
 const statusConfig = {
-  active:      { label: 'Active',      bg: 'bg-[#FF4C4C]/10', text: 'text-[#FF4C4C]', dot: 'bg-[#FF4C4C]' },
-  full:        { label: 'Full',        bg: 'bg-amber-400/10',  text: 'text-amber-400',  dot: 'bg-amber-400' },
-  maintenance: { label: 'Maintenance', bg: 'bg-red-400/10',    text: 'text-red-400',    dot: 'bg-red-400' },
+  active:      { label: 'Active',    bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-400' },
+  full:        { label: 'Full',      bg: 'bg-blue-500/10',    text: 'text-blue-400',    dot: 'bg-blue-400' },
+  maintenance: { label: 'Maintenance', bg: 'bg-zinc-400/10',  text: 'text-zinc-400',    dot: 'bg-zinc-400' },
 };
 
-const emptyForm = { name: '', address: '', totalSpots: '', status: 'active' as ParkingLot['status'] };
+const emptyForm = { name: '', address: '', totalSpots: '', latitude: '', longitude: '', status: 'active' as ParkingLot['status'] };
 
 const COLS = 8;
 
 function floorPrefix(floorName: string): string {
   const trimmed = floorName.trim();
-  // Extract last word/token as prefix (e.g. "Tầng G" → "G", "Floor 1" → "1", "Tầng 1" → "1")
+  // Extract last word/token as prefix (e.g. "Floor G" → "G", "Floor 1" → "1", "Tầng 1" → "1")
   const parts = trimmed.split(/\s+/);
   const last = parts[parts.length - 1];
   return last.toUpperCase();
@@ -82,7 +84,7 @@ function OccupancyBar({ used, total }: { used: number; total: number }) {
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between text-xs">
-        <span className="text-white/40">Occupancy rate</span>
+        <span className="text-white/40">Occupancy Rate</span>
         <span className="font-semibold" style={{ color }}>{pct}%</span>
       </div>
       <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -126,14 +128,14 @@ function SlotMap({
   }, [buildingId]);
 
   if (buildingFloors.length === 0) {
-    return <p className="text-sm text-gray-400 dark:text-white/40 text-center py-6">No floors yet for this building.</p>;
+    return <p className="text-sm text-gray-400 dark:text-white/40 text-center py-6">This building has no floors yet.</p>;
   }
 
   const normalizeStatus = (s: string | number): SlotStatus => {
     if (s === 0 || s === 'Available')   return 'Available';
-    if (s === 1 || s === 'Occupied')    return 'Occupied';
     if (s === 2 || s === 'Reserved')    return 'Reserved';
-    if (s === 3 || s === 'Maintenance') return 'Maintenance';
+    if (s === 3 || s === 'Occupied')    return 'Occupied';
+    if (s === 4 || s === 'Maintenance') return 'Maintenance';
     return 'Available';
   };
 
@@ -240,7 +242,7 @@ function SlotMap({
                         onClick={() => {
                           if (bulkMode) {
                             if (slot.status === 'Occupied' || slot.status === 'Reserved' || slot.status === 'TemporaryHeld') {
-                              return;
+                              return; // Không cho phép chọn slot đang có xe hoặc đặt trước
                             }
                             setBulkSelected(prev => {
                               const next = new Set(prev);
@@ -258,11 +260,6 @@ function SlotMap({
                         {slot.status === 'Occupied' && <VehicleIcon name={slot.vehicleTypeName} size={8} />}
                         {slot.status === 'Maintenance' && <Wrench size={8} />}
                         <span>{slot.slotNumber}</span>
-                        {slot.status === 'Occupied' && slot.currentLicensePlate && (
-                          <span className="text-[6.5px] opacity-90 truncate w-full text-center px-px leading-none -mt-0.5">
-                            {slot.currentLicensePlate}
-                          </span>
-                        )}
                       </button>
                     );
                   })}
@@ -334,7 +331,7 @@ function SlotMap({
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-600 text-white font-semibold hover:opacity-90 disabled:opacity-60 transition-opacity"
                     >
                       {confirming ? <Loader2 size={11} className="animate-spin" /> : <CircleCheck size={11} />}
-                      End ({pickedMaint.length})
+                      End Maintenance ({pickedMaint.length})
                     </button>
                   )}
                   {bulkSelected.size > 0 && onBulkUpdateVehicleType && (
@@ -385,9 +382,9 @@ function SlotMap({
                     className="flex items-center gap-1.5 px-2 py-1 rounded-lg font-medium transition-all bg-gray-100 text-gray-500 hover:bg-gray-200 dark:bg-white/5 dark:text-white/50 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10"
                   >
                     <Wrench size={11} />
-                    Bulk
+                    Bulk Action
                   </button>
-                  <span>{activeFloor?.name} · {totalFloorSlots} slots · {freeCount} free</span>
+                  <span>{activeFloor?.name} · {totalFloorSlots} slots · {freeCount} available</span>
                 </>
               )}
             </div>
@@ -402,7 +399,7 @@ function SlotMap({
           <div className="flex items-center justify-between gap-3 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl">
             <div className="flex items-center gap-2 text-sm text-red-500">
               <Wrench size={14} />
-              <span className="font-medium">Under maintenance · {selectedSlot.slotNumber}</span>
+              <span className="font-medium">Under Maintenance · {selectedSlot.slotNumber}</span>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -416,7 +413,7 @@ function SlotMap({
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
               >
                 {confirming ? <Loader2 size={12} className="animate-spin" /> : <CircleCheck size={12} />}
-                End maintenance
+                End Maintenance
               </button>
               <button onClick={() => onSelectSlot(null)} className="p-1.5 rounded-lg text-red-400/60 hover:text-red-400 transition-all">
                 <X size={13} />
@@ -432,7 +429,7 @@ function SlotMap({
                 <span className="font-medium">Occupied · {selectedSlot.slotNumber}</span>
               </div>
               {selectedSlot.vehicleTypeName && (
-                <span className="text-xs text-amber-400/70 ml-6">Vehicle type: <span className="font-semibold text-amber-500">{selectedSlot.vehicleTypeName}</span></span>
+                <span className="text-xs text-amber-400/70 ml-6">Vehicle Type: <span className="font-semibold text-amber-500">{selectedSlot.vehicleTypeName}</span></span>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -447,7 +444,7 @@ function SlotMap({
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-400 text-[#121214] text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-60"
               >
                 {confirming ? <Loader2 size={12} className="animate-spin" /> : <CircleCheck size={12} />}
-                Release slot
+                Release Slot
               </button>
               <button onClick={() => onSelectSlot(null)} className="p-1.5 rounded-lg text-amber-400/60 hover:text-amber-400 transition-all">
                 <X size={13} />
@@ -458,7 +455,7 @@ function SlotMap({
           /* ── Available banner: assign or set maintenance ── */
           <div className="flex flex-col gap-2.5 px-4 py-3 bg-[#FF4C4C]/10 border border-[#FF4C4C]/30 rounded-xl">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-[#FF4C4C]">Free slot · {selectedSlot.slotNumber}</span>
+              <span className="text-sm font-medium text-[#FF4C4C]">Available · {selectedSlot.slotNumber}</span>
               <button
                 onClick={() => { onSelectSlot(null); setSelectedVehicleTypeId(''); }}
                 className="p-1.5 rounded-lg text-[#FF4C4C]/60 hover:text-[#FF4C4C] transition-all"
@@ -535,7 +532,7 @@ function SlotStatusPanel({
       onUpdated(updated);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to update status.');
+      setError(e instanceof Error ? e.message : 'Error updating status.');
     } finally {
       setLoading(false);
     }
@@ -627,6 +624,7 @@ export default function ParkingLots() {
   const [staffLoading, setStaffLoading]   = useState(false);
   const [assigningStaffId, setAssigningStaffId] = useState('');
   const [staffActionLoading, setStaffActionLoading] = useState(false);
+  const [fetchingCoords, setFetchingCoords] = useState(false);
 
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
@@ -641,7 +639,7 @@ export default function ParkingLots() {
       ]);
 
       setAllFloors(floors);
-      const statusMap: Record<string | number, string> = { 0: 'Available', 1: 'Occupied', 2: 'Reserved', 3: 'Maintenance' };
+      const statusMap: Record<string | number, string> = { 0: 'Available', 1: 'TemporaryHeld', 2: 'Reserved', 3: 'Occupied', 4: 'Maintenance' };
       setAllSlots(slots.map(s => ({ ...s, status: statusMap[s.status] ?? s.status })));
 
       const fbMap: Record<string, string> = {};
@@ -675,10 +673,12 @@ export default function ParkingLots() {
           actualSlots: actual,
           usedSpots: used,
           status: pct >= 1 ? 'full' : 'active',
+          latitude: b.latitude,
+          longitude: b.longitude,
         };
       }));
     } catch (err: unknown) {
-      setApiError(err instanceof Error ? err.message : 'Failed to load data.');
+      setApiError(err instanceof Error ? err.message : 'Unable to load data.');
     } finally {
       setLoading(false);
       if (isRefresh) setRefreshing(false);
@@ -690,10 +690,10 @@ export default function ParkingLots() {
     getVehicleTypes().then(setVehicleTypes).catch(() => {});
   }, []);
 
-  // Listen for realtime events (SignalR) emitted from useNotification
+  // Listen for realtime events (SignalR) dispatched from useNotification
   useEffect(() => {
     const handleUpdate = () => {
-      // Background refresh
+      // Silent background refresh
       loadData(true);
     };
 
@@ -757,7 +757,7 @@ export default function ParkingLots() {
 
       setAllStaffList(
         (allUsers as UserResponse[])
-          .filter(u => normalizeRole(u.role as any) === 'Staff' || normalizeRole(u.role as any) === 'Manager')
+          .filter(u => normalizeRole(u.role as any) === 'Staff')
           .map(u => ({
             id: u.id,
             username: u.username,
@@ -778,7 +778,14 @@ export default function ParkingLots() {
 
   const openEdit   = (lot: ParkingLot) => {
     setSelected(lot);
-    setForm({ name: lot.name, address: lot.address, totalSpots: String(lot.totalSpots), status: lot.status });
+    setForm({ 
+      name: lot.name, 
+      address: lot.address, 
+      totalSpots: String(lot.totalSpots), 
+      latitude: lot.latitude?.toString() || '', 
+      longitude: lot.longitude?.toString() || '',
+      status: lot.status 
+    });
     setFormError('');
     setNewFloorName('');
     setFloorError('');
@@ -799,7 +806,7 @@ export default function ParkingLots() {
         setFloorLoading(false);
       })
       .catch(() => {
-        setFloorError('Failed to load floor list.');
+        setFloorError('Unable to load floor list.');
         setFloorLoading(false);
       });
   };
@@ -820,16 +827,16 @@ export default function ParkingLots() {
     if (!name) { setFloorError('Please enter a floor name.'); return; }
     const slotCount = Number(newFloorSlotCount);
     if (!newFloorSlotCount || isNaN(slotCount) || slotCount < 20) {
-      setFloorError('Slot count per floor must be at least 20.'); return;
+      setFloorError('Each floor must have at least 20 slots.'); return;
     }
     if (slotCount > 100) {
-      setFloorError('Slot count per floor cannot exceed 100.'); return;
+      setFloorError('Each floor cannot exceed 100 slots.'); return;
     }
     if (slotCount > remainingCapacity) {
       setFloorError(`Exceeds remaining capacity (${remainingCapacity} slots).`); return;
     }
     if (!newFloorVehicleTypeId) {
-      setFloorError('Please select a vehicle type for the slots.'); return;
+      setFloorError('Please select a vehicle type for the parking slots.'); return;
     }
     setFloorLoading(true); setFloorError('');
     try {
@@ -912,7 +919,7 @@ export default function ParkingLots() {
           const otherActual = editFloors.reduce((s, fl) => fl.id === f.id ? s : s + (fl.slotCount ?? 0), 0);
           const remaining = selected.totalSpots - otherActual - activeCount;
           if (diff > remaining) {
-            setEditFloorError(`Only ${remaining} slots can still be added to this floor.`); setFloorLoading(false); return;
+            setEditFloorError(`Only ${remaining} more slots can be added to this floor.`); setFloorLoading(false); return;
           }
           if (toCreate > 0 && !editFloorVehicleTypeId) {
             setEditFloorError('Please select a vehicle type to add new slots.'); setFloorLoading(false); return;
@@ -941,7 +948,7 @@ export default function ParkingLots() {
           const toDisable = freeSlots.slice(0, Math.abs(diff));
           if (toDisable.length < Math.abs(diff)) {
             const inUse = Math.abs(diff) - toDisable.length;
-            setEditFloorError(`Cannot reduce to ${targetCount} slots — ${inUse} slots are still in use.`);
+            setEditFloorError(`Cannot reduce to ${targetCount} slots — ${inUse} slot(s) are still in use.`);
             setFloorLoading(false); return;
           }
           const BATCH = 10;
@@ -983,7 +990,7 @@ export default function ParkingLots() {
       if (selected) setLots(prev => prev.map(l => l.id === selected.id ? { ...l, floorCount: l.floorCount - 1 } : l));
       getParkingSlots().then(setAllSlots).catch(() => {});
     } catch (e: unknown) {
-      setFloorError(e instanceof Error ? e.message : 'Failed to delete floor.');
+      setFloorError(e instanceof Error ? e.message : 'Unable to delete floor.');
     } finally {
       setFloorLoading(false);
     }
@@ -1008,6 +1015,8 @@ export default function ParkingLots() {
         name: form.name.trim(),
         address: form.address.trim(),
         totalCapacity: Number(form.totalSpots),
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
       });
       setLots(prev => [...prev, {
         id: created.id,
@@ -1018,6 +1027,8 @@ export default function ParkingLots() {
         actualSlots: 0,
         usedSpots: 0,
         status: 'active',
+        latitude: created.latitude,
+        longitude: created.longitude,
       }]);
       closeModal();
     } catch (e: unknown) {
@@ -1038,6 +1049,8 @@ export default function ParkingLots() {
         name: form.name.trim(),
         address: form.address.trim(),
         totalCapacity: Number(form.totalSpots),
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
       });
       setLots(prev => prev.map(l => l.id !== selected.id ? l : {
         ...l,
@@ -1046,11 +1059,44 @@ export default function ParkingLots() {
         totalSpots: updated.totalCapacity,
         floorCount: updated.floorCount,
         status: form.status,
+        latitude: updated.latitude,
+        longitude: updated.longitude,
       }));
       closeModal();
     } catch (e: unknown) {
       setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
+    }
+  };
+
+  const handleGetCoordsFromAddress = async () => {
+    if (!form.address.trim()) {
+      showToast('error', 'Please enter an address first.');
+      return;
+    }
+    setFetchingCoords(true);
+    try {
+      // Append HCM city to query for better accuracy if they just enter a street
+      const q = form.address.includes('Hồ Chí Minh') || form.address.includes('HCM') 
+        ? form.address 
+        : `${form.address}, Ho Chi Minh City, Vietnam`;
+        
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setForm(prev => ({ 
+          ...prev, 
+          latitude: Number(data[0].lat).toFixed(6), 
+          longitude: Number(data[0].lon).toFixed(6) 
+        }));
+        showToast('success', 'Coordinates fetched successfully.');
+      } else {
+        showToast('error', 'Address not found on map. Try adding city/district.');
+      }
+    } catch (err) {
+      showToast('error', 'Failed to fetch coordinates.');
+    } finally {
+      setFetchingCoords(false);
     }
   };
 
@@ -1080,10 +1126,10 @@ export default function ParkingLots() {
   );
 
   const summaryStats = [
-    { label: 'Total Buildings',    value: lots.length,           unit: 'buildings', icon: Building2,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-    { label: 'Total Capacity',     value: totalSpots,             unit: 'slots', icon: ParkingSquare, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
-    { label: 'Available Now',      value: totalActual - usedSpots, unit: 'slots', icon: CircleCheck,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
-    { label: 'Under Maintenance',  value: inMaintenance,          unit: 'buildings', icon: Wrench,        color: '#F87171', bg: 'from-red-400/20 to-red-400/5' },
+    { label: 'Total Buildings',   value: lots.length,           unit: 'buildings', icon: Building2,     color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+    { label: 'Total Capacity',    value: totalSpots,             unit: 'slots', icon: ParkingSquare, color: '#A78BFA', bg: 'from-violet-400/20 to-violet-400/5' },
+    { label: 'Available',         value: totalActual - usedSpots, unit: 'slots', icon: CircleCheck,   color: '#FF4C4C', bg: 'from-[#FF4C4C]/20 to-[#FF4C4C]/5' },
+    { label: 'Under Maintenance', value: inMaintenance,          unit: 'buildings', icon: Wrench,        color: '#F87171', bg: 'from-red-400/20 to-red-400/5' },
   ];
 
   if (loading) {
@@ -1313,9 +1359,9 @@ export default function ParkingLots() {
                                 setAllStaffList(prev => prev.map(x =>
                                   x.id === s.id ? { ...x, assignedBuildingId: null } : x
                                 ));
-                                showToast('success', `Removed ${s.fullName} from building.`);
+                                showToast('success', `Removed ${s.fullName} from the building.`);
                               } catch (e) {
-                                showToast('error', e instanceof Error ? e.message : 'Failed to remove staff.');
+                                showToast('error', e instanceof Error ? e.message : 'Unable to remove staff member.');
                               } finally {
                                 setStaffActionLoading(false);
                               }
@@ -1340,7 +1386,7 @@ export default function ParkingLots() {
                     >
                       <option value="" style={{ color: '#000', backgroundColor: '#fff' }}>
                         {allStaffList.filter(s => !s.assignedBuildingId).length === 0
-                          ? '-- No available staff --'
+                          ? '-- No staff available --'
                           : '-- Select staff --'}
                       </option>
                       {allStaffList
@@ -1368,7 +1414,7 @@ export default function ParkingLots() {
                           setAssigningStaffId('');
                           showToast('success', 'Staff assigned successfully!');
                         } catch (e) {
-                          showToast('error', e instanceof Error ? e.message : 'Failed to assign staff.');
+                          showToast('error', e instanceof Error ? e.message : 'Unable to assign staff.');
                         } finally {
                           setStaffActionLoading(false);
                         }
@@ -1499,7 +1545,7 @@ export default function ParkingLots() {
                         const toastMsg = action === 'release' ? 'Slot released!' : action === 'maintain' ? 'Switched to maintenance!' : 'Slot assigned successfully!';
                         showToast('success', toastMsg);
                       } catch (e) {
-                        showToast('error', e instanceof Error ? e.message : 'Failed to update slot.');
+                        showToast('error', e instanceof Error ? e.message : 'Unable to update the slot.');
                       }
                     }}
                     onBulkRelease={async (slotIds, action = 'release') => {
@@ -1549,7 +1595,7 @@ export default function ParkingLots() {
               {selected.status === 'maintenance' && (
                 <div className="flex items-center gap-3 px-4 py-3 bg-red-400/10 border border-red-400/20 rounded-xl">
                   <AlertTriangle size={16} className="text-red-400 shrink-0" />
-                  <p className="text-sm text-red-400">This building is under maintenance and is not accepting vehicles.</p>
+                  <p className="text-sm text-red-400">This building is currently under maintenance and not accepting vehicles.</p>
                 </div>
               )}
             </div>
@@ -1612,13 +1658,24 @@ export default function ParkingLots() {
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Address</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 123 Le Loi Street"
-                    value={form.address}
-                    onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. 123 Le Loi Street, D1, HCM"
+                      value={form.address}
+                      onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
+                      className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGetCoordsFromAddress}
+                      disabled={fetchingCoords || !form.address}
+                      className="shrink-0 flex items-center justify-center w-10 h-[42px] bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-xl border border-blue-100 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors disabled:opacity-50"
+                      title="Auto-fill coordinates from address"
+                    >
+                      {fetchingCoords ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
+                    </button>
+                  </div>
                 </div>
                 <div className={`grid gap-3 ${modalType === 'edit' ? 'grid-cols-2' : ''}`}>
                   <div>
@@ -1646,13 +1703,37 @@ export default function ParkingLots() {
                     </div>
                   )}
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Latitude (Tọa độ X)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="e.g. 10.7769"
+                      value={form.latitude}
+                      onChange={e => setForm(prev => ({ ...prev, latitude: e.target.value }))}
+                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Longitude (Tọa độ Y)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="e.g. 106.7009"
+                      value={form.longitude}
+                      onChange={e => setForm(prev => ({ ...prev, longitude: e.target.value }))}
+                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* ── Section: Manage Floors (edit only) ── */}
+              {/* ── Section: Floor Management (edit only) ── */}
               {modalType === 'edit' && (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-semibold text-gray-400 dark:text-white/25 uppercase tracking-widest">Manage Floors</p>
+                    <p className="text-[10px] font-semibold text-gray-400 dark:text-white/25 uppercase tracking-widest">Floor Management</p>
                     <span className={`text-xs font-semibold ${remainingCapacity === 0 ? 'text-red-400' : 'text-gray-400 dark:text-white/40'}`}>
                       {usedCapacity} / {selected?.totalSpots ?? 0}
                       <span className="font-normal text-gray-400 dark:text-white/30"> slots allocated</span>
@@ -1675,7 +1756,7 @@ export default function ParkingLots() {
                     <div className="flex justify-between text-[10px] text-gray-400 dark:text-white/25">
                       <span>0</span>
                       {remainingCapacity > 0
-                        ? <span className="text-[#FF4C4C]/70">{remainingCapacity} slots left</span>
+                        ? <span className="text-[#FF4C4C]/70">{remainingCapacity} slots remaining</span>
                         : <span className="text-red-400/70">fully allocated</span>}
                       <span>{selected?.totalSpots ?? 0}</span>
                     </div>
@@ -1772,7 +1853,7 @@ export default function ParkingLots() {
                                 }`}>
                                   {Number(editFloorAddedSlots) > editFloorActualCount
                                     ? `+${Number(editFloorAddedSlots) - editFloorActualCount} slots will be added`
-                                    : `-${editFloorActualCount - Number(editFloorAddedSlots)} free slots will be disabled`}
+                                    : `-${editFloorActualCount - Number(editFloorAddedSlots)} available slots will be disabled`}
                                 </div>
                               )}
 
@@ -1845,7 +1926,7 @@ export default function ParkingLots() {
                       <p className="text-[10px] font-semibold text-gray-400 dark:text-white/25 uppercase tracking-widest flex items-center gap-1.5">
                         <Plus size={10} />
                         Add New Floor
-                        <span className="normal-case tracking-normal font-normal text-gray-300 dark:text-white/20">· {remainingCapacity} slots left · 20-100/floor</span>
+                        <span className="normal-case tracking-normal font-normal text-gray-300 dark:text-white/20">· {remainingCapacity} slots remaining · 20–100/floor</span>
                       </p>
                       <div className="grid grid-cols-2 gap-2">
                         <input
@@ -1857,7 +1938,7 @@ export default function ParkingLots() {
                         />
                         <input
                           type="number"
-                          placeholder={`20-${Math.min(100, remainingCapacity)} slots`}
+                          placeholder={`20–${Math.min(100, remainingCapacity)} slots`}
                           min={20}
                           max={Math.min(100, remainingCapacity)}
                           value={newFloorSlotCount}
@@ -1924,7 +2005,7 @@ export default function ParkingLots() {
                 className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#FF4C4C] hover:bg-[#ff3333] hover:opacity-90 transition-opacity disabled:opacity-55"
               >
                 {submitting && <Loader2 size={14} className="animate-spin" />}
-                {modalType === 'add' ? 'Add' : editingFloorId !== null ? 'Editing floor...' : 'Save Changes'}
+                {modalType === 'add' ? 'Add New' : editingFloorId !== null ? 'Editing floor...' : 'Save Changes'}
               </button>
             </div>
           </div>

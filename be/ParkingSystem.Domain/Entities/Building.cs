@@ -5,6 +5,9 @@ public class Building : BaseEntity
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
     public int TotalCapacity { get; set; }
+    
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
 
     public ICollection<Floor> Floors { get; set; } = new List<Floor>();
     public ICollection<User> AssignedStaffs { get; set; } = new List<User>();

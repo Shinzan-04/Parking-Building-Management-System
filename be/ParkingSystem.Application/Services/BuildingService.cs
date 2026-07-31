@@ -35,7 +35,9 @@ public class BuildingService : IBuildingService
             Id = Guid.NewGuid(),
             Name = request.Name,
             Address = request.Address,
-            TotalCapacity = request.TotalCapacity
+            TotalCapacity = request.TotalCapacity,
+            Latitude = request.Latitude,
+            Longitude = request.Longitude
         };
 
         await _repository.AddAsync(building);
@@ -50,6 +52,8 @@ public class BuildingService : IBuildingService
         building.Name = request.Name;
         building.Address = request.Address;
         building.TotalCapacity = request.TotalCapacity;
+        building.Latitude = request.Latitude;
+        building.Longitude = request.Longitude;
         if (request.ApprovalMode.HasValue)
         {
             building.ApprovalMode = request.ApprovalMode.Value;
@@ -77,6 +81,8 @@ public class BuildingService : IBuildingService
         TotalCapacity = b.TotalCapacity,
         FloorCount = b.Floors?.Count ?? 0,
         AvailableSpots = b.Floors?.SelectMany(f => f.ParkingSlots).Count(s => s.Status == ParkingSystem.Domain.Enums.SlotStatus.Available) ?? 0,
+        Latitude = b.Latitude,
+        Longitude = b.Longitude,
         ApprovalMode = b.ApprovalMode,
         CreatedAt = b.CreatedAt
     };

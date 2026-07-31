@@ -31,6 +31,8 @@ interface ParkingLot {
   actualSlots: number;  // real active slots created across all floors
   usedSpots: number;
   status: 'active' | 'maintenance' | 'full';
+  latitude?: number;
+  longitude?: number;
 }
 
 type SlotStatus = 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
@@ -55,7 +57,7 @@ const statusConfig = {
   maintenance: { label: 'Maintenance', bg: 'bg-zinc-400/10',  text: 'text-zinc-400',    dot: 'bg-zinc-400' },
 };
 
-const emptyForm = { name: '', address: '', totalSpots: '', status: 'active' as ParkingLot['status'] };
+const emptyForm = { name: '', address: '', totalSpots: '', latitude: '', longitude: '', status: 'active' as ParkingLot['status'] };
 
 const COLS = 8;
 
@@ -622,6 +624,7 @@ export default function ParkingLots() {
   const [staffLoading, setStaffLoading]   = useState(false);
   const [assigningStaffId, setAssigningStaffId] = useState('');
   const [staffActionLoading, setStaffActionLoading] = useState(false);
+  const [fetchingCoords, setFetchingCoords] = useState(false);
 
   const showToast = (type: 'success' | 'error', msg: string) => {
     setToast({ type, msg });
@@ -670,6 +673,8 @@ export default function ParkingLots() {
           actualSlots: actual,
           usedSpots: used,
           status: pct >= 1 ? 'full' : 'active',
+          latitude: b.latitude,
+          longitude: b.longitude,
         };
       }));
     } catch (err: unknown) {
@@ -773,7 +778,14 @@ export default function ParkingLots() {
 
   const openEdit   = (lot: ParkingLot) => {
     setSelected(lot);
-    setForm({ name: lot.name, address: lot.address, totalSpots: String(lot.totalSpots), status: lot.status });
+    setForm({ 
+      name: lot.name, 
+      address: lot.address, 
+      totalSpots: String(lot.totalSpots), 
+      latitude: lot.latitude?.toString() || '', 
+      longitude: lot.longitude?.toString() || '',
+      status: lot.status 
+    });
     setFormError('');
     setNewFloorName('');
     setFloorError('');
@@ -1003,6 +1015,8 @@ export default function ParkingLots() {
         name: form.name.trim(),
         address: form.address.trim(),
         totalCapacity: Number(form.totalSpots),
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
       });
       setLots(prev => [...prev, {
         id: created.id,
@@ -1013,6 +1027,8 @@ export default function ParkingLots() {
         actualSlots: 0,
         usedSpots: 0,
         status: 'active',
+        latitude: created.latitude,
+        longitude: created.longitude,
       }]);
       closeModal();
     } catch (e: unknown) {
@@ -1033,6 +1049,8 @@ export default function ParkingLots() {
         name: form.name.trim(),
         address: form.address.trim(),
         totalCapacity: Number(form.totalSpots),
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
       });
       setLots(prev => prev.map(l => l.id !== selected.id ? l : {
         ...l,
@@ -1041,11 +1059,44 @@ export default function ParkingLots() {
         totalSpots: updated.totalCapacity,
         floorCount: updated.floorCount,
         status: form.status,
+        latitude: updated.latitude,
+        longitude: updated.longitude,
       }));
       closeModal();
     } catch (e: unknown) {
       setFormError(e instanceof Error ? e.message : 'An error occurred.');
       setSubmitting(false);
+    }
+  };
+
+  const handleGetCoordsFromAddress = async () => {
+    if (!form.address.trim()) {
+      showToast('error', 'Please enter an address first.');
+      return;
+    }
+    setFetchingCoords(true);
+    try {
+      // Append HCM city to query for better accuracy if they just enter a street
+      const q = form.address.includes('Hồ Chí Minh') || form.address.includes('HCM') 
+        ? form.address 
+        : `${form.address}, Ho Chi Minh City, Vietnam`;
+        
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1`);
+      const data = await res.json();
+      if (data && data.length > 0) {
+        setForm(prev => ({ 
+          ...prev, 
+          latitude: Number(data[0].lat).toFixed(6), 
+          longitude: Number(data[0].lon).toFixed(6) 
+        }));
+        showToast('success', 'Coordinates fetched successfully.');
+      } else {
+        showToast('error', 'Address not found on map. Try adding city/district.');
+      }
+    } catch (err) {
+      showToast('error', 'Failed to fetch coordinates.');
+    } finally {
+      setFetchingCoords(false);
     }
   };
 
@@ -1607,13 +1658,24 @@ export default function ParkingLots() {
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Address</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 123 Le Loi Street"
-                    value={form.address}
-                    onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
-                    className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. 123 Le Loi Street, D1, HCM"
+                      value={form.address}
+                      onChange={e => setForm(prev => ({ ...prev, address: e.target.value }))}
+                      className="flex-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGetCoordsFromAddress}
+                      disabled={fetchingCoords || !form.address}
+                      className="shrink-0 flex items-center justify-center w-10 h-[42px] bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-xl border border-blue-100 dark:border-blue-500/20 hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors disabled:opacity-50"
+                      title="Auto-fill coordinates from address"
+                    >
+                      {fetchingCoords ? <Loader2 size={16} className="animate-spin" /> : <MapPin size={16} />}
+                    </button>
+                  </div>
                 </div>
                 <div className={`grid gap-3 ${modalType === 'edit' ? 'grid-cols-2' : ''}`}>
                   <div>
@@ -1640,6 +1702,30 @@ export default function ParkingLots() {
                       </select>
                     </div>
                   )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Latitude (Tọa độ X)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="e.g. 10.7769"
+                      value={form.latitude}
+                      onChange={e => setForm(prev => ({ ...prev, latitude: e.target.value }))}
+                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">Longitude (Tọa độ Y)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder="e.g. 106.7009"
+                      value={form.longitude}
+                      onChange={e => setForm(prev => ({ ...prev, longitude: e.target.value }))}
+                      className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                    />
+                  </div>
                 </div>
               </div>
 

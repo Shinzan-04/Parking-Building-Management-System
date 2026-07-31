@@ -106,31 +106,16 @@ interface ParkingLot {
   features: string[];
 }
 
-// ---------- Hàm sinh toạ độ nhất quán (Mock) ----------
-function getBuildingCoordinates(buildingId: string, address: string, name: string): { lat: number; lng: number } {
-  // Ưu tiên hardcode toạ độ thật cho 3 toạ nhà bạn đang test
-  if (name.includes('Tòa nhà C')) return { lat: 10.7618, lng: 106.7032 }; // Gần 35 Hoàng Diệu, Q4, HCM
-  if (name.includes('Tòa nhà B')) return { lat: 10.8016, lng: 106.7118 }; // Bình Thạnh, HCM
-  if (name.includes('Tòa nhà A')) return { lat: 10.7769, lng: 106.7009 }; // Khu vực trung tâm Q1, HCM
-
-  let hash = 0;
-  const str = buildingId + address;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  // Mặc định sinh ngẫu nhiên quanh Hồ Chí Minh: lat 10.7626, lng 106.6601
-  const latOffset = ((Math.abs(hash) % 300) / 10000) - 0.015;
-  const lngOffset = ((Math.abs(hash >> 3) % 300) / 10000) - 0.015;
-
-  return {
-    lat: 10.7626 + latOffset,
-    lng: 106.6601 + lngOffset,
-  };
-}
-
 // ---------- Ánh xạ dữ liệu BuildingResponse sang ParkingLot ----------
 function mapBuildingToParkingLot(b: BuildingResponse): ParkingLot {
-  const coords = getBuildingCoordinates(b.id, b.address, b.name);
+  // Lấy tọa độ thật từ DB, YÊU CẦU PHẢI CÓ. Nếu không có (0,0) thì báo lỗi logic
+  const finalLat = b.latitude;
+  const finalLng = b.longitude;
+
+  if (!finalLat || !finalLng || (finalLat === 0 && finalLng === 0)) {
+    console.error(`[LỖI NGHIÊM TRỌNG] Tòa nhà "${b.name}" (ID: ${b.id}) KHÔNG CÓ TỌA ĐỘ LAT/LNG. Nguyên lý tối cao: Không được dùng Hash Code! Vui lòng vào trang Quản trị cập nhật lại tọa độ cho tòa nhà này.`);
+  }
+
   // Sử dụng số lượng slot trống thật từ backend, nếu không có fallback về 0
   const available = b.availableSpots || 0;
   return {
@@ -138,8 +123,8 @@ function mapBuildingToParkingLot(b: BuildingResponse): ParkingLot {
     name: b.name,
     address: b.address,
     type: 'PUBLIC',
-    lat: coords.lat,
-    lng: coords.lng,
+    lat: finalLat || 0, // Fallback về 0 để TS không lỗi, nhưng ở bước load data đã filter bỏ các b.lat = 0
+    lng: finalLng || 0,
     availableSpots: available,
     totalSpots: b.totalCapacity,
     pricePerHour: 10000, // Giá mặc định
@@ -333,7 +318,9 @@ export default function FindParkingPage() {
     getBuildings()
       .then((data) => {
         if (!cancelled) {
-          const mapped = data.map(mapBuildingToParkingLot);
+          // Lọc bỏ những tòa nhà không có tọa độ thật (tránh nhảy ra biển)
+          const validBuildings = data.filter(b => b.latitude && b.longitude && (b.latitude !== 0 || b.longitude !== 0));
+          const mapped = validBuildings.map(mapBuildingToParkingLot);
           setBuildingsList(mapped);
           setIsLoadingBuildings(false);
         }
