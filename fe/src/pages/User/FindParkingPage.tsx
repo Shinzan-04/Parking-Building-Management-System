@@ -87,22 +87,16 @@ function calcDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number):
 }
 
 // ---------- Types ----------
-type VehicleFilter = 'all' | 'motorbike' | 'car' | 'ev';
-type SortOption = 'relevance' | 'price' | 'distance' | 'rating';
+type SortOption = 'relevance' | 'distance';
 
 interface ParkingLot {
   id: string;
   name: string;
   address: string;
-  type: 'PUBLIC' | 'PRIVATE';
   lat: number;
   lng: number;
   availableSpots: number;
   totalSpots: number;
-  pricePerHour: number;
-  rating: number;
-  openHours: string;
-  vehicleTypes: VehicleFilter[];
 }
 
 // ---------- Ánh xạ dữ liệu BuildingResponse sang ParkingLot ----------
@@ -121,15 +115,10 @@ function mapBuildingToParkingLot(b: BuildingResponse): ParkingLot {
     id: b.id,
     name: b.name,
     address: b.address,
-    type: 'PUBLIC',
     lat: finalLat || 0, // Fallback về 0 để TS không lỗi, nhưng ở bước load data đã filter bỏ các b.lat = 0
     lng: finalLng || 0,
     availableSpots: available,
     totalSpots: b.totalCapacity,
-    pricePerHour: 10000, // Giá mặc định
-    rating: 4.5,
-    openHours: '24/7',
-    vehicleTypes: ['all', 'motorbike', 'car', 'ev'],
   };
 }
 
@@ -190,7 +179,6 @@ export default function FindParkingPage() {
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
 
-  const [vehicleFilter, setVehicleFilter] = useState<VehicleFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [searchText, setSearchText] = useState('');
   const [selectedLot, setSelectedLot] = useState<ParkingLot | null>(null);
@@ -242,7 +230,7 @@ export default function FindParkingPage() {
         return;
       }
       try {
-        currentLoc = await new Promise<{lat: number, lng: number}>((resolve, reject) => {
+        currentLoc = await new Promise<{ lat: number, lng: number }>((resolve, reject) => {
           setLocatingUser(true);
           navigator.geolocation.getCurrentPosition(
             (pos) => {
@@ -349,7 +337,7 @@ export default function FindParkingPage() {
           // Fetch slots for all floors to count them (using +4h availability)
           const now = new Date();
           const later = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-          
+
           const slotsArrays = await Promise.all(
             sorted.map((f) => getAvailableSlotsByFloor(f.id, now.toISOString(), later.toISOString()).catch(() => []))
           );
@@ -370,7 +358,7 @@ export default function FindParkingPage() {
       setIsLoadingSlots(true);
       const now = new Date();
       const later = new Date(now.getTime() + 4 * 60 * 60 * 1000);
-      
+
       getAvailableSlotsByFloor(selectedFloorId, now.toISOString(), later.toISOString())
         .then((slots) => {
           setFloorSlots(slots.sort((a, b) => a.slotNumber.localeCompare(b.slotNumber)));
@@ -433,8 +421,6 @@ export default function FindParkingPage() {
     // Luôn hiển thị toà nhà đang được chọn (để không bị mất marker khi tìm đường)
     if (selectedLot?.id === lot.id) return true;
 
-    const matchType =
-      vehicleFilter === 'all' || lot.vehicleTypes.includes(vehicleFilter);
     const matchSearch =
       !searchText ||
       lot.name.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -442,10 +428,8 @@ export default function FindParkingPage() {
     const matchNearby = !userLocation
       ? true
       : calcDistanceKm(userLocation.lat, userLocation.lng, lot.lat, lot.lng) <= nearbyRadius / 1000;
-    return matchType && matchSearch && matchNearby;
+    return matchSearch && matchNearby;
   }).sort((a, b) => {
-    if (sortBy === 'price') return a.pricePerHour - b.pricePerHour;
-    if (sortBy === 'rating') return b.rating - a.rating;
     if (sortBy === 'distance' && userLocation) {
       const dA = calcDistanceKm(userLocation.lat, userLocation.lng, a.lat, a.lng);
       const dB = calcDistanceKm(userLocation.lat, userLocation.lng, b.lat, b.lng);
@@ -462,8 +446,6 @@ export default function FindParkingPage() {
 
   const SORT_LABELS: Record<SortOption, string> = {
     relevance: 'Relevance',
-    price: 'Lowest Price',
-    rating: 'Highest Rating',
     distance: 'Closest',
   };
 
@@ -555,9 +537,6 @@ export default function FindParkingPage() {
                     }`}>
                     {lot.name}
                   </span>
-                  <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200/50">
-                    {lot.type}
-                  </span>
                 </div>
 
                 <div className="flex items-center gap-1.5 mb-3">
@@ -636,9 +615,6 @@ export default function FindParkingPage() {
                     <div className="px-4 pt-4 pb-3 border-b border-gray-100">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <p className="font-extrabold text-[#FF4C4C] text-sm leading-tight flex-1">{lot.name}</p>
-                        <span className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
-                          {lot.type}
-                        </span>
                       </div>
                       <p className="text-[11px] text-stone-400 leading-snug">{lot.address}</p>
                       <div className="flex items-center gap-3 mt-2 text-[11px]">
@@ -837,20 +813,12 @@ export default function FindParkingPage() {
               </div>
 
               <div className="p-5 space-y-5">
-                {/* Name + type */}
+                {/* Name */}
                 <div>
                   <div className="flex items-start gap-2 mb-2">
                     <h2 className="text-base font-extrabold text-stone-900 dark:text-white leading-tight flex-1 transition-colors duration-300">
                       {selectedLot.name}
                     </h2>
-                    <span
-                      className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedLot.type === 'PUBLIC'
-                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
-                        : 'bg-sky-50 text-sky-600 border border-sky-200'
-                        }`}
-                    >
-                      {selectedLot.type}
-                    </span>
                   </div>
                   <div className="flex items-start gap-1.5">
                     <MapPin size={13} className="text-stone-400 shrink-0 mt-0.5" />
@@ -881,38 +849,6 @@ export default function FindParkingPage() {
                         background: availabilityColor(selectedLot),
                       }}
                     />
-                  </div>
-                </div>
-
-                {/* Allowed vehicles */}
-                <div>
-                  <p className="text-xs text-stone-500 font-bold uppercase tracking-wider mb-2">
-                    Allowed Vehicles
-                  </p>
-                  <div className="flex gap-2 flex-wrap">
-                    {selectedLot.vehicleTypes
-                      .filter((v) => v !== 'all' && v !== 'ev')
-                      .map((v) => {
-                        const icons: Record<string, any> = {
-                          motorbike: Bike,
-                          car: Car,
-                        };
-                        const labels: Record<string, string> = {
-                          motorbike: 'Motorbike',
-                          car: 'Car',
-                          ev: 'EV Charger',
-                        };
-                        const Icon = icons[v] || Car;
-                        return (
-                          <span
-                            key={v}
-                            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 bg-gray-50 dark:bg-white/5 border border-gray-200/60 dark:border-white/10 rounded-full text-stone-600 dark:text-stone-400 transition-colors duration-300"
-                          >
-                            <Icon size={12} className="text-[#FF4C4C]" />
-                            {labels[v]}
-                          </span>
-                        );
-                      })}
                   </div>
                 </div>
 
@@ -1042,7 +978,7 @@ export default function FindParkingPage() {
           ) : (
             <div className="overflow-x-auto pb-4">
               <div className="min-w-max mx-auto bg-white dark:bg-[#18181B] border border-gray-200/80 dark:border-white/10 rounded-2xl p-6 shadow-sm">
-                
+
                 {/* Status Counts Legend */}
                 {(() => {
                   const total = floorSlots.length;
@@ -1052,7 +988,7 @@ export default function FindParkingPage() {
                     const statusStr: any = typeof slot.status === 'number'
                       ? SLOT_STATUS_FROM_ENUM[slot.status as number] || 'Available'
                       : slot.status || 'Available';
-                      
+
                     if (statusStr === 'Available') available++;
                     else if (statusStr === 'Occupied') occupied++;
                     else if (statusStr === 'Reserved' || statusStr === 'TemporaryHeld') reserved++;
@@ -1060,15 +996,15 @@ export default function FindParkingPage() {
                   return (
                     <div className="flex items-center gap-6 text-[11px] font-medium text-stone-500 dark:text-stone-400 mb-6 border-b border-gray-100 dark:border-white/5 pb-4 px-2">
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></span> 
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"></span>
                         Available <strong className="text-stone-800 dark:text-stone-200 text-xs ml-0.5">{available}</strong>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#FF4C4C] shadow-[0_0_8px_rgba(255,76,76,0.5)]"></span> 
+                        <span className="w-2 h-2 rounded-full bg-[#FF4C4C] shadow-[0_0_8px_rgba(255,76,76,0.5)]"></span>
                         Occupied <strong className="text-stone-800 dark:text-stone-200 text-xs ml-0.5">{occupied}</strong>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"></span> 
+                        <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)]"></span>
                         Reserved <strong className="text-stone-800 dark:text-stone-200 text-xs ml-0.5">{reserved}</strong>
                       </div>
                       <div className="flex items-center gap-1.5 ml-auto">
