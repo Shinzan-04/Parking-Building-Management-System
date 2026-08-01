@@ -103,7 +103,6 @@ interface ParkingLot {
   rating: number;
   openHours: string;
   vehicleTypes: VehicleFilter[];
-  features: string[];
 }
 
 // ---------- Ánh xạ dữ liệu BuildingResponse sang ParkingLot ----------
@@ -131,7 +130,6 @@ function mapBuildingToParkingLot(b: BuildingResponse): ParkingLot {
     rating: 4.5,
     openHours: '24/7',
     vehicleTypes: ['all', 'motorbike', 'car', 'ev'],
-    features: ['Camera 24/7', 'Bảo vệ', 'Có mái che'],
   };
 }
 
