@@ -1,6 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   Building2, ParkingSquare, CircleCheck, Wrench,
   Plus, Search, Pencil, Trash2, MapPin,
@@ -60,6 +63,58 @@ const statusConfig = {
 const emptyForm = { name: '', address: '', totalSpots: '', latitude: '', longitude: '', status: 'active' as ParkingLot['status'] };
 
 const COLS = 8;
+
+// ─── Leaflet default icon fix (Vite bundling breaks default marker asset URLs) ──
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+const DEFAULT_MAP_CENTER: [number, number] = [10.7626, 106.6601]; // Ho Chi Minh City
+
+function LocationPicker({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
+
+function BuildingLocationMap({
+  latitude, longitude, onPick,
+}: {
+  latitude: string;
+  longitude: string;
+  onPick: (lat: number, lng: number) => void;
+}) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  const hasPosition = latitude !== '' && longitude !== '' && !isNaN(lat) && !isNaN(lng);
+  const center: [number, number] = hasPosition ? [lat, lng] : DEFAULT_MAP_CENTER;
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-gray-200 dark:border-white/10" style={{ height: 220 }}>
+      <MapContainer
+        key={hasPosition ? `${lat}-${lng}` : 'default'}
+        center={center}
+        zoom={hasPosition ? 16 : 12}
+        className="w-full h-full"
+        style={{ background: '#F3F3F5' }}
+      >
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution='&copy; OpenStreetMap contributors &copy; CARTO'
+          maxZoom={20}
+        />
+        <LocationPicker onPick={onPick} />
+        {hasPosition && <Marker position={[lat, lng]} />}
+      </MapContainer>
+    </div>
+  );
+}
 
 function floorPrefix(floorName: string): string {
   const trimmed = floorName.trim();
@@ -1726,6 +1781,16 @@ export default function ParkingLots() {
                       className="w-full bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 dark:text-white placeholder-gray-300 dark:placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-500 dark:text-white/45 mb-1.5">
+                    Map Preview <span className="text-gray-400 dark:text-white/25 font-normal">(click on map to set location)</span>
+                  </label>
+                  <BuildingLocationMap
+                    latitude={form.latitude}
+                    longitude={form.longitude}
+                    onPick={(lat, lng) => setForm(prev => ({ ...prev, latitude: lat.toFixed(6), longitude: lng.toFixed(6) }))}
+                  />
                 </div>
               </div>
 
