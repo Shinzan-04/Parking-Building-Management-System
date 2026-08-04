@@ -100,8 +100,11 @@ interface ParkingLot {
 }
 
 // ---------- Ánh xạ dữ liệu BuildingResponse sang ParkingLot ----------
+// [GIẢI THÍCH LUỒNG MAP]: Hàm này có nhiệm vụ "dịch" dữ liệu tòa nhà từ API 
+// sang định dạng mà bản đồ Leaflet có thể hiểu được (ParkingLot)
 function mapBuildingToParkingLot(b: BuildingResponse): ParkingLot {
   // Lấy tọa độ thật từ DB, YÊU CẦU PHẢI CÓ. Nếu không có (0,0) thì báo lỗi logic
+  // (Tọa độ này do Admin thiết lập và lưu vào Database khi tạo tòa nhà)
   const finalLat = b.latitude;
   const finalLng = b.longitude;
 
@@ -301,12 +304,16 @@ export default function FindParkingPage() {
     let cancelled = false;
     setIsLoadingBuildings(true);
     setBuildingsError(null);
+    // [GIẢI THÍCH LUỒNG MAP] BƯỚC 1: Lấy danh sách tòa nhà từ Backend
     getBuildings()
       .then((data) => {
         if (!cancelled) {
-          // Lọc bỏ những tòa nhà không có tọa độ thật (tránh nhảy ra biển)
+          // [GIẢI THÍCH LUỒNG MAP] BƯỚC 2: Lọc bỏ những tòa nhà không có tọa độ thật (tránh nhảy ra biển)
           const validBuildings = data.filter(b => b.latitude && b.longitude && (b.latitude !== 0 || b.longitude !== 0));
+          
+          // [GIẢI THÍCH LUỒNG MAP] BƯỚC 3: Map dữ liệu để lấy chính xác Vĩ độ (lat) và Kinh độ (lng)
           const mapped = validBuildings.map(mapBuildingToParkingLot);
+          
           setBuildingsList(mapped);
           setIsLoadingBuildings(false);
         }
@@ -596,10 +603,12 @@ export default function FindParkingPage() {
             {/* Capture map instance */}
             <MapRefCapture onMap={handleMapRef} />
 
+            {/* [GIẢI THÍCH LUỒNG MAP] BƯỚC 4: Duyệt vòng lặp danh sách tòa nhà để vẽ Điểm Đánh Dấu (Marker) lên bản đồ */}
             {/* Markers của các tòa nhà trong hệ thống */}
             {filtered.map((lot) => (
               <Marker
                 key={lot.id}
+                // TRỌNG TÂM: Gán đúng tọa độ lot.lat và lot.lng để bản đồ chấm vị trí chính xác
                 position={[lot.lat, lot.lng]}
                 icon={createParkingIcon(selectedLot?.id === lot.id ? '#FF4C4C' : '#3B82F6')}
                 eventHandlers={{
