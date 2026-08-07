@@ -115,6 +115,15 @@ export interface CreateParkingSlotRequest {
 export const getVehicleTypes = (): Promise<VehicleTypeResponse[]> =>
   apiClient('/api/VehicleTypes');
 
+export const createVehicleType = (payload: { name: string; description?: string }): Promise<VehicleTypeResponse> =>
+  apiClient('/api/VehicleTypes', { method: 'POST', body: JSON.stringify(payload) });
+
+export const updateVehicleType = (id: string, payload: { name: string; description?: string }): Promise<VehicleTypeResponse> =>
+  apiClient(`/api/VehicleTypes/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+
+export const deleteVehicleType = (id: string): Promise<void> =>
+  apiClient(`/api/VehicleTypes/${id}`, { method: 'DELETE' });
+
 export const createParkingSlot = (payload: CreateParkingSlotRequest): Promise<ParkingSlotSummary> =>
   apiClient('/api/parkingslots', { method: 'POST', body: JSON.stringify(payload) });
 

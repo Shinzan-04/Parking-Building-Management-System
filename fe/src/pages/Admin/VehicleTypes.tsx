@@ -19,43 +19,14 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import {
   getVehicleTypes,
+  createVehicleType,
+  updateVehicleType,
+  deleteVehicleType,
 } from '../../services/buildingsService';
 import type { VehicleTypeResponse } from '../../services/buildingsService';
 import { getAllSlots } from '../../services/parkingService';
 import type { ParkingSlotDetail, SlotStatus } from '../../services/parkingService';
 import { SLOT_STATUS_LABELS, SLOT_STATUS_COLORS, SLOT_STATUS_FROM_ENUM } from '../../services/parkingService';
-
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:5237';
-
-// ─── API helpers ──────────────────────────────────────────────────────────────
-
-async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('sp_token');
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options?.headers ?? {}),
-    },
-  });
-  if (res.status === 204) return undefined as T;
-  const text = await res.text();
-  if (!text.trim()) { if (res.ok) return undefined as T; throw new Error(`Error ${res.status}.`); }
-  let data: unknown;
-  try { data = JSON.parse(text); } catch { throw new Error('Invalid response.'); }
-  if (!res.ok) throw new Error((data as { message?: string }).message ?? `Error ${res.status}.`);
-  return data as T;
-}
-
-const createVehicleType = (payload: { name: string; description?: string }) =>
-  apiFetch<VehicleTypeResponse>('/api/VehicleTypes', { method: 'POST', body: JSON.stringify(payload) });
-
-const updateVehicleType = (id: string, payload: { name: string; description?: string }) =>
-  apiFetch<VehicleTypeResponse>(`/api/VehicleTypes/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
-
-const deleteVehicleType = (id: string) =>
-  apiFetch<void>(`/api/VehicleTypes/${id}`, { method: 'DELETE' });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

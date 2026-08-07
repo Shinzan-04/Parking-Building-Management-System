@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Car, Users, BarChart3, Settings,
+  LayoutDashboard, Car, Users, BarChart3,
   LogOut, MapPin, Sun, Moon, Home, Banknote,
   DollarSign, ClipboardList, CalendarCheck, History, Ticket
 } from 'lucide-react';
@@ -21,7 +21,6 @@ const navItems = [
   { to: '/admin/vehicle-types', label: 'Vehicle Types', icon: Car,             end: false },
   { to: '/admin/monthly-pass',  label: 'Monthly Pass', icon: Ticket,          end: false },
   { to: '/admin/audit-logs',    label: 'Audit Logs',   icon: History,        end: false },
-  { to: '/admin/settings',      label: 'Settings',     icon: Settings,        end: false },
 ];
 
 export default function AdminLayout() {

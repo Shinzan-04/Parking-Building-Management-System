@@ -15,7 +15,6 @@ const AdminParkingLots = lazy(() => import('./pages/Admin/ParkingLots'));
 const AdminVehicles = lazy(() => import('./pages/Admin/Vehicles'));
 const AdminUsers = lazy(() => import('./pages/Admin/Users'));
 const AdminReports = lazy(() => import('./pages/Admin/Reports'));
-const AdminSettings = lazy(() => import('./pages/Admin/Settings'));
 const AdminRefunds = lazy(() => import('./pages/Admin/Refunds'));
 const AdminPricing = lazy(() => import('./pages/Admin/Pricing'));
 const AdminSessions = lazy(() => import('./pages/Admin/Sessions'));
@@ -89,7 +88,6 @@ export default function App() {
             <Route path="vehicles" element={<AdminVehicles />} />
             <Route path="users" element={<AdminUsers />} />
             <Route path="reports" element={<AdminReports />} />
-            <Route path="settings" element={<AdminSettings />} />
             <Route path="refunds" element={<AdminRefunds />} />
             <Route path="pricing" element={<AdminPricing />} />
             <Route path="sessions" element={<AdminSessions />} />
