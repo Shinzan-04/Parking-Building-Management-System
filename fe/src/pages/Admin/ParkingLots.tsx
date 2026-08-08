@@ -1159,6 +1159,10 @@ export default function ParkingLots() {
   const handleDelete = async () => {
     const activeToken = token ?? getActiveToken();
     if (!selected || !activeToken) { setFormError('Session expired, please log in again.'); return; }
+    if (selected.usedSpots > 0) {
+      setFormError('Cannot delete this building because it still has vehicles parked.');
+      return;
+    }
     setSubmitting(true);
     try {
       await deleteBuilding(selected.id);
@@ -2111,7 +2115,7 @@ export default function ParkingLots() {
                 <div className="flex items-center gap-2 mt-3 px-3 py-2.5 bg-amber-400/10 border border-amber-400/20 rounded-xl text-left">
                   <AlertTriangle size={14} className="text-amber-400 shrink-0" />
                   <p className="text-xs text-amber-400">
-                    This building currently has <strong>{selected.usedSpots} vehicles parked</strong>. Please make sure before deleting.
+                    This building currently has <strong>{selected.usedSpots} vehicles parked</strong>. You must clear all vehicles before it can be deleted.
                   </p>
                 </div>
               )}
@@ -2126,7 +2130,7 @@ export default function ParkingLots() {
               <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50" style={{ color: 'var(--admin-text-muted)', backgroundColor: 'var(--admin-bg-card)' }}>
                 Cancel
               </button>
-              <button onClick={handleDelete} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+              <button onClick={handleDelete} disabled={submitting || selected.usedSpots > 0} title={selected.usedSpots > 0 ? 'Cannot delete: vehicles are still parked in this building' : undefined} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                 {submitting && <Loader2 size={14} className="animate-spin" />}
                 Confirm Delete
               </button>
