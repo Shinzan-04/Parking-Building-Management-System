@@ -542,16 +542,16 @@ function SlotStatusPanel({
     <div className="border border-white/10 rounded-xl p-4 space-y-3 shadow-xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-white">Slot {slot.slotNumber}</p>
-          <p className="text-xs text-white/40">{slot.floorName} · {slot.vehicleTypeName}</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--admin-text-primary)' }}>Slot {slot.slotNumber}</p>
+          <p className="text-xs" style={{ color: 'var(--admin-text-faint)' }}>{slot.floorName} · {slot.vehicleTypeName}</p>
         </div>
-        <button onClick={onClose} className="p-1.5 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-all">
+        <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-all" style={{ color: 'var(--admin-text-faint)' }}>
           <X size={14} />
         </button>
       </div>
 
       <div className="space-y-1.5">
-        <p className="text-xs text-white/50 mb-2">Change status to:</p>
+        <p className="text-xs mb-2" style={{ color: 'var(--admin-text-muted)' }}>Change status to:</p>
         {(['Available', 'Maintenance'] as SlotStatus[]).map(s => {
           const cfg = SLOT_STATUS_COLORS[s];
           const isCurrent = slot.status === s;
@@ -563,8 +563,9 @@ function SlotStatusPanel({
               className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                 isCurrent
                   ? `${cfg.bg} ${cfg.text} cursor-default`
-                  : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                  : 'bg-white/5 hover:bg-white/10'
               }`}
+              style={!isCurrent ? { color: 'var(--admin-text-muted)' } : undefined}
             >
               {loading ? <Loader2 size={13} className="animate-spin" /> : null}
               {SLOT_STATUS_LABELS[s]}
@@ -2036,9 +2037,9 @@ export default function ParkingLots() {
               <div className="w-14 h-14 rounded-2xl bg-red-400/10 flex items-center justify-center mx-auto mb-4">
                 <Trash2 size={24} className="text-red-400" />
               </div>
-              <h3 className="text-base font-semibold text-white">Delete Building?</h3>
-              <p className="text-sm text-white/50 mt-2 leading-relaxed">
-                You are about to delete <span className="text-white font-medium">{selected.name}</span> ({selected.address}).
+              <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>Delete Building?</h3>
+              <p className="text-sm mt-2 leading-relaxed" style={{ color: 'var(--admin-text-muted)' }}>
+                You are about to delete <span className="font-medium" style={{ color: 'var(--admin-text-primary)' }}>{selected.name}</span> ({selected.address}).
                 <br />This action cannot be undone.
               </p>
               {selected.usedSpots > 0 && (
@@ -2057,7 +2058,7 @@ export default function ParkingLots() {
               )}
             </div>
             <div className="flex gap-3 px-6 pb-6">
-              <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors disabled:opacity-50">
+              <button onClick={closeModal} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50" style={{ color: 'var(--admin-text-muted)', backgroundColor: 'var(--admin-bg-card)' }}>
                 Cancel
               </button>
               <button onClick={handleDelete} disabled={submitting} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">

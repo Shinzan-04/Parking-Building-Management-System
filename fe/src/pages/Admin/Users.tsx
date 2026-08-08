@@ -424,7 +424,8 @@ export default function UsersPage() {
                                 <button
                                   key={r}
                                   onClick={() => quickChangeRole(u.id, r)}
-                                  className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${u.role === r ? roleConfig[r].text : 'text-white/60'}`}
+                                  className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${u.role === r ? roleConfig[r].text : ''}`}
+                                  style={u.role === r ? undefined : { color: 'var(--admin-text-muted)' }}
                                 >
                                   {u.role === r ? <Check size={11} /> : <span className="w-[11px]" />}
                                   {roleConfig[r].label}

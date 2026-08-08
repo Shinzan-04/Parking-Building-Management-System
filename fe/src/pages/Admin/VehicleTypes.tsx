@@ -376,33 +376,35 @@ export default function AdminVehicleTypes() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="border border-white/10 rounded-2xl w-full max-w-md shadow-2xl" style={{ backgroundColor: 'var(--admin-bg-surface)' }}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
-              <h3 className="text-base font-semibold text-white">
+              <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>
                 {modalType === 'add' ? 'Add Vehicle Type' : `Edit · ${selected?.name}`}
               </h3>
-              <button onClick={closeModal} className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition-all">
+              <button onClick={closeModal} className="p-1.5 rounded-xl hover:bg-white/10 transition-all" style={{ color: 'var(--admin-text-faint)' }}>
                 <X size={16} />
               </button>
             </div>
 
             <div className="px-6 py-5 space-y-4">
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Vehicle Type Name <span className="text-red-400">*</span></label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--admin-text-muted)' }}>Vehicle Type Name <span className="text-red-400">*</span></label>
                 <input
                   type="text"
                   placeholder="E.g.: Motorbike, Car, Truck..."
                   value={form.name}
                   onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF4C4C]/50 transition-colors"
+                  style={{ color: 'var(--admin-text-primary)' }}
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-white/50 mb-1.5">Description</label>
+                <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--admin-text-muted)' }}>Description</label>
                 <textarea
                   rows={3}
                   placeholder="Description of this vehicle type..."
                   value={form.description}
                   onChange={e => setForm(p => ({ ...p, description: e.target.value }))}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FF4C4C]/50 transition-colors resize-none"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#FF4C4C]/50 transition-colors resize-none"
+                  style={{ color: 'var(--admin-text-primary)' }}
                 />
               </div>
 
@@ -415,7 +417,7 @@ export default function AdminVehicleTypes() {
             </div>
 
             <div className="px-6 py-4 border-t border-white/10 flex justify-end gap-3">
-              <button onClick={closeModal} className="px-5 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">
+              <button onClick={closeModal} className="px-5 py-2.5 rounded-xl text-sm font-medium transition-colors" style={{ color: 'var(--admin-text-muted)', backgroundColor: 'var(--admin-bg-card)' }}>
                 Cancel
               </button>
               <button
@@ -440,12 +442,12 @@ export default function AdminVehicleTypes() {
                 <AlertTriangle size={18} className="text-red-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Delete Vehicle Type</h3>
-                <p className="text-xs text-white/40 mt-0.5">This action cannot be undone</p>
+                <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>Delete Vehicle Type</h3>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--admin-text-faint)' }}>This action cannot be undone</p>
               </div>
             </div>
-            <p className="text-sm text-white/70">
-              Delete vehicle type <span className="font-semibold text-white">"{selected.name}"</span>?{' '}
+            <p className="text-sm" style={{ color: 'var(--admin-text-muted)' }}>
+              Delete vehicle type <span className="font-semibold" style={{ color: 'var(--admin-text-primary)' }}>"{selected.name}"</span>?{' '}
               {selected.totalSlots > 0 && (
                 <span className="text-amber-400">
                   ⚠ This vehicle type has {selected.totalSlots} linked parking slots!
@@ -454,7 +456,7 @@ export default function AdminVehicleTypes() {
             </p>
             {formError && <p className="text-xs text-red-400">{formError}</p>}
             <div className="flex gap-3">
-              <button onClick={closeModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white/60 bg-white/5 hover:bg-white/10 transition-colors">
+              <button onClick={closeModal} className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors" style={{ color: 'var(--admin-text-muted)', backgroundColor: 'var(--admin-bg-card)' }}>
                 Cancel
               </button>
               <button
