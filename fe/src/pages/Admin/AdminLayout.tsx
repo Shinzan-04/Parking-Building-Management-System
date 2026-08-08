@@ -15,6 +15,7 @@ const navItems = [
   { to: '/admin/vehicles',     label: 'Vehicles',     icon: Car,             end: false },
   { to: '/admin/users',        label: 'Users',        icon: Users,           end: false },
   { to: '/admin/reports',       label: 'Reports',      icon: BarChart3,       end: false },
+  { to: '/admin/refunds',       label: 'Refunds',      icon: Banknote,        end: false },
   { to: '/admin/pricing',       label: 'Pricing',      icon: DollarSign,      end: false },
   { to: '/admin/sessions',      label: 'Parking Sessions', icon: ClipboardList, end: false },
   { to: '/admin/reservations',  label: 'Reservations', icon: CalendarCheck,   end: false },

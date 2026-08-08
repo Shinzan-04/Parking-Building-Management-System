@@ -588,7 +588,7 @@ public class ReservationService : IReservationService
         var reservation = await _context.Reservations.FirstOrDefaultAsync(
             r => r.Id == reservationId && r.DriverId == driverId);
         if (reservation == null)
-            throw new InvalidOperationException("Reservation information not found.");
+            throw new InvalidOperationException("Reservation not found.");
 
         // Cho phép hủy khi: PaymentPending, PendingReview, Confirmed, PaymentFailed
         var cancellableStatuses = new[]
@@ -599,7 +599,17 @@ public class ReservationService : IReservationService
             ReservationStatus.PaymentFailed
         };
         if (!cancellableStatuses.Contains(reservation.Status))
-            throw new InvalidOperationException("Can only cancel when status is PaymentPending, PendingReview or Confirmed.");
+            throw new InvalidOperationException("You can only cancel when the status is PaymentPending, PendingReview, or Confirmed.");
+
+        // Rule: Nếu đã Confirmed, chỉ được hủy trước giờ bắt đầu ít nhất 1 tiếng
+        if (reservation.Status == ReservationStatus.Confirmed)
+        {
+            var timeUntilStart = reservation.StartTime - DateTime.UtcNow;
+            if (timeUntilStart.TotalHours < 1)
+            {
+                throw new InvalidOperationException("You can only cancel a confirmed reservation at least 1 hour before the start time.");
+            }
+        }
 
         // Trả slot về Available nếu nó đang bị giữ (Reserved hoặc TemporaryHeld)
         var slot = await _context.ParkingSlots.FindAsync(reservation.ParkingSlotId);
@@ -621,7 +631,7 @@ public class ReservationService : IReservationService
             await InitiateRefundAsync(reservation.Id);
         }
 
-        LogState(reservation, "Cancel", "User cancelled reservation");
+        LogState(reservation, "Cancel", "User cancelled the reservation");
         await _context.SaveChangesAsync();
 
         if (slot != null)

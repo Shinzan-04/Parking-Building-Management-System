@@ -111,28 +111,30 @@ function ApproveModal({ item, loading, onConfirm, onClose }: {
   item: PaymentListItem; loading: boolean; onConfirm: () => void; onClose: () => void;
 }) {
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0E0E10] shadow-2xl animate-fade-in-up"
+        className="w-full max-w-sm rounded-2xl border shadow-2xl animate-fade-in-up"
+        style={{ backgroundColor: 'var(--admin-bg-surface)', borderColor: 'var(--admin-border)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="px-6 pt-6 pb-4 text-center space-y-3">
           <div className="w-14 h-14 rounded-full bg-teal-500/15 flex items-center justify-center mx-auto">
-            <CheckCircle2 size={28} className="text-teal-400" />
+            <CheckCircle2 size={28} className="text-teal-500" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-white">Approve Refund</h3>
-            <p className="text-sm text-white/50 mt-1">
-              Refund <span className="text-teal-400 font-semibold">{fmt(item.amount)}</span>
+            <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>Approve Refund</h3>
+            <p className="text-sm mt-1" style={{ color: 'var(--admin-text-muted)' }}>
+              Refund <span className="text-teal-500 font-semibold">{fmt(item.amount)}</span>
               {item.userFullName ? ` to ${item.userFullName}` : ''} to their wallet?
             </p>
-            <p className="text-xs text-white/30 mt-1">The amount will be credited to the wallet immediately. This action cannot be undone.</p>
+            <p className="text-xs mt-1" style={{ color: 'var(--admin-text-faint)' }}>The amount will be credited to the wallet immediately. This action cannot be undone.</p>
           </div>
         </div>
         <div className="px-6 pb-6 flex gap-3">
           <button
             onClick={onClose} disabled={loading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 transition-colors"
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-gray-500/10"
+            style={{ color: 'var(--admin-text-muted)', backgroundColor: 'var(--admin-bg-base)' }}
           >Cancel</button>
           <button
             onClick={onConfirm} disabled={loading}
@@ -155,26 +157,27 @@ function RejectModal({ item, loading, onConfirm, onClose }: {
 }) {
   const [reason, setReason] = useState('');
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0E0E10] shadow-2xl animate-fade-in-up"
+        className="w-full max-w-sm rounded-2xl border shadow-2xl animate-fade-in-up"
+        style={{ backgroundColor: 'var(--admin-bg-surface)', borderColor: 'var(--admin-border)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="px-6 pt-6 pb-4 text-center space-y-3">
           <div className="w-14 h-14 rounded-full bg-red-500/15 flex items-center justify-center mx-auto">
-            <XCircle size={28} className="text-red-400" />
+            <XCircle size={28} className="text-[#FF4C4C]" />
           </div>
           <div>
-            <h3 className="text-base font-semibold text-white">Reject Refund</h3>
-            <p className="text-sm text-white/50 mt-1">
+            <h3 className="text-base font-semibold" style={{ color: 'var(--admin-text-primary)' }}>Reject Refund</h3>
+            <p className="text-sm mt-1" style={{ color: 'var(--admin-text-muted)' }}>
               Reject the refund request for <span className="text-[#FF4C4C] font-semibold">{fmt(item.amount)}</span>
               {item.userFullName ? ` from ${item.userFullName}` : ''}?
             </p>
           </div>
         </div>
 
-        <div className="px-6 pb-2 space-y-1.5">
-          <label className="text-xs font-medium text-white/50">
+        <div className="px-6 pb-2 space-y-1.5 text-left">
+          <label className="text-xs font-medium" style={{ color: 'var(--admin-text-muted)' }}>
             Rejection Reason <span className="text-[#FF4C4C]">*</span>
           </label>
           <textarea
@@ -183,14 +186,20 @@ function RejectModal({ item, loading, onConfirm, onClose }: {
             placeholder="Enter a rejection reason to notify the user..."
             value={reason}
             onChange={e => setReason(e.target.value)}
-            className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-white/5 text-sm text-white placeholder-white/25 outline-none resize-none focus:border-[#FF4C4C]/50 focus:ring-1 focus:ring-[#FF4C4C]/30 transition-colors"
+            className="w-full px-3 py-2.5 rounded-xl border text-sm outline-none resize-none focus:border-[#FF4C4C]/50 focus:ring-1 focus:ring-[#FF4C4C]/30 transition-colors"
+            style={{ 
+              backgroundColor: 'var(--admin-bg-base)', 
+              borderColor: 'var(--admin-border)', 
+              color: 'var(--admin-text-primary)' 
+            }}
           />
         </div>
 
         <div className="px-6 py-4 flex gap-3">
           <button
             onClick={onClose} disabled={loading}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-white/5 hover:bg-white/10 text-white/60 transition-colors"
+            className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors hover:bg-gray-500/10"
+            style={{ color: 'var(--admin-text-muted)', backgroundColor: 'var(--admin-bg-base)' }}
           >Cancel</button>
           <button
             onClick={() => onConfirm(reason.trim())}

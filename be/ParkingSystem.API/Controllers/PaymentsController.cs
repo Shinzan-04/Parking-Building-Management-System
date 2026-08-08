@@ -192,7 +192,7 @@ public class PaymentsController : ControllerBase
     /// Từ chối yêu cầu hoàn tiền, chuyển trạng thái về RefundFailed (Admin/Staff)
     /// </summary>
     [HttpPost("{paymentId}/reject-refund")]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Staff")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Manager,Staff")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -229,7 +229,7 @@ public class PaymentsController : ControllerBase
     /// Thực hiện hoàn tiền cho giao dịch (Chỉ Admin/Staff)
     /// </summary>
     [HttpPost("{paymentId}/refund")]
-    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Staff")]
+    [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin,Manager,Staff")]
     [ProducesResponseType(typeof(PaymentRefundResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
