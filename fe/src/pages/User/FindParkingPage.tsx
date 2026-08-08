@@ -749,7 +749,7 @@ export default function FindParkingPage() {
           </div>
 
           {/* Panel chọn bán kính "Gần tôi" khi đã có vị trí */}
-          {userLocation && (
+          {userLocation && !routeCoords && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] flex flex-col items-center gap-2">
               {/* Bộ chọn bán kính */}
               <div className="flex items-center gap-1 bg-white/95 backdrop-blur-md border border-gray-200 shadow-lg rounded-full px-2 py-1.5">
