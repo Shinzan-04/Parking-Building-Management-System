@@ -774,11 +774,19 @@ function StepDateTime({
         onClose={() => setIsExitDatePickerOpen(false)}
         selectedDate={exitInfo.rawDate || state.exitDate}
         onSelectDate={(date) => {
-          if (new Date(date) < new Date(state.entryDate)) return; // prevent past date
+          if (new Date(date) < new Date(state.entryDate)) {
+            toast.error('Exit date cannot be before arrival date.');
+            return;
+          }
           const exT = state.exitTime || exitInfo.time;
           let diffMins = calculateDiffMins(state.entryDate, state.entryTime, date, exT);
-          if (diffMins <= 0) diffMins = 0;
-          const diffHours = diffMins > 0 ? Number((diffMins / 60).toFixed(2)) : 0;
+          
+          if (diffMins <= 0) {
+            toast.error('Exit time must be after arrival time.');
+            return;
+          }
+
+          const diffHours = Number((diffMins / 60).toFixed(2));
           setState((s) => ({ ...s, exitDate: date, exitTime: exT, duration: diffHours }));
         }}
       />
@@ -796,16 +804,12 @@ function StepDateTime({
           let newExitDate = exitInfo.rawDate || state.exitDate;
           let diffMins = calculateDiffMins(state.entryDate, state.entryTime, newExitDate, time);
 
-          if (diffMins <= 0 && state.entryDate === newExitDate) {
-            const exitD = new Date(newExitDate);
-            exitD.setDate(exitD.getDate() + 1);
-            newExitDate = exitD.toISOString().split('T')[0];
-            diffMins = calculateDiffMins(state.entryDate, state.entryTime, newExitDate, time);
-          } else if (diffMins <= 0) {
-            diffMins = 0;
+          if (diffMins <= 0) {
+            toast.error('Exit time must be after arrival time.');
+            return;
           }
 
-          const diffHours = diffMins > 0 ? Number((diffMins / 60).toFixed(2)) : 0;
+          const diffHours = Number((diffMins / 60).toFixed(2));
           setState((s) => ({ ...s, exitTime: time, exitDate: newExitDate, duration: diffHours }));
         }}
       />
