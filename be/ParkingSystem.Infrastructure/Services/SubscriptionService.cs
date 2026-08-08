@@ -75,7 +75,7 @@ public class SubscriptionService : ISubscriptionService
         var vehicleType = await _context.VehicleTypes.FindAsync(request.VehicleTypeId);
         newPolicy.VehicleType = vehicleType;
 
-        await _auditLogService.LogAsync(adminId, "Create", "MonthlyPassPolicy", newPolicy.Id, null, null, $"Tạo bảng giá vé tháng mới cho {vehicleType?.Name} với giá {request.MonthlyPrice:N0} VND");
+        await _auditLogService.LogAsync(adminId, "Create", "MonthlyPassPolicy", newPolicy.Id, null, null, $"Created new monthly pass policy for {vehicleType?.Name} with price {request.MonthlyPrice:N0} VND");
 
         return MapToPolicyResponse(newPolicy);
     }
@@ -96,7 +96,7 @@ public class SubscriptionService : ISubscriptionService
 
         await _context.SaveChangesAsync();
 
-        await _auditLogService.LogAsync(adminId, "Update", "MonthlyPassPolicy", policy.Id, null, null, $"Cập nhật bảng giá vé tháng. Giá: {oldPrice:N0} -> {request.MonthlyPrice:N0} VND");
+        await _auditLogService.LogAsync(adminId, "Update", "MonthlyPassPolicy", policy.Id, null, null, $"Updated monthly pass policy. Price: {oldPrice:N0} -> {request.MonthlyPrice:N0} VND");
 
         return MapToPolicyResponse(policy);
     }
@@ -110,7 +110,7 @@ public class SubscriptionService : ISubscriptionService
         policy.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
-        await _auditLogService.LogAsync(adminId, "Delete", "MonthlyPassPolicy", policy.Id, null, null, "Vô hiệu hóa bảng giá vé tháng");
+        await _auditLogService.LogAsync(adminId, "Delete", "MonthlyPassPolicy", policy.Id, null, null, "Deactivated monthly pass policy");
         return true;
     }
 
@@ -218,7 +218,7 @@ public class SubscriptionService : ISubscriptionService
             .FirstOrDefaultAsync(p => p.VehicleTypeId == vehicle.VehicleTypeId && p.IsActive);
         
         if (policy == null)
-            throw new InvalidOperationException($"Không có gói vé tháng nào được áp dụng cho loại xe {vehicle.VehicleType?.Name}.");
+            throw new InvalidOperationException($"No monthly pass package applicable for vehicle type {vehicle.VehicleType?.Name}.");
 
         var fee = policy.MonthlyPrice;
 
@@ -257,7 +257,7 @@ public class SubscriptionService : ISubscriptionService
                 if (driver == null) throw new InvalidOperationException("User not found.");
 
                 if (driver.Balance < fee)
-                    throw new InvalidOperationException($"Số dư trong ví không đủ! Phí vé tháng là {fee:N0} VND, nhưng số dư của bạn chỉ còn {driver.Balance:N0} VND. Vui lòng chọn PayOS hoặc nạp thêm tiền vào ví.");
+                    throw new InvalidOperationException($"Insufficient wallet balance! Monthly pass fee is {fee:N0} VND, but your balance is only {driver.Balance:N0} VND. Please choose PayOS or top up your wallet.");
 
                 driver.Balance -= fee;
                 
@@ -268,7 +268,7 @@ public class SubscriptionService : ISubscriptionService
                     Amount = fee,
                     Type = "MonthlyPassPayment",
                     Status = "Success",
-                    Description = $"Thanh toán vé tháng cho xe {vehicle.PlateNumber}",
+                    Description = $"Paid monthly pass for vehicle {vehicle.PlateNumber}",
                     CreatedAt = now
                 });
 
@@ -276,7 +276,7 @@ public class SubscriptionService : ISubscriptionService
                 {
                     Id = Guid.NewGuid(),
                     Amount = fee,
-                    Description = $"Thanh toán Ví cho Vé tháng xe {vehicle.PlateNumber}",
+                    Description = $"Paid with Wallet for monthly pass of vehicle {vehicle.PlateNumber}",
                     PaymentDate = now,
                     PaymentMethod = PaymentMethod.Wallet,
                     Status = PaymentStatus.Success,
@@ -456,7 +456,7 @@ public class SubscriptionService : ISubscriptionService
                     Amount = refundAmount,
                     Type = "RefundMonthlyPass",
                     Status = "Success",
-                    Description = $"Hoàn 70% tiền admin duyệt hủy vé tháng xe {sub.LicensePlate}",
+                    Description = $"Refunded 70% for admin approved cancellation of monthly pass for vehicle {sub.LicensePlate}",
                     ReferenceId = sub.Id.ToString(),
                     CreatedAt = DateTime.UtcNow
                 });
@@ -519,7 +519,7 @@ public class SubscriptionService : ISubscriptionService
                 Amount = refundAmount,
                 Type = "RefundMonthlyPass",
                 Status = "Success",
-                Description = $"Hoàn tiền admin hủy vé tháng xe {sub.LicensePlate}",
+                Description = $"Refunded for admin cancellation of monthly pass for vehicle {sub.LicensePlate}",
                 ReferenceId = sub.Id.ToString(),
                 CreatedAt = DateTime.UtcNow
             });

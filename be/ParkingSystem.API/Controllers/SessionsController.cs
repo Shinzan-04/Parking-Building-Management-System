@@ -114,7 +114,7 @@ public class SessionsController : ControllerBase
             var result = await _sessionService.FindActiveByPlateAsync(plate, staffId);
             
             if (result == null)
-                return NotFound(new { message = $"Không tìm thấy xe biển số '{plate}' đang gửi trong bãi." });
+                return NotFound(new { message = $"Cannot find parked vehicle with license plate '{plate}'." });
             
             return Ok(result);
         }

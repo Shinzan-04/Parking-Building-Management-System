@@ -33,7 +33,7 @@ public class SubscriptionCleanupService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("🔄 SubscriptionCleanupService đã khởi động. Quét mỗi {Interval} phút.", ScanIntervalMinutes);
+        _logger.LogInformation("🚀 SubscriptionCleanupService started. Scanning every {Interval} minutes.", ScanIntervalMinutes);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -43,13 +43,13 @@ public class SubscriptionCleanupService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "❌ Lỗi khi quét vé tháng hết hạn thanh toán.");
+                _logger.LogError(ex, "❌ Error scanning expired pending monthly passes.");
             }
 
             await Task.Delay(TimeSpan.FromMinutes(ScanIntervalMinutes), stoppingToken);
         }
 
-        _logger.LogInformation("🛑 SubscriptionCleanupService đã dừng.");
+        _logger.LogInformation("🛑 SubscriptionCleanupService stopped.");
     }
 
     private async Task CleanupExpiredSubscriptionsAsync()
@@ -74,8 +74,8 @@ public class SubscriptionCleanupService : BackgroundService
                 ? await context.Payments.FindAsync(sub.PaymentId.Value)
                 : null;
 
-            // Trước khi hủy, verify trực tiếp với PayOS — tránh hủy nhầm giao dịch đã
-            // thanh toán thật nhưng webhook/verify FE chưa kịp xử lý trước khi hết hạn.
+            // Before canceling, verify directly with PayOS — avoids canceling transactions 
+            // that were actually paid but the webhook/FE verification hasn't been processed before expiry.
             if (payment != null && payment.PaymentMethod == PaymentMethod.PayOS)
             {
                 var (_, status) = await paymentService.VerifyPayOSPaymentAsync(payment.PayOSOrderCode);
@@ -114,7 +114,7 @@ public class SubscriptionCleanupService : BackgroundService
         {
             await context.SaveChangesAsync();
             _logger.LogInformation(
-                "🧹 Auto-cleanup Subscription: Đã hủy {Cancelled}, kích hoạt {Activated} gói vé tháng (quá hạn thanh toán {Timeout} phút).",
+                "✅ Auto-cleanup Subscription: Cancelled {Cancelled}, Activated {Activated} monthly passes (overdue {Timeout} minutes).",
                 cancelledCount, activatedCount, PaymentTimeoutMinutes);
         }
     }

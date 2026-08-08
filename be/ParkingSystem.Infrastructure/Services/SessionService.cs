@@ -210,7 +210,7 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(s => s.Id == sessionId && !s.IsDeleted);
 
         if (session == null)
-            throw new InvalidOperationException("Không tìm thấy phiên gửi xe.");
+            throw new InvalidOperationException("Parking session not found.");
 
         return MapToDto(session);
     }
@@ -260,7 +260,7 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(s => s.Id == sessionId && s.Status == SessionStatus.Active && !s.IsDeleted);
 
         if (session == null)
-            throw new KeyNotFoundException("Không tìm thấy phiên gửi xe hoặc xe đã thanh toán.");
+            throw new KeyNotFoundException("Parking session not found or already paid.");
 
         var staff = await _context.Users.FindAsync(staffId);
         if (staff != null && staff.AssignedBuildingId.HasValue)
@@ -292,7 +292,7 @@ public class SessionService : ISessionService
             entityId: session.Id,
             oldValues: new { PenaltyFee = oldPenaltyFee },
             newValues: new { PenaltyFee = session.PenaltyFee },
-            reason: request.Reason ?? "Cấp lại vé mất cho khách hàng"
+            reason: request.Reason ?? "Reissued lost ticket for customer"
         );
 
         return MapToDto(session);
@@ -308,8 +308,8 @@ public class SessionService : ISessionService
         var hours = (int)duration.TotalHours;
         var minutes = duration.Minutes;
         var durationText = hours > 0 
-            ? $"{hours} giờ {minutes} phút" 
-            : $"{minutes} phút";
+            ? $"{hours} hour(s) {minutes} minute(s)"
+            : $"{minutes} minute(s)";
 
         return new SessionDto
         {
@@ -414,7 +414,7 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync();
 
         if (session == null)
-            throw new InvalidOperationException("Không có phiên đỗ xe nào đang hoạt động để tua thời gian.");
+            throw new InvalidOperationException("No active parking session to fast-forward time.");
 
         var timeToSubtract = TimeSpan.FromMinutes(minutes);
         
@@ -441,7 +441,7 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync();
 
         if (session == null)
-            throw new InvalidOperationException("Không có phiên đỗ xe nào đang hoạt động để reset thời gian.");
+            throw new InvalidOperationException("No active parking session to reset time.");
 
         var offset = session.CreatedAt - session.EntryTime;
         
@@ -466,10 +466,10 @@ public class SessionService : ISessionService
             .FirstOrDefaultAsync(s => s.Id == sessionId && s.DriverId == driverId && s.Status == SessionStatus.Active && !s.IsDeleted);
 
         if (session == null)
-            throw new KeyNotFoundException("Không tìm thấy phiên gửi xe hoặc phiên không thuộc về bạn.");
+            throw new KeyNotFoundException("Parking session not found or does not belong to you.");
 
         if (session.Driver == null)
-            throw new InvalidOperationException("Không tìm thấy thông tin tài xế.");
+            throw new InvalidOperationException("Driver information not found.");
 
         // Tính phí đỗ xe tính đến thời điểm hiện tại
         var now = DateTime.UtcNow;
@@ -480,7 +480,7 @@ public class SessionService : ISessionService
 
         if (amountDue <= 0)
         {
-            throw new InvalidOperationException("Phiên đỗ xe này chưa phát sinh thêm phí để thanh toán trước.");
+            throw new InvalidOperationException("This parking session has not incurred additional fees for pre-payment.");
         }
 
         if (session.Driver.Balance < amountDue)
@@ -518,7 +518,7 @@ public class SessionService : ISessionService
             Amount = -amountDue, // Trừ tiền
             Type = "Payment",
             Status = "Success",
-            Description = $"Thanh toán trước phí đỗ xe (Session: {session.SessionCode})",
+            Description = $"Pre-pay parking fee (Session: {session.SessionCode})",
             ReferenceId = session.Id.ToString(),
             CreatedAt = now
         };
@@ -545,7 +545,7 @@ public class SessionService : ISessionService
         await _notificationService.SendAsync(
             driverId,
             "✅ Prepaid Successfully",
-            $"Bạn đã thanh toán {amountDue:N0} VND. Bạn có 15 phút ân hạn (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}) để đưa xe ra khỏi bãi mà không phát sinh thêm phí.",
+            $"You have paid {amountDue:N0} VND. You have a 15-minute grace period (until {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}) to exit the parking lot without incurring additional fees.",
             "PrePaySuccess",
             sessionId);
 

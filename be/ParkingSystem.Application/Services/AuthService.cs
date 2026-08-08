@@ -163,7 +163,7 @@ public class AuthService : IAuthService
         // Xác thực mã OTP
         var isValid = await _otpService.VerifyOtpAsync(user.Email, request.OtpCode, "ChangePassword");
         if (!isValid)
-            throw new InvalidOperationException("Mã OTP không hợp lệ hoặc đã hết hạn.");
+            throw new InvalidOperationException("Invalid or expired OTP code.");
 
         if (request.NewPassword.Length < 6)
             throw new InvalidOperationException("Mật khẩu mới phải có ít nhất 6 ký tự.");
@@ -178,13 +178,13 @@ public class AuthService : IAuthService
     {
         var existing = await _userRepository.GetByUsernameAsync(request.Username);
         if (existing != null)
-            throw new InvalidOperationException("Tên đăng nhập đã tồn tại.");
+            throw new InvalidOperationException("Username already exists.");
 
         if (!string.IsNullOrEmpty(request.Email))
         {
             var emailExists = await _userRepository.GetByEmailAsync(request.Email);
             if (emailExists != null)
-                throw new InvalidOperationException("Email đã được đăng ký.");
+                throw new InvalidOperationException("Email is already registered.");
         }
 
         var driverCode = "DRV-" + _qrCodeService.GenerateUniqueCode(5);
@@ -235,7 +235,7 @@ public class AuthService : IAuthService
             // Kiểm tra email trùng (ngoại trừ user hiện tại)
             var emailUser = await _userRepository.GetByEmailAsync(request.Email);
             if (emailUser != null && emailUser.Id != userId)
-                throw new InvalidOperationException("Email đã được sử dụng bởi tài khoản khác.");
+                throw new InvalidOperationException("Email is already in use by another account.");
             user.Email = request.Email;
         }
 
@@ -325,7 +325,7 @@ public class AuthService : IAuthService
     public async Task SendOtpAsync(SendOtpRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.Email))
-            throw new InvalidOperationException("Email không được để trống.");
+            throw new InvalidOperationException("Email cannot be empty.");
 
         // Kiểm tra purpose hợp lệ
         if (request.Purpose != "Register" && request.Purpose != "ForgotPassword" && request.Purpose != "ChangePassword")
@@ -336,7 +336,7 @@ public class AuthService : IAuthService
         {
             var user = await _userRepository.GetByEmailAsync(request.Email);
             if (user == null)
-                throw new InvalidOperationException("Email này chưa đăng ký tài khoản.");
+                throw new InvalidOperationException("This email is not registered.");
         }
 
         // Nếu đăng ký → kiểm tra email chưa bị dùng
@@ -344,7 +344,7 @@ public class AuthService : IAuthService
         {
             var existing = await _userRepository.GetByEmailAsync(request.Email);
             if (existing != null)
-                throw new InvalidOperationException("Email này đã được đăng ký.");
+                throw new InvalidOperationException("Email is already registered.");
         }
 
         await _otpService.SendOtpAsync(request.Email, request.Purpose);
@@ -356,17 +356,17 @@ public class AuthService : IAuthService
         // Xác thực mã OTP
         var isValid = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, "Register");
         if (!isValid)
-            throw new InvalidOperationException("Mã OTP không hợp lệ hoặc đã hết hạn.");
+            throw new InvalidOperationException("Invalid or expired OTP code.");
 
         // Kiểm tra username đã tồn tại chưa
         var existing = await _userRepository.GetByUsernameAsync(request.Username);
         if (existing != null)
-            throw new InvalidOperationException("Tên đăng nhập đã tồn tại.");
+            throw new InvalidOperationException("Username already exists.");
 
         // Kiểm tra email đã tồn tại chưa
         var emailExists = await _userRepository.GetByEmailAsync(request.Email);
         if (emailExists != null)
-            throw new InvalidOperationException("Email đã được đăng ký.");
+            throw new InvalidOperationException("Email is already registered.");
 
         // Tạo tài khoản mới (email đã được xác thực)
         var driverCode = "DRV-" + _qrCodeService.GenerateUniqueCode(5);
@@ -407,12 +407,12 @@ public class AuthService : IAuthService
         // Xác thực mã OTP
         var isValid = await _otpService.VerifyOtpAsync(request.Email, request.OtpCode, "ForgotPassword");
         if (!isValid)
-            throw new InvalidOperationException("Mã OTP không hợp lệ hoặc đã hết hạn.");
+            throw new InvalidOperationException("Invalid or expired OTP code.");
 
         // Tìm user theo email
         var user = await _userRepository.GetByEmailAsync(request.Email);
         if (user == null)
-            throw new InvalidOperationException("Không tìm thấy tài khoản với email này.");
+            throw new InvalidOperationException("Account with this email not found.");
 
         if (request.NewPassword.Length < 6)
             throw new InvalidOperationException("Mật khẩu mới phải có ít nhất 6 ký tự.");

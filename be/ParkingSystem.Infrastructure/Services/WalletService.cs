@@ -87,7 +87,7 @@ public class WalletService : IWalletService
                 Amount = request.Amount,
                 Type = "Withdrawal",
                 Status = "Pending",
-                Description = $"Rút tiền về ngân hàng {defaultBank.BankName}",
+                Description = $"Withdraw money to bank {defaultBank.BankName}",
                 ReferenceId = referenceId
             };
 
@@ -109,10 +109,10 @@ public class WalletService : IWalletService
                 // Thất bại: Hoàn tiền lại ví
                 user.Balance += request.Amount;
                 walletTx.Status = "Failed";
-                walletTx.Description += $" (Lỗi: {payoutResult.ErrorMessage})";
+                walletTx.Description += $" (Error: {payoutResult.ErrorMessage})";
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
-                return (false, $"Rút tiền qua cổng PayOS thất bại: {payoutResult.ErrorMessage}");
+                return (false, $"Withdrawal via PayOS failed: {payoutResult.ErrorMessage}");
             }
         }
         catch (Exception)

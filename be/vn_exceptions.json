@@ -1,0 +1,226 @@
+[
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Tài khoản chưa có email để xác thực OTP.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Mã OTP không hợp lệ hoặc đã hết hạn.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Mật khẩu mới phải có ít nhất 6 ký tự.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Tên đăng nhập đã tồn tại.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Email đã được đăng ký.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Email đã được sử dụng bởi tài khoản khác.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Email không được để trống.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Purpose phải là 'Register', 'ForgotPassword' hoặc 'ChangePassword'.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Email này chưa đăng ký tài khoản.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Email này đã được đăng ký.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Mã OTP không hợp lệ hoặc đã hết hạn.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Tên đăng nhập đã tồn tại.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Email đã được đăng ký.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Mã OTP không hợp lệ hoặc đã hết hạn.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Không tìm thấy tài khoản với email này.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "original": "\"Mật khẩu mới phải có ít nhất 6 ký tự.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\ParkingSlotService.cs",
+    "original": "$\"Không thể sửa đổi loại xe. Các slot sau đang có xe đỗ hoặc đã được đặt trước: {slotNumbers}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GmailEmailService.cs",
+    "original": "\"EmailSettings:SenderEmail chưa cấu hình.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GmailEmailService.cs",
+    "original": "\"EmailSettings:SenderPassword chưa cấu hình.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "original": "\"Giao dịch này đã được hoàn tiền trước đó.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "original": "$\"Không thể hoàn tiền. Trạng thái hiện tại của Payment là: {payment.Status}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "original": "\"Không thể tìm thấy thông tin Driver để hoàn tiền.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "original": "\"Không thể tìm thấy thông tin tài khoản để hoàn tiền.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "original": "$\"Không thể từ chối hoàn tiền. Trạng thái hiện tại: {payment.Status}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Thời gian bắt đầu phải lớn hơn thời điểm hiện tại.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Thời gian kết thúc phải lớn hơn thời gian bắt đầu.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Xe không tồn tại hoặc không thuộc về bạn.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Bạn đã đạt giới hạn tối đa 3 đặt chỗ đang hoạt động. Vui lòng hoàn thành hoặc hủy bớt trước khi tạo mới.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "$\"Biển số {licensePlate} đã có lịch đặt chỗ trong khoảng thời gian này.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "$\"Không tìm thấy ô trống phù hợp{scope}.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Vui lòng chọn ô đỗ xe (ParkingSlotId) khi đặt chỗ thủ công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Ô đỗ xe không tồn tại.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "$\"Ô đỗ {slot.SlotNumber} đang bảo trì, không thể đặt chỗ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "$\"Ô đỗ {slot.SlotNumber} đã được đặt trong khoảng thời gian này.{suggestMsg}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Không tìm thấy thông tin tài xế.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Không tìm thấy thông tin đặt chỗ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Reservation không ở trạng thái chờ thanh toán.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Không tìm thấy giao dịch thanh toán nào.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Giao dịch chưa được thanh toán thành công trên PayOS. Vui lòng thanh toán trước khi xác nhận.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Không tìm thấy thông tin đặt chỗ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Reservation không ở trạng thái chờ thanh toán.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Không tìm thấy thông tin đặt chỗ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Chỉ có thể hủy khi trạng thái là PaymentPending, PendingReview hoặc Confirmed.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Không tìm thấy thông tin đặt chỗ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Chỉ có thể duyệt khi trạng thái là PendingReview (đã thanh toán).\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Không tìm thấy thông tin đặt chỗ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Chỉ có thể đổi chỗ cho booking đã được Confirmed.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "original": "\"Ô đỗ mới không tồn tại hoặc không còn trống.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SessionService.cs",
+    "original": "\"Không tìm thấy phiên gửi xe.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SessionService.cs",
+    "original": "\"Không có phiên đỗ xe nào đang hoạt động để tua thời gian.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SessionService.cs",
+    "original": "\"Không có phiên đỗ xe nào đang hoạt động để reset thời gian.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SessionService.cs",
+    "original": "\"Không tìm thấy thông tin tài xế.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SessionService.cs",
+    "original": "\"Phiên đỗ xe này chưa phát sinh thêm phí để thanh toán trước.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionService.cs",
+    "original": "$\"Không có gói vé tháng nào được áp dụng cho loại xe {vehicle.VehicleType?.Name}.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionService.cs",
+    "original": "$\"Số dư trong ví không đủ! Phí vé tháng là {fee:N0} VND, nhưng số dư của bạn chỉ còn {driver.Balance:N0} VND. Vui lòng chọn PayOS hoặc nạp thêm tiền vào ví.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\Lpr\\OpenCvPreprocessor.cs",
+    "original": "\"Vùng crop không hợp lệ\""
+  }
+]

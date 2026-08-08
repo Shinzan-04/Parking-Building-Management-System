@@ -179,7 +179,7 @@ public class WalletsController : ControllerBase
             var account = await context.UserBankAccounts.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
             
             if (account == null)
-                return NotFound(new { Message = "Không tìm thấy tài khoản ngân hàng." });
+                return NotFound(new { Message = "Bank account not found." });
 
             account.BankName = request.BankName;
             account.BankBin = request.BankBin;
@@ -212,7 +212,7 @@ public class WalletsController : ControllerBase
             var account = await context.UserBankAccounts.FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
             
             if (account == null)
-                return NotFound(new { Message = "Không tìm thấy tài khoản ngân hàng." });
+                return NotFound(new { Message = "Bank account not found." });
 
             context.UserBankAccounts.Remove(account);
             await context.SaveChangesAsync();

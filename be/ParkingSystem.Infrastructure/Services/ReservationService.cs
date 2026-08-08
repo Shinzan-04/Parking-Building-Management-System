@@ -41,10 +41,10 @@ public class ReservationService : IReservationService
     {
         // 1. Validate thời gian
         if (request.StartTime <= DateTime.UtcNow)
-            throw new InvalidOperationException("Thời gian bắt đầu phải lớn hơn thời điểm hiện tại.");
+            throw new InvalidOperationException("Start time must be greater than current time.");
 
         if (request.EndTime <= request.StartTime)
-            throw new InvalidOperationException("Thời gian kết thúc phải lớn hơn thời gian bắt đầu.");
+            throw new InvalidOperationException("End time must be greater than start time.");
 
         // 2. Lấy thông tin xe từ bảng Vehicles
         var vehicle = await _context.Vehicles
@@ -52,7 +52,7 @@ public class ReservationService : IReservationService
             .FirstOrDefaultAsync(v => v.Id == request.VehicleId && v.DriverId == driverId);
 
         if (vehicle == null)
-            throw new InvalidOperationException("Xe không tồn tại hoặc không thuộc về bạn.");
+            throw new InvalidOperationException("Vehicle does not exist or does not belong to you.");
 
         var licensePlate = vehicle.PlateNumber;
         var vehicleTypeId = vehicle.VehicleTypeId;
@@ -83,7 +83,7 @@ public class ReservationService : IReservationService
         var activeReservationCount = await _context.Reservations
             .CountAsync(r => r.DriverId == driverId && activeStatuses.Contains(r.Status));
         if (activeReservationCount >= 3)
-            throw new InvalidOperationException("Bạn đã đạt giới hạn tối đa 3 đặt chỗ đang hoạt động. Vui lòng hoàn thành hoặc hủy bớt trước khi tạo mới.");
+            throw new InvalidOperationException("You have reached the limit of 3 active reservations. Please complete or cancel some before creating a new one.");
 
         var hasExistingBooking = await _context.Reservations
             .AnyAsync(r => r.LicensePlate == licensePlate
@@ -91,7 +91,7 @@ public class ReservationService : IReservationService
                         && r.StartTime < reqEndTime
                         && r.EndTime > reqStartTime);
         if (hasExistingBooking)
-            throw new InvalidOperationException($"Biển số {licensePlate} đã có lịch đặt chỗ trong khoảng thời gian này.");
+            throw new InvalidOperationException($"License plate {licensePlate} already has a reservation during this time.");
 
         // 4. Chọn Slot & Transaction Lock
         await using var transaction = await _context.Database.BeginTransactionAsync();
@@ -114,7 +114,7 @@ public class ReservationService : IReservationService
                     if (bestSlot == null)
                     {
                         var scope = request.BuildingId.HasValue ? " trong tòa nhà đã chọn" : "";
-                        throw new InvalidOperationException($"Không tìm thấy ô trống phù hợp{scope}.");
+                        throw new InvalidOperationException($"No suitable available slot found{scope}.");
                     }
                     targetSlotId = bestSlot.SlotId;
                     aiScore = bestSlot.Score;
@@ -125,7 +125,7 @@ public class ReservationService : IReservationService
             {
                 // ===== CHẾ ĐỘ MANUAL =====
                 if (!request.ParkingSlotId.HasValue)
-                    throw new InvalidOperationException("Vui lòng chọn ô đỗ xe (ParkingSlotId) khi đặt chỗ thủ công.");
+                    throw new InvalidOperationException("Please select a parking slot (ParkingSlotId) for manual booking.");
                 targetSlotId = request.ParkingSlotId.Value;
             }
 
@@ -137,20 +137,20 @@ public class ReservationService : IReservationService
                 .FirstOrDefaultAsync();
 
             if (slot == null)
-                throw new InvalidOperationException("Ô đỗ xe không tồn tại.");
+                throw new InvalidOperationException("Parking slot does not exist.");
 
             // 5. Validate slot (Race Condition Check)
             // Slot Maintenance → luôn chặn
             if (slot.Status == SlotStatus.Maintenance)
-                throw new InvalidOperationException($"Ô đỗ {slot.SlotNumber} đang bảo trì, không thể đặt chỗ.");
+                throw new InvalidOperationException($"Parking slot {slot.SlotNumber} is under maintenance, cannot book.");
 
             // Kiểm tra loại xe phù hợp
             if (slot.VehicleTypeId != vehicleTypeId)
             {
                 var slotVehicleType = await _context.VehicleTypes.FindAsync(slot.VehicleTypeId);
                 throw new InvalidOperationException(
-                    $"Ô đỗ {slot.SlotNumber} chỉ dành cho {slotVehicleType?.Name ?? "loại xe khác"}, " +
-                    $"không hỗ trợ {vehicle.VehicleType?.Name ?? "loại xe bạn chọn"}.");
+                    $"Parking slot {slot.SlotNumber} is reserved for {slotVehicleType?.Name ?? "other vehicle types"}, " +
+                    $"and does not support {vehicle.VehicleType?.Name ?? "your selected vehicle"}.");
             }
 
             // 6. Kiểm tra khung giờ trùng (Double Check - đây là điều kiện quan trọng nhất)
@@ -170,7 +170,7 @@ public class ReservationService : IReservationService
                     if (suggest != null)
                         suggestMsg = $" 💡 Gợi ý: Bạn có thể đổi sang ô {suggest.SlotNumber} (Tầng {suggest.FloorName}).";
                 }
-                throw new InvalidOperationException($"Ô đỗ {slot.SlotNumber} đã được đặt trong khoảng thời gian này.{suggestMsg}");
+                throw new InvalidOperationException($"Parking slot {slot.SlotNumber} is already booked during this time.{suggestMsg}");
             }
 
             // 7. Sinh mã Booking Code
@@ -246,7 +246,7 @@ public class ReservationService : IReservationService
             };
 
             _context.Reservations.Add(reservation);
-            LogState(reservation, "Create", "Người dùng tạo đặt chỗ");
+            LogState(reservation, "Create", "User created reservation");
 
             // Nếu có phí thì xử lý thanh toán
             if (fee > 0)
@@ -259,7 +259,7 @@ public class ReservationService : IReservationService
                 else
                 {
                     var driver = await _context.Users.FirstOrDefaultAsync(u => u.Id == driverId);
-                    if (driver == null) throw new InvalidOperationException("Không tìm thấy thông tin tài xế.");
+                    if (driver == null) throw new InvalidOperationException("Driver information not found.");
 
                     if (driver.Balance < fee)
                     {
@@ -276,7 +276,7 @@ public class ReservationService : IReservationService
                     Amount = fee,
                     Type = "BookingPayment",
                     Status = "Success",
-                    Description = $"Thanh toán phí đặt chỗ {bookingCode}",
+                    Description = $"Pay reservation fee {bookingCode}",
                     CreatedAt = DateTime.UtcNow
                 });
 
@@ -289,7 +289,7 @@ public class ReservationService : IReservationService
                     Id = Guid.NewGuid(),
                     ReservationId = reservation.Id,
                     Amount = fee,
-                    Description = $"Thanh toán ví cho Booking {bookingCode}",
+                    Description = $"Pay with Wallet for Booking {bookingCode}",
                     PaymentDate = DateTime.UtcNow,
                     PaymentMethod = PaymentMethod.Wallet,
                     Status = PaymentStatus.Success,
@@ -300,7 +300,7 @@ public class ReservationService : IReservationService
                 _context.Payments.Add(payment);
 
                 bookingFee = fee;
-                _logger.LogInformation("Thanh toán Booking bằng Ví thành công. ReservationId={Id}, Fee={Fee}", reservation.Id, fee);
+                _logger.LogInformation("Booking paid successfully with Wallet. ReservationId={Id}, Fee={Fee}", reservation.Id, fee);
                 }
             }
 
@@ -341,7 +341,7 @@ public class ReservationService : IReservationService
                         await _notificationService.SendAsync(
                             staff.Id,
                             "🔔 New Reservation (Auto-approved)",
-                            $"Đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
+                            $"Reservation {reservation.BookingCode} has been automatically approved.",
                             "NewReservation",
                             reservation.Id);
                     }
@@ -397,10 +397,10 @@ public class ReservationService : IReservationService
             .FirstOrDefaultAsync(r => r.Id == reservationId);
 
         if (reservation == null)
-            throw new InvalidOperationException("Không tìm thấy thông tin đặt chỗ.");
+            throw new InvalidOperationException("Reservation information not found.");
 
         if (reservation.Status != ReservationStatus.PaymentPending)
-            throw new InvalidOperationException("Reservation không ở trạng thái chờ thanh toán.");
+            throw new InvalidOperationException("Reservation is not in pending payment status.");
 
         // Lấy thông tin giao dịch Payment mới nhất của đặt chỗ này để verify với PayOS
         var payment = await _context.Payments
@@ -409,7 +409,7 @@ public class ReservationService : IReservationService
             .FirstOrDefaultAsync();
 
         if (payment == null)
-            throw new InvalidOperationException("Không tìm thấy giao dịch thanh toán nào.");
+            throw new InvalidOperationException("No payment transaction found.");
 
         // Kiểm tra thực tế trên PayOS
         var (verifySuccess, actualStatus) = await _paymentService.VerifyPayOSPaymentAsync(payment.PayOSOrderCode);
@@ -418,7 +418,7 @@ public class ReservationService : IReservationService
         {
             // Nếu webhook đã xử lý thành công trước đó thì db đã là Success
             if (payment.Status != PaymentStatus.Success)
-                throw new InvalidOperationException("Giao dịch chưa được thanh toán thành công trên PayOS. Vui lòng thanh toán trước khi xác nhận.");
+                throw new InvalidOperationException("Transaction not successfully paid on PayOS. Please pay before confirming.");
         }
 
         // Cập nhật trạng thái Payment nếu nó chưa update
@@ -456,7 +456,7 @@ public class ReservationService : IReservationService
         {
             reservation.Status = ReservationStatus.Confirmed;
             reservation.UpdatedAt = DateTime.UtcNow;
-            LogState(reservation, "Confirmed", "Tự động duyệt (Auto-Approve)");
+            LogState(reservation, "Confirmed", "Auto-Approve");
             await _context.SaveChangesAsync();
 
             if (slot != null)
@@ -484,7 +484,7 @@ public class ReservationService : IReservationService
                 await _notificationService.SendAsync(
                     staff.Id,
                     "🔔 New Reservation (Auto-approved)",
-                    $"Đặt chỗ {reservation.BookingCode} đã được hệ thống tự động chấp nhận.",
+                    $"Reservation {reservation.BookingCode} has been automatically approved.",
                     "NewReservation",
                     reservation.Id);
             }
@@ -493,7 +493,7 @@ public class ReservationService : IReservationService
         {
             reservation.Status = ReservationStatus.PendingReview;
             reservation.UpdatedAt = DateTime.UtcNow;
-            LogState(reservation, "PaymentSuccess", "Xác nhận thanh toán thành công. Đang chờ Staff duyệt");
+            LogState(reservation, "PaymentSuccess", "Payment successful. Waiting for Staff approval.");
             await _context.SaveChangesAsync();
 
             if (slot != null)
@@ -535,10 +535,10 @@ public class ReservationService : IReservationService
     {
         var reservation = await _context.Reservations.FindAsync(reservationId);
         if (reservation == null)
-            throw new InvalidOperationException("Không tìm thấy thông tin đặt chỗ.");
+            throw new InvalidOperationException("Reservation information not found.");
 
         if (reservation.Status != ReservationStatus.PaymentPending)
-            throw new InvalidOperationException("Reservation không ở trạng thái chờ thanh toán.");
+            throw new InvalidOperationException("Reservation is not in pending payment status.");
 
         reservation.Status = ReservationStatus.PaymentFailed;
         reservation.UpdatedAt = DateTime.UtcNow;
@@ -551,7 +551,7 @@ public class ReservationService : IReservationService
             slot.UpdatedAt = DateTime.UtcNow;
         }
 
-        LogState(reservation, "PaymentFailed", "Thanh toán thất bại");
+        LogState(reservation, "PaymentFailed", "Payment failed");
         await _context.SaveChangesAsync();
 
         if (slot != null)
@@ -588,7 +588,7 @@ public class ReservationService : IReservationService
         var reservation = await _context.Reservations.FirstOrDefaultAsync(
             r => r.Id == reservationId && r.DriverId == driverId);
         if (reservation == null)
-            throw new InvalidOperationException("Không tìm thấy thông tin đặt chỗ.");
+            throw new InvalidOperationException("Reservation information not found.");
 
         // Cho phép hủy khi: PaymentPending, PendingReview, Confirmed, PaymentFailed
         var cancellableStatuses = new[]
@@ -599,7 +599,7 @@ public class ReservationService : IReservationService
             ReservationStatus.PaymentFailed
         };
         if (!cancellableStatuses.Contains(reservation.Status))
-            throw new InvalidOperationException("Chỉ có thể hủy khi trạng thái là PaymentPending, PendingReview hoặc Confirmed.");
+            throw new InvalidOperationException("Can only cancel when status is PaymentPending, PendingReview or Confirmed.");
 
         // Trả slot về Available nếu nó đang bị giữ (Reserved hoặc TemporaryHeld)
         var slot = await _context.ParkingSlots.FindAsync(reservation.ParkingSlotId);
@@ -621,7 +621,7 @@ public class ReservationService : IReservationService
             await InitiateRefundAsync(reservation.Id);
         }
 
-        LogState(reservation, "Cancel", "Người dùng hủy đặt chỗ");
+        LogState(reservation, "Cancel", "User cancelled reservation");
         await _context.SaveChangesAsync();
 
         if (slot != null)
@@ -703,10 +703,10 @@ public class ReservationService : IReservationService
     {
         var reservation = await _context.Reservations.FirstOrDefaultAsync(r => r.Id == reservationId);
         if (reservation == null)
-            throw new InvalidOperationException("Không tìm thấy thông tin đặt chỗ.");
+            throw new InvalidOperationException("Reservation information not found.");
 
         if (reservation.Status != ReservationStatus.PendingReview)
-            throw new InvalidOperationException("Chỉ có thể duyệt khi trạng thái là PendingReview (đã thanh toán).");
+            throw new InvalidOperationException("Can only approve when status is PendingReview (paid).");
 
         reservation.ReviewedByStaffId = staffId;
         reservation.UpdatedAt = DateTime.UtcNow;
@@ -732,7 +732,7 @@ public class ReservationService : IReservationService
                 "ReservationApproved",
                 reservation.Id);
 
-            LogState(reservation, "Approve", "Staff đã duyệt đặt chỗ");
+            LogState(reservation, "Approve", "Staff approved reservation");
         }
         else
         {
@@ -757,7 +757,7 @@ public class ReservationService : IReservationService
                 "ReservationRejected",
                 reservation.Id);
 
-            LogState(reservation, "Reject", $"Staff từ chối. Lý do: {reservation.RejectReason}");
+            LogState(reservation, "Reject", $"Staff rejected. Reason: {reservation.RejectReason}");
         }
 
         await _context.SaveChangesAsync();
@@ -823,21 +823,21 @@ public class ReservationService : IReservationService
     {
         var reservation = await _context.Reservations.FirstOrDefaultAsync(r => r.Id == reservationId);
         if (reservation == null)
-            throw new InvalidOperationException("Không tìm thấy thông tin đặt chỗ.");
+            throw new InvalidOperationException("Reservation information not found.");
 
         if (reservation.Status != ReservationStatus.Confirmed)
-            throw new InvalidOperationException("Chỉ có thể đổi chỗ cho booking đã được Confirmed.");
+            throw new InvalidOperationException("Can only change slot for Confirmed bookings.");
 
         var newSlot = await _context.ParkingSlots.FindAsync(newSlotId);
         if (newSlot == null || newSlot.Status != SlotStatus.Available)
-            throw new InvalidOperationException("Ô đỗ mới không tồn tại hoặc không còn trống.");
+            throw new InvalidOperationException("New parking slot does not exist or is not available.");
 
         var oldSlotId = reservation.ParkingSlotId;
 
         // Cập nhật booking
         reservation.ParkingSlotId = newSlotId;
         reservation.UpdatedAt = DateTime.UtcNow;
-        LogState(reservation, "Reassigned", $"Staff {staffId} đổi ô đỗ từ {oldSlotId} sang {newSlotId}");
+        LogState(reservation, "Reassigned", $"Staff {staffId} changed slot from {oldSlotId} to {newSlotId}");
 
         // Cập nhật trạng thái vật lý của ô mới/cũ nếu booking sắp diễn ra
         if (reservation.StartTime <= DateTime.UtcNow.AddMinutes(30))

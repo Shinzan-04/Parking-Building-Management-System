@@ -1,0 +1,746 @@
+[
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Program.cs",
+    "string": "\"Chỉ cần paste JWT token (không cần thêm 'Bearer ')\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\AuthController.cs",
+    "string": "$\"Đã gửi mã OTP tới {request.Email}. Mã có hiệu lực 5 phút.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\AuthController.cs",
+    "string": "\"Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\AuthController.cs",
+    "string": "\"Không xác định được người dùng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\AuthController.cs",
+    "string": "\"Đăng xuất thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\AuthController.cs",
+    "string": "\"Đã bật Tự động thanh toán.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\AuthController.cs",
+    "string": "\"Đổi mật khẩu thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\AuthController.cs",
+    "string": "\"Đã tắt Tự động thanh toán.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\CheckInController.cs",
+    "string": "\"Không còn slot trống cho loại xe này.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\NotificationsController.cs",
+    "string": "\"Không xác định được người dùng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\NotificationsController.cs",
+    "string": "\"Đã đánh dấu đã đọc.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\NotificationsController.cs",
+    "string": "\"Đã đánh dấu tất cả đã đọc.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\OcrController.cs",
+    "string": "\"Xác nhận biển số rồi gọi POST /api/checkin/walk-in để check-in.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\OcrController.cs",
+    "string": "\"Không phát hiện được biển số xe.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\OcrController.cs",
+    "string": "\"Ảnh không được để trống.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\ParkingSlotsController.cs",
+    "string": "\"Lỗi khi cập nhật loại xe cho slot.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\PaymentsController.cs",
+    "string": "$\"Vé tháng cho xe {subscription.LicensePlate} đã thanh toán thành công và có hiệu lực đến {subscription.EndDate:dd/MM/yyyy}.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\PaymentsController.cs",
+    "string": "\"Lỗi hệ thống khi hoàn tiền.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\PaymentsController.cs",
+    "string": "\"Vé tháng đã kích hoạt\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\PaymentsController.cs",
+    "string": "\"Đã từ chối yêu cầu hoàn tiền.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\PaymentsController.cs",
+    "string": "$\"Nạp tiền vào ví qua PayOS (Order: {payment.PayOSOrderCode})\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\ReservationsController.cs",
+    "string": "\"Số dư ví không đủ. Vui lòng nạp thêm tiền vào ví để thanh toán phí đặt chỗ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\ReservationsController.cs",
+    "string": "\"từ chối\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\ReservationsController.cs",
+    "string": "$\"Đã {statusMsg} yêu cầu đặt chỗ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\ReservationsController.cs",
+    "string": "\"Hủy đặt chỗ thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\ReservationsController.cs",
+    "string": "\"chấp nhận\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\ReservationsController.cs",
+    "string": "\"Thanh toán thành công. Đang chờ Staff duyệt.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\ReservationsController.cs",
+    "string": "\"Đổi ô đỗ cho khách thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\ReservationsController.cs",
+    "string": "\"Thanh toán thất bại. Vui lòng thử lại.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SeedController.cs",
+    "string": "\"Vui lòng cung cấp danh sách BuildingId.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SeedController.cs",
+    "string": "$\"Đã tạo thành công {sessionsToAdd.Count} phiên đỗ xe giả lập trong quá khứ cho {buildingIds.Count} tòa nhà.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SeedController.cs",
+    "string": "\"Không tìm thấy slot nào cho các tòa nhà này.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SeedController.cs",
+    "string": "\"Hệ thống chưa có VehicleType nào.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SessionsController.cs",
+    "string": "\"Vui lòng nhập biển số xe.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SessionsController.cs",
+    "string": "$\"Đã tua nhanh {minutes} phút thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SessionsController.cs",
+    "string": "\"Lỗi hệ thống.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SessionsController.cs",
+    "string": "\"Đã khôi phục thời gian đỗ xe về hiện tại.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SubscriptionsController.cs",
+    "string": "\"Không thể hủy vé này.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SubscriptionsController.cs",
+    "string": "\"Đã hủy vé tháng thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SubscriptionsController.cs",
+    "string": "\"Không xác định được người dùng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SubscriptionsController.cs",
+    "string": "\"Đã gửi yêu cầu hủy vé tháng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SubscriptionsController.cs",
+    "string": "\"Đã xử lý yêu cầu hủy vé tháng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SubscriptionsController.cs",
+    "string": "\"Đã hủy vé tháng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SubscriptionsController.cs",
+    "string": "\"Không thể xử lý (yêu cầu không tồn tại hoặc đã được xử lý).\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\SubscriptionsController.cs",
+    "string": "\"Không thể gửi yêu cầu hủy (vé không tồn tại hoặc không ở trạng thái Active).\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\TransactionsController.cs",
+    "string": "\"Lỗi khi lấy lịch sử giao dịch\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\UsersController.cs",
+    "string": "\"Manager chỉ được tạo tài khoản Staff.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\UsersController.cs",
+    "string": "\"Tài khoản đã được mở khóa.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\UsersController.cs",
+    "string": "$\"Cấp quyền {request.Role} thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\VehiclesController.cs",
+    "string": "\"Xóa phương tiện thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\VehiclesController.cs",
+    "string": "\"Xóa phương tiện thất bại.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\VehiclesController.cs",
+    "string": "\"Thiết lập phương tiện mặc định thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\WalletsController.cs",
+    "string": "\"Đã xoá tài khoản ngân hàng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\WalletsController.cs",
+    "string": "\"Số tiền nạp tối thiểu là 10,000 VND.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\WalletsController.cs",
+    "string": "\"Tạo yêu cầu nạp tiền thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\WalletsController.cs",
+    "string": "\"Cập nhật tài khoản ngân hàng thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Controllers\\WalletsController.cs",
+    "string": "\"Thêm tài khoản ngân hàng thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Hubs\\ChatHub.cs",
+    "string": "\"bó tay\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.API\\Hubs\\ChatHub.cs",
+    "string": "\"Tiếp quản\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\DTOs\\MonthlyPass\\MonthlyPassDtos.cs",
+    "string": "\"Giá tháng phải >= 0\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\DTOs\\Session\\SessionDtos.cs",
+    "string": "\"2 giờ 15 phút\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "\"Refresh token đã hết hạn. Vui lòng đăng nhập lại.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "\"Refresh token không hợp lệ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "\"Tên đăng nhập hoặc mật khẩu không đúng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "\"Refresh token đã bị thu hồi.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "$\"Tài khoản đã bị khóa do đăng nhập sai quá {MaxFailedAttempts} lần. Thử lại sau {remaining} phút.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "\"Mật khẩu mới phải có ít nhất 6 ký tự.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "\"Tài khoản chưa có email để xác thực OTP.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "$\"Mật khẩu không đúng. Còn {MaxFailedAttempts - user.FailedLoginCount} lần thử.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "$\"Tài khoản đã bị khóa {LockoutMinutes} phút do đăng nhập sai {MaxFailedAttempts} lần.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "\"Purpose phải là 'Register', 'ForgotPassword' hoặc 'ChangePassword'.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\AuthService.cs",
+    "string": "\"Google Token không hợp lệ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\ParkingSlotService.cs",
+    "string": "\"chiếm giữ\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\ParkingSlotService.cs",
+    "string": "$\"Không thể sửa đổi loại xe. Các slot sau đang có xe đỗ hoặc đã được đặt trước: {slotNumbers}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\PricingPolicyService.cs",
+    "string": "\"Xóa bảng giá\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\PricingPolicyService.cs",
+    "string": "$\"Cập nhật bảng giá (Tạo version {newPolicy.Version})\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Application\\Services\\PricingPolicyService.cs",
+    "string": "\"Tạo bảng giá mới\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "$\"Check-in thành công (Staff chọn). Vui lòng đỗ xe tại ô {assignedSlot.SlotNumber}, tầng {floorName}, tòa {buildingName}.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "\"AI gợi ý\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "\"Biển số xe thực tế không khớp với biển số đăng ký. Cần nhân viên xác nhận.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "$\"Biển số OCR ({ocrPlate}) không khớp với booking ({closestReservation.LicensePlate}). \""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "\"Khách vé tháng\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "\" trong tòa nhà này\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "\"Staff chọn\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "\"Tài xế đã vào bãi thành công\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "$\"Check-in thành công ({customerType} — {assignmentType}). Vui lòng đỗ xe tại ô {assignedSlot.SlotNumber}, tầng {floorName}, tòa {buildingName}.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "$\"Check-in thành công (AI gợi ý). Vui lòng đỗ xe tại ô {assignedSlot.SlotNumber}, tầng {floorName}, tòa {buildingName}.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "$\"Tài xế: {driverCode}. Cần nhân viên xác nhận.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "\"Khách vãng lai\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckInService.cs",
+    "string": "$\"Check-in thành công (Đặt trước). Vui lòng đỗ xe tại ô {slot.SlotNumber}, tầng {floorName}, tòa {buildingName}.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckOutService.cs",
+    "string": "$\"Thanh toán phí gửi xe (Miễn phí Grace Period) cho biển số {session.LicensePlate}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckOutService.cs",
+    "string": "\"KHỚP\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckOutService.cs",
+    "string": "\"Tài xế đã hoàn thành chuyến đi và rời bãi\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckOutService.cs",
+    "string": "\"KHÔNG KHỚP\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckOutService.cs",
+    "string": "$\"Thanh toán phí gửi xe (Đã đặt chỗ trước) cho biển số {session.LicensePlate}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckOutService.cs",
+    "string": "\"Nhân viên xác nhận khớp biển số bằng mắt thường do OCR không nhận diện chính xác\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CheckOutService.cs",
+    "string": "$\"Thanh toán phí gửi xe (Sử dụng Vé tháng) cho biển số {session.LicensePlate}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CloudinaryImageService.cs",
+    "string": "\"❌ Upload Cloudinary thất bại: {Error}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\CloudinaryImageService.cs",
+    "string": "\"☁️ Upload Cloudinary thành công: {Url} | Size: {Size} bytes | Format: {Format}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "$\"{g.Key}: {g.Count()} chỗ\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "$\"  + Xe {p.VehicleType.Name}: {p.DayBlockRate:N0} VNĐ / {p.BlockDurationHours} giờ (Ban ngày), {p.NightBlockRate:N0} VNĐ / {p.BlockDurationHours} giờ (Ban đêm {p.NightStartHour}h-{p.NightEndHour}h). Tối đa: {p.DailyRate:N0} VNĐ/ngày.\\n\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\", HÃY TRẢ LỜI bằng câu sau:\n\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"- Bảng giá đỗ xe:\\n\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\" (Lưu ý: TUYỆT ĐỐI KHÔNG DÙNG TAG [SUGGEST_LIVECHAT] Ở CÂU NÀY).\n3. NẾU khách hàng ĐỒNG Ý sau khi được hỏi ở Rule 2, HOẶC khách hàng CHỦ ĐỘNG yêu cầu \""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "$\"- Sức chứa: Tổng {totalSlots} chỗ, còn trống {availableSlots} chỗ.\\n\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"Dạ, hệ thống đang kết nối bạn với nhân viên hỗ trợ. Xin vui lòng đợi trong giây lát. [SUGGEST_LIVECHAT]\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"Hệ thống bãi đỗ xe chung.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"Bạn là 'ParkAssist', một trợ lý AI chăm sóc khách hàng tận tâm của Hệ thống Quản lý Bãi đỗ xe thông minh.\n{buildingContext}\n\nTHÔNG TIN QUY ĐỊNH BÃI XE (BUSINESS RULES):\n- Mở cửa: 24/7 (Xuyên đêm).\n- Thanh toán: Hỗ trợ thanh toán tự động không tiền mặt qua Ví điện tử nội bộ (Wallet) hoặc các cổng thanh toán online (PayOS).\n- Quy trình Đặt chỗ trước (Reservation/Booking):\n  + Bước 1: Khách hàng nhập biển số xe, chọn khung giờ (StartTime, EndTime) và chọn ô đỗ (Có thể tự chọn hoặc để AI tự động gợi ý ô tốt nhất).\n  + Bước 2: Hệ thống tính phí và tạo mã Booking Code (Ví dụ: BK-123456).\n  + Bước 3: Khách hàng có 15 phút để thanh toán (Payment Pending). Nếu không thanh toán, đơn tự hủy.\n  + Bước 4: Sau khi thanh toán, đơn sẽ ở trạng thái Chờ duyệt (Pending Review) hoặc Đã xác nhận (Confirmed) tùy cài đặt của tòa nhà.\n- Các quy định và Giới hạn Đặt chỗ:\n  + Giới hạn (Anti-Spam): Mỗi khách hàng (Driver) chỉ được phép có tối đa 3 đơn đặt chỗ đang hoạt động cùng lúc. Một biển số xe không thể đặt 2 ô đỗ trong cùng một khung giờ.\n  + Giữ chỗ: Hệ thống tự động khóa ô đỗ (Reserve) cho khách 30 phút trước giờ hẹn (StartTime).\n  + Đến trễ (No-Show): Nếu trễ quá 30 phút so với giờ hẹn mà chưa Check-in, đơn sẽ bị hủy và KHÔNG HOÀN TIỀN.\n  + Không thể đặt chỗ vào các ô đỗ đang trong trạng thái Bảo trì (Maintenance).\n- Mất thẻ xe hoặc sự cố kỹ thuật: Khách cần xuất trình giấy tờ xe tại bốt bảo vệ để xử lý.\n\nTUÂN THỦ NGHIÊM NGẶT 4 QUY TẮC SAU:\n1. Trả lời ngắn gọn, lịch sự, chuyên nghiệp bằng tiếng Việt.\n2. Nếu khách hàng hỏi một vấn đề khó, sự cố (mất đồ, quẹt xe), hoặc bạn không có dữ liệu để trả lời, HÃY HỎI XEM KHÁCH CÓ MUỐN GẶP NHÂN VIÊN KHÔNG bằng câu sau:\n\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "$\"THÔNG TIN REAL-TIME TỪ DATABASE:\\n\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"Dạ, rất xin lỗi bạn, hiện tại tôi chưa có đủ dữ liệu để trả lời chính xác vấn đề này. Bạn có muốn kết nối trực tiếp với nhân viên hỗ trợ của chúng tôi không ạ?\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"Xin lỗi, hệ thống AI đang bảo trì. Vui lòng thử lại sau. [SUGGEST_LIVECHAT]\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"Tôi muốn gặp nhân sự/nhân viên/người thật\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"Xin lỗi, tôi không hiểu ý bạn.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "$\"Bạn đang tư vấn cho tòa nhà: {building.Name}, địa chỉ: {building.Address}.\\n\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"Xin lỗi, tôi là trợ lý ảo của Bãi đỗ xe. Tôi chỉ có thể hỗ trợ bạn các vấn đề liên quan đến đỗ xe. Tôi không thể giúp bạn chủ đề này.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\" (BẮT BUỘC CÓ TAG [SUGGEST_LIVECHAT] để tự động chuyển máy).\n4. Từ chối các câu hỏi ngoài luồng (Out-of-domain) như thời tiết, chính trị, viết code... bằng câu:\n\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "\"Xin lỗi, tôi gặp lỗi khi xử lý câu trả lời. [SUGGEST_LIVECHAT]\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GeminiChatService.cs",
+    "string": "$\"- Chi tiết chỗ trống theo loại xe: {string.Join(\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GmailEmailService.cs",
+    "string": "\"📧 Gửi email thành công tới: {Email} | Subject: {Subject}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GmailEmailService.cs",
+    "string": "\"EmailSettings:SenderPassword chưa cấu hình.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GmailEmailService.cs",
+    "string": "\"❌ Gửi email thất bại tới: {Email} | Error: {Message}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GmailEmailService.cs",
+    "string": "\"EmailSettings:SenderEmail chưa cấu hình.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\GracePeriodNotifierService.cs",
+    "string": "$\"Thời gian ân hạn 15 phút sau khi thanh toán sắp hết (đến {session.GracePeriodEndTime.Value.AddHours(7):HH:mm}). Nếu bạn vẫn tiếp tục gửi, hệ thống sẽ trở lại tính phí theo Block bình thường.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\OtpService.cs",
+    "string": "\"🔑 Mã đặt lại mật khẩu — Parking System\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\OtpService.cs",
+    "string": "\"Bạn đã yêu cầu đặt lại mật khẩu tại <b>Parking System</b>. Vui lòng nhập mã bên dưới.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\OtpService.cs",
+    "string": "\"Đặt lại mật khẩu\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\OtpService.cs",
+    "string": "\"Bạn đang đăng ký tài khoản tại <b>Parking System</b>. Vui lòng nhập mã bên dưới để hoàn tất đăng ký.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\OtpService.cs",
+    "string": "\"\n        <div style='font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; background: #f8f9fa; border-radius: 12px;'>\n            <div style='text-align: center; margin-bottom: 24px;'>\n                <h2 style='color: #1a1a2e; margin: 0;'>🅿️ Parking System</h2>\n                <p style='color: #666; margin: 8px 0 0;'>{title}</p>\n            </div>\n            <div style='background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);'>\n                <p style='color: #333; line-height: 1.6;'>{description}</p>\n                <div style='text-align: center; margin: 24px 0;'>\n                    <span style='display: inline-block; font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #2563eb; background: #eff6ff; padding: 16px 32px; border-radius: 8px; border: 2px dashed #93c5fd;'>\n                        {code}\n                    </span>\n                </div>\n                <p style='color: #999; font-size: 13px; text-align: center;'>\n                    ⏰ Mã có hiệu lực trong <b>5 phút</b>. Không chia sẻ mã này với bất kỳ ai.\n                </p>\n            </div>\n            <p style='color: #aaa; font-size: 12px; text-align: center; margin-top: 16px;'>\n                Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email.\n            </p>\n        </div>\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\OtpService.cs",
+    "string": "\"📧 Đã gửi OTP [{Purpose}] tới {Email}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\OtpService.cs",
+    "string": "\"🅿️ Mã xác thực đăng ký — Parking System\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\OtpService.cs",
+    "string": "\"Xác thực đăng ký tài khoản\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Hoàn tiền thành công.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Bị từ chối bởi quản trị viên.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Bắt đầu hoàn tiền vào ví cho PaymentId={Id}, Amount={Amount}, Mode={Mode}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "$\"Không thể hoàn tiền. Trạng thái hiện tại của Payment là: {payment.Status}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "$\"Hoàn tiền thất bại: {ex.Message}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Tự động duyệt sau khi thanh toán\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Thanh toán PayOS thành công (Webhook)\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Nạp tiền\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "$\"Không thể từ chối hoàn tiền. Trạng thái hiện tại: {payment.Status}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Giao dịch này đã được hoàn tiền trước đó.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "$\"Nạp tiền vào ví qua PayOS (Order: {payment.PayOSOrderCode})\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Không thể tìm thấy thông tin Driver để hoàn tiền.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Hoàn tiền vào Ví thành công cho PaymentId={Id}, UserId={UserId}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Lỗi hoàn tiền cho PaymentId={Id}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "$\"Hoàn tiền cho giao dịch {(payment.PayOSOrderCode != 0 ? payment.PayOSOrderCode.ToString() : payment.Id.ToString())}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\PayOSPaymentService.cs",
+    "string": "\"Không thể tìm thấy thông tin tài khoản để hoàn tiền.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationCleanupService.cs",
+    "string": "$\"Tự động từ chối — Staff không duyệt trong {ReviewTimeoutMinutes} phút.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationCleanupService.cs",
+    "string": "$\"Tự động hủy — không thanh toán trong {PaymentTimeoutMinutes} phút.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationCleanupService.cs",
+    "string": "$\"Không check-in trong {NoShowGraceMinutes} phút sau giờ hẹn. Không hoàn tiền.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationCleanupService.cs",
+    "string": "\"❌ Lỗi khi quét reservation hết hạn.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationCleanupService.cs",
+    "string": "\"🛑 ReservationCleanupService đã dừng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationCleanupService.cs",
+    "string": "$\"[BÁO ĐỘNG] Ô đỗ {slot.SlotNumber} đã được đặt trước bởi biển số {reservation.LicensePlate} (sắp tới giờ) nhưng hiện đang có xe khác đỗ. Vui lòng xử lý!\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationCleanupService.cs",
+    "string": "\"Không gửi được notification cho reservation {Id}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationCleanupService.cs",
+    "string": "\"🔄 ReservationCleanupService đã khởi động. Quét mỗi {Interval} phút.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "string": "$\"Vui lòng đến trước {reservation.StartTime:dd/MM/yyyy HH:mm}.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "string": "\"} ({reservation.BookingCode}) đã được chấp nhận. \""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "string": "$\" 💡 Gợi ý: Bạn có thể đổi sang ô {suggest.SlotNumber} (Tầng {suggest.FloorName}).\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "string": "\" trong tòa nhà đã chọn\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "string": "$\"Yêu cầu đặt chỗ {slot?.SlotNumber ?? \""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\ReservationService.cs",
+    "string": "\"Không có lý do.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SlotAssignmentService.cs",
+    "string": "\"Vị trí gần đầu bãi\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SlotAssignmentService.cs",
+    "string": "\"Vị trí khả dụng\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SlotAssignmentService.cs",
+    "string": "\"Tầng thấp tiện lợi\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SlotAssignmentService.cs",
+    "string": "\"Gom cụm xe cùng loại\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionCleanupService.cs",
+    "string": "\"🛑 SubscriptionCleanupService đã dừng.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionCleanupService.cs",
+    "string": "\"🧹 Auto-cleanup Subscription: Đã hủy {Cancelled}, kích hoạt {Activated} gói vé tháng (quá hạn thanh toán {Timeout} phút).\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionCleanupService.cs",
+    "string": "\"❌ Lỗi khi quét vé tháng hết hạn thanh toán.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionCleanupService.cs",
+    "string": "\"🔄 SubscriptionCleanupService đã khởi động. Quét mỗi {Interval} phút.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionService.cs",
+    "string": "$\"Hoàn 70% tiền admin duyệt hủy vé tháng xe {sub.LicensePlate}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionService.cs",
+    "string": "$\"Thanh toán Ví cho Vé tháng xe {vehicle.PlateNumber}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionService.cs",
+    "string": "$\"Cập nhật bảng giá vé tháng. Giá: {oldPrice:N0} -> {request.MonthlyPrice:N0} VND\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionService.cs",
+    "string": "$\"Thanh toán vé tháng cho xe {vehicle.PlateNumber}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionService.cs",
+    "string": "$\"Tạo bảng giá vé tháng mới cho {vehicleType?.Name} với giá {request.MonthlyPrice:N0} VND\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionService.cs",
+    "string": "$\"Hoàn tiền admin hủy vé tháng xe {sub.LicensePlate}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\SubscriptionService.cs",
+    "string": "\"Vô hiệu hóa bảng giá vé tháng\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\WalletService.cs",
+    "string": "$\"Rút tiền qua cổng PayOS thất bại: {payoutResult.ErrorMessage}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\WalletService.cs",
+    "string": "$\" (Lỗi: {payoutResult.ErrorMessage})\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\WalletService.cs",
+    "string": "$\"Rút tiền về ngân hàng {defaultBank.BankName}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\Lpr\\LicensePlateRecognizer.cs",
+    "string": "\"Không phát hiện biển số.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\Lpr\\LicensePlateRecognizer.cs",
+    "string": "$\"Phát hiện biển (YOLO: {box.Confidence:P0}) nhưng không đọc được chữ.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\Lpr\\LicensePlateRecognizer.cs",
+    "string": "$\"Multi-Frame Voted (từ {validResults.Count} frames): {votedPlate}\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\Lpr\\LicensePlateRecognizer.cs",
+    "string": "\"Không có ảnh đầu vào.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\Lpr\\LicensePlateRecognizer.cs",
+    "string": "\"Toàn bộ frame đều không đọc được.\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\Lpr\\OpenCvPreprocessor.cs",
+    "string": "\"Vùng crop không hợp lệ\""
+  },
+  {
+    "file": "d:\\cuccut\\Park\\be\\ParkingSystem.Infrastructure\\Services\\Lpr\\YoloDetector.cs",
+    "string": "$\"Không tìm thấy model ONNX tại: {modelPath}\""
+  }
+]

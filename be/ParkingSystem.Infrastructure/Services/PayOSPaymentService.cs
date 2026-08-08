@@ -399,7 +399,7 @@ public class PayOSPaymentService : IPaymentService
             .FirstOrDefaultAsync(p => p.Id == paymentId);
 
         if (payment == null)
-            throw new KeyNotFoundException("Không tìm thấy giao dịch Payment.");
+            throw new KeyNotFoundException("Payment transaction not found.");
 
         // Chống Double Refund (Idempotency) — kiểm tra trước để trả đúng message khi đã hoàn tiền rồi
         if (!string.IsNullOrEmpty(payment.RefundReferenceId) || payment.Status == PaymentStatus.Refunded)
@@ -586,7 +586,7 @@ public class PayOSPaymentService : IPaymentService
         var payment = await _context.Payments
             .IgnoreQueryFilters()
             .FirstOrDefaultAsync(p => p.Id == paymentId)
-            ?? throw new KeyNotFoundException("Không tìm thấy giao dịch Payment.");
+            ?? throw new KeyNotFoundException("Payment transaction not found.");
 
         if (payment.Status != PaymentStatus.Refunding)
             throw new InvalidOperationException($"Không thể từ chối hoàn tiền. Trạng thái hiện tại: {payment.Status}");
