@@ -45,6 +45,7 @@ export interface CheckOutSearchResult {
   prePaidAmount?: number;
   amountDue?: number;
   autoPaidSuccess?: boolean;
+  entryImageUrl?: string;
 }
 
 export interface CheckOutConfirmRequest {

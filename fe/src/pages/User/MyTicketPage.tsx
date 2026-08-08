@@ -331,6 +331,12 @@ export default function MyTicketPage() {
                         </span>
                       </div>
                       <div className="flex justify-between">
+                        <span>Exit time</span>
+                        <span className="font-bold text-stone-850 dark:text-white">
+                          {formatTimeDisplay(ticket.endTime)} on {formatDateDisplay(ticket.endTime)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
                         <span>Duration</span>
                         <span className="font-bold text-stone-850 dark:text-white">
                           {getDurationHours(ticket.startTime, ticket.endTime)} hours

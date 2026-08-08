@@ -635,10 +635,8 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                     onClick={handleConfirmEntry}
                     className="inline-flex h-14 w-full items-center justify-center rounded-xl bg-[#FF4C4C] hover:bg-[#E13B3B] text-sm font-bold text-white transition-colors shadow-sm"
                   >
-                    <Zap className="mr-2 w-4 h-4" />
-                    VALIDATE TICKET
+                    CONFIRM ENTRY
                   </button>
-                  <p className="mt-3 text-center text-[10px] admin-text-faint font-bold tracking-widest uppercase">Shortcut: F1</p>
                 </div>
 
               </div>
@@ -716,7 +714,20 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                   {exitLoading ? (
                     <div className="text-center text-sm font-bold admin-text-faint py-12">Loading data...</div>
                   ) : exitSessionData ? (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4">
+                    <div className="flex flex-col gap-6">
+                      {exitSessionData.entryImageUrl && (
+                        <div className="w-full h-48 rounded-xl overflow-hidden border admin-border bg-stone-100 dark:bg-stone-900 flex items-center justify-center relative">
+                          <div className="absolute top-2 left-2 bg-black/60 text-white text-[9px] font-bold px-2 py-1 rounded backdrop-blur-sm z-10">
+                            ENTRY IMAGE
+                          </div>
+                          <img 
+                            src={exitSessionData.entryImageUrl} 
+                            alt="Entry Capture" 
+                            className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                          />
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4">
                       <div>
                         <p className="text-[10px] admin-text-faint font-bold uppercase tracking-wider mb-1">Session ID</p>
                         <p className="text-sm font-bold admin-text font-mono">{exitSessionData.sessionCode}</p>
@@ -748,6 +759,7 @@ export default function GateControlPage({ defaultTab = 'entry' }: { defaultTab?:
                         <span className="text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg uppercase tracking-wider">Ready for Collection</span>
                       </div>
                     </div>
+                  </div>
                   ) : (
                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-4 opacity-40">
                       <div>
