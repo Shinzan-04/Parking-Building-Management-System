@@ -1250,11 +1250,7 @@ function BookingSummary({
       value: floorLabel,
       muted: !state.floor,
     },
-    {
-      label: 'Zone',
-      value: state.zone ?? 'Not selected',
-      muted: !state.zone,
-    },
+
     {
       label: 'Slot',
       value: state.slot ?? 'Not selected',
@@ -1747,7 +1743,7 @@ function ConfirmationPopup({
               <div className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex items-center justify-between transition-colors">
                 <div>
                   <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider mb-1">Reserved Location</p>
-                  <p className="text-sm font-bold text-stone-800 dark:text-white transition-colors">{floorLabel} › {state.zone} › Slot {state.slot}</p>
+                  <p className="text-sm font-bold text-stone-800 dark:text-white transition-colors">{floorLabel} › Slot {state.slot}</p>
                   <p className="text-xs text-stone-400 mt-0.5">{lot.name}</p>
                 </div>
                 <div className="text-right">
@@ -1924,7 +1920,7 @@ function ConfirmationPopup({
                 {[
                   { label: 'Parking Lot', value: lot.name },
                   { label: 'License Plate', value: state.licensePlate },
-                  { label: 'Location', value: `${floorLabel} › ${state.zone} › Slot ${state.slot}` },
+                  { label: 'Location', value: `${floorLabel} › Slot ${state.slot}` },
                   { label: 'Entry Time', value: `${formatDateDisplay(state.entryDate)} ${state.entryTime}` },
                   { label: 'Exit Time', value: `${exitInfoCalc.date} ${exitInfoCalc.time}` },
                 ].map(({ label, value }, i, arr) => (
