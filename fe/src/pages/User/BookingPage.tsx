@@ -423,22 +423,6 @@ function StepLicensePlate({
                   />
                 </div>
 
-                {/* Checkbox: Save Vehicle */}
-                <div className="flex items-center justify-center gap-2 mt-1">
-                  <input
-                    type="checkbox"
-                    id="saveVehicle"
-                    checked={state.saveVehicle || false}
-                    onChange={(e) => setState((s) => ({ ...s, saveVehicle: e.target.checked }))}
-                    className="w-4 h-4 rounded border-gray-300 cursor-pointer accent-red-500 focus:ring-red-500"
-                  />
-                  <label
-                    htmlFor="saveVehicle"
-                    className="text-sm text-gray-500 hover:text-gray-700 cursor-pointer transition-colors"
-                  >
-                    Save this vehicle for future use
-                  </label>
-                </div>
 
                 {/* Format hint */}
                 {/* <div className="text-center space-y-1">
